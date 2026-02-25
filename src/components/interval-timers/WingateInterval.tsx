@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import IntervalTimerLanding from './IntervalTimerLanding';
 import IntervalTimerSetupModal from './IntervalTimerSetupModal';
@@ -6,7 +6,9 @@ import IntervalTimerOverlay from './IntervalTimerOverlay';
 import type { IntervalTimerPage } from './intervalTimerProtocols';
 import { getProtocolAccent } from './intervalTimerProtocols';
 import type { HIITTimelineBlock } from '@/types/ai-workout';
-import { getDefaultWarmupBlock } from './interval-timer-warmup';
+import { getDefaultWarmupBlock, getSetupBlock } from './interval-timer-warmup';
+import { useWarmupConfig } from './useWarmupConfig';
+import type { WarmupExercise } from './useWarmupConfig';
 import {
   BarChart,
   Bar,
@@ -45,9 +47,15 @@ const WingateInterval: React.FC<WingateIntervalProps> = ({ onNavigate }) => {
   const [isSetupOpen, setIsSetupOpen] = useState(false);
   const [isTimerOpen, setIsTimerOpen] = useState(false);
   const [totalCycles, setTotalCycles] = useState(4);
+  const [frozenWarmup, setFrozenWarmup] = useState<{
+    exercises: WarmupExercise[];
+    durationPerExercise: number;
+  } | null>(null);
+
+  const { exercises, durationPerExercise } = useWarmupConfig();
 
   const wingateTimeline = useMemo<HIITTimelineBlock[]>(() => {
-    const blocks: HIITTimelineBlock[] = [getDefaultWarmupBlock()];
+    const blocks: HIITTimelineBlock[] = [getDefaultWarmupBlock(), getSetupBlock()];
     for (let i = 0; i < totalCycles; i++) {
       blocks.push({
         type: 'work',
@@ -69,6 +77,7 @@ const WingateInterval: React.FC<WingateIntervalProps> = ({ onNavigate }) => {
   const startWithCycles = (cycles: number) => {
     setTotalCycles(cycles);
     setIsSetupOpen(false);
+    setFrozenWarmup({ exercises: [...exercises], durationPerExercise });
     setIsTimerOpen(true);
   };
 
@@ -95,7 +104,7 @@ const WingateInterval: React.FC<WingateIntervalProps> = ({ onNavigate }) => {
       time: i,
       value: simMode === 'work' ? getWingatePower(i) : 40 + (Math.random() * 5 - 2.5),
     }));
-    setIntensityData(initialData);
+    queueMicrotask(() => setIntensityData(initialData));
 
     const interval = setInterval(() => {
       setIntensityData((prev) => {
@@ -161,15 +170,18 @@ const WingateInterval: React.FC<WingateIntervalProps> = ({ onNavigate }) => {
     }
   };
 
-  const animateVisualizer = (time: number) => {
+  const spikeRadiiRef = useRef<number[]>([]);
+  const animateRef = useRef<(time: number) => void>(() => {});
+
+  const animateVisualizer = useCallback((time: number) => {
     const canvas = canvasRef.current;
     if (!canvas) {
-      requestRef.current = requestAnimationFrame(animateVisualizer);
+      requestRef.current = requestAnimationFrame((t) => animateRef.current(t));
       return;
     }
     const ctx = canvas.getContext('2d');
     if (!ctx) {
-      requestRef.current = requestAnimationFrame(animateVisualizer);
+      requestRef.current = requestAnimationFrame((t) => animateRef.current(t));
       return;
     }
 
@@ -188,7 +200,7 @@ const WingateInterval: React.FC<WingateIntervalProps> = ({ onNavigate }) => {
       ctx.beginPath();
       for (let i = 0; i < spikes * 2; i++) {
         const angle = (Math.PI * i) / spikes + time / 200;
-        const r = i % 2 === 0 ? outerRadius + Math.random() * 20 : innerRadius + Math.random() * 10;
+        const r = i % 2 === 0 ? outerRadius + spikeRadiiRef.current[i] : innerRadius + spikeRadiiRef.current[i];
         const x = centerX + Math.cos(angle) * r;
         const y = centerY + Math.sin(angle) * r;
         if (i === 0) ctx.moveTo(x, y);
@@ -225,16 +237,24 @@ const WingateInterval: React.FC<WingateIntervalProps> = ({ onNavigate }) => {
       ctx.fillText('RECOVER', centerX, centerY);
     }
 
-    requestRef.current = requestAnimationFrame(animateVisualizer);
-  };
+    requestRef.current = requestAnimationFrame((t) => animateRef.current(t));
+  }, [simMode]);
+
+  useEffect(() => {
+    animateRef.current = animateVisualizer;
+  });
 
   useLayoutEffect(() => {
+    const spikes = 12;
+    spikeRadiiRef.current = Array.from({ length: spikes * 2 }, (_, i) =>
+      i % 2 === 0 ? Math.random() * 20 : Math.random() * 10
+    );
     requestRef.current = requestAnimationFrame((t) => animateVisualizer(t));
     return () => {
       if (requestRef.current) cancelAnimationFrame(requestRef.current);
       requestRef.current = null;
     };
-  }, [simMode]);
+  }, [animateVisualizer]);
 
   const durationContent = (
     <div className="space-y-4">
@@ -520,8 +540,13 @@ const WingateInterval: React.FC<WingateIntervalProps> = ({ onNavigate }) => {
         createPortal(
           <IntervalTimerOverlay
             timeline={wingateTimeline}
-            onClose={() => setIsTimerOpen(false)}
+            onClose={() => {
+              setFrozenWarmup(null);
+              setIsTimerOpen(false);
+            }}
             theme={{ workBg: WINGATE_ACCENT.workBg }}
+            warmupExercises={frozenWarmup?.exercises}
+            warmupDurationPerExercise={frozenWarmup?.durationPerExercise}
           />,
           document.body
         )}

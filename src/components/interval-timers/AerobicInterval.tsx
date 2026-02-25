@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import IntervalTimerLanding from './IntervalTimerLanding';
 import IntervalTimerSetupModal from './IntervalTimerSetupModal';
@@ -6,7 +6,9 @@ import IntervalTimerOverlay from './IntervalTimerOverlay';
 import type { IntervalTimerPage } from './intervalTimerProtocols';
 import { getProtocolAccent } from './intervalTimerProtocols';
 import type { HIITTimelineBlock } from '@/types/ai-workout';
-import { getDefaultWarmupBlock } from './interval-timer-warmup';
+import { getDefaultWarmupBlock, getSetupBlock } from './interval-timer-warmup';
+import { useWarmupConfig } from './useWarmupConfig';
+import type { WarmupExercise } from './useWarmupConfig';
 import {
   BarChart,
   Bar,
@@ -45,9 +47,15 @@ const AerobicInterval: React.FC<AerobicIntervalProps> = ({ onNavigate }) => {
   const [isSetupOpen, setIsSetupOpen] = useState(false);
   const [isTimerOpen, setIsTimerOpen] = useState(false);
   const [totalCycles, setTotalCycles] = useState(15);
+  const [frozenWarmup, setFrozenWarmup] = useState<{
+    exercises: WarmupExercise[];
+    durationPerExercise: number;
+  } | null>(null);
+
+  const { exercises, durationPerExercise } = useWarmupConfig();
 
   const aerobicTimeline = useMemo<HIITTimelineBlock[]>(() => {
-    const blocks: HIITTimelineBlock[] = [getDefaultWarmupBlock()];
+    const blocks: HIITTimelineBlock[] = [getDefaultWarmupBlock(), getSetupBlock()];
     for (let i = 0; i < totalCycles; i++) {
       blocks.push({ type: 'work', duration: 30, name: 'Power', notes: '90-100% VO2 Max' });
       blocks.push({ type: 'rest', duration: 30, name: 'Recover', notes: 'Active recovery' });
@@ -64,6 +72,7 @@ const AerobicInterval: React.FC<AerobicIntervalProps> = ({ onNavigate }) => {
   const startWithCycles = (cycles: number) => {
     setTotalCycles(cycles);
     setIsSetupOpen(false);
+    setFrozenWarmup({ exercises: [...exercises], durationPerExercise });
     setIsTimerOpen(true);
   };
 
@@ -83,7 +92,7 @@ const AerobicInterval: React.FC<AerobicIntervalProps> = ({ onNavigate }) => {
       time: i,
       value: base + (Math.random() * 8 - 4),
     }));
-    setIntensityData(initialData);
+    queueMicrotask(() => setIntensityData(initialData));
 
     const interval = setInterval(() => {
       setIntensityData((prev) => {
@@ -129,6 +138,7 @@ const AerobicInterval: React.FC<AerobicIntervalProps> = ({ onNavigate }) => {
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const requestRef = useRef<number | null>(null);
+  const animateRef = useRef<(time: number) => void>(() => {});
   const [isTelemetryEnabled, setIsTelemetryEnabled] = useState(false);
   const lastBeatPhaseRef = useRef(0);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -179,15 +189,15 @@ const AerobicInterval: React.FC<AerobicIntervalProps> = ({ onNavigate }) => {
     osc.stop(t + 0.15);
   };
 
-  const animateVisualizer = (time: number) => {
+  const animateVisualizer = useCallback((time: number) => {
     const canvas = canvasRef.current;
     if (!canvas) {
-      requestRef.current = requestAnimationFrame(animateVisualizer);
+      requestRef.current = requestAnimationFrame((t) => animateRef.current(t));
       return;
     }
     const ctx = canvas.getContext('2d');
     if (!ctx) {
-      requestRef.current = requestAnimationFrame(animateVisualizer);
+      requestRef.current = requestAnimationFrame((t) => animateRef.current(t));
       return;
     }
 
@@ -252,8 +262,12 @@ const AerobicInterval: React.FC<AerobicIntervalProps> = ({ onNavigate }) => {
     ctx.fillStyle = 'rgba(255,255,255,0.7)';
     ctx.fillText('1:1 Ratio', centerX, centerY + 15);
 
-    requestRef.current = requestAnimationFrame(animateVisualizer);
-  };
+    requestRef.current = requestAnimationFrame((t) => animateRef.current(t));
+  }, [simMode, isTelemetryEnabled]);
+
+  useEffect(() => {
+    animateRef.current = animateVisualizer;
+  });
 
   useLayoutEffect(() => {
     requestRef.current = requestAnimationFrame((t) => {
@@ -263,7 +277,7 @@ const AerobicInterval: React.FC<AerobicIntervalProps> = ({ onNavigate }) => {
       if (requestRef.current) cancelAnimationFrame(requestRef.current);
       requestRef.current = null;
     };
-  }, [simMode]);
+  }, [simMode, animateVisualizer]);
 
   const durationContent = (
     <div className="space-y-4">
@@ -543,8 +557,13 @@ const AerobicInterval: React.FC<AerobicIntervalProps> = ({ onNavigate }) => {
         createPortal(
           <IntervalTimerOverlay
             timeline={aerobicTimeline}
-            onClose={() => setIsTimerOpen(false)}
+            onClose={() => {
+              setFrozenWarmup(null);
+              setIsTimerOpen(false);
+            }}
             theme={{ workBg: ACCENT.workBg }}
+            warmupExercises={frozenWarmup?.exercises}
+            warmupDurationPerExercise={frozenWarmup?.durationPerExercise}
           />,
           document.body
         )}

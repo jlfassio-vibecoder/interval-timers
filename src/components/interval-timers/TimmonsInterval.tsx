@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import IntervalTimerLanding from './IntervalTimerLanding';
 import IntervalTimerOverlay from './IntervalTimerOverlay';
 import type { IntervalTimerPage } from './intervalTimerProtocols';
 import { getProtocolAccent } from './intervalTimerProtocols';
 import type { HIITTimelineBlock } from '@/types/ai-workout';
+import { getSetupBlock } from './interval-timer-warmup';
 import {
   BarChart,
   Bar,
@@ -45,6 +46,7 @@ const TimmonsInterval: React.FC<TimmonsIntervalProps> = ({ onNavigate }) => {
   const timmonsTimeline = useMemo<HIITTimelineBlock[]>(() => {
     const blocks: HIITTimelineBlock[] = [
       { type: 'warmup', duration: 10, name: 'Get Ready', notes: 'Protocol Starting' },
+      getSetupBlock(),
     ];
     for (let i = 0; i < 3; i++) {
       blocks.push({
@@ -80,7 +82,7 @@ const TimmonsInterval: React.FC<TimmonsIntervalProps> = ({ onNavigate }) => {
       time: i,
       value: base + (Math.random() * 2 - 1),
     }));
-    setIntensityData(initialData);
+    queueMicrotask(() => setIntensityData(initialData));
 
     const interval = setInterval(() => {
       setIntensityData((prev) => {
@@ -124,6 +126,8 @@ const TimmonsInterval: React.FC<TimmonsIntervalProps> = ({ onNavigate }) => {
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const requestRef = useRef<number | null>(null);
+  const animateRef = useRef<(time: number) => void>(() => {});
+  const particlesRef = useRef<Array<{ angle: number; r: number; alpha: number; lineWidth: number }>>([]);
   const [isTelemetryEnabled, setIsTelemetryEnabled] = useState(false);
 
   const toggleTelemetryAudio = () => {
@@ -143,15 +147,15 @@ const TimmonsInterval: React.FC<TimmonsIntervalProps> = ({ onNavigate }) => {
     }
   };
 
-  const animateVisualizer = (time: number) => {
+  const animateVisualizer = useCallback((time: number) => {
     const canvas = canvasRef.current;
     if (!canvas) {
-      requestRef.current = requestAnimationFrame(animateVisualizer);
+      requestRef.current = requestAnimationFrame((t) => animateRef.current(t));
       return;
     }
     const ctx = canvas.getContext('2d');
     if (!ctx) {
-      requestRef.current = requestAnimationFrame(animateVisualizer);
+      requestRef.current = requestAnimationFrame((t) => animateRef.current(t));
       return;
     }
 
@@ -163,18 +167,25 @@ const TimmonsInterval: React.FC<TimmonsIntervalProps> = ({ onNavigate }) => {
     ctx.clearRect(0, 0, width, height);
 
     if (simMode === 'work') {
-      const particles = 20;
-      for (let i = 0; i < particles; i++) {
-        const angle = Math.random() * Math.PI * 2;
-        const r = Math.random() * width * 0.4;
-        const x = centerX + Math.cos(angle) * r;
-        const y = centerY + Math.sin(angle) * r;
+      if (particlesRef.current.length === 0) {
+        particlesRef.current = Array.from({ length: 20 }, () => ({
+          angle: Math.random() * Math.PI * 2,
+          r: Math.random() * 400,
+          alpha: Math.random(),
+          lineWidth: Math.random() * 3,
+        }));
+      }
+      const maxR = width * 0.4;
+      for (const p of particlesRef.current) {
+        const r = (p.r / 400) * maxR;
+        const x = centerX + Math.cos(p.angle) * r;
+        const y = centerY + Math.sin(p.angle) * r;
 
         ctx.beginPath();
         ctx.moveTo(centerX, centerY);
         ctx.lineTo(x, y);
-        ctx.strokeStyle = `rgba(14, 165, 233, ${Math.random()})`;
-        ctx.lineWidth = Math.random() * 3;
+        ctx.strokeStyle = `rgba(14, 165, 233, ${p.alpha})`;
+        ctx.lineWidth = p.lineWidth;
         ctx.stroke();
       }
 
@@ -206,16 +217,21 @@ const TimmonsInterval: React.FC<TimmonsIntervalProps> = ({ onNavigate }) => {
       ctx.fillText('RECOVER', centerX, centerY - 40);
     }
 
-    requestRef.current = requestAnimationFrame(animateVisualizer);
-  };
+    requestRef.current = requestAnimationFrame((t) => animateRef.current(t));
+  }, [simMode]);
+
+  useEffect(() => {
+    animateRef.current = animateVisualizer;
+  });
 
   useLayoutEffect(() => {
+    particlesRef.current = [];
     requestRef.current = requestAnimationFrame((t) => animateVisualizer(t));
     return () => {
       if (requestRef.current) cancelAnimationFrame(requestRef.current);
       requestRef.current = null;
     };
-  }, [simMode]);
+  }, [animateVisualizer]);
 
   return (
     <>

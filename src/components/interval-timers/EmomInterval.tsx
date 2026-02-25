@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import IntervalTimerLanding from './IntervalTimerLanding';
 import type { IntervalTimerPage } from './intervalTimerProtocols';
 import { getProtocolAccent } from './intervalTimerProtocols';
+import { SETUP_DURATION_SECONDS } from './interval-timer-warmup';
 import {
   BarChart,
   Bar,
@@ -20,7 +21,7 @@ interface EmomIntervalProps {
   onNavigate: (page: IntervalTimerPage) => void;
 }
 
-type TimerState = 'idle' | 'warmup' | 'working' | 'resting' | 'finished';
+type TimerState = 'idle' | 'warmup' | 'setup' | 'working' | 'resting' | 'finished';
 type MetricType = 'work_capacity' | 'fatigue_rate';
 type SimMode = 'fast' | 'slow';
 
@@ -48,7 +49,7 @@ const EmomInterval: React.FC<EmomIntervalProps> = ({ onNavigate }) => {
   const [totalCycles, setTotalCycles] = useState(10);
   const [isPaused, setIsPaused] = useState(false);
   const [taskFinishedAt, setTaskFinishedAt] = useState<number | null>(null);
-  const [_roundHistory, setRoundHistory] = useState<
+  const [, setRoundHistory] = useState<
     { round: number; work: number; rest: number }[]
   >([]);
 
@@ -72,7 +73,7 @@ const EmomInterval: React.FC<EmomIntervalProps> = ({ onNavigate }) => {
       const val = i < workDuration ? 150 + Math.random() * 20 : 10;
       data.push({ time: i, value: val });
     }
-    setIntensityData(data);
+    queueMicrotask(() => setIntensityData(data));
   }, [simMode]);
 
   const simContent: Record<SimMode, SimContent> = {
@@ -104,6 +105,7 @@ const EmomInterval: React.FC<EmomIntervalProps> = ({ onNavigate }) => {
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const requestRef = useRef<number | null>(null);
+  const animateRef = useRef<(time: number) => void>(() => {});
   const [isTelemetryEnabled, setIsTelemetryEnabled] = useState(false);
 
   const toggleTelemetryAudio = () => {
@@ -183,15 +185,15 @@ const EmomInterval: React.FC<EmomIntervalProps> = ({ onNavigate }) => {
     }
   };
 
-  const animateVisualizer = (time: number) => {
+  const animateVisualizer = useCallback((time: number) => {
     const canvas = canvasRef.current;
     if (!canvas) {
-      requestRef.current = requestAnimationFrame(animateVisualizer);
+      requestRef.current = requestAnimationFrame((t) => animateRef.current(t));
       return;
     }
     const ctx = canvas.getContext('2d');
     if (!ctx) {
-      requestRef.current = requestAnimationFrame(animateVisualizer);
+      requestRef.current = requestAnimationFrame((t) => animateRef.current(t));
       return;
     }
 
@@ -251,8 +253,12 @@ const EmomInterval: React.FC<EmomIntervalProps> = ({ onNavigate }) => {
     ctx.font = '12px Inter';
     ctx.fillText(simMode === 'fast' ? 'High Efficiency' : 'Low Efficiency', centerX, centerY + 15);
 
-    requestRef.current = requestAnimationFrame(animateVisualizer);
-  };
+    requestRef.current = requestAnimationFrame((t) => animateRef.current(t));
+  }, [simMode]);
+
+  useEffect(() => {
+    animateRef.current = animateVisualizer;
+  });
 
   useLayoutEffect(() => {
     requestRef.current = requestAnimationFrame((t) => animateVisualizer(t));
@@ -260,7 +266,7 @@ const EmomInterval: React.FC<EmomIntervalProps> = ({ onNavigate }) => {
       if (requestRef.current) cancelAnimationFrame(requestRef.current);
       requestRef.current = null;
     };
-  }, [simMode]);
+  }, [animateVisualizer]);
 
   const startRealTimer = (cycles: number) => {
     setTotalCycles(cycles);
@@ -298,6 +304,19 @@ const EmomInterval: React.FC<EmomIntervalProps> = ({ onNavigate }) => {
     }
   };
 
+  const skipToNextPhase = () => {
+    if (timerState === 'warmup') {
+      setTimerState('setup');
+      setTimeLeft(SETUP_DURATION_SECONDS);
+    } else if (timerState === 'setup') {
+      setTimerState('working');
+      setSecondsInMinute(0);
+      playSound('start_round');
+    } else if (timerState === 'resting') {
+      setSecondsInMinute(60);
+    }
+  };
+
   useEffect(() => {
     let interval: number | undefined;
     if (isTimerOpen && !isPaused && timerState !== 'idle' && timerState !== 'finished') {
@@ -305,12 +324,20 @@ const EmomInterval: React.FC<EmomIntervalProps> = ({ onNavigate }) => {
         if (timerState === 'warmup') {
           setTimeLeft((prev) => {
             if (prev <= 1) {
+              setTimerState('setup');
+              return SETUP_DURATION_SECONDS;
+            }
+            if (prev <= 4) playSound('warning');
+            return prev - 1;
+          });
+        } else if (timerState === 'setup') {
+          setTimeLeft((prev) => {
+            if (prev <= 1) {
               setTimerState('working');
               setSecondsInMinute(0);
               playSound('start_round');
               return 0;
             }
-            if (prev <= 4) playSound('warning');
             return prev - 1;
           });
         } else {
@@ -343,6 +370,8 @@ const EmomInterval: React.FC<EmomIntervalProps> = ({ onNavigate }) => {
     switch (timerState) {
       case 'warmup':
         return { bg: 'bg-slate-800', text: 'Get Ready', sub: 'Protocol Starting' };
+      case 'setup':
+        return { bg: 'bg-slate-800', text: 'Setup', sub: 'Get into position' };
       case 'working':
         return { bg: 'bg-teal-600', text: 'WORK', sub: `Minute ${cycleCount} of ${totalCycles}` };
       case 'resting':
@@ -665,7 +694,7 @@ const EmomInterval: React.FC<EmomIntervalProps> = ({ onNavigate }) => {
           >
             <div>
               <div className="mb-1 text-[10px] font-bold uppercase tracking-widest opacity-80 md:text-xs">
-                {timerState === 'warmup'
+                {timerState === 'warmup' || timerState === 'setup'
                   ? 'Preparation'
                   : timerState === 'finished'
                     ? 'Complete'
@@ -690,7 +719,7 @@ const EmomInterval: React.FC<EmomIntervalProps> = ({ onNavigate }) => {
               <div
                 className={`font-mono text-8xl font-bold tabular-nums leading-none tracking-tighter drop-shadow-2xl md:text-[180px] ${timerState === 'working' ? 'text-teal-400' : 'text-white/40'}`}
               >
-                00:{formatTime(timerState === 'warmup' ? timeLeft : secondsInMinute)}
+                00:{formatTime(timerState === 'warmup' || timerState === 'setup' ? timeLeft : secondsInMinute)}
               </div>
 
               {timerState === 'working' && (
@@ -726,7 +755,7 @@ const EmomInterval: React.FC<EmomIntervalProps> = ({ onNavigate }) => {
                   fill="none"
                   stroke={timerState === 'working' ? '#2dd4bf' : '#475569'}
                   strokeWidth="2"
-                  strokeDasharray={`${(timerState === 'warmup' ? (10 - timeLeft) / 10 : secondsInMinute / 60) * 251.2} 251.2`}
+                  strokeDasharray={`${(timerState === 'warmup' ? (10 - timeLeft) / 10 : timerState === 'setup' ? (SETUP_DURATION_SECONDS - timeLeft) / SETUP_DURATION_SECONDS : secondsInMinute / 60) * 251.2} 251.2`}
                   transform="rotate(-90 50 50)"
                 />
               </svg>
@@ -743,10 +772,10 @@ const EmomInterval: React.FC<EmomIntervalProps> = ({ onNavigate }) => {
             </button>
             <button
               type="button"
-              onClick={() => setSecondsInMinute(60)}
+              onClick={skipToNextPhase}
               className="w-1/3 rounded-xl px-4 py-3 font-bold text-white/60 hover:text-white md:px-8 md:py-4"
             >
-              SKIP
+              {timerState === 'warmup' ? 'Skip Warm-up' : 'SKIP'}
             </button>
           </div>
         </div>

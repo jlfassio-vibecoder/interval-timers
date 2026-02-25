@@ -113,7 +113,19 @@ export const WARMUP_DURATION_PER_EXERCISE = 30;
 /** Pause between warmup exercises: main timer stops, "Next" countdown lets user position. */
 export const WARMUP_TRANSITION_SECONDS = 5;
 
+/** 10-second setup block after warmup so user can get into position before first work interval. */
+export const SETUP_DURATION_SECONDS = 10;
+
 export const DEFAULT_WARMUP_TOTAL_SECONDS = WARMUP_EXERCISES.length * WARMUP_DURATION_PER_EXERCISE;
+
+export function getSetupBlock(): HIITTimelineBlock {
+  return {
+    type: 'setup',
+    duration: SETUP_DURATION_SECONDS,
+    name: 'Setup',
+    notes: 'Get into position',
+  };
+}
 
 /**
  * Returns the default warmup block for all interval timers.

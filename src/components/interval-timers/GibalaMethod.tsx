@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import {
   BarChart,
@@ -14,13 +14,14 @@ import {
 } from 'recharts';
 import type { IntervalTimerPage } from './intervalTimerProtocols';
 import { getProtocolAccent } from './intervalTimerProtocols';
+import { SETUP_DURATION_SECONDS } from './interval-timer-warmup';
 import IntervalTimerLanding from './IntervalTimerLanding';
 
 interface GibalaMethodProps {
   onNavigate: (page: IntervalTimerPage) => void;
 }
 
-type TimerState = 'idle' | 'warmup' | 'work' | 'rest' | 'cooldown' | 'finished';
+type TimerState = 'idle' | 'warmup' | 'setup' | 'work' | 'rest' | 'cooldown' | 'finished';
 type MetricType = 'efficiency' | 'discomfort';
 type SimMode = 'work' | 'rest';
 
@@ -70,7 +71,7 @@ const GibalaMethod: React.FC<GibalaMethodProps> = ({ onNavigate }) => {
       time: i,
       value: base + (Math.random() * 4 - 2),
     }));
-    setIntensityData(initialData);
+    queueMicrotask(() => setIntensityData(initialData));
 
     const interval = setInterval(() => {
       setIntensityData((prev) => {
@@ -118,6 +119,7 @@ const GibalaMethod: React.FC<GibalaMethodProps> = ({ onNavigate }) => {
   // --- SECTION 3: VISUALIZER ---
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const requestRef = useRef<number | null>(null);
+  const animateRef = useRef<(time: number) => void>(() => {});
   const [isTelemetryEnabled, setIsTelemetryEnabled] = useState(false);
 
   const toggleTelemetryAudio = () => {
@@ -134,7 +136,7 @@ const GibalaMethod: React.FC<GibalaMethodProps> = ({ onNavigate }) => {
     setIsTelemetryEnabled(!isTelemetryEnabled);
   };
 
-  const animateVisualizer = (time: number) => {
+  const animateVisualizer = useCallback((time: number) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -178,18 +180,22 @@ const GibalaMethod: React.FC<GibalaMethodProps> = ({ onNavigate }) => {
     ctx.fillStyle = '#fff';
     ctx.fillText(simMode === 'work' ? 'VITALITY' : 'REST', centerX, centerY);
 
-    requestRef.current = requestAnimationFrame(animateVisualizer);
-  };
+    requestRef.current = requestAnimationFrame((t) => animateRef.current(t));
+  }, [simMode]);
 
   useEffect(() => {
-    requestRef.current = requestAnimationFrame(animateVisualizer);
+    animateRef.current = animateVisualizer;
+  });
+
+  useEffect(() => {
+    requestRef.current = requestAnimationFrame((t) => animateRef.current(t));
     return () => {
       if (requestRef.current) cancelAnimationFrame(requestRef.current);
     };
-  }, [simMode]);
+  }, [animateVisualizer]);
 
   // --- AUDIO LOGIC ---
-  const playBell = (type: 'work' | 'rest' | 'finish') => {
+  const playBell = useCallback((type: 'work' | 'rest' | 'finish') => {
     try {
       if (!audioContextRef.current) {
         const AudioContextCtor =
@@ -244,7 +250,7 @@ const GibalaMethod: React.FC<GibalaMethodProps> = ({ onNavigate }) => {
     } catch (e) {
       console.error(e);
     }
-  };
+  }, []);
 
   // --- TIMER LOGIC ---
   const startRealTimer = (cycles: number) => {
@@ -268,8 +274,12 @@ const GibalaMethod: React.FC<GibalaMethodProps> = ({ onNavigate }) => {
     }
   }, [isDurationSelectOpen]);
 
-  const handlePhaseTransition = (manual = false) => {
+  const handlePhaseTransition = useCallback((manual = false) => {
     if (timerState === 'warmup') {
+      if (!manual) playBell('rest');
+      setTimerState('setup');
+      setTimeLeft(SETUP_DURATION_SECONDS);
+    } else if (timerState === 'setup') {
       if (!manual) playBell('work');
       setTimerState('work');
       setTimeLeft(60); // 60s Work
@@ -292,7 +302,7 @@ const GibalaMethod: React.FC<GibalaMethodProps> = ({ onNavigate }) => {
       setTimerState('finished');
       setTimeLeft(0);
     }
-  };
+  }, [timerState, cycleCount, totalCycles, playBell]);
 
   const skipPhase = () => handlePhaseTransition(true);
 
@@ -317,9 +327,9 @@ const GibalaMethod: React.FC<GibalaMethodProps> = ({ onNavigate }) => {
       timerState !== 'idle' &&
       timerState !== 'finished'
     ) {
-      handlePhaseTransition();
+      queueMicrotask(() => handlePhaseTransition());
     }
-  }, [timeLeft, isTimerOpen, isPaused, timerState]);
+  }, [timeLeft, isTimerOpen, isPaused, timerState, handlePhaseTransition]);
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60)
@@ -333,6 +343,8 @@ const GibalaMethod: React.FC<GibalaMethodProps> = ({ onNavigate }) => {
     switch (timerState) {
       case 'warmup':
         return { bg: 'bg-slate-600', text: 'Warm Up', sub: '3 Mins Easy' };
+      case 'setup':
+        return { bg: 'bg-slate-600', text: 'Setup', sub: 'Get into position' };
       case 'work':
         return { bg: 'bg-emerald-600', text: 'VIGOROUS', sub: '60s Sustained Intensity' };
       case 'rest':
@@ -646,7 +658,7 @@ const GibalaMethod: React.FC<GibalaMethodProps> = ({ onNavigate }) => {
           >
             <div>
               <div className="mb-1 text-[10px] font-bold uppercase tracking-widest opacity-80 md:text-xs">
-                {timerState === 'warmup' || timerState === 'cooldown'
+                {timerState === 'warmup' || timerState === 'setup' || timerState === 'cooldown'
                   ? 'Preparation'
                   : `Cycle ${cycleCount} of ${totalCycles}`}
               </div>
@@ -698,10 +710,14 @@ const GibalaMethod: React.FC<GibalaMethodProps> = ({ onNavigate }) => {
             </button>
             <button
               onClick={() => skipPhase()}
-              className="w-1/3 rounded-xl bg-transparent px-4 py-3 font-bold text-slate-500 hover:bg-slate-900 md:px-8 md:py-4"
+              className={`w-1/3 rounded-xl px-4 py-3 font-bold md:px-8 md:py-4 ${
+                timerState === 'warmup' || timerState === 'setup'
+                  ? 'bg-white/10 text-white hover:bg-white/20'
+                  : 'bg-transparent text-slate-500 hover:bg-slate-900'
+              }`}
               type="button"
             >
-              SKIP
+              {timerState === 'warmup' ? 'Skip Warm-up' : 'SKIP'}
             </button>
           </div>
         </div>
