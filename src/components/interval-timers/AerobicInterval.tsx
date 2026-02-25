@@ -277,7 +277,7 @@ const AerobicInterval: React.FC<AerobicIntervalProps> = ({ onNavigate }) => {
       if (requestRef.current) cancelAnimationFrame(requestRef.current);
       requestRef.current = null;
     };
-  }, [simMode, animateVisualizer]);
+  }, [animateVisualizer]);
 
   const durationContent = (
     <div className="space-y-4">
