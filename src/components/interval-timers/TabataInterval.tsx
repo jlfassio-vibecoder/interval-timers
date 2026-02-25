@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import IntervalTimerLanding from './IntervalTimerLanding';
 import IntervalTimerSetupModal from './IntervalTimerSetupModal';
@@ -6,8 +6,10 @@ import IntervalTimerOverlay from './IntervalTimerOverlay';
 import type { IntervalTimerPage } from './intervalTimerProtocols';
 import { getProtocolAccent } from './intervalTimerProtocols';
 import type { HIITTimelineBlock } from '@/types/ai-workout';
-import { getDefaultWarmupBlock } from './interval-timer-warmup';
+import { getDefaultWarmupBlock, getSetupBlock } from './interval-timer-warmup';
 import { useTabataSetup } from './useTabataSetup';
+import { useWarmupConfig } from './useWarmupConfig';
+import type { WarmupExercise } from './useWarmupConfig';
 import { TabataProtocolStep, TabataWorkoutStep } from './TabataSetupContent';
 import {
   BarChart,
@@ -49,10 +51,17 @@ const TabataInterval: React.FC<TabataTimerProps> = ({ onNavigate }) => {
   const [isTimerOpen, setIsTimerOpen] = useState(false);
   const [totalCycles, setTotalCycles] = useState(8);
   const [currentWorkoutPlan, setCurrentWorkoutPlan] = useState<string[]>([]);
+  const [frozenWarmup, setFrozenWarmup] = useState<{
+    exercises: WarmupExercise[];
+    durationPerExercise: number;
+  } | null>(null);
+
+  const { exercises, durationPerExercise } = useWarmupConfig();
 
   const setup = useTabataSetup((result) => {
     setTotalCycles(result.cycles);
     setCurrentWorkoutPlan(result.workoutList);
+    setFrozenWarmup({ exercises: [...exercises], durationPerExercise });
     setIsTimerOpen(true);
   });
 
@@ -60,7 +69,7 @@ const TabataInterval: React.FC<TabataTimerProps> = ({ onNavigate }) => {
 
   /** Timeline for shared overlay: default warmup (10 min from interval-timer-warmup), then totalCycles × (work 20s + rest 10s), then cooldown 120s. */
   const tabataTimeline = useMemo<HIITTimelineBlock[]>(() => {
-    const blocks: HIITTimelineBlock[] = [getDefaultWarmupBlock()];
+    const blocks: HIITTimelineBlock[] = [getDefaultWarmupBlock(), getSetupBlock()];
     for (let i = 0; i < totalCycles; i++) {
       const workName =
         currentWorkoutPlan.length > 0
@@ -92,7 +101,7 @@ const TabataInterval: React.FC<TabataTimerProps> = ({ onNavigate }) => {
       time: i,
       value: base + (Math.random() * 10 - 5),
     }));
-    setIntensityData(initialData);
+    queueMicrotask(() => setIntensityData(initialData));
 
     const interval = setInterval(() => {
       setIntensityData((prev) => {
@@ -139,6 +148,7 @@ const TabataInterval: React.FC<TabataTimerProps> = ({ onNavigate }) => {
   // --- SECTION 3: VISUALIZER ---
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const requestRef = useRef<number | null>(null);
+  const animateRef = useRef<(time: number) => void>(() => {});
   const [isTelemetryEnabled, setIsTelemetryEnabled] = useState(false);
   const lastBeatPhaseRef = useRef(0);
 
@@ -172,7 +182,7 @@ const TabataInterval: React.FC<TabataTimerProps> = ({ onNavigate }) => {
     }
   };
 
-  const playHeartbeat = () => {
+  const playHeartbeat = useCallback(() => {
     getRunningAudioContext()
       .then((ctx) => {
         if (!ctx) return;
@@ -193,17 +203,17 @@ const TabataInterval: React.FC<TabataTimerProps> = ({ onNavigate }) => {
         osc.stop(t + 0.15);
       })
       .catch(() => {});
-  };
+  }, []);
 
-  const animateVisualizer = (time: number) => {
+  const animateVisualizer = useCallback((time: number) => {
     const canvas = canvasRef.current;
     if (!canvas) {
-      requestRef.current = requestAnimationFrame(animateVisualizer);
+      requestRef.current = requestAnimationFrame((t) => animateRef.current(t));
       return;
     }
     const ctx = canvas.getContext('2d');
     if (!ctx) {
-      requestRef.current = requestAnimationFrame(animateVisualizer);
+      requestRef.current = requestAnimationFrame((t) => animateRef.current(t));
       return;
     }
 
@@ -268,8 +278,12 @@ const TabataInterval: React.FC<TabataTimerProps> = ({ onNavigate }) => {
     ctx.fillStyle = 'rgba(255,255,255,0.7)';
     ctx.fillText(simMode === 'work' ? '170% VO2' : 'Recovery', centerX, centerY + 15);
 
-    requestRef.current = requestAnimationFrame(animateVisualizer);
-  };
+    requestRef.current = requestAnimationFrame((t) => animateRef.current(t));
+  }, [simMode, isTelemetryEnabled, playHeartbeat]);
+
+  useEffect(() => {
+    animateRef.current = animateVisualizer;
+  });
 
   useLayoutEffect(() => {
     requestRef.current = requestAnimationFrame((time) => {
@@ -279,7 +293,7 @@ const TabataInterval: React.FC<TabataTimerProps> = ({ onNavigate }) => {
       if (requestRef.current) cancelAnimationFrame(requestRef.current);
       requestRef.current = null;
     };
-  }, [simMode]);
+  }, [animateVisualizer]);
 
   return (
     <>
@@ -546,8 +560,13 @@ const TabataInterval: React.FC<TabataTimerProps> = ({ onNavigate }) => {
         createPortal(
           <IntervalTimerOverlay
             timeline={tabataTimeline}
-            onClose={() => setIsTimerOpen(false)}
+            onClose={() => {
+              setFrozenWarmup(null);
+              setIsTimerOpen(false);
+            }}
             theme={{ workBg: TABATA_ACCENT.workBg }}
+            warmupExercises={frozenWarmup?.exercises}
+            warmupDurationPerExercise={frozenWarmup?.durationPerExercise}
           />,
           document.body
         )}

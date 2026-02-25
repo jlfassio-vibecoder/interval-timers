@@ -3,21 +3,14 @@
  * Provides sticky protocol nav and main content area; content is passed as children.
  * Optional accentTheme (e.g. Tabata red, Mindful green) for badges/headers; nav and primary CTA stay #ffbf00.
  */
-import React, { createContext, useContext, type ReactNode } from 'react';
+import React, { type ReactNode } from 'react';
 import type { IntervalTimerPage, ProtocolAccentTheme } from './intervalTimerProtocols';
 import {
-  GOLD_ACCENT,
   INTERVAL_TIMER_PROTOCOLS,
   getProtocolLabel,
   VALID_PROTOCOLS,
 } from './intervalTimerProtocols';
-
-const IntervalTimerAccentContext = createContext<ProtocolAccentTheme | null>(null);
-
-export function useIntervalTimerAccent(): ProtocolAccentTheme {
-  const theme = useContext(IntervalTimerAccentContext);
-  return theme ?? GOLD_ACCENT;
-}
+import { IntervalTimerAccentContext } from './intervalTimerAccentContext';
 
 interface IntervalTimerLandingProps {
   currentProtocol: IntervalTimerPage;

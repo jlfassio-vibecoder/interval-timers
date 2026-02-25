@@ -6,12 +6,11 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import type { HIITTimelineBlock } from '@/types/ai-workout';
 import {
-  playWorkStart,
-  playRestStart,
   playReady,
-  playRoundComplete,
-  playCooldownStart,
   playBell,
+  playBeeps,
+  playLongTone,
+  setSoundVolume as setSoundVolumeModule,
 } from '@/lib/interval-timer-sounds';
 import WarmUpWheel from './WarmUpWheel';
 import WarmupInstructionsPanel from './WarmupInstructionsPanel';
@@ -23,6 +22,10 @@ import {
 } from './interval-timer-warmup';
 
 const WARMUP_INSTRUCTIONS_PREFERENCE_KEY = 'warmup-instructions-preference';
+const SOUND_VOLUME_KEY = 'interval-timer-sound-volume';
+const VOLUME_MIN = 0.1;
+const VOLUME_MAX = 1;
+const VOLUME_STEP = 0.1;
 
 export interface IntervalTimerOverlayTheme {
   workBg: string;
@@ -58,8 +61,34 @@ const IntervalTimerOverlay: React.FC<IntervalTimerOverlayProps> = ({
   const [isTransitioningToNext, setIsTransitioningToNext] = useState(false);
   const [transitionCountdown, setTransitionCountdown] = useState(0);
   const [instructionsDismissedThisSession, setInstructionsDismissedThisSession] = useState(false);
+  const [soundVolume, setSoundVolumeState] = useState(() => {
+    try {
+      const v = parseFloat(localStorage.getItem(SOUND_VOLUME_KEY) ?? '');
+      if (Number.isFinite(v) && v >= VOLUME_MIN && v <= VOLUME_MAX) return v;
+    } catch {
+      // Ignore
+    }
+    return VOLUME_MIN;
+  });
   const readyPlayedThisRestRef = useRef(false);
   const prevBlockTypeRef = useRef<HIITTimelineBlock['type'] | null>(null);
+
+  // Sync volume to sound module on mount and when user changes it
+  useEffect(() => {
+    setSoundVolumeModule(soundVolume);
+  }, [soundVolume]);
+
+  const handleVolumeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const v = parseFloat(e.target.value);
+    if (Number.isFinite(v)) {
+      setSoundVolumeState(Math.max(VOLUME_MIN, Math.min(VOLUME_MAX, v)));
+      try {
+        localStorage.setItem(SOUND_VOLUME_KEY, String(v));
+      } catch {
+        // Ignore
+      }
+    }
+  }, []);
 
   const currentBlock = timeline[currentIndex];
   const nextBlock = timeline[currentIndex + 1] ?? null;
@@ -68,22 +97,28 @@ const IntervalTimerOverlay: React.FC<IntervalTimerOverlayProps> = ({
   useEffect(() => {
     const block = timeline[currentIndex];
     if (block) {
-      setTimeLeft(block.duration);
+      queueMicrotask(() => setTimeLeft(block.duration));
       if (block.type === 'rest') readyPlayedThisRestRef.current = false;
     }
   }, [timeline, currentIndex]);
 
-  // Play sound when entering a new block (including initial)
+  // Play sound when entering a new block (including initial). Warm-up sounds unchanged.
   useEffect(() => {
     if (!currentBlock) return;
     const type = currentBlock.type;
     const prevType = prevBlockTypeRef.current;
 
-    if (type === 'work') playWorkStart();
-    else if (type === 'rest') {
-      playRestStart();
-      if (prevType === 'work') playRoundComplete();
-    } else if (type === 'cooldown') playCooldownStart();
+    if (type === 'setup') playBell();
+    else if (type === 'work') {
+      // First work after setup or rest: 3 beeps; next work (e.g. 10/20/30): 1 beep
+      if (prevType === 'setup' || prevType === 'rest') playBeeps(3);
+      else playBeeps(1);
+    } else if (type === 'rest') {
+      // End of work: 1 beep
+      playBeeps(1);
+    } else if (type === 'cooldown') {
+      playLongTone(1.5);
+    }
 
     prevBlockTypeRef.current = type;
   }, [currentIndex, currentBlock]);
@@ -239,7 +274,7 @@ const IntervalTimerOverlay: React.FC<IntervalTimerOverlayProps> = ({
 
   useEffect(() => {
     if (currentBlock && hasStarted && !isPaused && !isTransitioningToNext && timeLeft === 0)
-      handlePhaseTransition();
+      queueMicrotask(() => handlePhaseTransition());
   }, [currentBlock, hasStarted, isPaused, isTransitioningToNext, timeLeft, handlePhaseTransition]);
 
   const headerImageUrl = useMemo(() => {
@@ -253,7 +288,7 @@ const IntervalTimerOverlay: React.FC<IntervalTimerOverlayProps> = ({
   }, [currentBlock, timeLeft, warmupList, warmupDuration]);
 
   useEffect(() => {
-    setImageError(false);
+    queueMicrotask(() => setImageError(false));
   }, [headerImageUrl]);
 
   if (timeline.length === 0 || !currentBlock) return null;
@@ -268,11 +303,13 @@ const IntervalTimerOverlay: React.FC<IntervalTimerOverlayProps> = ({
   const phaseLabel =
     currentBlock.type === 'warmup'
       ? 'WARM UP'
-      : currentBlock.type === 'work'
-        ? 'MAX EFFORT'
-        : currentBlock.type === 'rest'
-          ? 'RECOVERY'
-          : 'COOLDOWN';
+      : currentBlock.type === 'setup'
+        ? 'SETUP'
+        : currentBlock.type === 'work'
+          ? 'MAX EFFORT'
+          : currentBlock.type === 'rest'
+            ? 'RECOVERY'
+            : 'COOLDOWN';
 
   return (
     <div className="fixed inset-0 z-[200] flex h-full w-full flex-col overflow-hidden bg-[#0d0500]">
@@ -317,7 +354,19 @@ const IntervalTimerOverlay: React.FC<IntervalTimerOverlayProps> = ({
           </div>
         )}
         <div className="flex min-h-0 flex-1 flex-col items-center justify-center">
-          {currentBlock.type === 'warmup' && isTransitioningToNext ? (
+          {currentBlock.type === 'setup' ? (
+            <>
+              <div className="mb-2 text-center text-sm font-bold uppercase tracking-wider text-white/70">
+                Get Set
+              </div>
+              <div
+                className="font-mono font-bold tabular-nums leading-none text-white"
+                style={{ fontSize: 'clamp(4rem, 18vmin, 180px)' }}
+              >
+                {timeLeft}
+              </div>
+            </>
+          ) : currentBlock.type === 'warmup' && isTransitioningToNext ? (
             <>
               <div className="mb-2 text-center text-sm font-bold uppercase tracking-wider text-white/70">
                 Next
@@ -433,6 +482,25 @@ const IntervalTimerOverlay: React.FC<IntervalTimerOverlayProps> = ({
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-4 border-t border-white/10 p-4 sm:p-6 md:p-8">
+        <div className="flex items-center gap-3">
+          <label htmlFor="timer-volume" className="shrink-0 text-sm font-medium text-white/80">
+            Volume
+          </label>
+          <input
+            id="timer-volume"
+            type="range"
+            min={VOLUME_MIN}
+            max={VOLUME_MAX}
+            step={VOLUME_STEP}
+            value={soundVolume}
+            onChange={handleVolumeChange}
+            className="h-2 w-24 cursor-pointer appearance-none rounded-full bg-white/20 accent-[#ffbf00] sm:w-28"
+            aria-label="Sound volume (low to 10x)"
+          />
+          <span className="w-8 shrink-0 text-right font-mono text-xs text-white/60" aria-hidden>
+            {Math.round(soundVolume * 10)}×
+          </span>
+        </div>
         <button
           type="button"
           onClick={handlePrevious}
@@ -441,6 +509,7 @@ const IntervalTimerOverlay: React.FC<IntervalTimerOverlayProps> = ({
               const elapsed = currentBlock.duration - timeLeft;
               return Math.floor(elapsed / warmupDuration) === 0;
             }
+            if (currentBlock?.type === 'setup') return false;
             return currentIndex === 0;
           })()}
           className="font-bold text-white/60 hover:text-white disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:text-white/60"
@@ -448,32 +517,44 @@ const IntervalTimerOverlay: React.FC<IntervalTimerOverlayProps> = ({
         >
           ← PREVIOUS EXERCISE
         </button>
-        {!hasStarted ? (
-          <button
-            type="button"
-            onClick={() => {
-              if (currentBlock?.type === 'warmup') playBell();
-              setHasStarted(true);
-            }}
-            className="max-w-[200px] flex-1 rounded-xl bg-[#ffbf00] px-8 py-4 font-bold text-black"
-          >
-            START
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setIsPaused(!isPaused)}
-            className="max-w-[200px] flex-1 rounded-xl bg-white/10 px-8 py-4 font-bold text-white"
-          >
-            {isPaused ? 'RESUME' : 'PAUSE'}
-          </button>
-        )}
+        <div className="flex flex-1 flex-wrap items-center justify-center gap-3">
+          {!hasStarted ? (
+            <button
+              type="button"
+              onClick={() => {
+                if (currentBlock?.type === 'warmup') playBell();
+                setHasStarted(true);
+              }}
+              className="max-w-[200px] rounded-xl bg-[#ffbf00] px-8 py-4 font-bold text-black"
+            >
+              START
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setIsPaused(!isPaused)}
+              className="max-w-[200px] rounded-xl bg-white/10 px-8 py-4 font-bold text-white"
+            >
+              {isPaused ? 'RESUME' : 'PAUSE'}
+            </button>
+          )}
+          {currentBlock?.type === 'warmup' ? (
+            <button
+              type="button"
+              onClick={handlePhaseTransition}
+              className="rounded-xl bg-white/10 px-6 py-4 font-bold text-white hover:bg-white/20"
+              aria-label="Skip warm-up"
+            >
+              Skip Warm-up
+            </button>
+          ) : null}
+        </div>
         <button
           type="button"
           onClick={handleSkip}
           className="font-bold text-white/60 hover:text-white"
         >
-          {isTransitioningToNext ? 'SKIP PAUSE →' : 'SKIP EXERCISE →'}
+          {isTransitioningToNext ? 'SKIP PAUSE →' : currentBlock?.type === 'setup' ? 'SKIP →' : 'SKIP EXERCISE →'}
         </button>
       </div>
     </div>

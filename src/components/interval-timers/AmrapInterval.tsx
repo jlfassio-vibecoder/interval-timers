@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import IntervalTimerLanding from './IntervalTimerLanding';
 import type { IntervalTimerPage } from './intervalTimerProtocols';
 import { getProtocolAccent } from './intervalTimerProtocols';
+import { SETUP_DURATION_SECONDS } from './interval-timer-warmup';
 import {
   BarChart,
   Bar,
@@ -20,7 +21,7 @@ interface AmrapIntervalProps {
   onNavigate: (page: IntervalTimerPage) => void;
 }
 
-type TimerState = 'idle' | 'warmup' | 'work' | 'finished';
+type TimerState = 'idle' | 'warmup' | 'setup' | 'work' | 'finished';
 type MetricType = 'mental_fortitude' | 'lactate_threshold';
 type SimMode = 'pace' | 'push';
 
@@ -67,7 +68,7 @@ const AmrapInterval: React.FC<AmrapIntervalProps> = ({ onNavigate }) => {
       time: i,
       value: i * slope + Math.random() * 5,
     }));
-    setIntensityData(data);
+    queueMicrotask(() => setIntensityData(data));
   }, [simMode]);
 
   const simContent: Record<SimMode, SimContent> = {
@@ -99,6 +100,7 @@ const AmrapInterval: React.FC<AmrapIntervalProps> = ({ onNavigate }) => {
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const requestRef = useRef<number | null>(null);
+  const animateRef = useRef<(time: number) => void>(() => {});
   const [isTelemetryEnabled, setIsTelemetryEnabled] = useState(false);
 
   const toggleTelemetryAudio = () => {
@@ -188,15 +190,15 @@ const AmrapInterval: React.FC<AmrapIntervalProps> = ({ onNavigate }) => {
     }
   };
 
-  const animateVisualizer = (time: number) => {
+  const animateVisualizer = useCallback((time: number) => {
     const canvas = canvasRef.current;
     if (!canvas) {
-      requestRef.current = requestAnimationFrame(animateVisualizer);
+      requestRef.current = requestAnimationFrame((t) => animateRef.current(t));
       return;
     }
     const ctx = canvas.getContext('2d');
     if (!ctx) {
-      requestRef.current = requestAnimationFrame(animateVisualizer);
+      requestRef.current = requestAnimationFrame((t) => animateRef.current(t));
       return;
     }
 
@@ -229,8 +231,12 @@ const AmrapInterval: React.FC<AmrapIntervalProps> = ({ onNavigate }) => {
     ctx.fillStyle = 'rgba(255,255,255,0.1)';
     ctx.fillText('VOLUME', width / 2, height / 2);
 
-    requestRef.current = requestAnimationFrame(animateVisualizer);
-  };
+    requestRef.current = requestAnimationFrame((t) => animateRef.current(t));
+  }, [simMode]);
+
+  useEffect(() => {
+    animateRef.current = animateVisualizer;
+  });
 
   useLayoutEffect(() => {
     requestRef.current = requestAnimationFrame((t) => animateVisualizer(t));
@@ -238,7 +244,7 @@ const AmrapInterval: React.FC<AmrapIntervalProps> = ({ onNavigate }) => {
       if (requestRef.current) cancelAnimationFrame(requestRef.current);
       requestRef.current = null;
     };
-  }, [simMode]);
+  }, [animateVisualizer]);
 
   const startRealTimer = (minutes: number) => {
     setTotalTime(minutes * 60);
@@ -275,12 +281,20 @@ const AmrapInterval: React.FC<AmrapIntervalProps> = ({ onNavigate }) => {
         if (timerState === 'warmup') {
           setTimeLeft((prev) => {
             if (prev <= 1) {
+              setTimerState('setup');
+              return SETUP_DURATION_SECONDS;
+            }
+            if (prev <= 4) playSound('warning');
+            return prev - 1;
+          });
+        } else if (timerState === 'setup') {
+          setTimeLeft((prev) => {
+            if (prev <= 1) {
               setTimerState('work');
               setTimeLeft(totalTime);
               playSound('start');
               return totalTime;
             }
-            if (prev <= 4) playSound('warning');
             return prev - 1;
           });
         } else if (timerState === 'work') {
@@ -311,6 +325,8 @@ const AmrapInterval: React.FC<AmrapIntervalProps> = ({ onNavigate }) => {
     switch (timerState) {
       case 'warmup':
         return { bg: 'bg-stone-800', text: 'Prepare', sub: 'Protocol Starting' };
+      case 'setup':
+        return { bg: 'bg-stone-800', text: 'Setup', sub: 'Get into position' };
       case 'work':
         return { bg: 'bg-orange-600', text: 'AMRAP', sub: 'Accumulate Volume' };
       case 'finished':
@@ -613,7 +629,7 @@ const AmrapInterval: React.FC<AmrapIntervalProps> = ({ onNavigate }) => {
           >
             <div>
               <div className="mb-1 text-[10px] font-bold uppercase tracking-widest opacity-80 md:text-xs">
-                {timerState === 'warmup'
+                {timerState === 'warmup' || timerState === 'setup'
                   ? 'Preparation'
                   : timerState === 'finished'
                     ? 'Complete'
@@ -675,16 +691,35 @@ const AmrapInterval: React.FC<AmrapIntervalProps> = ({ onNavigate }) => {
             >
               {isPaused ? 'RESUME' : 'PAUSE'}
             </button>
-            <button
-              type="button"
-              onClick={() => {
-                setTimerState('finished');
-                setTimeLeft(0);
-              }}
-              className="w-1/3 rounded-xl px-4 py-3 font-bold text-white/60 hover:text-white md:px-8 md:py-4"
-            >
-              FINISH
-            </button>
+            {timerState === 'warmup' || timerState === 'setup' ? (
+              <button
+                type="button"
+                onClick={() => {
+                  if (timerState === 'warmup') {
+                    setTimerState('setup');
+                    setTimeLeft(SETUP_DURATION_SECONDS);
+                  } else {
+                    setTimerState('work');
+                    setTimeLeft(totalTime);
+                    playSound('start');
+                  }
+                }}
+                className="w-1/3 rounded-xl px-4 py-3 font-bold text-white/60 hover:text-white md:px-8 md:py-4"
+              >
+                {timerState === 'warmup' ? 'Skip Warm-up' : 'SKIP'}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setTimerState('finished');
+                  setTimeLeft(0);
+                }}
+                className="w-1/3 rounded-xl px-4 py-3 font-bold text-white/60 hover:text-white md:px-8 md:py-4"
+              >
+                FINISH
+              </button>
+            )}
           </div>
         </div>
       )}

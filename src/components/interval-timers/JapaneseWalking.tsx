@@ -1,11 +1,13 @@
-import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import IntervalTimerLanding from './IntervalTimerLanding';
 import IntervalTimerOverlay from './IntervalTimerOverlay';
 import type { IntervalTimerPage } from './intervalTimerProtocols';
 import { getProtocolAccent } from './intervalTimerProtocols';
 import type { HIITTimelineBlock } from '@/types/ai-workout';
-import { getDefaultWarmupBlock } from './interval-timer-warmup';
+import { getDefaultWarmupBlock, getSetupBlock } from './interval-timer-warmup';
+import { useWarmupConfig } from './useWarmupConfig';
+import type { WarmupExercise } from './useWarmupConfig';
 import {
   BarChart,
   Bar,
@@ -42,9 +44,15 @@ const ACCENT = getProtocolAccent('mindful');
 const JapaneseWalking: React.FC<JapaneseWalkingProps> = ({ onNavigate }) => {
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [isTimerOpen, setIsTimerOpen] = useState(false);
+  const [frozenWarmup, setFrozenWarmup] = useState<{
+    exercises: WarmupExercise[];
+    durationPerExercise: number;
+  } | null>(null);
+
+  const { exercises, durationPerExercise } = useWarmupConfig();
 
   const japaneseWalkingTimeline = useMemo<HIITTimelineBlock[]>(() => {
-    const blocks: HIITTimelineBlock[] = [getDefaultWarmupBlock()];
+    const blocks: HIITTimelineBlock[] = [getDefaultWarmupBlock(), getSetupBlock()];
     for (let i = 0; i < 5; i++) {
       blocks.push({ type: 'work', duration: 180, name: 'Fast Walk', notes: 'RPE 13-14' });
       blocks.push({ type: 'rest', duration: 180, name: 'Recovery Walk', notes: 'Breathe & step' });
@@ -75,7 +83,7 @@ const JapaneseWalking: React.FC<JapaneseWalkingProps> = ({ onNavigate }) => {
       time: i,
       value: base + (Math.random() * 5 - 2.5),
     }));
-    setIntensityData(initialData);
+    queueMicrotask(() => setIntensityData(initialData));
 
     const interval = setInterval(() => {
       setIntensityData((prev) => {
@@ -121,6 +129,7 @@ const JapaneseWalking: React.FC<JapaneseWalkingProps> = ({ onNavigate }) => {
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const requestRef = useRef<number | null>(null);
+  const animateRef = useRef<(time: number) => void>(() => {});
   const [isTelemetryEnabled, setIsTelemetryEnabled] = useState(false);
   const lastBeatPhaseRef = useRef(0);
 
@@ -172,15 +181,15 @@ const JapaneseWalking: React.FC<JapaneseWalkingProps> = ({ onNavigate }) => {
     osc.stop(t + 0.15);
   };
 
-  const animateVisualizer = (time: number) => {
+  const animateVisualizer = useCallback((time: number) => {
     const canvas = canvasRef.current;
     if (!canvas) {
-      requestRef.current = requestAnimationFrame(animateVisualizer);
+      requestRef.current = requestAnimationFrame((t) => animateRef.current(t));
       return;
     }
     const ctx = canvas.getContext('2d');
     if (!ctx) {
-      requestRef.current = requestAnimationFrame(animateVisualizer);
+      requestRef.current = requestAnimationFrame((t) => animateRef.current(t));
       return;
     }
 
@@ -245,8 +254,12 @@ const JapaneseWalking: React.FC<JapaneseWalkingProps> = ({ onNavigate }) => {
     ctx.fillStyle = 'rgba(255,255,255,0.7)';
     ctx.fillText(simMode === 'fast' ? '~85 BPM' : '~60 BPM', centerX, centerY + 15);
 
-    requestRef.current = requestAnimationFrame(animateVisualizer);
-  };
+    requestRef.current = requestAnimationFrame((t) => animateRef.current(t));
+  }, [simMode, isTelemetryEnabled]);
+
+  useEffect(() => {
+    animateRef.current = animateVisualizer;
+  });
 
   useLayoutEffect(() => {
     requestRef.current = requestAnimationFrame((t) => {
@@ -256,7 +269,7 @@ const JapaneseWalking: React.FC<JapaneseWalkingProps> = ({ onNavigate }) => {
       if (requestRef.current) cancelAnimationFrame(requestRef.current);
       requestRef.current = null;
     };
-  }, [simMode]);
+  }, [animateVisualizer]);
 
   return (
     <>
@@ -467,7 +480,10 @@ const JapaneseWalking: React.FC<JapaneseWalkingProps> = ({ onNavigate }) => {
           <div className="pt-8 text-center">
             <button
               type="button"
-              onClick={() => setIsTimerOpen(true)}
+              onClick={() => {
+                setFrozenWarmup({ exercises: [...exercises], durationPerExercise });
+                setIsTimerOpen(true);
+              }}
               className="mx-auto flex items-center gap-3 rounded-full bg-[#ffbf00] px-8 py-4 font-bold text-black shadow-2xl transition-all hover:scale-105"
             >
               <span>⏱️</span>
@@ -513,8 +529,13 @@ const JapaneseWalking: React.FC<JapaneseWalkingProps> = ({ onNavigate }) => {
         createPortal(
           <IntervalTimerOverlay
             timeline={japaneseWalkingTimeline}
-            onClose={() => setIsTimerOpen(false)}
+            onClose={() => {
+              setFrozenWarmup(null);
+              setIsTimerOpen(false);
+            }}
             theme={{ workBg: ACCENT.workBg }}
+            warmupExercises={frozenWarmup?.exercises}
+            warmupDurationPerExercise={frozenWarmup?.durationPerExercise}
           />,
           document.body
         )}

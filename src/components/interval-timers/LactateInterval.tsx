@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import IntervalTimerLanding from './IntervalTimerLanding';
 import IntervalTimerSetupModal from './IntervalTimerSetupModal';
@@ -6,7 +6,9 @@ import IntervalTimerOverlay from './IntervalTimerOverlay';
 import type { IntervalTimerPage } from './intervalTimerProtocols';
 import { getProtocolAccent } from './intervalTimerProtocols';
 import type { HIITTimelineBlock } from '@/types/ai-workout';
-import { getDefaultWarmupBlock } from './interval-timer-warmup';
+import { getDefaultWarmupBlock, getSetupBlock } from './interval-timer-warmup';
+import { useWarmupConfig } from './useWarmupConfig';
+import type { WarmupExercise } from './useWarmupConfig';
 import {
   BarChart,
   Bar,
@@ -45,9 +47,15 @@ const LactateInterval: React.FC<LactateIntervalProps> = ({ onNavigate }) => {
   const [isSetupOpen, setIsSetupOpen] = useState(false);
   const [isTimerOpen, setIsTimerOpen] = useState(false);
   const [totalCycles, setTotalCycles] = useState(10);
+  const [frozenWarmup, setFrozenWarmup] = useState<{
+    exercises: WarmupExercise[];
+    durationPerExercise: number;
+  } | null>(null);
+
+  const { exercises, durationPerExercise } = useWarmupConfig();
 
   const lactateTimeline = useMemo<HIITTimelineBlock[]>(() => {
-    const blocks: HIITTimelineBlock[] = [getDefaultWarmupBlock()];
+    const blocks: HIITTimelineBlock[] = [getDefaultWarmupBlock(), getSetupBlock()];
     for (let i = 0; i < totalCycles; i++) {
       blocks.push({
         type: 'work',
@@ -69,6 +77,7 @@ const LactateInterval: React.FC<LactateIntervalProps> = ({ onNavigate }) => {
   const startWithCycles = (cycles: number) => {
     setTotalCycles(cycles);
     setIsSetupOpen(false);
+    setFrozenWarmup({ exercises: [...exercises], durationPerExercise });
     setIsTimerOpen(true);
   };
 
@@ -89,7 +98,7 @@ const LactateInterval: React.FC<LactateIntervalProps> = ({ onNavigate }) => {
       time: i,
       value: base + (Math.random() * 5 - 2.5),
     }));
-    setIntensityData(initialData);
+    queueMicrotask(() => setIntensityData(initialData));
 
     const interval = setInterval(() => {
       setIntensityData((prev) => {
@@ -137,6 +146,7 @@ const LactateInterval: React.FC<LactateIntervalProps> = ({ onNavigate }) => {
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const requestRef = useRef<number | null>(null);
+  const animateRef = useRef<(time: number) => void>(() => {});
   const [isTelemetryEnabled, setIsTelemetryEnabled] = useState(false);
   const audioContextRef = useRef<AudioContext | null>(null);
 
@@ -161,15 +171,15 @@ const LactateInterval: React.FC<LactateIntervalProps> = ({ onNavigate }) => {
     }
   };
 
-  const animateVisualizer = (time: number) => {
+  const animateVisualizer = useCallback((time: number) => {
     const canvas = canvasRef.current;
     if (!canvas) {
-      requestRef.current = requestAnimationFrame(animateVisualizer);
+      requestRef.current = requestAnimationFrame((t) => animateRef.current(t));
       return;
     }
     const ctx = canvas.getContext('2d');
     if (!ctx) {
-      requestRef.current = requestAnimationFrame(animateVisualizer);
+      requestRef.current = requestAnimationFrame((t) => animateRef.current(t));
       return;
     }
 
@@ -233,8 +243,12 @@ const LactateInterval: React.FC<LactateIntervalProps> = ({ onNavigate }) => {
     ctx.fillStyle = 'rgba(255,255,255,0.7)';
     ctx.fillText(simMode === 'work' ? 'Lactate +' : 'Clear -', centerX, centerY + 15);
 
-    requestRef.current = requestAnimationFrame(animateVisualizer);
-  };
+    requestRef.current = requestAnimationFrame((t) => animateRef.current(t));
+  }, [simMode]);
+
+  useEffect(() => {
+    animateRef.current = animateVisualizer;
+  });
 
   useLayoutEffect(() => {
     requestRef.current = requestAnimationFrame((t) => animateVisualizer(t));
@@ -242,7 +256,7 @@ const LactateInterval: React.FC<LactateIntervalProps> = ({ onNavigate }) => {
       if (requestRef.current) cancelAnimationFrame(requestRef.current);
       requestRef.current = null;
     };
-  }, [simMode]);
+  }, [animateVisualizer]);
 
   const durationContent = (
     <div className="space-y-4">
@@ -520,8 +534,13 @@ const LactateInterval: React.FC<LactateIntervalProps> = ({ onNavigate }) => {
         createPortal(
           <IntervalTimerOverlay
             timeline={lactateTimeline}
-            onClose={() => setIsTimerOpen(false)}
+            onClose={() => {
+              setFrozenWarmup(null);
+              setIsTimerOpen(false);
+            }}
             theme={{ workBg: ACCENT.workBg }}
+            warmupExercises={frozenWarmup?.exercises}
+            warmupDurationPerExercise={frozenWarmup?.durationPerExercise}
           />,
           document.body
         )}

@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import IntervalTimerLanding from './IntervalTimerLanding';
 import IntervalTimerOverlay from './IntervalTimerOverlay';
 import type { IntervalTimerPage } from './intervalTimerProtocols';
 import { getProtocolAccent } from './intervalTimerProtocols';
 import type { HIITTimelineBlock } from '@/types/ai-workout';
+import { getSetupBlock } from './interval-timer-warmup';
 import {
   BarChart,
   Bar,
@@ -47,6 +48,7 @@ const TenTwentyThirtyInterval: React.FC<TenTwentyThirtyIntervalProps> = ({ onNav
   const tenTwentyThirtyTimeline = useMemo<HIITTimelineBlock[]>(() => {
     const blocks: HIITTimelineBlock[] = [
       { type: 'warmup', duration: 10, name: 'Get Ready', notes: 'Starting 30-20-10' },
+      getSetupBlock(),
     ];
     for (let i = 0; i < totalCycles; i++) {
       blocks.push({
@@ -96,7 +98,7 @@ const TenTwentyThirtyInterval: React.FC<TenTwentyThirtyIntervalProps> = ({ onNav
       }
       return data;
     };
-    setIntensityData(generateSteps());
+    queueMicrotask(() => setIntensityData(generateSteps()));
   }, [simMode]);
 
   const simContent: Record<SimMode, SimContent> = {
@@ -128,16 +130,17 @@ const TenTwentyThirtyInterval: React.FC<TenTwentyThirtyIntervalProps> = ({ onNav
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const requestRef = useRef<number | null>(null);
+  const animateRef = useRef<(time: number) => void>(() => {});
 
-  const animateVisualizer = (time: number) => {
+  const animateVisualizer = useCallback((time: number) => {
     const canvas = canvasRef.current;
     if (!canvas) {
-      requestRef.current = requestAnimationFrame(animateVisualizer);
+      requestRef.current = requestAnimationFrame((t) => animateRef.current(t));
       return;
     }
     const ctx = canvas.getContext('2d');
     if (!ctx) {
-      requestRef.current = requestAnimationFrame(animateVisualizer);
+      requestRef.current = requestAnimationFrame((t) => animateRef.current(t));
       return;
     }
 
@@ -198,8 +201,12 @@ const TenTwentyThirtyInterval: React.FC<TenTwentyThirtyIntervalProps> = ({ onNav
     const labels = ['30s LOW', '20s MOD', '10s FAST'];
     ctx.fillText(labels[currentZone], centerX, centerY + 40);
 
-    requestRef.current = requestAnimationFrame(animateVisualizer);
-  };
+    requestRef.current = requestAnimationFrame((t) => animateRef.current(t));
+  }, [simMode]);
+
+  useEffect(() => {
+    animateRef.current = animateVisualizer;
+  });
 
   useLayoutEffect(() => {
     requestRef.current = requestAnimationFrame((t) => animateVisualizer(t));
@@ -207,7 +214,7 @@ const TenTwentyThirtyInterval: React.FC<TenTwentyThirtyIntervalProps> = ({ onNav
       if (requestRef.current) cancelAnimationFrame(requestRef.current);
       requestRef.current = null;
     };
-  }, [simMode]);
+  }, [animateVisualizer]);
 
   const startTimer = (blocks: number) => {
     setTotalCycles(blocks * 5);
