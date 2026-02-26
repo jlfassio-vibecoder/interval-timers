@@ -70,7 +70,7 @@ const TabataInterval: React.FC<TabataTimerProps> = ({ onNavigate, onNavigateToLa
 
   const audioContextRef = useRef<AudioContext | null>(null);
 
-  /** Timeline for shared overlay: default warmup (10 min from interval-timer-warmup), then totalCycles × (work 20s + rest 10s), then cooldown 120s. */
+  /** Timeline for shared overlay: default warmup from interval-timer-warmup (14 min: 28 × 30s via getDefaultWarmupBlock), then totalCycles × (work 20s + rest 10s), then cooldown 120s. */
   const tabataTimeline = useMemo<HIITTimelineBlock[]>(() => {
     const blocks: HIITTimelineBlock[] = [getDefaultWarmupBlock(), getSetupBlock()];
     for (let i = 0; i < totalCycles; i++) {

@@ -68,13 +68,17 @@ const IntervalTimerApp: React.FC<IntervalTimerAppProps> = ({ initialProtocol }) 
     setCurrentPage(page);
     window.scrollTo({ top: 0, behavior: 'smooth' });
     const slug = getSlugForProtocol(page);
-    window.history.pushState({}, '', '/' + slug);
+    const url = new URL(window.location.href);
+    url.pathname = '/' + slug;
+    window.history.pushState({}, '', url.pathname + url.search + url.hash);
   };
 
   const handleNavigateToLanding = () => {
     setCurrentPage(null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
-    window.history.pushState({}, '', '/');
+    const url = new URL(window.location.href);
+    url.pathname = '/';
+    window.history.pushState({}, '', url.pathname + url.search + url.hash);
   };
 
   useEffect(() => {

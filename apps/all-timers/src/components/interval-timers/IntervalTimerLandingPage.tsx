@@ -167,6 +167,14 @@ const protocols: {
 ];
 
 const IntervalTimerLandingPage: React.FC<IntervalTimerLandingPageProps> = ({ onNavigate }) => {
+  /** Only intercept unmodified left-clicks so Ctrl/Cmd+click and middle-click open in new tab. */
+  const handleAnchorClick = (e: React.MouseEvent<HTMLAnchorElement>, page: IntervalTimerPage) => {
+    if (e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey) {
+      e.preventDefault();
+      onNavigate(page);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#0d0500] font-sans text-white">
       {/* Hero */}
@@ -193,10 +201,7 @@ const IntervalTimerLandingPage: React.FC<IntervalTimerLandingPageProps> = ({ onN
           <div className="flex flex-col justify-center gap-4 sm:flex-row">
             <a
               href="/daily-warm-up"
-              onClick={(e) => {
-                e.preventDefault();
-                onNavigate('warmup');
-              }}
+              onClick={(e) => handleAnchorClick(e, 'warmup')}
               className="flex items-center justify-center gap-2 rounded-xl bg-[#ffbf00] px-8 py-4 font-bold text-black transition-colors hover:bg-[#e6ac00]"
             >
               <Play size={20} fill="currentColor" />
@@ -266,10 +271,7 @@ const IntervalTimerLandingPage: React.FC<IntervalTimerLandingPageProps> = ({ onN
                 <a
                   key={item.id}
                   href={'/' + getSlugForProtocol(item.id)}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    onNavigate(item.id);
-                  }}
+                  onClick={(e) => handleAnchorClick(e, item.id)}
                   className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-6 text-left shadow-sm transition-all hover:border-white/20 hover:bg-white/10 hover:shadow-xl"
                 >
                   <div

@@ -35,6 +35,14 @@ const IntervalTimerLandingContent: React.FC<IntervalTimerLandingContentProps> = 
 }) => {
   const config = getProtocolLandingConfig(protocol);
 
+  /** Only prevent default for unmodified left-clicks so Ctrl/Cmd+click and middle-click open in new tab. */
+  const handleAnchorClick = (e: React.MouseEvent<HTMLAnchorElement>, page: IntervalTimerPage) => {
+    if (e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey) {
+      e.preventDefault();
+      onNavigate(page);
+    }
+  };
+
   // Fallback: if config missing (e.g. new protocol not yet in config), show generic coming soon
   if (!config) {
     const label = getProtocolLabel(protocol);
@@ -50,20 +58,14 @@ const IntervalTimerLandingContent: React.FC<IntervalTimerLandingContentProps> = 
           <div className="flex justify-center gap-4">
             <a
               href="/tabata-timer"
-              onClick={(e) => {
-                e.preventDefault();
-                onNavigate('tabata');
-              }}
+              onClick={(e) => handleAnchorClick(e, 'tabata')}
               className="rounded-xl bg-[#ffbf00] px-8 py-3 font-bold text-black shadow-lg transition-transform hover:-translate-y-0.5"
             >
               Try Tabata
             </a>
             <a
               href="/japanese-walking"
-              onClick={(e) => {
-                e.preventDefault();
-                onNavigate('mindful');
-              }}
+              onClick={(e) => handleAnchorClick(e, 'mindful')}
               className="rounded-xl border border-[#ffbf00]/50 bg-[#ffbf00]/10 px-8 py-3 font-bold text-[#ffbf00] transition-colors hover:bg-[#ffbf00]/20"
             >
               Try Japanese Walking
@@ -106,10 +108,7 @@ const IntervalTimerLandingContent: React.FC<IntervalTimerLandingContentProps> = 
           ) : hero.primaryCtaNavigateTo ? (
             <a
               href={'/' + getSlugForProtocol(hero.primaryCtaNavigateTo)}
-              onClick={(e) => {
-                e.preventDefault();
-                onNavigate(hero.primaryCtaNavigateTo!);
-              }}
+              onClick={(e) => handleAnchorClick(e, hero.primaryCtaNavigateTo!)}
               className="rounded-xl bg-[#ffbf00] px-8 py-3 font-bold text-black shadow-lg transition-transform hover:-translate-y-0.5"
             >
               {hero.primaryCtaLabel}
@@ -118,10 +117,7 @@ const IntervalTimerLandingContent: React.FC<IntervalTimerLandingContentProps> = 
           {hero.secondaryCtaLabel && hero.secondaryCtaNavigateTo && (
             <a
               href={'/' + getSlugForProtocol(hero.secondaryCtaNavigateTo)}
-              onClick={(e) => {
-                e.preventDefault();
-                onNavigate(hero.secondaryCtaNavigateTo!);
-              }}
+              onClick={(e) => handleAnchorClick(e, hero.secondaryCtaNavigateTo!)}
               className="rounded-xl border border-[#ffbf00]/50 bg-[#ffbf00]/10 px-8 py-3 font-bold text-[#ffbf00] transition-colors hover:bg-[#ffbf00]/20"
             >
               {hero.secondaryCtaLabel}

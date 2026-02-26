@@ -52,6 +52,16 @@ const IntervalTimerLanding: React.FC<IntervalTimerLandingProps> = ({
   const prev = getPrevProtocol(currentProtocol);
   const next = getNextProtocol(currentProtocol);
 
+  /** Only intercept unmodified left-clicks when onNavigate is provided; else let browser follow href (new tab, copy link). */
+  const handleProtocolLinkClick = (e: React.MouseEvent<HTMLAnchorElement>, page: IntervalTimerPage) => {
+    if (!onNavigate) return;
+    const isUnmodifiedLeftClick =
+      e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey;
+    if (!isUnmodifiedLeftClick) return;
+    e.preventDefault();
+    onNavigate(page);
+  };
+
   const homeLabel = 'Home';
   // When standalone, Home always links to "/"; otherwise use onNavigateToLanding when provided (hub).
   const useHomeLink = standalone || !onNavigateToLanding;
@@ -91,10 +101,7 @@ const IntervalTimerLanding: React.FC<IntervalTimerLandingProps> = ({
                       {getProtocolHref ? (
                         <a
                           href={getProtocolHref(id)}
-                          onClick={(e) => {
-                            e.preventDefault();
-                            onNavigate?.(id);
-                          }}
+                          onClick={(e) => handleProtocolLinkClick(e, id)}
                           className={
                             id === currentProtocol
                               ? 'text-[#ffbf00]'
@@ -127,10 +134,7 @@ const IntervalTimerLanding: React.FC<IntervalTimerLandingProps> = ({
                     (getProtocolHref ? (
                       <a
                         href={getProtocolHref(prev)}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          onNavigate?.(prev);
-                        }}
+                        onClick={(e) => handleProtocolLinkClick(e, prev)}
                         className="text-xs text-white/70 hover:text-[#ffbf00]"
                       >
                         ← {getProtocolLabel(prev)}
@@ -148,10 +152,7 @@ const IntervalTimerLanding: React.FC<IntervalTimerLandingProps> = ({
                     (getProtocolHref ? (
                       <a
                         href={getProtocolHref(next)}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          onNavigate?.(next);
-                        }}
+                        onClick={(e) => handleProtocolLinkClick(e, next)}
                         className="text-xs text-white/70 hover:text-[#ffbf00]"
                       >
                         {getProtocolLabel(next)} →

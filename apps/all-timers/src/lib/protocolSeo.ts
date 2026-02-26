@@ -2,7 +2,7 @@
  * SEO meta (title, description) per protocol for dynamic document head.
  */
 
-import type { IntervalTimerPage } from '@interval-timers/types';
+import type { IntervalTimerPage } from '@interval-timers/timer-core';
 import { getProtocolLandingConfig } from '../components/interval-timers/intervalTimerLandingConfig';
 import { getProtocolLabel } from '@interval-timers/timer-core';
 

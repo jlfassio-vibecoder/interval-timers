@@ -283,7 +283,7 @@ const JapaneseWalking: React.FC<JapaneseWalkingProps> = ({ onNavigate, onNavigat
 
   useEffect(() => {
     animateRef.current = animateVisualizer;
-  });
+  }, [animateVisualizer]);
 
   useLayoutEffect(() => {
     requestRef.current = requestAnimationFrame((t) => {
@@ -548,6 +548,8 @@ const JapaneseWalking: React.FC<JapaneseWalkingProps> = ({ onNavigate, onNavigat
               type="button"
               onClick={toggleTelemetryAudio}
               className="absolute right-4 top-4 z-20 text-white/60 transition-colors hover:text-white"
+              aria-label={isTelemetryEnabled ? 'Disable heartbeat audio' : 'Enable heartbeat audio'}
+              aria-pressed={isTelemetryEnabled}
             >
               {isTelemetryEnabled ? '🔊' : '🔇'}
             </button>
@@ -588,6 +590,7 @@ const JapaneseWalking: React.FC<JapaneseWalkingProps> = ({ onNavigate, onNavigat
                 type="button"
                 onClick={() => setIsReportOpen(false)}
                 className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 font-bold text-white hover:bg-[#ffbf00]/20 hover:text-[#ffbf00]"
+                aria-label="Close protocol details"
               >
                 &times;
               </button>

@@ -3,7 +3,7 @@
  * Maps protocol IDs to keyword-rich paths matching high-traffic search terms.
  */
 
-import type { IntervalTimerPage } from '@interval-timers/types';
+import type { IntervalTimerPage } from '@interval-timers/timer-core';
 import { VALID_PROTOCOLS } from '@interval-timers/timer-core';
 
 export const PROTOCOL_TO_SLUG: Record<IntervalTimerPage, string> = {
