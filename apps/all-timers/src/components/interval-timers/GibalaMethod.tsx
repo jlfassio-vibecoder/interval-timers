@@ -18,6 +18,7 @@ import { IntervalTimerLanding } from '@interval-timers/timer-ui';
 
 interface GibalaMethodProps {
   onNavigate: (page: IntervalTimerPage) => void;
+  onNavigateToLanding?: () => void;
 }
 
 type TimerState = 'idle' | 'warmup' | 'setup' | 'work' | 'rest' | 'cooldown' | 'finished';
@@ -37,7 +38,7 @@ interface SimContent {
 
 const ACCENT = getProtocolAccent('gibala');
 
-const GibalaMethod: React.FC<GibalaMethodProps> = ({ onNavigate }) => {
+const GibalaMethod: React.FC<GibalaMethodProps> = ({ onNavigate, onNavigateToLanding }) => {
   const [isReportOpen, setIsReportOpen] = useState(false);
 
   // --- TIMER STATE ---
@@ -361,7 +362,12 @@ const GibalaMethod: React.FC<GibalaMethodProps> = ({ onNavigate }) => {
 
   return (
     <>
-      <IntervalTimerLanding currentProtocol="gibala" onNavigate={onNavigate} accentTheme={ACCENT}>
+      <IntervalTimerLanding
+        currentProtocol="gibala"
+        onNavigate={onNavigate}
+        onNavigateToLanding={onNavigateToLanding}
+        accentTheme={ACCENT}
+      >
         {/* HERO */}
         <section className="mx-auto max-w-4xl pt-8 text-center">
           <h1 className="font-display mb-6 text-4xl font-bold leading-tight text-white md:text-6xl">

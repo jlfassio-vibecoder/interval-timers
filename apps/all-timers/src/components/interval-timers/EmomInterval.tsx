@@ -18,6 +18,7 @@ import {
 
 interface EmomIntervalProps {
   onNavigate: (page: IntervalTimerPage) => void;
+  onNavigateToLanding?: () => void;
 }
 
 type TimerState = 'idle' | 'warmup' | 'setup' | 'working' | 'resting' | 'finished';
@@ -37,7 +38,7 @@ interface SimContent {
 
 const EMOM_ACCENT = getProtocolAccent('emom');
 
-const EmomInterval: React.FC<EmomIntervalProps> = ({ onNavigate }) => {
+const EmomInterval: React.FC<EmomIntervalProps> = ({ onNavigate, onNavigateToLanding }) => {
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [isTimerOpen, setIsTimerOpen] = useState(false);
   const [isDurationSelectOpen, setIsDurationSelectOpen] = useState(false);
@@ -389,6 +390,7 @@ const EmomInterval: React.FC<EmomIntervalProps> = ({ onNavigate }) => {
       <IntervalTimerLanding
         currentProtocol="emom"
         onNavigate={onNavigate}
+        onNavigateToLanding={onNavigateToLanding}
         accentTheme={EMOM_ACCENT}
       >
         {/* HERO */}

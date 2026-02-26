@@ -20,6 +20,7 @@ import {
 
 interface TimmonsIntervalProps {
   onNavigate: (page: IntervalTimerPage) => void;
+  onNavigateToLanding?: () => void;
 }
 
 type MetricType = 'glucose_uptake' | 'time_investment';
@@ -38,7 +39,7 @@ interface SimContent {
 
 const TIMMONS_ACCENT = getProtocolAccent('timmons');
 
-const TimmonsInterval: React.FC<TimmonsIntervalProps> = ({ onNavigate }) => {
+const TimmonsInterval: React.FC<TimmonsIntervalProps> = ({ onNavigate, onNavigateToLanding }) => {
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [isTimerOpen, setIsTimerOpen] = useState(false);
 
@@ -237,6 +238,7 @@ const TimmonsInterval: React.FC<TimmonsIntervalProps> = ({ onNavigate }) => {
       <IntervalTimerLanding
         currentProtocol="timmons"
         onNavigate={onNavigate}
+        onNavigateToLanding={onNavigateToLanding}
         accentTheme={TIMMONS_ACCENT}
       >
         {/* HERO */}

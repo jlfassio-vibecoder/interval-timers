@@ -64,24 +64,63 @@ const IntervalTimerApp: React.FC<IntervalTimerAppProps> = ({ initialProtocol }) 
     window.history.pushState({}, '', url.pathname + '?' + url.searchParams.toString());
   };
 
+  const handleNavigateToLanding = () => {
+    setCurrentPage(null);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    const url = new URL(window.location.href);
+    url.searchParams.delete('protocol');
+    const search = url.searchParams.toString();
+    window.history.pushState({}, '', url.pathname + (search ? '?' + search : ''));
+  };
+
   if (currentPage === null) {
     return <IntervalTimerLandingPage onNavigate={handleNavigate} />;
   }
 
   return (
     <>
-      {currentPage === 'warmup' && <WarmUpInterval onNavigate={handleNavigate} />}
-      {currentPage === 'tabata' && <TabataInterval onNavigate={handleNavigate} />}
-      {currentPage === 'mindful' && <JapaneseWalking onNavigate={handleNavigate} />}
-      {currentPage === 'aerobic' && <AerobicInterval onNavigate={handleNavigate} />}
-      {currentPage === 'lactate' && <LactateInterval onNavigate={handleNavigate} />}
-      {currentPage === 'phosphagen' && <PhosphagenInterval onNavigate={handleNavigate} />}
-      {currentPage === 'gibala' && <GibalaMethod onNavigate={handleNavigate} />}
-      {currentPage === 'wingate' && <WingateInterval onNavigate={handleNavigate} />}
-      {currentPage === 'timmons' && <TimmonsInterval onNavigate={handleNavigate} />}
-      {currentPage === 'emom' && <EmomInterval onNavigate={handleNavigate} />}
-      {currentPage === 'amrap' && <AmrapInterval onNavigate={handleNavigate} />}
-      {currentPage === '10-20-30' && <TenTwentyThirtyInterval onNavigate={handleNavigate} />}
+      {currentPage === 'warmup' && (
+        <WarmUpInterval onNavigate={handleNavigate} onNavigateToLanding={handleNavigateToLanding} />
+      )}
+      {currentPage === 'tabata' && (
+        <TabataInterval onNavigate={handleNavigate} onNavigateToLanding={handleNavigateToLanding} />
+      )}
+      {currentPage === 'mindful' && (
+        <JapaneseWalking onNavigate={handleNavigate} onNavigateToLanding={handleNavigateToLanding} />
+      )}
+      {currentPage === 'aerobic' && (
+        <AerobicInterval onNavigate={handleNavigate} onNavigateToLanding={handleNavigateToLanding} />
+      )}
+      {currentPage === 'lactate' && (
+        <LactateInterval onNavigate={handleNavigate} onNavigateToLanding={handleNavigateToLanding} />
+      )}
+      {currentPage === 'phosphagen' && (
+        <PhosphagenInterval
+          onNavigate={handleNavigate}
+          onNavigateToLanding={handleNavigateToLanding}
+        />
+      )}
+      {currentPage === 'gibala' && (
+        <GibalaMethod onNavigate={handleNavigate} onNavigateToLanding={handleNavigateToLanding} />
+      )}
+      {currentPage === 'wingate' && (
+        <WingateInterval onNavigate={handleNavigate} onNavigateToLanding={handleNavigateToLanding} />
+      )}
+      {currentPage === 'timmons' && (
+        <TimmonsInterval onNavigate={handleNavigate} onNavigateToLanding={handleNavigateToLanding} />
+      )}
+      {currentPage === 'emom' && (
+        <EmomInterval onNavigate={handleNavigate} onNavigateToLanding={handleNavigateToLanding} />
+      )}
+      {currentPage === 'amrap' && (
+        <AmrapInterval onNavigate={handleNavigate} onNavigateToLanding={handleNavigateToLanding} />
+      )}
+      {currentPage === '10-20-30' && (
+        <TenTwentyThirtyInterval
+          onNavigate={handleNavigate}
+          onNavigateToLanding={handleNavigateToLanding}
+        />
+      )}
       {![
         'warmup',
         'tabata',
@@ -99,6 +138,7 @@ const IntervalTimerApp: React.FC<IntervalTimerAppProps> = ({ initialProtocol }) 
         <IntervalTimerLanding
           currentProtocol={currentPage}
           onNavigate={handleNavigate}
+          onNavigateToLanding={handleNavigateToLanding}
           accentTheme={getProtocolAccent(currentPage)}
         >
           <IntervalTimerLandingContent protocol={currentPage} onNavigate={handleNavigate} />

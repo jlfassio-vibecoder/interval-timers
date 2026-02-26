@@ -26,6 +26,7 @@ import {
 
 interface AerobicIntervalProps {
   onNavigate: (page: IntervalTimerPage) => void;
+  onNavigateToLanding?: () => void;
 }
 
 type MetricType = 'vo2' | 'lactate';
@@ -44,7 +45,7 @@ interface SimContent {
 
 const ACCENT = getProtocolAccent('aerobic');
 
-const AerobicInterval: React.FC<AerobicIntervalProps> = ({ onNavigate }) => {
+const AerobicInterval: React.FC<AerobicIntervalProps> = ({ onNavigate, onNavigateToLanding }) => {
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [isSetupOpen, setIsSetupOpen] = useState(false);
   const [isTimerOpen, setIsTimerOpen] = useState(false);
@@ -312,7 +313,12 @@ const AerobicInterval: React.FC<AerobicIntervalProps> = ({ onNavigate }) => {
 
   return (
     <>
-      <IntervalTimerLanding currentProtocol="aerobic" onNavigate={onNavigate} accentTheme={ACCENT}>
+      <IntervalTimerLanding
+        currentProtocol="aerobic"
+        onNavigate={onNavigate}
+        onNavigateToLanding={onNavigateToLanding}
+        accentTheme={ACCENT}
+      >
         {/* HERO */}
         <section className="mx-auto max-w-4xl pt-8 text-center">
           <h1 className="font-display mb-6 text-4xl font-bold leading-tight text-white md:text-6xl">

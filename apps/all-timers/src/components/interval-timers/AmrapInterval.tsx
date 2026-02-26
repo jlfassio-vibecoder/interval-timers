@@ -18,6 +18,7 @@ import {
 
 interface AmrapIntervalProps {
   onNavigate: (page: IntervalTimerPage) => void;
+  onNavigateToLanding?: () => void;
 }
 
 type TimerState = 'idle' | 'warmup' | 'setup' | 'work' | 'finished';
@@ -37,7 +38,7 @@ interface SimContent {
 
 const AMRAP_ACCENT = getProtocolAccent('amrap');
 
-const AmrapInterval: React.FC<AmrapIntervalProps> = ({ onNavigate }) => {
+const AmrapInterval: React.FC<AmrapIntervalProps> = ({ onNavigate, onNavigateToLanding }) => {
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [isTimerOpen, setIsTimerOpen] = useState(false);
   const [isDurationSelectOpen, setIsDurationSelectOpen] = useState(false);
@@ -342,6 +343,7 @@ const AmrapInterval: React.FC<AmrapIntervalProps> = ({ onNavigate }) => {
       <IntervalTimerLanding
         currentProtocol="amrap"
         onNavigate={onNavigate}
+        onNavigateToLanding={onNavigateToLanding}
         accentTheme={AMRAP_ACCENT}
       >
         {/* HERO */}

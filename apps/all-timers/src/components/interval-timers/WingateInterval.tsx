@@ -26,6 +26,7 @@ import {
 
 interface WingateIntervalProps {
   onNavigate: (page: IntervalTimerPage) => void;
+  onNavigateToLanding?: () => void;
 }
 
 type MetricType = 'peak_power' | 'fatigue';
@@ -44,7 +45,7 @@ interface SimContent {
 
 const WINGATE_ACCENT = getProtocolAccent('wingate');
 
-const WingateInterval: React.FC<WingateIntervalProps> = ({ onNavigate }) => {
+const WingateInterval: React.FC<WingateIntervalProps> = ({ onNavigate, onNavigateToLanding }) => {
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [isSetupOpen, setIsSetupOpen] = useState(false);
   const [isTimerOpen, setIsTimerOpen] = useState(false);
@@ -296,6 +297,7 @@ const WingateInterval: React.FC<WingateIntervalProps> = ({ onNavigate }) => {
       <IntervalTimerLanding
         currentProtocol="wingate"
         onNavigate={onNavigate}
+        onNavigateToLanding={onNavigateToLanding}
         accentTheme={WINGATE_ACCENT}
       >
         {/* HERO */}
