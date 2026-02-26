@@ -17,7 +17,7 @@ export const PROTOCOL_TO_SLUG: Record<IntervalTimerPage, string> = {
   wingate: 'wingate-test',
   timmons: 'timmons-protocol',
   emom: 'emom-timer',
-  amrap: 'amrap-timer',
+  amrap: 'amrap',
   '10-20-30': '10-20-30',
 };
 

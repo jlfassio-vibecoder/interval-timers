@@ -17,7 +17,7 @@
     { "source": "/", "has": [{ "type": "query", "key": "protocol", "value": "wingate" }], "destination": "/wingate-test", "permanent": true },
     { "source": "/", "has": [{ "type": "query", "key": "protocol", "value": "timmons" }], "destination": "/timmons-protocol", "permanent": true },
     { "source": "/", "has": [{ "type": "query", "key": "protocol", "value": "emom" }], "destination": "/emom-timer", "permanent": true },
-    { "source": "/", "has": [{ "type": "query", "key": "protocol", "value": "amrap" }], "destination": "/amrap-timer", "permanent": true },
+    { "source": "/", "has": [{ "type": "query", "key": "protocol", "value": "amrap" }], "destination": "/amrap", "permanent": true },
     { "source": "/", "has": [{ "type": "query", "key": "protocol", "value": "10-20-30" }], "destination": "/10-20-30", "permanent": true }
   ]
 }
