@@ -2,7 +2,7 @@
   "outputDirectory": "apps/all-timers/dist",
   "rewrites": [
     {
-      "source": "/((?!assets|vite.svg|sitemap.xml|.*\\.(js|css|ico|svg|xml)).*)",
+      "source": "/:path*",
       "destination": "/index.html"
     }
   ],
