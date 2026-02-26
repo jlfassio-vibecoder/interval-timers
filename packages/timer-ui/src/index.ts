@@ -2,7 +2,6 @@ export { default as IntervalTimerOverlay } from './IntervalTimerOverlay';
 export type { IntervalTimerOverlayTheme } from './IntervalTimerOverlay';
 export { default as IntervalTimerLanding } from './IntervalTimerLanding';
 export { default as WarmUpWheel } from './WarmUpWheel';
-export type { WarmUpExercise } from './WarmUpWheel';
 export { default as WarmupInstructionsPanel } from './WarmupInstructionsPanel';
 export type { WarmupInstructionsPanelProps } from './WarmupInstructionsPanel';
 export { IntervalTimerAccentContext, useIntervalTimerAccent } from './intervalTimerAccentContext';

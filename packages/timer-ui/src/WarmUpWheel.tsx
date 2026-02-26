@@ -8,26 +8,18 @@ import {
   WARMUP_EXERCISES,
   WARMUP_DURATION_PER_EXERCISE,
 } from '@interval-timers/timer-core';
-import type { InstructionStep } from '@interval-timers/types';
+import type { WarmupExercise } from './useWarmupConfig';
 
 const ITEM_HEIGHT = 80;
 const ITEM_GAP = 24; // Space between items to reduce crowding
 const CONTAINER_HEIGHT = 288; // ~3 items visible with gap
 const CENTER_OFFSET = CONTAINER_HEIGHT / 2 - ITEM_HEIGHT / 2;
 
-export interface WarmUpExercise {
-  name: string;
-  detail: string;
-  imageUrl?: string;
-  instructions?: string[];
-  instructionSteps?: InstructionStep[];
-}
-
 interface WarmUpWheelProps {
   /** Current elapsed time in the warm-up block (in seconds). Controlled by parent. */
   elapsedSeconds: number;
   /** Enriched exercises from API (name, detail, imageUrl?, instructions?). If omitted, uses static WARMUP_EXERCISES. */
-  exercises?: WarmUpExercise[];
+  exercises?: WarmupExercise[];
   /** Duration per exercise in seconds. Used with elapsedSeconds to compute active index. */
   durationPerExercise?: number;
 }

@@ -11,9 +11,7 @@ Run these from the monorepo root (`interval-timers/`):
 | `npm run build` | Build all-timers for production |
 | `npm run lint` | Lint all-timers |
 
-### Workspace-specific (future)
-
-When additional apps exist (e.g. `daily-warmup`):
+### Workspace-specific
 
 | Command | Description |
 |---------|-------------|
@@ -36,12 +34,12 @@ The Daily Warm-up is one of 12 protocols in the all-timers app. To run it:
    - Click **Daily Warm-Up** on the landing page, or
    - Go directly to: `http://localhost:5173?protocol=warmup`
 
-### Standalone app (Phase 2)
+### Standalone app
 
-When `apps/daily-warmup/` exists, run it as its own app:
+Run the daily-warmup app on its own (no protocol selector — warm-up flow only):
 
 ```bash
 npm run dev:daily-warmup
 ```
 
-Then open the URL shown (e.g. http://localhost:5174). No protocol selector — it runs only the warm-up flow.
+Then open the URL shown (e.g. http://localhost:5174).

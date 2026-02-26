@@ -15,7 +15,8 @@ import { IntervalTimerAccentContext } from './intervalTimerAccentContext';
 
 interface IntervalTimerLandingProps {
   currentProtocol: IntervalTimerPage;
-  onNavigate: (page: IntervalTimerPage) => void;
+  /** Required when standalone is false so nav works; optional when standalone (nav is hidden). */
+  onNavigate?: (page: IntervalTimerPage) => void;
   children: ReactNode;
   /** Optional accent for badges/headers (e.g. Tabata red, Mindful green). Nav and primary CTA stay #ffbf00. */
   accentTheme?: ProtocolAccentTheme | null;
@@ -63,7 +64,7 @@ const IntervalTimerLanding: React.FC<IntervalTimerLandingProps> = ({
                     <React.Fragment key={id}>
                       <button
                         type="button"
-                        onClick={() => onNavigate(id)}
+                        onClick={() => onNavigate?.(id)}
                         className={
                           id === currentProtocol
                             ? 'text-[#ffbf00]'
@@ -82,7 +83,7 @@ const IntervalTimerLanding: React.FC<IntervalTimerLandingProps> = ({
                   {prev && (
                     <button
                       type="button"
-                      onClick={() => onNavigate(prev)}
+                      onClick={() => onNavigate?.(prev)}
                       className="text-xs text-white/70 hover:text-[#ffbf00]"
                     >
                       ← {getProtocolLabel(prev)}
@@ -91,7 +92,7 @@ const IntervalTimerLanding: React.FC<IntervalTimerLandingProps> = ({
                   {next && (
                     <button
                       type="button"
-                      onClick={() => onNavigate(next)}
+                      onClick={() => onNavigate?.(next)}
                       className="text-xs text-white/70 hover:text-[#ffbf00]"
                     >
                       {getProtocolLabel(next)} →

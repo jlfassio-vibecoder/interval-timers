@@ -14,7 +14,7 @@ import {
 } from '@interval-timers/timer-sounds';
 import WarmUpWheel from './WarmUpWheel';
 import WarmupInstructionsPanel from './WarmupInstructionsPanel';
-import type { WarmUpExercise } from './WarmUpWheel';
+import type { WarmupExercise } from './useWarmupConfig';
 import {
   WARMUP_EXERCISES,
   WARMUP_DURATION_PER_EXERCISE,
@@ -36,7 +36,7 @@ interface IntervalTimerOverlayProps {
   onClose: () => void;
   theme?: IntervalTimerOverlayTheme;
   /** Enriched warmup exercises (imageUrl, instructions). When provided, used for warmup block header image and wheel. */
-  warmupExercises?: WarmUpExercise[];
+  warmupExercises?: WarmupExercise[];
   /** Duration per warmup exercise in seconds. Used with warmupExercises. */
   warmupDurationPerExercise?: number;
 }
@@ -50,7 +50,7 @@ const IntervalTimerOverlay: React.FC<IntervalTimerOverlayProps> = ({
   warmupExercises,
   warmupDurationPerExercise = WARMUP_DURATION_PER_EXERCISE,
 }) => {
-  const warmupList: WarmUpExercise[] =
+  const warmupList: WarmupExercise[] =
     warmupExercises ?? WARMUP_EXERCISES.map((e) => ({ name: e.name, detail: e.detail }));
   const warmupDuration = warmupDurationPerExercise ?? WARMUP_DURATION_PER_EXERCISE;
   const [currentIndex, setCurrentIndex] = useState(0);

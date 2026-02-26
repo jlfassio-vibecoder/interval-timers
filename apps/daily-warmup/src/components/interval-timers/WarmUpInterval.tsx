@@ -17,7 +17,8 @@ import { getProtocolAccent } from '@interval-timers/timer-core';
 import type { HIITTimelineBlock } from '@interval-timers/types';
 
 interface WarmUpIntervalProps {
-  onNavigate: (page: IntervalTimerPage) => void;
+  /** Optional in standalone app (nav hidden); required when embedded in all-timers. */
+  onNavigate?: (page: IntervalTimerPage) => void;
 }
 
 interface FrozenWarmupSnapshot {
