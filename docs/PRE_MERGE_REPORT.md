@@ -1,38 +1,43 @@
 # Pre-Merge Report
 
-**PR scope:** Phase 4 Tabata standalone app, Home nav, and Copilot review fixes.
-
-**Report date:** Final gatekeeper pass.
+**Date:** Final PR gatekeeper pass  
+**Scope:** SEO URL migration, Japanese Walking app, Copilot comment triage, anti-slop scrub
 
 ---
 
-## Fixed (Critical / Performance / Quality)
+## Fixed
 
-| Item | Location | Resolution |
-|------|----------|------------|
-| Warmup duration comment inaccuracy | `apps/tabata/.../TabataInterval.tsx` | Updated JSDoc from "10 min" to "14 min: 28 × 30s via getDefaultWarmupBlock" to match `packages/timer-core`. |
-| Home vs standalone contract | `packages/timer-ui/IntervalTimerLanding.tsx` | Logic now makes `standalone` take precedence: when `standalone`, Home always renders as `href="/"`; otherwise uses `onNavigateToLanding` when provided. Aligns behavior with JSDoc. |
-| Button type in form context | `apps/tabata/.../TabataSetupContent.tsx` | Added `type="button"` to all 6 buttons to avoid accidental submit when used inside a form. |
-| Unstable list key | `apps/tabata/.../TabataSetupContent.tsx` | Replaced `key={idx}` with `key={option.name}` (stable, unique per category); removed unused `idx` from map callback. |
-| package.json formatting | `apps/tabata/package.json` | Reformatted from single line to pretty-printed (2-space indent) for consistent diffs with rest of repo. |
-| AudioContext resource cleanup | `apps/tabata/.../TabataInterval.tsx` | On telemetry toggle-off: suspend context when present. On unmount: close context and null ref. Documented intentional empty catch for enable path. |
+| Area | Fix |
+|------|-----|
+| **SEO / Types** | `IntervalTimerPage` imported from `@interval-timers/timer-core` in `protocolSeo.ts` and `seoSlugs.ts` (consistency with rest of all-timers). |
+| **Performance** | JapaneseWalking: `useEffect` that syncs `animateRef.current = animateVisualizer` now has dependency array `[animateVisualizer]` to avoid running on every render. |
+| **Accessibility** | JapaneseWalking: Telemetry toggle button given `aria-label` and `aria-pressed`; modal close button given `aria-label="Close protocol details"`. |
+| **Link UX** | All-timers and timer-ui: Anchor CTAs only intercept **unmodified left-clicks**; Ctrl/Cmd+click and middle-click follow `href` (open in new tab). Applied in: `IntervalTimerLandingContent`, `IntervalTimerLanding` (desktop + mobile nav), `IntervalTimerLandingPage` (hero + protocol grid). |
+| **URL preservation** | `IntervalTimerApp`: `handleNavigate` and `handleNavigateToLanding` build URL from `window.location.href` and only change `pathname`; `search` and `hash` (e.g. UTM, `#section`) are preserved. |
+| **Documentation** | all-timers `TabataInterval.tsx`: Warmup timeline comment updated from "10 min" to "14 min: 28 × 30s via getDefaultWarmupBlock" to match timer-core source of truth. |
+
+---
+
+## Slop Scrubbed
+
+- **Redundant comments:** None removed; existing JSDoc and one-line comments in touched files describe intent (e.g. "Only intercept unmodified left-clicks") and were kept.
+- **Hallucinated APIs:** None found; all imports and method calls verified against the codebase.
+- **Dead logic:** No placeholder logic, unused variables, or empty try/catch blocks introduced or left in the changed files.
 
 ---
 
 ## Ignored
 
-* **None.** All Copilot suggestions that were shared and evaluated were either applied (above) or already addressed in prior turns. No suggestions were explicitly rejected in this final pass.
+- **Duplicate Copilot comments:** Several comments referred to code that had already been updated in this PR (e.g. "protocol cards always preventDefault", "seoSlugs use timer-core", "prev/next mobile links")—no change; fix was already in place.
+- **Style / abstraction:** No suggestions were ignored for style reasons in this pass; all valid correctness/accessibility/UX fixes were applied.
 
 ---
 
-## Verification (This Pass)
+## Verification
 
-- **Security / env:** No `import.meta.env` or `PUBLIC_` usage in app `src/`; no client-side env leakage.
-- **Node in client:** No `fs`/`path`/Node-only imports in `apps/tabata/src` or other app client code.
-- **Types:** No `any` or loose types introduced in `apps/tabata` or `packages/timer-ui` changes.
-- **Debt:** No `TODO`, `FIXME`, or `HACK` in `apps/tabata`. No stray `console.log`/`console.debug`/`console.info` in tabata.
-- **Build:** `npm run build -w all-timers` and `npm run build -w tabata` complete successfully.
-- **Lint:** `npm run lint -w all-timers` and `npm run lint -w tabata` pass with no errors.
+- **Build:** `npm run build` (all-timers) succeeds.
+- **Env:** Only `import.meta.env.VITE_APP_URL` used (client-safe); no `PUBLIC_` or secrets in client code.
+- **Node APIs:** Not used in client components; only in config/tooling (e.g. `vite.config.ts`).
 
 ---
 
@@ -40,4 +45,4 @@
 
 **READY TO MERGE**
 
-No critical issues, type regressions, or architectural violations found. All applied fixes are minimal, consistent with existing patterns, and preserve build/lint stability.
+All triaged Copilot comments have been addressed or confirmed already fixed. One documentation correction was applied (Tabata warmup comment in all-timers). No critical or slop issues remain; link behavior, accessibility, and URL preservation are consistent and human-centric.

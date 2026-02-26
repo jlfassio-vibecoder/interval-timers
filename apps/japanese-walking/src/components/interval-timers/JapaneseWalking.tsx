@@ -6,13 +6,10 @@ import {
   useWarmupConfig,
   type WarmupExercise,
 } from '@interval-timers/timer-ui';
-import IntervalTimerSetupModal from './IntervalTimerSetupModal';
 import type { IntervalTimerPage } from '@interval-timers/timer-core';
 import { getProtocolAccent } from '@interval-timers/timer-core';
 import type { HIITTimelineBlock } from '@interval-timers/types';
 import { getDefaultWarmupBlock, getSetupBlock } from '@interval-timers/timer-core';
-import { useTabataSetup } from './useTabataSetup';
-import { TabataProtocolStep, TabataWorkoutStep } from './TabataSetupContent';
 import {
   BarChart,
   Bar,
@@ -26,13 +23,14 @@ import {
   Line,
 } from 'recharts';
 
-interface TabataTimerProps {
-  onNavigate: (page: IntervalTimerPage) => void;
+interface JapaneseWalkingProps {
+  /** Optional in standalone app (nav hidden); required when embedded in all-timers. */
+  onNavigate?: (page: IntervalTimerPage) => void;
   onNavigateToLanding?: () => void;
 }
 
-type MetricType = 'aerobic' | 'anaerobic';
-type SimMode = 'work' | 'rest';
+type MetricType = 'vo2' | 'bp';
+type SimMode = 'fast' | 'slow';
 
 interface SimContent {
   color: string;
@@ -45,15 +43,11 @@ interface SimContent {
   icon: string;
 }
 
-const TABATA_ACCENT = getProtocolAccent('tabata');
+const ACCENT = getProtocolAccent('mindful');
 
-const TabataInterval: React.FC<TabataTimerProps> = ({ onNavigate, onNavigateToLanding }) => {
+const JapaneseWalking: React.FC<JapaneseWalkingProps> = ({ onNavigate, onNavigateToLanding }) => {
   const [isReportOpen, setIsReportOpen] = useState(false);
-
-  // --- REAL TIMER STATE ---
   const [isTimerOpen, setIsTimerOpen] = useState(false);
-  const [totalCycles, setTotalCycles] = useState(8);
-  const [currentWorkoutPlan, setCurrentWorkoutPlan] = useState<string[]>([]);
   const [frozenWarmup, setFrozenWarmup] = useState<{
     exercises: WarmupExercise[];
     durationPerExercise: number;
@@ -61,48 +55,37 @@ const TabataInterval: React.FC<TabataTimerProps> = ({ onNavigate, onNavigateToLa
 
   const { exercises, durationPerExercise } = useWarmupConfig();
 
-  const setup = useTabataSetup((result) => {
-    setTotalCycles(result.cycles);
-    setCurrentWorkoutPlan(result.workoutList);
-    setFrozenWarmup({ exercises: [...exercises], durationPerExercise });
-    setIsTimerOpen(true);
-  });
-
-  const audioContextRef = useRef<AudioContext | null>(null);
-
-  /** Timeline for shared overlay: default warmup from interval-timer-warmup (14 min: 28 × 30s via getDefaultWarmupBlock), then totalCycles × (work 20s + rest 10s), then cooldown 120s. */
-  const tabataTimeline = useMemo<HIITTimelineBlock[]>(() => {
+  const japaneseWalkingTimeline = useMemo<HIITTimelineBlock[]>(() => {
     const blocks: HIITTimelineBlock[] = [getDefaultWarmupBlock(), getSetupBlock()];
-    for (let i = 0; i < totalCycles; i++) {
-      const workName =
-        currentWorkoutPlan.length > 0
-          ? currentWorkoutPlan[i % currentWorkoutPlan.length]
-          : 'SPRINT';
-      blocks.push({ type: 'work', duration: 20, name: workName, notes: 'Maximum Effort' });
-      blocks.push({ type: 'rest', duration: 10, name: 'Rest', notes: 'Breathe Deeply' });
+    for (let i = 0; i < 5; i++) {
+      blocks.push({ type: 'work', duration: 180, name: 'Fast Walk', notes: 'RPE 13-14' });
+      blocks.push({ type: 'rest', duration: 180, name: 'Recovery Walk', notes: 'Breathe & step' });
     }
-    blocks.push({ type: 'cooldown', duration: 120, name: 'Cool Down', notes: 'Flush Lactic Acid' });
+    blocks.push({
+      type: 'cooldown',
+      duration: 120,
+      name: 'Cool Down',
+      notes: 'Return to baseline',
+    });
     return blocks;
-  }, [totalCycles, currentWorkoutPlan]);
+  }, []);
 
-  // --- SECTION 1: IMPACT DATA ---
-  const [metric, setMetric] = useState<MetricType>('aerobic');
+  const [metric, setMetric] = useState<MetricType>('vo2');
 
   const impactData = [
-    { name: 'Control', aerobic: 0, anaerobic: 0 },
-    { name: 'Moderate (60m)', aerobic: 10, anaerobic: 0 },
-    { name: 'Tabata (4m)', aerobic: 14, anaerobic: 28 },
+    { name: 'Sedentary', vo2: 0, bp: 0 },
+    { name: '10k Steps', vo2: 2, bp: -2 },
+    { name: 'Interval Walk', vo2: 18, bp: -9 },
   ];
 
-  // --- SECTION 2: SIMULATOR STATE ---
-  const [simMode, setSimMode] = useState<SimMode>('work');
+  const [simMode, setSimMode] = useState<SimMode>('fast');
   const [intensityData, setIntensityData] = useState<{ time: number; value: number }[]>([]);
 
   useEffect(() => {
-    const base = simMode === 'work' ? 170 : 110;
+    const base = simMode === 'fast' ? 85 : 40;
     const initialData = Array.from({ length: 30 }, (_, i) => ({
       time: i,
-      value: base + (Math.random() * 10 - 5),
+      value: base + (Math.random() * 5 - 2.5),
     }));
     queueMicrotask(() => setIntensityData(initialData));
 
@@ -112,7 +95,7 @@ const TabataInterval: React.FC<TabataTimerProps> = ({ onNavigate, onNavigateToLa
         const lastTime = prev[prev.length - 1].time;
         newData.push({
           time: lastTime + 1,
-          value: base + (Math.random() * 10 - 5),
+          value: base + (Math.random() * 5 - 2.5),
         });
         return newData;
       });
@@ -122,91 +105,105 @@ const TabataInterval: React.FC<TabataTimerProps> = ({ onNavigate, onNavigateToLa
   }, [simMode]);
 
   const simContent: Record<SimMode, SimContent> = {
-    work: {
-      color: 'text-red-600',
-      bgColor: 'bg-red-600',
-      borderColor: 'border-red-200',
-      phase: 'Maximal Output',
-      status: 'Work Phase (20 Secs)',
+    fast: {
+      color: 'text-orange-600',
+      bgColor: 'bg-orange-600',
+      borderColor: 'border-orange-200',
+      phase: 'Push Phase',
+      status: 'Fast Walk (3 Mins)',
       instruction:
-        "Push to absolute maximum capacity. Target 170% VO2 Max. If you feel like you could do a 9th rep, you didn't push hard enough on the first 8.",
-      quote: 'The magic happens in the oxygen debt.',
-      icon: '🔥',
+        "Focus on form: Large strides. Land on your heel. Swing arms bent at 90°. Target RPE: 13-14 ('Somewhat Hard'). Elevate heart rate >70% Max.",
+      quote: 'Feel the power in your legs. The burn is the signal of adaptation.',
+      icon: '⚡',
     },
-    rest: {
-      color: 'text-blue-600',
-      bgColor: 'bg-blue-600',
-      borderColor: 'border-blue-200',
-      phase: 'Absolute Rest',
-      status: 'Recovery Phase (10 Secs)',
+    slow: {
+      color: 'text-green-700',
+      bgColor: 'bg-green-700',
+      borderColor: 'border-green-200',
+      phase: 'Recovery Phase',
+      status: 'Recovery Walk (3 Mins)',
       instruction:
-        'Complete cessation of work. Focus entirely on gas exchange. Deep diaphragmatic breathing to clear lactic acid buildup.',
-      quote: 'Recover instantly. Prepare for the next strike.',
-      icon: '🧊',
+        'Transition to 40% effort. Do not stop. Use Mindful Walking: synchronize breath and step. Inhale for 3 steps, exhale for 3 steps. Release shoulder tension.',
+      quote: '"I have arrived. I am home."',
+      icon: '🧘',
     },
   };
 
   const currentSim = simContent[simMode];
 
-  // --- SECTION 3: VISUALIZER ---
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const requestRef = useRef<number | null>(null);
   const animateRef = useRef<(time: number) => void>(() => {});
   const [isTelemetryEnabled, setIsTelemetryEnabled] = useState(false);
   const lastBeatPhaseRef = useRef(0);
 
-  /** Returns a running AudioContext; creates or replaces if closed, awaits resume if suspended. */
-  const getRunningAudioContext = (): Promise<AudioContext | null> => {
-    const AudioContextCtor =
-      window.AudioContext ||
-      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!AudioContextCtor) return Promise.resolve(null);
-    let ctx = audioContextRef.current;
-    if (!ctx || ctx.state === 'closed') {
-      audioContextRef.current = new AudioContextCtor();
-      ctx = audioContextRef.current;
-    }
-    if (ctx.state === 'suspended') {
-      return ctx.resume().then(() => ctx);
-    }
-    return Promise.resolve(ctx);
-  };
+  const audioContextRef = useRef<AudioContext | null>(null);
+
+  useEffect(() => {
+    return () => {
+      const ctx = audioContextRef.current;
+      if (ctx && ctx.state !== 'closed') {
+        ctx.close().catch(() => {});
+      }
+      audioContextRef.current = null;
+    };
+  }, []);
 
   const toggleTelemetryAudio = () => {
     const nextEnabled = !isTelemetryEnabled;
     if (nextEnabled) {
-      getRunningAudioContext()
-        .then(() => {
-          setIsTelemetryEnabled(true);
-        })
-        .catch(() => {});
+      const AudioContextCtor =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!AudioContextCtor) return;
+      let ctx = audioContextRef.current;
+      if (!ctx || ctx.state === 'closed') {
+        audioContextRef.current = new AudioContextCtor();
+        ctx = audioContextRef.current;
+      }
+      ctx
+        ?.resume()
+        .then(() => setIsTelemetryEnabled(true))
+        .catch(() => {
+          // Ignore autoplay policy or context errors so toggle state stays consistent.
+        });
     } else {
-      setIsTelemetryEnabled(false);
+      const ctx = audioContextRef.current;
+      if (ctx && ctx.state !== 'closed') {
+        ctx.suspend().then(
+          () => setIsTelemetryEnabled(false),
+          () => setIsTelemetryEnabled(false)
+        );
+      } else {
+        setIsTelemetryEnabled(false);
+      }
     }
   };
 
-  const playHeartbeat = useCallback(() => {
-    getRunningAudioContext()
-      .then((ctx) => {
-        if (!ctx) return;
-        const t = ctx.currentTime;
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-
-        osc.type = 'sine';
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-
-        osc.frequency.setValueAtTime(100, t);
-        gain.gain.setValueAtTime(0, t);
-        gain.gain.linearRampToValueAtTime(0.5, t + 0.02);
-        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
-
-        osc.start(t);
-        osc.stop(t + 0.15);
-      })
-      .catch(() => {});
-  }, []);
+  const playHeartbeat = () => {
+    let ctx = audioContextRef.current;
+    if (!ctx || ctx.state === 'closed') {
+      const AudioContextCtor =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!AudioContextCtor) return;
+      audioContextRef.current = new AudioContextCtor();
+      ctx = audioContextRef.current;
+    }
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.setValueAtTime(100, t);
+    gain.gain.setValueAtTime(0, t);
+    gain.gain.linearRampToValueAtTime(0.5, t + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+    osc.start(t);
+    osc.stop(t + 0.15);
+  };
 
   const animateVisualizer = useCallback((time: number) => {
     const canvas = canvasRef.current;
@@ -227,7 +224,7 @@ const TabataInterval: React.FC<TabataTimerProps> = ({ onNavigate, onNavigateToLa
 
     ctx.clearRect(0, 0, width, height);
 
-    const targetBpm = simMode === 'work' ? 170 : 60;
+    const targetBpm = simMode === 'fast' ? 85 : 60;
     const beatDuration = 60000 / targetBpm;
     const phase = (time % beatDuration) / beatDuration;
 
@@ -239,10 +236,10 @@ const TabataInterval: React.FC<TabataTimerProps> = ({ onNavigate, onNavigateToLa
     lastBeatPhaseRef.current = phase;
 
     const spike =
-      simMode === 'work' ? Math.exp(-Math.pow(phase - 0.5, 2) * 100) : Math.sin(phase * Math.PI);
+      simMode === 'fast' ? Math.exp(-Math.pow(phase - 0.5, 2) * 100) : Math.sin(phase * Math.PI);
 
     const baseRadius = width * 0.3;
-    const pulseExpansion = simMode === 'work' ? 40 : 15;
+    const pulseExpansion = simMode === 'fast' ? 35 : 12;
     const radius = baseRadius + spike * pulseExpansion;
 
     const gradient = ctx.createRadialGradient(
@@ -253,12 +250,12 @@ const TabataInterval: React.FC<TabataTimerProps> = ({ onNavigate, onNavigateToLa
       centerY,
       radius
     );
-    if (simMode === 'work') {
-      gradient.addColorStop(0, `rgba(220, 38, 38, 0.8)`);
-      gradient.addColorStop(1, `rgba(220, 38, 38, 0)`);
+    if (simMode === 'fast') {
+      gradient.addColorStop(0, 'rgba(234, 88, 12, 0.8)');
+      gradient.addColorStop(1, 'rgba(234, 88, 12, 0)');
     } else {
-      gradient.addColorStop(0, `rgba(37, 99, 235, 0.6)`);
-      gradient.addColorStop(1, `rgba(37, 99, 235, 0)`);
+      gradient.addColorStop(0, 'rgba(22, 163, 74, 0.6)');
+      gradient.addColorStop(1, 'rgba(22, 163, 74, 0)');
     }
 
     ctx.beginPath();
@@ -268,29 +265,29 @@ const TabataInterval: React.FC<TabataTimerProps> = ({ onNavigate, onNavigateToLa
 
     ctx.beginPath();
     ctx.arc(centerX, centerY, baseRadius * 0.8, 0, Math.PI * 2);
-    ctx.fillStyle = simMode === 'work' ? '#7f1d1d' : '#1e3a8a';
+    ctx.fillStyle = simMode === 'fast' ? '#9a3412' : '#14532d';
     ctx.fill();
 
     ctx.font = 'bold 24px Inter';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillStyle = '#fff';
-    ctx.fillText(simMode === 'work' ? 'MAX' : 'REST', centerX, centerY - 10);
+    ctx.fillText(simMode === 'fast' ? 'FAST' : 'RECOVERY', centerX, centerY - 10);
 
     ctx.font = '14px Inter';
     ctx.fillStyle = 'rgba(255,255,255,0.7)';
-    ctx.fillText(simMode === 'work' ? '170% VO2' : 'Recovery', centerX, centerY + 15);
+    ctx.fillText(simMode === 'fast' ? '~85 BPM' : '~60 BPM', centerX, centerY + 15);
 
     requestRef.current = requestAnimationFrame((t) => animateRef.current(t));
-  }, [simMode, isTelemetryEnabled, playHeartbeat]);
+  }, [simMode, isTelemetryEnabled]);
 
   useEffect(() => {
     animateRef.current = animateVisualizer;
-  });
+  }, [animateVisualizer]);
 
   useLayoutEffect(() => {
-    requestRef.current = requestAnimationFrame((time) => {
-      animateVisualizer(time);
+    requestRef.current = requestAnimationFrame((t) => {
+      animateVisualizer(t);
     });
     return () => {
       if (requestRef.current) cancelAnimationFrame(requestRef.current);
@@ -298,23 +295,28 @@ const TabataInterval: React.FC<TabataTimerProps> = ({ onNavigate, onNavigateToLa
     };
   }, [animateVisualizer]);
 
+  const isStandalone = onNavigate == null;
+
   return (
     <>
       <IntervalTimerLanding
-        currentProtocol="tabata"
+        currentProtocol="mindful"
         onNavigate={onNavigate}
         onNavigateToLanding={onNavigateToLanding}
-        accentTheme={getProtocolAccent('tabata')}
+        accentTheme={ACCENT}
+        standalone={isStandalone}
       >
         {/* HERO */}
         <section className="mx-auto max-w-4xl pt-8 text-center">
           <h1 className="font-display mb-6 text-4xl font-bold leading-tight text-white md:text-6xl">
-            The Original <span className="text-[#ffbf00]">4-Minute</span> Miracle
+            The Synthesis of <span className="text-[#ffbf00]">Power</span> &{' '}
+            <span className="text-green-400">Peace</span>
           </h1>
           <p className="mb-10 text-xl leading-relaxed text-white/80">
-            The <strong>Tabata Protocol</strong> (20s Work / 10s Rest). Discovered by Dr. Izumi
-            Tabata in 1996. It is the most efficient method to improve both aerobic and anaerobic
-            capacity simultaneously.
+            Dr. Hiroshi Nose&apos;s <strong>Japanese Walking</strong> protocol alternates 3 minutes
+            fast with 3 minutes slow. Use <strong>Mindful Walking</strong> breath during
+            recovery—inhale and exhale in sync with your steps—to ground the mind while training the
+            heart.
           </p>
           <div className="flex justify-center gap-4">
             <button
@@ -324,47 +326,62 @@ const TabataInterval: React.FC<TabataTimerProps> = ({ onNavigate, onNavigateToLa
               }
               className="rounded-xl bg-[#ffbf00] px-8 py-3 font-bold text-black shadow-lg transition-transform hover:-translate-y-1"
             >
-              Start Tabata
+              Experience Protocol
             </button>
           </div>
         </section>
 
-        {/* SECTION 1: DATA */}
+        {/* SECTION 1: IMPACT DATA */}
         <section className="rounded-3xl border border-white/10 bg-black/30 p-8 shadow-sm md:p-12">
           <div className="grid items-center gap-12 md:grid-cols-2">
             <div>
               <div
-                className={`mb-4 inline-block rounded-full px-3 py-1 text-xs font-bold uppercase ${TABATA_ACCENT.badge} ${TABATA_ACCENT.badgeText}`}
+                className={`mb-4 inline-block rounded-full px-3 py-1 text-xs font-bold uppercase ${ACCENT.badge} ${ACCENT.badgeText}`}
               >
-                Clinical Results
+                Physiological Evidence
               </div>
               <h2 className="font-display mb-4 text-3xl font-bold text-white">
-                Aerobic & Anaerobic Gains
+                Beyond &quot;10,000 Steps&quot;
               </h2>
               <p className="mb-6 leading-relaxed text-white/80">
-                Dr. Tabata's research showed that 4 minutes of this protocol (intensity at 170% of
-                VO2 max) improved aerobic capacity as much as 60 minutes of moderate endurance
-                training, while also increasing anaerobic capacity by 28%.
+                Research by Dr. Hiroshi Nose reveals that steady-state walking often fails to
+                improve <strong>Peak Aerobic Capacity (VO2peak)</strong>. The &quot;Nose
+                Protocol&quot;—alternating 3 minutes fast and 3 minutes slow—creates the metabolic
+                stress required for adaptation.
               </p>
+              <div className="space-y-2 rounded-xl border-l-4 border-[#ffbf00] bg-black/20 p-6">
+                <div className="flex items-center gap-3">
+                  <span className="text-xl">📈</span>
+                  <span className="text-sm font-bold text-white/90">
+                    VO2 Peak: +18% Improvement
+                  </span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-xl">❤️</span>
+                  <span className="text-sm font-bold text-white/90">
+                    Blood Pressure: -9 mmHg Reduction
+                  </span>
+                </div>
+              </div>
             </div>
 
             <div>
               <div className="mb-6 flex items-center justify-between">
-                <h3 className="font-bold text-white/90">6-Week Improvement</h3>
+                <h3 className="font-bold text-white/90">Clinical Results (5 Months)</h3>
                 <div className="flex rounded-lg bg-black/30 p-1">
                   <button
                     type="button"
-                    onClick={() => setMetric('aerobic')}
-                    className={`rounded-md px-3 py-1 text-xs font-bold transition ${metric === 'aerobic' ? 'bg-red-600 text-white' : 'text-white/60'}`}
+                    onClick={() => setMetric('vo2')}
+                    className={`rounded-md px-3 py-1 text-xs font-bold transition ${metric === 'vo2' ? 'bg-orange-600 text-white' : 'text-white/60'}`}
                   >
-                    Aerobic (VO2)
+                    VO2 Peak
                   </button>
                   <button
                     type="button"
-                    onClick={() => setMetric('anaerobic')}
-                    className={`rounded-md px-3 py-1 text-xs font-bold transition ${metric === 'anaerobic' ? 'bg-blue-600 text-white' : 'text-white/60'}`}
+                    onClick={() => setMetric('bp')}
+                    className={`rounded-md px-3 py-1 text-xs font-bold transition ${metric === 'bp' ? 'bg-green-600 text-white' : 'text-white/60'}`}
                   >
-                    Anaerobic
+                    BP Change
                   </button>
                 </div>
               </div>
@@ -396,12 +413,12 @@ const TabataInterval: React.FC<TabataTimerProps> = ({ onNavigate, onNavigateToLa
                         <Cell
                           key={`cell-${index}`}
                           fill={
-                            metric === 'aerobic'
+                            metric === 'vo2'
                               ? index === 2
-                                ? '#dc2626'
+                                ? '#ea580c'
                                 : 'rgba(148,163,184,0.5)'
                               : index === 2
-                                ? '#2563eb'
+                                ? '#16a34a'
                                 : 'rgba(148,163,184,0.5)'
                           }
                         />
@@ -410,6 +427,9 @@ const TabataInterval: React.FC<TabataTimerProps> = ({ onNavigate, onNavigateToLa
                   </BarChart>
                 </ResponsiveContainer>
               </div>
+              <p className="mt-4 text-center text-xs text-white/50">
+                *Interval Walking vs. Steady State Control Group
+              </p>
             </div>
           </div>
         </section>
@@ -418,12 +438,14 @@ const TabataInterval: React.FC<TabataTimerProps> = ({ onNavigate, onNavigateToLa
         <section id="simulator" className="space-y-8">
           <div className="text-center">
             <div
-              className={`mb-4 inline-block rounded-full px-3 py-1 text-xs font-bold uppercase ${TABATA_ACCENT.badge} ${TABATA_ACCENT.badgeText}`}
+              className={`mb-4 inline-block rounded-full px-3 py-1 text-xs font-bold uppercase ${ACCENT.badge} ${ACCENT.badgeText}`}
             >
-              Tabata Simulator
+              Japanese Walking Simulator
             </div>
-            <h2 className="font-display text-3xl font-bold text-white">20s ON / 10s OFF</h2>
-            <p className="mt-2 text-white/70">The most intense 4 minutes of your life.</p>
+            <h2 className="font-display text-3xl font-bold text-white">3 Min Fast / 3 Min Slow</h2>
+            <p className="mt-2 text-white/70">
+              Switch between Physiological Push and Recovery Presence.
+            </p>
           </div>
 
           <div className="overflow-hidden rounded-3xl border border-white/10 bg-black/30 shadow-xl">
@@ -436,9 +458,7 @@ const TabataInterval: React.FC<TabataTimerProps> = ({ onNavigate, onNavigateToLa
                 </div>
                 <h3 className="font-display text-2xl font-bold">{currentSim.phase}</h3>
               </div>
-              <div className="font-mono text-3xl opacity-90">
-                {simMode === 'work' ? '00:20' : '00:10'}
-              </div>
+              <div className="font-mono text-3xl opacity-90">03:00</div>
             </div>
 
             <div className="grid md:grid-cols-2">
@@ -446,11 +466,11 @@ const TabataInterval: React.FC<TabataTimerProps> = ({ onNavigate, onNavigateToLa
                 <div className="mb-6 h-[200px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={intensityData}>
-                      <YAxis domain={[0, 200]} hide />
+                      <YAxis domain={[0, 120]} hide />
                       <Line
                         type="monotone"
                         dataKey="value"
-                        stroke={simMode === 'work' ? '#dc2626' : '#2563eb'}
+                        stroke={simMode === 'fast' ? '#ea580c' : '#16a34a'}
                         strokeWidth={3}
                         dot={false}
                         isAnimationActive={false}
@@ -467,22 +487,22 @@ const TabataInterval: React.FC<TabataTimerProps> = ({ onNavigate, onNavigateToLa
               <div className="flex flex-col items-center justify-center bg-black/20 p-8 text-center">
                 <div className="mb-6 text-6xl">{currentSim.icon}</div>
                 <blockquote className="font-display mb-8 text-xl font-bold italic text-white/90">
-                  "{currentSim.quote}"
+                  {currentSim.quote}
                 </blockquote>
                 <div className="flex w-full justify-center gap-4">
                   <button
                     type="button"
-                    onClick={() => setSimMode('work')}
-                    className={`w-1/2 rounded-xl font-bold transition-all ${simMode === 'work' ? 'scale-105 bg-red-600 text-white shadow-lg' : 'border border-white/20 bg-transparent text-white/70 hover:text-white'}`}
+                    onClick={() => setSimMode('fast')}
+                    className={`w-1/2 rounded-xl font-bold transition-all ${simMode === 'fast' ? 'scale-105 bg-orange-600 text-white shadow-lg' : 'border border-white/20 bg-transparent text-white/70 hover:text-white'}`}
                   >
-                    20s MAX
+                    3 MIN FAST
                   </button>
                   <button
                     type="button"
-                    onClick={() => setSimMode('rest')}
-                    className={`w-1/2 rounded-xl font-bold transition-all ${simMode === 'rest' ? 'scale-105 bg-blue-600 text-white shadow-lg' : 'border border-white/20 bg-transparent text-white/70 hover:text-white'}`}
+                    onClick={() => setSimMode('slow')}
+                    className={`w-1/2 rounded-xl font-bold transition-all ${simMode === 'slow' ? 'scale-105 bg-green-700 text-white shadow-lg' : 'border border-white/20 bg-transparent text-white/70 hover:text-white'}`}
                   >
-                    10s REST
+                    3 MIN RECOVERY
                   </button>
                 </div>
               </div>
@@ -492,11 +512,14 @@ const TabataInterval: React.FC<TabataTimerProps> = ({ onNavigate, onNavigateToLa
           <div className="pt-8 text-center">
             <button
               type="button"
-              onClick={setup.open}
+              onClick={() => {
+                setFrozenWarmup({ exercises: [...exercises], durationPerExercise });
+                setIsTimerOpen(true);
+              }}
               className="mx-auto flex items-center gap-3 rounded-full bg-[#ffbf00] px-8 py-4 font-bold text-black shadow-2xl transition-all hover:scale-105"
             >
               <span>⏱️</span>
-              <span>Launch Tabata Timer</span>
+              <span>Launch Japanese Walking Timer</span>
             </button>
           </div>
         </section>
@@ -504,13 +527,11 @@ const TabataInterval: React.FC<TabataTimerProps> = ({ onNavigate, onNavigateToLa
         {/* SECTION 3: VISUALIZER */}
         <section className="grid items-center gap-12 rounded-3xl border border-white/10 bg-black/30 p-8 shadow-2xl md:grid-cols-2 md:p-12">
           <div>
-            <h2 className="font-display mb-6 text-3xl font-bold text-white">
-              Oxygen Debt Visualizer
-            </h2>
+            <h2 className="font-display mb-6 text-3xl font-bold text-white">Heart Rate Response</h2>
             <p className="mb-6 leading-relaxed text-white/80">
-              The visualizer shows the intense cardiovascular demand of Tabata. Your heart rate will
-              likely stay near max even during the 10-second rest periods, creating a cumulative
-              oxygen debt that boosts post-exercise calorie burn (EPOC).
+              The visualizer shows the metabolic demand of the Nose Protocol. Alternating 3-minute
+              fast and slow intervals creates the stress needed to improve VO2 peak and
+              cardiovascular health without the intensity of all-out sprints.
             </p>
             <button
               type="button"
@@ -527,6 +548,8 @@ const TabataInterval: React.FC<TabataTimerProps> = ({ onNavigate, onNavigateToLa
               type="button"
               onClick={toggleTelemetryAudio}
               className="absolute right-4 top-4 z-20 text-white/60 transition-colors hover:text-white"
+              aria-label={isTelemetryEnabled ? 'Disable heartbeat audio' : 'Enable heartbeat audio'}
+              aria-pressed={isTelemetryEnabled}
             >
               {isTelemetryEnabled ? '🔊' : '🔇'}
             </button>
@@ -534,48 +557,23 @@ const TabataInterval: React.FC<TabataTimerProps> = ({ onNavigate, onNavigateToLa
         </section>
       </IntervalTimerLanding>
 
-      <IntervalTimerSetupModal
-        isOpen={setup.isOpen}
-        onClose={setup.close}
-        step={setup.step}
-        protocolTitle="Select Protocol"
-        protocolSubtitle="Choose your intensity structure"
-        workoutTitle="Select Workout"
-        workoutSubtitle="Choose your specific routine"
-        onBack={setup.back}
-        protocolContent={
-          <TabataProtocolStep
-            onStartWithStandard={setup.startWithStandard}
-            onSelectCategory={setup.selectCategory}
-          />
-        }
-        workoutContent={
-          <TabataWorkoutStep
-            selectedCategory={setup.selectedCategory}
-            onStartWithWorkout={setup.startWithWorkout}
-          />
-        }
-      />
-
-      {/* REAL TIMER: shared overlay via portal so it escapes section z-index and covers full viewport */}
       {typeof document !== 'undefined' &&
         isTimerOpen &&
-        tabataTimeline.length > 0 &&
+        japaneseWalkingTimeline.length > 0 &&
         createPortal(
           <IntervalTimerOverlay
-            timeline={tabataTimeline}
+            timeline={japaneseWalkingTimeline}
             onClose={() => {
               setFrozenWarmup(null);
               setIsTimerOpen(false);
             }}
-            theme={{ workBg: TABATA_ACCENT.workBg }}
+            theme={{ workBg: ACCENT.workBg }}
             warmupExercises={frozenWarmup?.exercises}
             warmupDurationPerExercise={frozenWarmup?.durationPerExercise}
           />,
           document.body
         )}
 
-      {/* INFO MODAL */}
       {isReportOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div
@@ -585,29 +583,39 @@ const TabataInterval: React.FC<TabataTimerProps> = ({ onNavigate, onNavigateToLa
           />
           <div className="animate-zoom-in relative flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-3xl border border-white/10 bg-[#0d0500] shadow-2xl">
             <div className="flex items-center justify-between border-b border-white/10 p-6">
-              <h3 className="font-display text-xl font-bold text-white">The Tabata Protocol</h3>
+              <h3 className="font-display text-xl font-bold text-white">
+                The Japanese Walking Protocol
+              </h3>
               <button
                 type="button"
                 onClick={() => setIsReportOpen(false)}
                 className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 font-bold text-white hover:bg-[#ffbf00]/20 hover:text-[#ffbf00]"
+                aria-label="Close protocol details"
               >
                 &times;
               </button>
             </div>
             <div className="prose prose-invert max-w-none overflow-y-auto p-8 text-white/80">
               <p>
-                In 1996, Dr. Izumi Tabata analyzed the training of the Japanese speed skating team.
+                Dr. Hiroshi Nose developed the &quot;Interval Walking&quot; protocol—alternating 3
+                minutes of fast walking (RPE 13–14) with 3 minutes of slow walking—to improve VO2
+                peak in older adults.
               </p>
               <h4>The Protocol</h4>
               <p>
-                20 seconds of ultra-intense exercise followed by 10 seconds of rest, repeated
-                continuously for 4 minutes (8 cycles).
+                3 minutes fast (target &gt;70% HR max) followed by 3 minutes slow (target ~40%
+                effort), repeated 5 times. Total session ~33 minutes including warmup and cooldown.
               </p>
               <h4>The Results</h4>
               <p>
-                The study showed that this 4-minute protocol increased aerobic capacity by 14% and
-                anaerobic capacity by 28%, significantly outperforming traditional steady-state
-                cardio groups in terms of VO2 max improvement.
+                Five months of interval walking increased VO2 peak by ~18% and reduced blood
+                pressure by ~9 mmHg compared to steady-state walking control groups.
+              </p>
+              <h4>Mindful Walking (Recovery)</h4>
+              <p>
+                During the slow phase, apply Thich Nhat Hanh&apos;s Mindful Walking: match your
+                breath to your steps. Inhale for 3 steps, exhale for 3 steps. This keeps you present
+                and supports recovery between high-intensity efforts.
               </p>
             </div>
           </div>
@@ -617,4 +625,4 @@ const TabataInterval: React.FC<TabataTimerProps> = ({ onNavigate, onNavigateToLa
   );
 };
 
-export default TabataInterval;
+export default JapaneseWalking;

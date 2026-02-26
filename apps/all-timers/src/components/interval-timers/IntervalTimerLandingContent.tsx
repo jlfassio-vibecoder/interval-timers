@@ -6,6 +6,7 @@
 import React from 'react';
 import type { IntervalTimerPage } from '@interval-timers/timer-core';
 import { getProtocolAccent, getProtocolLabel } from '@interval-timers/timer-core';
+import { getSlugForProtocol } from '../../lib/seoSlugs';
 import { getProtocolLandingConfig } from './intervalTimerLandingConfig';
 
 interface IntervalTimerLandingContentProps {
@@ -34,6 +35,14 @@ const IntervalTimerLandingContent: React.FC<IntervalTimerLandingContentProps> = 
 }) => {
   const config = getProtocolLandingConfig(protocol);
 
+  /** Only prevent default for unmodified left-clicks so Ctrl/Cmd+click and middle-click open in new tab. */
+  const handleAnchorClick = (e: React.MouseEvent<HTMLAnchorElement>, page: IntervalTimerPage) => {
+    if (e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey) {
+      e.preventDefault();
+      onNavigate(page);
+    }
+  };
+
   // Fallback: if config missing (e.g. new protocol not yet in config), show generic coming soon
   if (!config) {
     const label = getProtocolLabel(protocol);
@@ -47,20 +56,20 @@ const IntervalTimerLandingContent: React.FC<IntervalTimerLandingContentProps> = 
             This timer is coming soon. Try Tabata or Japanese Walking in the meantime.
           </p>
           <div className="flex justify-center gap-4">
-            <button
-              type="button"
-              onClick={() => onNavigate('tabata')}
+            <a
+              href="/tabata-timer"
+              onClick={(e) => handleAnchorClick(e, 'tabata')}
               className="rounded-xl bg-[#ffbf00] px-8 py-3 font-bold text-black shadow-lg transition-transform hover:-translate-y-0.5"
             >
               Try Tabata
-            </button>
-            <button
-              type="button"
-              onClick={() => onNavigate('mindful')}
+            </a>
+            <a
+              href="/japanese-walking"
+              onClick={(e) => handleAnchorClick(e, 'mindful')}
               className="rounded-xl border border-[#ffbf00]/50 bg-[#ffbf00]/10 px-8 py-3 font-bold text-[#ffbf00] transition-colors hover:bg-[#ffbf00]/20"
             >
               Try Japanese Walking
-            </button>
+            </a>
           </div>
         </section>
       </>
@@ -88,21 +97,31 @@ const IntervalTimerLandingContent: React.FC<IntervalTimerLandingContentProps> = 
         </h1>
         <p className="mb-10 text-xl leading-relaxed text-white/80">{hero.subtitle}</p>
         <div className="flex justify-center gap-4">
-          <button
-            type="button"
-            onClick={handlePrimaryCta}
-            className="rounded-xl bg-[#ffbf00] px-8 py-3 font-bold text-black shadow-lg transition-transform hover:-translate-y-0.5"
-          >
-            {hero.primaryCtaLabel}
-          </button>
-          {hero.secondaryCtaLabel && hero.secondaryCtaNavigateTo && (
+          {hero.primaryCtaScrollTargetId ? (
             <button
               type="button"
-              onClick={() => onNavigate(hero.secondaryCtaNavigateTo!)}
+              onClick={handlePrimaryCta}
+              className="rounded-xl bg-[#ffbf00] px-8 py-3 font-bold text-black shadow-lg transition-transform hover:-translate-y-0.5"
+            >
+              {hero.primaryCtaLabel}
+            </button>
+          ) : hero.primaryCtaNavigateTo ? (
+            <a
+              href={'/' + getSlugForProtocol(hero.primaryCtaNavigateTo)}
+              onClick={(e) => handleAnchorClick(e, hero.primaryCtaNavigateTo!)}
+              className="rounded-xl bg-[#ffbf00] px-8 py-3 font-bold text-black shadow-lg transition-transform hover:-translate-y-0.5"
+            >
+              {hero.primaryCtaLabel}
+            </a>
+          ) : null}
+          {hero.secondaryCtaLabel && hero.secondaryCtaNavigateTo && (
+            <a
+              href={'/' + getSlugForProtocol(hero.secondaryCtaNavigateTo)}
+              onClick={(e) => handleAnchorClick(e, hero.secondaryCtaNavigateTo!)}
               className="rounded-xl border border-[#ffbf00]/50 bg-[#ffbf00]/10 px-8 py-3 font-bold text-[#ffbf00] transition-colors hover:bg-[#ffbf00]/20"
             >
               {hero.secondaryCtaLabel}
-            </button>
+            </a>
           )}
         </div>
       </section>

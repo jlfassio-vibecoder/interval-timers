@@ -32,7 +32,7 @@ The Daily Warm-up is one of 12 protocols in the all-timers app. To run it:
    ```
 2. Open the app (e.g. http://localhost:5173) and either:
    - Click **Daily Warm-Up** on the landing page, or
-   - Go directly to: `http://localhost:5173?protocol=warmup`
+   - Go directly to: `http://localhost:5173/daily-warm-up` (or `?protocol=warmup` — redirects to path)
 
 ### Standalone app
 

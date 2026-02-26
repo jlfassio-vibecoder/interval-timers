@@ -19,6 +19,8 @@ interface IntervalTimerLandingProps {
   onNavigate?: (page: IntervalTimerPage) => void;
   /** When provided, "Home" in the header navigates to the hub landing; when standalone, Home links to "/". */
   onNavigateToLanding?: () => void;
+  /** When provided, protocol nav uses <a href={...}> for SEO crawlability; onClick still calls onNavigate. */
+  getProtocolHref?: (page: IntervalTimerPage) => string;
   children: ReactNode;
   /** Optional accent for badges/headers (e.g. Tabata red, Mindful green). Nav and primary CTA stay #ffbf00. */
   accentTheme?: ProtocolAccentTheme | null;
@@ -42,12 +44,23 @@ const IntervalTimerLanding: React.FC<IntervalTimerLandingProps> = ({
   currentProtocol,
   onNavigate,
   onNavigateToLanding,
+  getProtocolHref,
   children,
   accentTheme = null,
   standalone = false,
 }) => {
   const prev = getPrevProtocol(currentProtocol);
   const next = getNextProtocol(currentProtocol);
+
+  /** Only intercept unmodified left-clicks when onNavigate is provided; else let browser follow href (new tab, copy link). */
+  const handleProtocolLinkClick = (e: React.MouseEvent<HTMLAnchorElement>, page: IntervalTimerPage) => {
+    if (!onNavigate) return;
+    const isUnmodifiedLeftClick =
+      e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey;
+    if (!isUnmodifiedLeftClick) return;
+    e.preventDefault();
+    onNavigate(page);
+  };
 
   const homeLabel = 'Home';
   // When standalone, Home always links to "/"; otherwise use onNavigateToLanding when provided (hub).
@@ -85,17 +98,31 @@ const IntervalTimerLanding: React.FC<IntervalTimerLandingProps> = ({
                 <div className="hidden flex-wrap items-center justify-end gap-1 text-xs font-bold md:flex md:gap-3">
                   {INTERVAL_TIMER_PROTOCOLS.map(({ id }, index) => (
                     <React.Fragment key={id}>
-                      <button
-                        type="button"
-                        onClick={() => onNavigate?.(id)}
-                        className={
-                          id === currentProtocol
-                            ? 'text-[#ffbf00]'
-                            : 'text-white/70 transition-colors hover:text-[#ffbf00]'
-                        }
-                      >
-                        {getProtocolLabel(id)}
-                      </button>
+                      {getProtocolHref ? (
+                        <a
+                          href={getProtocolHref(id)}
+                          onClick={(e) => handleProtocolLinkClick(e, id)}
+                          className={
+                            id === currentProtocol
+                              ? 'text-[#ffbf00]'
+                              : 'text-white/70 transition-colors hover:text-[#ffbf00]'
+                          }
+                        >
+                          {getProtocolLabel(id)}
+                        </a>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => onNavigate?.(id)}
+                          className={
+                            id === currentProtocol
+                              ? 'text-[#ffbf00]'
+                              : 'text-white/70 transition-colors hover:text-[#ffbf00]'
+                          }
+                        >
+                          {getProtocolLabel(id)}
+                        </button>
+                      )}
                       {index < INTERVAL_TIMER_PROTOCOLS.length - 1 && (
                         <span className="text-white/40">/</span>
                       )}
@@ -103,24 +130,42 @@ const IntervalTimerLanding: React.FC<IntervalTimerLandingProps> = ({
                   ))}
                 </div>
                 <div className="flex gap-2 md:hidden">
-                  {prev && (
-                    <button
-                      type="button"
-                      onClick={() => onNavigate?.(prev)}
-                      className="text-xs text-white/70 hover:text-[#ffbf00]"
-                    >
-                      ← {getProtocolLabel(prev)}
-                    </button>
-                  )}
-                  {next && (
-                    <button
-                      type="button"
-                      onClick={() => onNavigate?.(next)}
-                      className="text-xs text-white/70 hover:text-[#ffbf00]"
-                    >
-                      {getProtocolLabel(next)} →
-                    </button>
-                  )}
+                  {prev &&
+                    (getProtocolHref ? (
+                      <a
+                        href={getProtocolHref(prev)}
+                        onClick={(e) => handleProtocolLinkClick(e, prev)}
+                        className="text-xs text-white/70 hover:text-[#ffbf00]"
+                      >
+                        ← {getProtocolLabel(prev)}
+                      </a>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => onNavigate?.(prev)}
+                        className="text-xs text-white/70 hover:text-[#ffbf00]"
+                      >
+                        ← {getProtocolLabel(prev)}
+                      </button>
+                    ))}
+                  {next &&
+                    (getProtocolHref ? (
+                      <a
+                        href={getProtocolHref(next)}
+                        onClick={(e) => handleProtocolLinkClick(e, next)}
+                        className="text-xs text-white/70 hover:text-[#ffbf00]"
+                      >
+                        {getProtocolLabel(next)} →
+                      </a>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => onNavigate?.(next)}
+                        className="text-xs text-white/70 hover:text-[#ffbf00]"
+                      >
+                        {getProtocolLabel(next)} →
+                      </button>
+                    ))}
                 </div>
               </>
             )}
