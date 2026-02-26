@@ -15,6 +15,7 @@ export function TabataProtocolStep({
   return (
     <div className="space-y-4">
       <button
+        type="button"
         onClick={onStartWithStandard}
         className="group flex w-full items-center justify-between rounded-xl border border-white/10 bg-black/20 p-4 text-left transition-all hover:border-[#ffbf00] hover:bg-[#ffbf00]/10"
       >
@@ -32,6 +33,7 @@ export function TabataProtocolStep({
       </button>
       <div className="grid grid-cols-2 gap-4">
         <button
+          type="button"
           onClick={() => onSelectCategory('single')}
           className="rounded-xl border border-white/10 bg-black/20 p-4 text-left transition-all hover:border-[#ffbf00] hover:bg-[#ffbf00]/10"
         >
@@ -41,6 +43,7 @@ export function TabataProtocolStep({
           </div>
         </button>
         <button
+          type="button"
           onClick={() => onSelectCategory('alternating')}
           className="rounded-xl border border-white/10 bg-black/20 p-4 text-left transition-all hover:border-[#ffbf00] hover:bg-[#ffbf00]/10"
         >
@@ -48,6 +51,7 @@ export function TabataProtocolStep({
           <div className="text-[10px] text-white/70">{TABATA_PROTOCOL_LABELS.alternatingDesc}</div>
         </button>
         <button
+          type="button"
           onClick={() => onSelectCategory('circuit4')}
           className="rounded-xl border border-white/10 bg-black/20 p-4 text-left transition-all hover:border-[#ffbf00] hover:bg-[#ffbf00]/10"
         >
@@ -55,6 +59,7 @@ export function TabataProtocolStep({
           <div className="text-[10px] text-white/70">{TABATA_PROTOCOL_LABELS.circuit4Desc}</div>
         </button>
         <button
+          type="button"
           onClick={() => onSelectCategory('circuit8')}
           className="rounded-xl border border-white/10 bg-black/20 p-4 text-left transition-all hover:border-[#ffbf00] hover:bg-[#ffbf00]/10"
         >
@@ -79,9 +84,10 @@ export function TabataWorkoutStep({
   return (
     <div className="grid max-h-[50vh] grid-cols-1 gap-3 overflow-y-auto md:grid-cols-2">
       {selectedCategory &&
-        WORKOUT_DATABASE[selectedCategory].map((option, idx) => (
+        WORKOUT_DATABASE[selectedCategory].map((option) => (
           <button
-            key={idx}
+            type="button"
+            key={option.name}
             onClick={() => onStartWithWorkout(TABATA_DEFAULT_CYCLES, [...option.list])}
             className="rounded-xl border border-white/10 bg-black/20 p-4 text-left transition-all hover:border-[#ffbf00] hover:bg-[#ffbf00]/10"
           >

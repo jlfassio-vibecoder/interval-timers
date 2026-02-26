@@ -50,7 +50,16 @@ const IntervalTimerLanding: React.FC<IntervalTimerLandingProps> = ({
   const next = getNextProtocol(currentProtocol);
 
   const homeLabel = 'Home';
-  const homeElement = onNavigateToLanding ? (
+  // When standalone, Home always links to "/"; otherwise use onNavigateToLanding when provided (hub).
+  const useHomeLink = standalone || !onNavigateToLanding;
+  const homeElement = useHomeLink ? (
+    <a
+      href="/"
+      className="font-heading text-lg font-bold tracking-wide text-white/80 transition-colors hover:text-[#ffbf00]"
+    >
+      {homeLabel}
+    </a>
+  ) : (
     <button
       type="button"
       onClick={onNavigateToLanding}
@@ -58,13 +67,6 @@ const IntervalTimerLanding: React.FC<IntervalTimerLandingProps> = ({
     >
       {homeLabel}
     </button>
-  ) : (
-    <a
-      href="/"
-      className="font-heading text-lg font-bold tracking-wide text-white/80 transition-colors hover:text-[#ffbf00]"
-    >
-      {homeLabel}
-    </a>
   );
 
   return (

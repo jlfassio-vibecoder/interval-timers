@@ -70,7 +70,17 @@ const TabataInterval: React.FC<TabataTimerProps> = ({ onNavigate }) => {
 
   const audioContextRef = useRef<AudioContext | null>(null);
 
-  /** Timeline for shared overlay: default warmup (10 min from interval-timer-warmup), then totalCycles × (work 20s + rest 10s), then cooldown 120s. */
+  useEffect(() => {
+    return () => {
+      const ctx = audioContextRef.current;
+      if (ctx && ctx.state !== 'closed') {
+        ctx.close().catch(() => {});
+      }
+      audioContextRef.current = null;
+    };
+  }, []);
+
+  /** Timeline for shared overlay: default warmup from interval-timer-warmup (currently 14 min: 28 × 30s via getDefaultWarmupBlock), then totalCycles × (work 20s + rest 10s), then cooldown 120s. */
   const tabataTimeline = useMemo<HIITTimelineBlock[]>(() => {
     const blocks: HIITTimelineBlock[] = [getDefaultWarmupBlock(), getSetupBlock()];
     for (let i = 0; i < totalCycles; i++) {
@@ -179,9 +189,19 @@ const TabataInterval: React.FC<TabataTimerProps> = ({ onNavigate }) => {
         .then(() => {
           setIsTelemetryEnabled(true);
         })
-        .catch(() => {});
+        .catch(() => {
+          // Ignore autoplay policy or context errors so toggle state stays consistent.
+        });
     } else {
-      setIsTelemetryEnabled(false);
+      const ctx = audioContextRef.current;
+      if (ctx && ctx.state !== 'closed') {
+        ctx.suspend().then(
+          () => setIsTelemetryEnabled(false),
+          () => setIsTelemetryEnabled(false)
+        );
+      } else {
+        setIsTelemetryEnabled(false);
+      }
     }
   };
 
