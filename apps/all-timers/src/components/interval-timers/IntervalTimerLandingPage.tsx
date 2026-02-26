@@ -17,7 +17,7 @@ import {
   TrendingUp,
   Play,
 } from 'lucide-react';
-import type { IntervalTimerPage } from './intervalTimerProtocols';
+import type { IntervalTimerPage } from '@interval-timers/timer-core';
 
 interface IntervalTimerLandingPageProps {
   onNavigate: (page: IntervalTimerPage) => void;

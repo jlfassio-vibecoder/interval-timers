@@ -11,16 +11,16 @@ import EmomInterval from './EmomInterval';
 import AmrapInterval from './AmrapInterval';
 import TenTwentyThirtyInterval from './TenTwentyThirtyInterval';
 import WarmUpInterval from './WarmUpInterval';
-import IntervalTimerLanding from './IntervalTimerLanding';
+import { IntervalTimerLanding } from '@interval-timers/timer-ui';
 import IntervalTimerLandingContent from './IntervalTimerLandingContent';
 import IntervalTimerLandingPage from './IntervalTimerLandingPage';
 import {
   type IntervalTimerPage,
   getProtocolAccent,
   VALID_PROTOCOLS,
-} from './intervalTimerProtocols';
+} from '@interval-timers/timer-core';
 
-export type { IntervalTimerPage } from './intervalTimerProtocols';
+export type { IntervalTimerPage } from '@interval-timers/timer-core';
 
 function getProtocolFromUrl(): IntervalTimerPage | null {
   if (typeof window === 'undefined') return null;

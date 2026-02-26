@@ -9,6 +9,8 @@
     "dev": "npm run dev -w all-timers",
     "dev:all-timers": "npm run dev -w all-timers",
     "build": "npm run build -w all-timers",
-    "lint": "npm run lint -w all-timers"
+    "lint": "npm run lint -w all-timers",
+    "dev:daily-warmup": "npm run dev -w daily-warmup",
+    "build:daily-warmup": "npm run build -w daily-warmup"
   }
 }

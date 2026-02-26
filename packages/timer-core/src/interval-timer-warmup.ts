@@ -6,7 +6,8 @@
  * filename (without extension) is contained in the exercise name (normalized), we use it.
  */
 
-import type { HIITTimelineBlock } from '@/types/ai-workout';
+import type { HIITTimelineBlock } from '@interval-timers/types';
+import type { InstructionStep } from '@interval-timers/types';
 
 const WARMUP_IMAGES_BASE = '/images/warmup';
 
@@ -32,12 +33,6 @@ export function getWarmupImageUrl(exerciseName: string): string | undefined {
     name.toLowerCase().includes(pattern.toLowerCase())
   );
   return match ? `${WARMUP_IMAGES_BASE}/${match.file}` : undefined;
-}
-
-/** Step-by-step protocol: title + body. Used for warmup instructions panel. */
-export interface InstructionStep {
-  title: string;
-  body: string;
 }
 
 /** Instructions keyed by pattern (partial match on exercise name). Same logic as images. */

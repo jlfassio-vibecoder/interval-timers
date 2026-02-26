@@ -12,8 +12,8 @@ import {
   WARMUP_DURATION_PER_EXERCISE,
   getWarmupImageUrl,
   getWarmupInstructions,
-  type InstructionStep,
-} from './interval-timer-warmup';
+} from '@interval-timers/timer-core';
+import type { InstructionStep } from '@interval-timers/types';
 
 export interface WarmupExercise {
   name: string;

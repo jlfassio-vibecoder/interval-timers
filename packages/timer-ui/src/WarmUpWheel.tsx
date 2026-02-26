@@ -7,8 +7,8 @@ import React from 'react';
 import {
   WARMUP_EXERCISES,
   WARMUP_DURATION_PER_EXERCISE,
-  type InstructionStep,
-} from './interval-timer-warmup';
+} from '@interval-timers/timer-core';
+import type { InstructionStep } from '@interval-timers/types';
 
 const ITEM_HEIGHT = 80;
 const ITEM_GAP = 24; // Space between items to reduce crowding

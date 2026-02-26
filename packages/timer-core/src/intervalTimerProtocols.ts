@@ -3,19 +3,11 @@
  * Used by the shared nav and "coming soon" view.
  */
 
-export type IntervalTimerPage =
-  | 'warmup'
-  | 'tabata'
-  | 'mindful'
-  | 'aerobic'
-  | 'lactate'
-  | 'phosphagen'
-  | 'gibala'
-  | 'wingate'
-  | 'timmons'
-  | 'emom'
-  | 'amrap'
-  | '10-20-30';
+import type { IntervalTimerPage, ProtocolAccentTheme } from '@interval-timers/types';
+import { GOLD_ACCENT } from '@interval-timers/types';
+
+export type { IntervalTimerPage, ProtocolAccentTheme };
+export { GOLD_ACCENT };
 
 export const VALID_PROTOCOLS: IntervalTimerPage[] = [
   'warmup',
@@ -51,22 +43,6 @@ export function getProtocolLabel(id: IntervalTimerPage): string {
   const found = INTERVAL_TIMER_PROTOCOLS.find((p) => p.id === id);
   return found ? found.label : id;
 }
-
-/** Optional per-protocol accent for badges/headers. Primary CTA and nav stay #ffbf00. */
-export interface ProtocolAccentTheme {
-  /** Tailwind classes for badge pill (e.g. "bg-red-600/20") */
-  badge: string;
-  /** Tailwind classes for badge text (e.g. "text-red-400") */
-  badgeText: string;
-  /** Tailwind class for overlay work-phase header (e.g. "bg-red-600") */
-  workBg: string;
-}
-
-export const GOLD_ACCENT: ProtocolAccentTheme = {
-  badge: 'bg-[#ffbf00]/20',
-  badgeText: 'text-[#ffbf00]',
-  workBg: 'bg-[#ffbf00]',
-};
 
 /** Per-protocol accent themes. Tabata red, Mindful green; others default to gold. */
 const PROTOCOL_ACCENT_MAP: Partial<Record<IntervalTimerPage, ProtocolAccentTheme>> = {

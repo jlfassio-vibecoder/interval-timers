@@ -3,7 +3,7 @@
  * Supports close (session) and "Not Show Again" (localStorage).
  */
 import React from 'react';
-import type { InstructionStep } from './interval-timer-warmup';
+import type { InstructionStep } from '@interval-timers/types';
 
 export interface WarmupInstructionsPanelProps {
   exerciseName: string;

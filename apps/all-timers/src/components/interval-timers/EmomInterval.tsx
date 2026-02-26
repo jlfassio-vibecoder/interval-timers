@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import IntervalTimerLanding from './IntervalTimerLanding';
-import type { IntervalTimerPage } from './intervalTimerProtocols';
-import { getProtocolAccent } from './intervalTimerProtocols';
-import { SETUP_DURATION_SECONDS } from './interval-timer-warmup';
+import { IntervalTimerLanding } from '@interval-timers/timer-ui';
+import type { IntervalTimerPage } from '@interval-timers/timer-core';
+import { getProtocolAccent, SETUP_DURATION_SECONDS } from '@interval-timers/timer-core';
 import {
   BarChart,
   Bar,

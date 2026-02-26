@@ -1,14 +1,16 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import IntervalTimerLanding from './IntervalTimerLanding';
+import {
+  IntervalTimerLanding,
+  IntervalTimerOverlay,
+  useWarmupConfig,
+  type WarmupExercise,
+} from '@interval-timers/timer-ui';
 import IntervalTimerSetupModal from './IntervalTimerSetupModal';
-import IntervalTimerOverlay from './IntervalTimerOverlay';
-import type { IntervalTimerPage } from './intervalTimerProtocols';
-import { getProtocolAccent } from './intervalTimerProtocols';
-import type { HIITTimelineBlock } from '@/types/ai-workout';
-import { getDefaultWarmupBlock, getSetupBlock } from './interval-timer-warmup';
-import { useWarmupConfig } from './useWarmupConfig';
-import type { WarmupExercise } from './useWarmupConfig';
+import type { IntervalTimerPage } from '@interval-timers/timer-core';
+import { getProtocolAccent } from '@interval-timers/timer-core';
+import type { HIITTimelineBlock } from '@interval-timers/types';
+import { getDefaultWarmupBlock, getSetupBlock } from '@interval-timers/timer-core';
 import {
   BarChart,
   Bar,

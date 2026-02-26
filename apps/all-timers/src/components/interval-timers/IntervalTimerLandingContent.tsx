@@ -4,8 +4,8 @@
  * Fallback: if no config, renders generic coming-soon copy.
  */
 import React from 'react';
-import type { IntervalTimerPage } from './intervalTimerProtocols';
-import { getProtocolAccent, getProtocolLabel } from './intervalTimerProtocols';
+import type { IntervalTimerPage } from '@interval-timers/timer-core';
+import { getProtocolAccent, getProtocolLabel } from '@interval-timers/timer-core';
 import { getProtocolLandingConfig } from './intervalTimerLandingConfig';
 
 interface IntervalTimerLandingContentProps {

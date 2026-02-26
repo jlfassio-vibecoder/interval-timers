@@ -1,15 +1,16 @@
 /**
- * Reusable dark-theme shell for all 11 interval timer landings.
+ * Reusable dark-theme shell for all interval timer landings.
  * Provides sticky protocol nav and main content area; content is passed as children.
  * Optional accentTheme (e.g. Tabata red, Mindful green) for badges/headers; nav and primary CTA stay #ffbf00.
+ * When standalone is true, protocol prev/next nav is hidden and header shows "Pillar 4 | Daily Warm-Up" only.
  */
 import React, { type ReactNode } from 'react';
-import type { IntervalTimerPage, ProtocolAccentTheme } from './intervalTimerProtocols';
+import type { IntervalTimerPage, ProtocolAccentTheme } from '@interval-timers/timer-core';
 import {
   INTERVAL_TIMER_PROTOCOLS,
   getProtocolLabel,
   VALID_PROTOCOLS,
-} from './intervalTimerProtocols';
+} from '@interval-timers/timer-core';
 import { IntervalTimerAccentContext } from './intervalTimerAccentContext';
 
 interface IntervalTimerLandingProps {
@@ -18,6 +19,8 @@ interface IntervalTimerLandingProps {
   children: ReactNode;
   /** Optional accent for badges/headers (e.g. Tabata red, Mindful green). Nav and primary CTA stay #ffbf00. */
   accentTheme?: ProtocolAccentTheme | null;
+  /** When true, hide protocol nav and show minimal header (Pillar 4 | Daily Warm-Up). */
+  standalone?: boolean;
 }
 
 function getPrevProtocol(current: IntervalTimerPage): IntervalTimerPage | null {
@@ -37,6 +40,7 @@ const IntervalTimerLanding: React.FC<IntervalTimerLandingProps> = ({
   onNavigate,
   children,
   accentTheme = null,
+  standalone = false,
 }) => {
   const prev = getPrevProtocol(currentProtocol);
   const next = getNextProtocol(currentProtocol);
@@ -52,46 +56,50 @@ const IntervalTimerLanding: React.FC<IntervalTimerLandingProps> = ({
                 <span className="text-[#ffbf00]">| {getProtocolLabel(currentProtocol)}</span>
               </span>
             </div>
-            <div className="hidden flex-wrap items-center justify-end gap-1 text-xs font-bold md:flex md:gap-3">
-              {INTERVAL_TIMER_PROTOCOLS.map(({ id }, index) => (
-                <React.Fragment key={id}>
-                  <button
-                    type="button"
-                    onClick={() => onNavigate(id)}
-                    className={
-                      id === currentProtocol
-                        ? 'text-[#ffbf00]'
-                        : 'text-white/70 transition-colors hover:text-[#ffbf00]'
-                    }
-                  >
-                    {getProtocolLabel(id)}
-                  </button>
-                  {index < INTERVAL_TIMER_PROTOCOLS.length - 1 && (
-                    <span className="text-white/40">/</span>
+            {!standalone && (
+              <>
+                <div className="hidden flex-wrap items-center justify-end gap-1 text-xs font-bold md:flex md:gap-3">
+                  {INTERVAL_TIMER_PROTOCOLS.map(({ id }, index) => (
+                    <React.Fragment key={id}>
+                      <button
+                        type="button"
+                        onClick={() => onNavigate(id)}
+                        className={
+                          id === currentProtocol
+                            ? 'text-[#ffbf00]'
+                            : 'text-white/70 transition-colors hover:text-[#ffbf00]'
+                        }
+                      >
+                        {getProtocolLabel(id)}
+                      </button>
+                      {index < INTERVAL_TIMER_PROTOCOLS.length - 1 && (
+                        <span className="text-white/40">/</span>
+                      )}
+                    </React.Fragment>
+                  ))}
+                </div>
+                <div className="flex gap-2 md:hidden">
+                  {prev && (
+                    <button
+                      type="button"
+                      onClick={() => onNavigate(prev)}
+                      className="text-xs text-white/70 hover:text-[#ffbf00]"
+                    >
+                      ← {getProtocolLabel(prev)}
+                    </button>
                   )}
-                </React.Fragment>
-              ))}
-            </div>
-            <div className="flex gap-2 md:hidden">
-              {prev && (
-                <button
-                  type="button"
-                  onClick={() => onNavigate(prev)}
-                  className="text-xs text-white/70 hover:text-[#ffbf00]"
-                >
-                  ← {getProtocolLabel(prev)}
-                </button>
-              )}
-              {next && (
-                <button
-                  type="button"
-                  onClick={() => onNavigate(next)}
-                  className="text-xs text-white/70 hover:text-[#ffbf00]"
-                >
-                  {getProtocolLabel(next)} →
-                </button>
-              )}
-            </div>
+                  {next && (
+                    <button
+                      type="button"
+                      onClick={() => onNavigate(next)}
+                      className="text-xs text-white/70 hover:text-[#ffbf00]"
+                    >
+                      {getProtocolLabel(next)} →
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         </nav>
 

@@ -3,8 +3,8 @@
  * Extracted so IntervalTimerLanding can comply with react-refresh/only-export-components.
  */
 import { createContext, useContext } from 'react';
-import type { ProtocolAccentTheme } from './intervalTimerProtocols';
-import { GOLD_ACCENT } from './intervalTimerProtocols';
+import type { ProtocolAccentTheme } from '@interval-timers/timer-core';
+import { GOLD_ACCENT } from '@interval-timers/timer-core';
 
 export const IntervalTimerAccentContext = createContext<ProtocolAccentTheme | null>(null);
 

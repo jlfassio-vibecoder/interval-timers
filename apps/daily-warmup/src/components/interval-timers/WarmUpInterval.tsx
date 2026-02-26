@@ -66,6 +66,7 @@ const WarmUpInterval: React.FC<WarmUpIntervalProps> = ({ onNavigate }) => {
         currentProtocol="warmup"
         onNavigate={onNavigate}
         accentTheme={WARMUP_ACCENT}
+        standalone
       >
         {/* Hero */}
         <section className="mx-auto max-w-4xl pt-8 text-center">

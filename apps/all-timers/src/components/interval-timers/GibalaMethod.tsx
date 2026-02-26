@@ -12,10 +12,9 @@ import {
   LineChart,
   Line,
 } from 'recharts';
-import type { IntervalTimerPage } from './intervalTimerProtocols';
-import { getProtocolAccent } from './intervalTimerProtocols';
-import { SETUP_DURATION_SECONDS } from './interval-timer-warmup';
-import IntervalTimerLanding from './IntervalTimerLanding';
+import type { IntervalTimerPage } from '@interval-timers/timer-core';
+import { getProtocolAccent, SETUP_DURATION_SECONDS } from '@interval-timers/timer-core';
+import { IntervalTimerLanding } from '@interval-timers/timer-ui';
 
 interface GibalaMethodProps {
   onNavigate: (page: IntervalTimerPage) => void;

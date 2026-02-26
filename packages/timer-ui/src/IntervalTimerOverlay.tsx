@@ -4,14 +4,14 @@
  * transitions, same look for all 11 interval timers.
  */
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import type { HIITTimelineBlock } from '@/types/ai-workout';
+import type { HIITTimelineBlock } from '@interval-timers/types';
 import {
   playReady,
   playBell,
   playBeeps,
   playLongTone,
   setSoundVolume as setSoundVolumeModule,
-} from '@/lib/interval-timer-sounds';
+} from '@interval-timers/timer-sounds';
 import WarmUpWheel from './WarmUpWheel';
 import WarmupInstructionsPanel from './WarmupInstructionsPanel';
 import type { WarmUpExercise } from './WarmUpWheel';
@@ -19,7 +19,7 @@ import {
   WARMUP_EXERCISES,
   WARMUP_DURATION_PER_EXERCISE,
   WARMUP_TRANSITION_SECONDS,
-} from './interval-timer-warmup';
+} from '@interval-timers/timer-core';
 
 const WARMUP_INSTRUCTIONS_PREFERENCE_KEY = 'warmup-instructions-preference';
 const SOUND_VOLUME_KEY = 'interval-timer-sound-volume';

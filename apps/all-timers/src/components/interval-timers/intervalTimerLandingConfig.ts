@@ -3,8 +3,8 @@
  * Used by IntervalTimerLandingContent for config-driven hero/sections/CTA.
  * Protocols with hasCustomContent use their own component (TabataInterval, JapaneseWalking).
  */
-import type { IntervalTimerPage } from './intervalTimerProtocols';
-import { getProtocolLabel } from './intervalTimerProtocols';
+import type { IntervalTimerPage } from '@interval-timers/timer-core';
+import { getProtocolLabel } from '@interval-timers/timer-core';
 
 export interface HeroConfig {
   title: string;
