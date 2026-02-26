@@ -20,6 +20,7 @@ import {
 
 interface TenTwentyThirtyIntervalProps {
   onNavigate: (page: IntervalTimerPage) => void;
+  onNavigateToLanding?: () => void;
 }
 
 type MetricType = 'vo2_improvement' | 'effort_perception';
@@ -38,7 +39,10 @@ interface SimContent {
 
 const ACCENT = getProtocolAccent('10-20-30');
 
-const TenTwentyThirtyInterval: React.FC<TenTwentyThirtyIntervalProps> = ({ onNavigate }) => {
+const TenTwentyThirtyInterval: React.FC<TenTwentyThirtyIntervalProps> = ({
+  onNavigate,
+  onNavigateToLanding,
+}) => {
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [isTimerOpen, setIsTimerOpen] = useState(false);
   const [isDurationSelectOpen, setIsDurationSelectOpen] = useState(false);
@@ -233,7 +237,12 @@ const TenTwentyThirtyInterval: React.FC<TenTwentyThirtyIntervalProps> = ({ onNav
 
   return (
     <>
-      <IntervalTimerLanding currentProtocol="10-20-30" onNavigate={onNavigate} accentTheme={ACCENT}>
+      <IntervalTimerLanding
+        currentProtocol="10-20-30"
+        onNavigate={onNavigate}
+        onNavigateToLanding={onNavigateToLanding}
+        accentTheme={ACCENT}
+      >
         {/* HERO */}
         <section className="mx-auto max-w-4xl pt-8 text-center">
           <h1 className="font-display mb-6 text-4xl font-bold leading-tight text-white md:text-6xl">

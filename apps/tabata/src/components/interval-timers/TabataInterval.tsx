@@ -11,6 +11,8 @@ import type { IntervalTimerPage } from '@interval-timers/timer-core';
 import { getProtocolAccent } from '@interval-timers/timer-core';
 import type { HIITTimelineBlock } from '@interval-timers/types';
 import { getDefaultWarmupBlock, getSetupBlock } from '@interval-timers/timer-core';
+import { useTabataSetup } from './useTabataSetup';
+import { TabataProtocolStep, TabataWorkoutStep } from './TabataSetupContent';
 import {
   BarChart,
   Bar,
@@ -24,12 +26,12 @@ import {
   Line,
 } from 'recharts';
 
-interface LactateIntervalProps {
-  onNavigate: (page: IntervalTimerPage) => void;
-  onNavigateToLanding?: () => void;
+interface TabataTimerProps {
+  /** Optional in standalone app (nav hidden); required when embedded in all-timers. */
+  onNavigate?: (page: IntervalTimerPage) => void;
 }
 
-type MetricType = 'endurance' | 'tolerance';
+type MetricType = 'aerobic' | 'anaerobic';
 type SimMode = 'work' | 'rest';
 
 interface SimContent {
@@ -43,13 +45,15 @@ interface SimContent {
   icon: string;
 }
 
-const ACCENT = getProtocolAccent('lactate');
+const TABATA_ACCENT = getProtocolAccent('tabata');
 
-const LactateInterval: React.FC<LactateIntervalProps> = ({ onNavigate, onNavigateToLanding }) => {
+const TabataInterval: React.FC<TabataTimerProps> = ({ onNavigate }) => {
   const [isReportOpen, setIsReportOpen] = useState(false);
-  const [isSetupOpen, setIsSetupOpen] = useState(false);
+
+  // --- REAL TIMER STATE ---
   const [isTimerOpen, setIsTimerOpen] = useState(false);
-  const [totalCycles, setTotalCycles] = useState(10);
+  const [totalCycles, setTotalCycles] = useState(8);
+  const [currentWorkoutPlan, setCurrentWorkoutPlan] = useState<string[]>([]);
   const [frozenWarmup, setFrozenWarmup] = useState<{
     exercises: WarmupExercise[];
     durationPerExercise: number;
@@ -57,49 +61,58 @@ const LactateInterval: React.FC<LactateIntervalProps> = ({ onNavigate, onNavigat
 
   const { exercises, durationPerExercise } = useWarmupConfig();
 
-  const lactateTimeline = useMemo<HIITTimelineBlock[]>(() => {
-    const blocks: HIITTimelineBlock[] = [getDefaultWarmupBlock(), getSetupBlock()];
-    for (let i = 0; i < totalCycles; i++) {
-      blocks.push({
-        type: 'work',
-        duration: 40,
-        name: 'THE GRIND',
-        notes: '40s Lactate Threshold',
-      });
-      blocks.push({
-        type: 'rest',
-        duration: 20,
-        name: 'BREATHE',
-        notes: '20s Incomplete Rest',
-      });
-    }
-    blocks.push({ type: 'cooldown', duration: 180, name: 'Cool Down', notes: 'Flush the system' });
-    return blocks;
-  }, [totalCycles]);
-
-  const startWithCycles = (cycles: number) => {
-    setTotalCycles(cycles);
-    setIsSetupOpen(false);
+  const setup = useTabataSetup((result) => {
+    setTotalCycles(result.cycles);
+    setCurrentWorkoutPlan(result.workoutList);
     setFrozenWarmup({ exercises: [...exercises], durationPerExercise });
     setIsTimerOpen(true);
-  };
+  });
 
-  const [metric, setMetric] = useState<MetricType>('tolerance');
+  const audioContextRef = useRef<AudioContext | null>(null);
+
+  useEffect(() => {
+    return () => {
+      const ctx = audioContextRef.current;
+      if (ctx && ctx.state !== 'closed') {
+        ctx.close().catch(() => {});
+      }
+      audioContextRef.current = null;
+    };
+  }, []);
+
+  /** Timeline for shared overlay: default warmup from interval-timer-warmup (currently 14 min: 28 × 30s via getDefaultWarmupBlock), then totalCycles × (work 20s + rest 10s), then cooldown 120s. */
+  const tabataTimeline = useMemo<HIITTimelineBlock[]>(() => {
+    const blocks: HIITTimelineBlock[] = [getDefaultWarmupBlock(), getSetupBlock()];
+    for (let i = 0; i < totalCycles; i++) {
+      const workName =
+        currentWorkoutPlan.length > 0
+          ? currentWorkoutPlan[i % currentWorkoutPlan.length]
+          : 'SPRINT';
+      blocks.push({ type: 'work', duration: 20, name: workName, notes: 'Maximum Effort' });
+      blocks.push({ type: 'rest', duration: 10, name: 'Rest', notes: 'Breathe Deeply' });
+    }
+    blocks.push({ type: 'cooldown', duration: 120, name: 'Cool Down', notes: 'Flush Lactic Acid' });
+    return blocks;
+  }, [totalCycles, currentWorkoutPlan]);
+
+  // --- SECTION 1: IMPACT DATA ---
+  const [metric, setMetric] = useState<MetricType>('aerobic');
 
   const impactData = [
-    { name: 'Steady', endurance: 10, tolerance: 2 },
-    { name: '1:1 Ratio', endurance: 20, tolerance: 15 },
-    { name: '2:1 Ratio', endurance: 25, tolerance: 30 },
+    { name: 'Control', aerobic: 0, anaerobic: 0 },
+    { name: 'Moderate (60m)', aerobic: 10, anaerobic: 0 },
+    { name: 'Tabata (4m)', aerobic: 14, anaerobic: 28 },
   ];
 
+  // --- SECTION 2: SIMULATOR STATE ---
   const [simMode, setSimMode] = useState<SimMode>('work');
   const [intensityData, setIntensityData] = useState<{ time: number; value: number }[]>([]);
 
   useEffect(() => {
-    const base = simMode === 'work' ? 160 : 130;
+    const base = simMode === 'work' ? 170 : 110;
     const initialData = Array.from({ length: 30 }, (_, i) => ({
       time: i,
-      value: base + (Math.random() * 5 - 2.5),
+      value: base + (Math.random() * 10 - 5),
     }));
     queueMicrotask(() => setIntensityData(initialData));
 
@@ -107,72 +120,113 @@ const LactateInterval: React.FC<LactateIntervalProps> = ({ onNavigate, onNavigat
       setIntensityData((prev) => {
         const newData = [...prev.slice(1)];
         const lastTime = prev[prev.length - 1].time;
-        const creep = simMode === 'work' ? 0.5 : -0.5;
-        const lastValue = prev[prev.length - 1].value;
-        let newValue = lastValue + creep + (Math.random() * 4 - 2);
-        if (simMode === 'work' && newValue > 190) newValue = 190;
-        if (simMode === 'rest' && newValue < 110) newValue = 110;
-        newData.push({ time: lastTime + 1, value: newValue });
+        newData.push({
+          time: lastTime + 1,
+          value: base + (Math.random() * 10 - 5),
+        });
         return newData;
       });
-    }, 500);
+    }, 1000);
 
     return () => clearInterval(interval);
   }, [simMode]);
 
   const simContent: Record<SimMode, SimContent> = {
     work: {
-      color: 'text-amber-600',
-      bgColor: 'bg-amber-600',
-      borderColor: 'border-amber-200',
-      phase: 'Lactate Accumulation',
-      status: 'The Grind (40 Secs)',
+      color: 'text-red-600',
+      bgColor: 'bg-red-600',
+      borderColor: 'border-red-200',
+      phase: 'Maximal Output',
+      status: 'Work Phase (20 Secs)',
       instruction:
-        'Maintain high output despite the burning sensation. Your body is flooding with hydrogen ions. Your goal is to keep moving efficiently while your muscles scream stop.',
-      quote: 'Embrace the burn. That is the adaptation.',
+        "Push to absolute maximum capacity. Target 170% VO2 Max. If you feel like you could do a 9th rep, you didn't push hard enough on the first 8.",
+      quote: 'The magic happens in the oxygen debt.',
       icon: '🔥',
     },
     rest: {
-      color: 'text-slate-600',
-      bgColor: 'bg-slate-600',
-      borderColor: 'border-slate-200',
-      phase: 'Incomplete Flush',
-      status: 'Short Recovery (20 Secs)',
+      color: 'text-blue-600',
+      bgColor: 'bg-blue-600',
+      borderColor: 'border-blue-200',
+      phase: 'Absolute Rest',
+      status: 'Recovery Phase (10 Secs)',
       instruction:
-        '20 seconds is not enough to recover fully. That is the point. Breathe explosively to offload CO2. Do not stop moving.',
-      quote: 'Stay in the fight. Do not let the HR drop too low.',
-      icon: '😤',
+        'Complete cessation of work. Focus entirely on gas exchange. Deep diaphragmatic breathing to clear lactic acid buildup.',
+      quote: 'Recover instantly. Prepare for the next strike.',
+      icon: '🧊',
     },
   };
 
   const currentSim = simContent[simMode];
 
+  // --- SECTION 3: VISUALIZER ---
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const requestRef = useRef<number | null>(null);
   const animateRef = useRef<(time: number) => void>(() => {});
   const [isTelemetryEnabled, setIsTelemetryEnabled] = useState(false);
-  const audioContextRef = useRef<AudioContext | null>(null);
+  const lastBeatPhaseRef = useRef(0);
+
+  /** Returns a running AudioContext; creates or replaces if closed, awaits resume if suspended. */
+  const getRunningAudioContext = (): Promise<AudioContext | null> => {
+    const AudioContextCtor =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioContextCtor) return Promise.resolve(null);
+    let ctx = audioContextRef.current;
+    if (!ctx || ctx.state === 'closed') {
+      audioContextRef.current = new AudioContextCtor();
+      ctx = audioContextRef.current;
+    }
+    if (ctx.state === 'suspended') {
+      return ctx.resume().then(() => ctx);
+    }
+    return Promise.resolve(ctx);
+  };
 
   const toggleTelemetryAudio = () => {
     const nextEnabled = !isTelemetryEnabled;
     if (nextEnabled) {
-      const AudioContextCtor =
-        window.AudioContext ||
-        (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-      if (!AudioContextCtor) return;
-      let ctx = audioContextRef.current;
-      if (!ctx || ctx.state === 'closed') {
-        audioContextRef.current = new AudioContextCtor();
-        ctx = audioContextRef.current;
-      }
-      ctx
-        ?.resume()
-        .then(() => setIsTelemetryEnabled(true))
-        .catch(() => {});
+      getRunningAudioContext()
+        .then(() => {
+          setIsTelemetryEnabled(true);
+        })
+        .catch(() => {
+          // Ignore autoplay policy or context errors so toggle state stays consistent.
+        });
     } else {
-      setIsTelemetryEnabled(false);
+      const ctx = audioContextRef.current;
+      if (ctx && ctx.state !== 'closed') {
+        ctx.suspend().then(
+          () => setIsTelemetryEnabled(false),
+          () => setIsTelemetryEnabled(false)
+        );
+      } else {
+        setIsTelemetryEnabled(false);
+      }
     }
   };
+
+  const playHeartbeat = useCallback(() => {
+    getRunningAudioContext()
+      .then((ctx) => {
+        if (!ctx) return;
+        const t = ctx.currentTime;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.type = 'sine';
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.frequency.setValueAtTime(100, t);
+        gain.gain.setValueAtTime(0, t);
+        gain.gain.linearRampToValueAtTime(0.5, t + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+
+        osc.start(t);
+        osc.stop(t + 0.15);
+      })
+      .catch(() => {});
+  }, []);
 
   const animateVisualizer = useCallback((time: number) => {
     const canvas = canvasRef.current;
@@ -193,120 +247,96 @@ const LactateInterval: React.FC<LactateIntervalProps> = ({ onNavigate, onNavigat
 
     ctx.clearRect(0, 0, width, height);
 
-    const cycleDuration = 1000;
-    const phase = (time % cycleDuration) / cycleDuration;
-    const jagged = Math.random() * 0.2 + Math.sin(phase * Math.PI * 4) * 0.1;
+    const targetBpm = simMode === 'work' ? 170 : 60;
+    const beatDuration = 60000 / targetBpm;
+    const phase = (time % beatDuration) / beatDuration;
 
-    const baseRadius = width * 0.25;
-    const expansion = simMode === 'work' ? 70 : 30;
-    const radius = baseRadius + expansion + jagged * 50;
+    if (isTelemetryEnabled) {
+      if (phase < lastBeatPhaseRef.current) {
+        playHeartbeat();
+      }
+    }
+    lastBeatPhaseRef.current = phase;
+
+    const spike =
+      simMode === 'work' ? Math.exp(-Math.pow(phase - 0.5, 2) * 100) : Math.sin(phase * Math.PI);
+
+    const baseRadius = width * 0.3;
+    const pulseExpansion = simMode === 'work' ? 40 : 15;
+    const radius = baseRadius + spike * pulseExpansion;
 
     const gradient = ctx.createRadialGradient(
       centerX,
       centerY,
-      radius * 0.4,
+      radius * 0.5,
       centerX,
       centerY,
       radius
     );
     if (simMode === 'work') {
-      gradient.addColorStop(0, 'rgba(217, 119, 6, 0.9)');
-      gradient.addColorStop(1, 'rgba(217, 119, 6, 0)');
+      gradient.addColorStop(0, `rgba(220, 38, 38, 0.8)`);
+      gradient.addColorStop(1, `rgba(220, 38, 38, 0)`);
     } else {
-      gradient.addColorStop(0, 'rgba(71, 85, 105, 0.7)');
-      gradient.addColorStop(1, 'rgba(71, 85, 105, 0)');
+      gradient.addColorStop(0, `rgba(37, 99, 235, 0.6)`);
+      gradient.addColorStop(1, `rgba(37, 99, 235, 0)`);
     }
 
     ctx.beginPath();
-    const spikes = 20;
-    for (let i = 0; i < spikes; i++) {
-      const angle = ((Math.PI * 2) / spikes) * i;
-      const r = i % 2 === 0 ? radius : radius * 0.9;
-      const x = centerX + Math.cos(angle + time / 500) * r;
-      const y = centerY + Math.sin(angle + time / 500) * r;
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    }
-    ctx.closePath();
+    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
     ctx.fillStyle = gradient;
     ctx.fill();
 
     ctx.beginPath();
-    ctx.arc(centerX, centerY, baseRadius * 0.6, 0, Math.PI * 2);
-    ctx.fillStyle = simMode === 'work' ? '#78350f' : '#1e293b';
+    ctx.arc(centerX, centerY, baseRadius * 0.8, 0, Math.PI * 2);
+    ctx.fillStyle = simMode === 'work' ? '#7f1d1d' : '#1e3a8a';
     ctx.fill();
 
     ctx.font = 'bold 24px Inter';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillStyle = '#fff';
-    ctx.fillText(simMode === 'work' ? 'GRIT' : 'HOLD', centerX, centerY - 10);
+    ctx.fillText(simMode === 'work' ? 'MAX' : 'REST', centerX, centerY - 10);
 
     ctx.font = '14px Inter';
     ctx.fillStyle = 'rgba(255,255,255,0.7)';
-    ctx.fillText(simMode === 'work' ? 'Lactate +' : 'Clear -', centerX, centerY + 15);
+    ctx.fillText(simMode === 'work' ? '170% VO2' : 'Recovery', centerX, centerY + 15);
 
     requestRef.current = requestAnimationFrame((t) => animateRef.current(t));
-  }, [simMode]);
+  }, [simMode, isTelemetryEnabled, playHeartbeat]);
 
   useEffect(() => {
     animateRef.current = animateVisualizer;
   });
 
   useLayoutEffect(() => {
-    requestRef.current = requestAnimationFrame((t) => animateVisualizer(t));
+    requestRef.current = requestAnimationFrame((time) => {
+      animateVisualizer(time);
+    });
     return () => {
       if (requestRef.current) cancelAnimationFrame(requestRef.current);
       requestRef.current = null;
     };
   }, [animateVisualizer]);
 
-  const durationContent = (
-    <div className="space-y-4">
-      <button
-        type="button"
-        onClick={() => startWithCycles(10)}
-        className="group w-full rounded-xl border-2 border-white/10 p-4 text-left transition-all hover:border-amber-500 hover:bg-amber-600/20"
-      >
-        <div className="text-lg font-bold text-white">Quick Burn (10 Mins)</div>
-        <div className="text-xs font-medium text-white/60">10 Cycles • High Intensity focus</div>
-      </button>
-      <button
-        type="button"
-        onClick={() => startWithCycles(20)}
-        className="group w-full rounded-xl border-2 border-white/10 p-4 text-left transition-all hover:border-amber-500 hover:bg-amber-600/20"
-      >
-        <div className="text-lg font-bold text-white">Standard (20 Mins)</div>
-        <div className="text-xs font-medium text-white/60">20 Cycles • Optimal Conditioning</div>
-      </button>
-      <button
-        type="button"
-        onClick={() => startWithCycles(30)}
-        className="group w-full rounded-xl border-2 border-white/10 p-4 text-left transition-all hover:border-amber-500 hover:bg-amber-600/20"
-      >
-        <div className="text-lg font-bold text-white">Sufferfest (30 Mins)</div>
-        <div className="text-xs font-medium text-white/60">30 Cycles • Advanced Only</div>
-      </button>
-    </div>
-  );
+  const isStandalone = onNavigate == null;
 
   return (
     <>
       <IntervalTimerLanding
-        currentProtocol="lactate"
+        currentProtocol="tabata"
         onNavigate={onNavigate}
-        onNavigateToLanding={onNavigateToLanding}
-        accentTheme={ACCENT}
+        accentTheme={getProtocolAccent('tabata')}
+        standalone={isStandalone}
       >
         {/* HERO */}
         <section className="mx-auto max-w-4xl pt-8 text-center">
           <h1 className="font-display mb-6 text-4xl font-bold leading-tight text-white md:text-6xl">
-            Conditioning <span className="text-amber-400">Grit</span>
+            The Original <span className="text-[#ffbf00]">4-Minute</span> Miracle
           </h1>
           <p className="mb-10 text-xl leading-relaxed text-white/80">
-            The <strong>2:1 Work-to-Rest Ratio</strong> (40s Work / 20s Rest). This protocol is
-            designed to flood the muscles with lactate, forcing the body to become efficient at
-            clearing waste products while under load.
+            The <strong>Tabata Protocol</strong> (20s Work / 10s Rest). Discovered by Dr. Izumi
+            Tabata in 1996. It is the most efficient method to improve both aerobic and anaerobic
+            capacity simultaneously.
           </p>
           <div className="flex justify-center gap-4">
             <button
@@ -316,46 +346,47 @@ const LactateInterval: React.FC<LactateIntervalProps> = ({ onNavigate, onNavigat
               }
               className="rounded-xl bg-[#ffbf00] px-8 py-3 font-bold text-black shadow-lg transition-transform hover:-translate-y-1"
             >
-              Enter The Grind
+              Start Tabata
             </button>
           </div>
         </section>
 
-        {/* SECTION 1: IMPACT DATA */}
+        {/* SECTION 1: DATA */}
         <section className="rounded-3xl border border-white/10 bg-black/30 p-8 shadow-sm md:p-12">
           <div className="grid items-center gap-12 md:grid-cols-2">
             <div>
               <div
-                className={`mb-4 inline-block rounded-full px-3 py-1 text-xs font-bold uppercase ${ACCENT.badge} ${ACCENT.badgeText}`}
+                className={`mb-4 inline-block rounded-full px-3 py-1 text-xs font-bold uppercase ${TABATA_ACCENT.badge} ${TABATA_ACCENT.badgeText}`}
               >
-                Physiological Target
+                Clinical Results
               </div>
-              <h2 className="font-display mb-4 text-3xl font-bold text-white">Lactate Tolerance</h2>
+              <h2 className="font-display mb-4 text-3xl font-bold text-white">
+                Aerobic & Anaerobic Gains
+              </h2>
               <p className="mb-6 leading-relaxed text-white/80">
-                By doubling the work time relative to rest, you create a &quot;debt&quot; that
-                cannot be fully repaid in 20 seconds. This creates a high-acidity environment in the
-                muscle tissue. Training in this zone improves your <strong>Pain Tolerance</strong>{' '}
-                and mental resilience.
+                Dr. Tabata's research showed that 4 minutes of this protocol (intensity at 170% of
+                VO2 max) improved aerobic capacity as much as 60 minutes of moderate endurance
+                training, while also increasing anaerobic capacity by 28%.
               </p>
             </div>
 
             <div>
               <div className="mb-6 flex items-center justify-between">
-                <h3 className="font-bold text-white/90">Comparative Output</h3>
+                <h3 className="font-bold text-white/90">6-Week Improvement</h3>
                 <div className="flex rounded-lg bg-black/30 p-1">
                   <button
                     type="button"
-                    onClick={() => setMetric('tolerance')}
-                    className={`rounded-md px-3 py-1 text-xs font-bold transition ${metric === 'tolerance' ? 'bg-amber-600 text-white' : 'text-white/60'}`}
+                    onClick={() => setMetric('aerobic')}
+                    className={`rounded-md px-3 py-1 text-xs font-bold transition ${metric === 'aerobic' ? 'bg-red-600 text-white' : 'text-white/60'}`}
                   >
-                    Pain Tolerance
+                    Aerobic (VO2)
                   </button>
                   <button
                     type="button"
-                    onClick={() => setMetric('endurance')}
-                    className={`rounded-md px-3 py-1 text-xs font-bold transition ${metric === 'endurance' ? 'bg-slate-600 text-white' : 'text-white/60'}`}
+                    onClick={() => setMetric('anaerobic')}
+                    className={`rounded-md px-3 py-1 text-xs font-bold transition ${metric === 'anaerobic' ? 'bg-blue-600 text-white' : 'text-white/60'}`}
                   >
-                    Endurance
+                    Anaerobic
                   </button>
                 </div>
               </div>
@@ -387,10 +418,12 @@ const LactateInterval: React.FC<LactateIntervalProps> = ({ onNavigate, onNavigat
                         <Cell
                           key={`cell-${index}`}
                           fill={
-                            metric === 'tolerance'
-                              ? '#d97706'
+                            metric === 'aerobic'
+                              ? index === 2
+                                ? '#dc2626'
+                                : 'rgba(148,163,184,0.5)'
                               : index === 2
-                                ? '#475569'
+                                ? '#2563eb'
                                 : 'rgba(148,163,184,0.5)'
                           }
                         />
@@ -407,12 +440,12 @@ const LactateInterval: React.FC<LactateIntervalProps> = ({ onNavigate, onNavigat
         <section id="simulator" className="space-y-8">
           <div className="text-center">
             <div
-              className={`mb-4 inline-block rounded-full px-3 py-1 text-xs font-bold uppercase ${ACCENT.badge} ${ACCENT.badgeText}`}
+              className={`mb-4 inline-block rounded-full px-3 py-1 text-xs font-bold uppercase ${TABATA_ACCENT.badge} ${TABATA_ACCENT.badgeText}`}
             >
-              2:1 Simulator
+              Tabata Simulator
             </div>
-            <h2 className="font-display text-3xl font-bold text-white">40s Work / 20s Rest</h2>
-            <p className="mt-2 text-white/70">Maximum accumulation. Minimal clearance.</p>
+            <h2 className="font-display text-3xl font-bold text-white">20s ON / 10s OFF</h2>
+            <p className="mt-2 text-white/70">The most intense 4 minutes of your life.</p>
           </div>
 
           <div className="overflow-hidden rounded-3xl border border-white/10 bg-black/30 shadow-xl">
@@ -426,7 +459,7 @@ const LactateInterval: React.FC<LactateIntervalProps> = ({ onNavigate, onNavigat
                 <h3 className="font-display text-2xl font-bold">{currentSim.phase}</h3>
               </div>
               <div className="font-mono text-3xl opacity-90">
-                {simMode === 'work' ? '00:40' : '00:20'}
+                {simMode === 'work' ? '00:20' : '00:10'}
               </div>
             </div>
 
@@ -439,7 +472,7 @@ const LactateInterval: React.FC<LactateIntervalProps> = ({ onNavigate, onNavigat
                       <Line
                         type="monotone"
                         dataKey="value"
-                        stroke={simMode === 'work' ? '#d97706' : '#475569'}
+                        stroke={simMode === 'work' ? '#dc2626' : '#2563eb'}
                         strokeWidth={3}
                         dot={false}
                         isAnimationActive={false}
@@ -448,7 +481,7 @@ const LactateInterval: React.FC<LactateIntervalProps> = ({ onNavigate, onNavigat
                   </ResponsiveContainer>
                 </div>
                 <div className={`rounded-xl border-l-4 bg-black/20 p-4 ${currentSim.borderColor}`}>
-                  <h4 className="mb-2 font-bold text-white">Mental State</h4>
+                  <h4 className="mb-2 font-bold text-white">Instructions</h4>
                   <p className="text-sm leading-relaxed text-white/80">{currentSim.instruction}</p>
                 </div>
               </div>
@@ -456,22 +489,22 @@ const LactateInterval: React.FC<LactateIntervalProps> = ({ onNavigate, onNavigat
               <div className="flex flex-col items-center justify-center bg-black/20 p-8 text-center">
                 <div className="mb-6 text-6xl">{currentSim.icon}</div>
                 <blockquote className="font-display mb-8 text-xl font-bold italic text-white/90">
-                  &quot;{currentSim.quote}&quot;
+                  "{currentSim.quote}"
                 </blockquote>
                 <div className="flex w-full justify-center gap-4">
                   <button
                     type="button"
                     onClick={() => setSimMode('work')}
-                    className={`w-1/2 rounded-xl font-bold transition-all ${simMode === 'work' ? 'scale-105 bg-amber-600 text-white shadow-lg' : 'border border-white/20 bg-transparent text-white/70 hover:text-white'}`}
+                    className={`w-1/2 rounded-xl font-bold transition-all ${simMode === 'work' ? 'scale-105 bg-red-600 text-white shadow-lg' : 'border border-white/20 bg-transparent text-white/70 hover:text-white'}`}
                   >
-                    40s GRIND
+                    20s MAX
                   </button>
                   <button
                     type="button"
                     onClick={() => setSimMode('rest')}
-                    className={`w-1/2 rounded-xl font-bold transition-all ${simMode === 'rest' ? 'scale-105 bg-slate-600 text-white shadow-lg' : 'border border-white/20 bg-transparent text-white/70 hover:text-white'}`}
+                    className={`w-1/2 rounded-xl font-bold transition-all ${simMode === 'rest' ? 'scale-105 bg-blue-600 text-white shadow-lg' : 'border border-white/20 bg-transparent text-white/70 hover:text-white'}`}
                   >
-                    20s HOLD
+                    10s REST
                   </button>
                 </div>
               </div>
@@ -481,11 +514,11 @@ const LactateInterval: React.FC<LactateIntervalProps> = ({ onNavigate, onNavigat
           <div className="pt-8 text-center">
             <button
               type="button"
-              onClick={() => setIsSetupOpen(true)}
+              onClick={setup.open}
               className="mx-auto flex items-center gap-3 rounded-full bg-[#ffbf00] px-8 py-4 font-bold text-black shadow-2xl transition-all hover:scale-105"
             >
               <span>⏱️</span>
-              <span>Launch 2:1 Timer</span>
+              <span>Launch Tabata Timer</span>
             </button>
           </div>
         </section>
@@ -494,17 +527,17 @@ const LactateInterval: React.FC<LactateIntervalProps> = ({ onNavigate, onNavigat
         <section className="grid items-center gap-12 rounded-3xl border border-white/10 bg-black/30 p-8 shadow-2xl md:grid-cols-2 md:p-12">
           <div>
             <h2 className="font-display mb-6 text-3xl font-bold text-white">
-              Visualizing The Burn
+              Oxygen Debt Visualizer
             </h2>
             <p className="mb-6 leading-relaxed text-white/80">
-              The visualizer represents the jagged, uncomfortable nature of training at threshold.
-              Unlike the smooth waves of aerobic power, this is about sustaining effort through
-              discomfort.
+              The visualizer shows the intense cardiovascular demand of Tabata. Your heart rate will
+              likely stay near max even during the 10-second rest periods, creating a cumulative
+              oxygen debt that boosts post-exercise calorie burn (EPOC).
             </p>
             <button
               type="button"
               onClick={() => setIsReportOpen(true)}
-              className="flex items-center gap-2 border-b border-amber-400/40 pb-0.5 text-sm font-bold text-amber-400 transition-colors hover:text-amber-300"
+              className="flex items-center gap-2 border-b border-[#ffbf00]/40 pb-0.5 text-sm font-bold text-[#ffbf00] transition-colors hover:text-[#ffbf00]/90"
             >
               <span>Protocol Details</span>
               <span>→</span>
@@ -524,35 +557,47 @@ const LactateInterval: React.FC<LactateIntervalProps> = ({ onNavigate, onNavigat
       </IntervalTimerLanding>
 
       <IntervalTimerSetupModal
-        isOpen={isSetupOpen}
-        onClose={() => setIsSetupOpen(false)}
-        step="protocol"
-        protocolTitle="Select Duration"
-        protocolSubtitle="Choose how many 40/20 cycles"
-        workoutTitle=""
-        workoutSubtitle=""
-        onBack={() => {}}
-        protocolContent={durationContent}
-        workoutContent={<div />}
+        isOpen={setup.isOpen}
+        onClose={setup.close}
+        step={setup.step}
+        protocolTitle="Select Protocol"
+        protocolSubtitle="Choose your intensity structure"
+        workoutTitle="Select Workout"
+        workoutSubtitle="Choose your specific routine"
+        onBack={setup.back}
+        protocolContent={
+          <TabataProtocolStep
+            onStartWithStandard={setup.startWithStandard}
+            onSelectCategory={setup.selectCategory}
+          />
+        }
+        workoutContent={
+          <TabataWorkoutStep
+            selectedCategory={setup.selectedCategory}
+            onStartWithWorkout={setup.startWithWorkout}
+          />
+        }
       />
 
+      {/* REAL TIMER: shared overlay via portal so it escapes section z-index and covers full viewport */}
       {typeof document !== 'undefined' &&
         isTimerOpen &&
-        lactateTimeline.length > 0 &&
+        tabataTimeline.length > 0 &&
         createPortal(
           <IntervalTimerOverlay
-            timeline={lactateTimeline}
+            timeline={tabataTimeline}
             onClose={() => {
               setFrozenWarmup(null);
               setIsTimerOpen(false);
             }}
-            theme={{ workBg: ACCENT.workBg }}
+            theme={{ workBg: TABATA_ACCENT.workBg }}
             warmupExercises={frozenWarmup?.exercises}
             warmupDurationPerExercise={frozenWarmup?.durationPerExercise}
           />,
           document.body
         )}
 
+      {/* INFO MODAL */}
       {isReportOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div
@@ -562,27 +607,29 @@ const LactateInterval: React.FC<LactateIntervalProps> = ({ onNavigate, onNavigat
           />
           <div className="animate-zoom-in relative flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-3xl border border-white/10 bg-[#0d0500] shadow-2xl">
             <div className="flex items-center justify-between border-b border-white/10 p-6">
-              <h3 className="font-display text-xl font-bold text-white">
-                2:1 Ratio (Lactate Threshold)
-              </h3>
+              <h3 className="font-display text-xl font-bold text-white">The Tabata Protocol</h3>
               <button
                 type="button"
                 onClick={() => setIsReportOpen(false)}
-                className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 font-bold text-white hover:bg-amber-600/20 hover:text-amber-400"
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 font-bold text-white hover:bg-[#ffbf00]/20 hover:text-[#ffbf00]"
               >
                 &times;
               </button>
             </div>
             <div className="prose prose-invert max-w-none overflow-y-auto p-8 text-white/80">
-              <p>The 40/20 protocol is designed to train your lactate buffering capacity.</p>
-              <h4>Why 40 seconds?</h4>
               <p>
-                40 seconds drives the muscle into a state of high acidity. The 20 second rest is
-                intentionally too short to allow for full clearance.
+                In 1996, Dr. Izumi Tabata analyzed the training of the Japanese speed skating team.
               </p>
+              <h4>The Protocol</h4>
               <p>
-                Over time, your body adapts by producing more monocarboxylate transporters (MCTs)
-                which clear lactate from the blood more efficiently.
+                20 seconds of ultra-intense exercise followed by 10 seconds of rest, repeated
+                continuously for 4 minutes (8 cycles).
+              </p>
+              <h4>The Results</h4>
+              <p>
+                The study showed that this 4-minute protocol increased aerobic capacity by 14% and
+                anaerobic capacity by 28%, significantly outperforming traditional steady-state
+                cardio groups in terms of VO2 max improvement.
               </p>
             </div>
           </div>
@@ -592,4 +639,4 @@ const LactateInterval: React.FC<LactateIntervalProps> = ({ onNavigate, onNavigat
   );
 };
 
-export default LactateInterval;
+export default TabataInterval;

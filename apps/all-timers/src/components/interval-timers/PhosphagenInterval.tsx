@@ -26,6 +26,7 @@ import {
 
 interface PhosphagenIntervalProps {
   onNavigate: (page: IntervalTimerPage) => void;
+  onNavigateToLanding?: () => void;
 }
 
 type MetricType = 'power' | 'capacity';
@@ -44,7 +45,7 @@ interface SimContent {
 
 const ACCENT = getProtocolAccent('phosphagen');
 
-const PhosphagenInterval: React.FC<PhosphagenIntervalProps> = ({ onNavigate }) => {
+const PhosphagenInterval: React.FC<PhosphagenIntervalProps> = ({ onNavigate, onNavigateToLanding }) => {
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [isSetupOpen, setIsSetupOpen] = useState(false);
   const [isTimerOpen, setIsTimerOpen] = useState(false);
@@ -303,6 +304,7 @@ const PhosphagenInterval: React.FC<PhosphagenIntervalProps> = ({ onNavigate }) =
       <IntervalTimerLanding
         currentProtocol="phosphagen"
         onNavigate={onNavigate}
+        onNavigateToLanding={onNavigateToLanding}
         accentTheme={ACCENT}
       >
         {/* HERO */}

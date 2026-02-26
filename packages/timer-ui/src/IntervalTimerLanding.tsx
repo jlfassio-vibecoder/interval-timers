@@ -2,7 +2,7 @@
  * Reusable dark-theme shell for all interval timer landings.
  * Provides sticky protocol nav and main content area; content is passed as children.
  * Optional accentTheme (e.g. Tabata red, Mindful green) for badges/headers; nav and primary CTA stay #ffbf00.
- * When standalone is true, protocol prev/next nav is hidden and header shows "Pillar 4 | Daily Warm-Up" only.
+ * When standalone is true, protocol prev/next nav is hidden and header shows "Home | Protocol Name" only.
  */
 import React, { type ReactNode } from 'react';
 import type { IntervalTimerPage, ProtocolAccentTheme } from '@interval-timers/timer-core';
@@ -17,10 +17,12 @@ interface IntervalTimerLandingProps {
   currentProtocol: IntervalTimerPage;
   /** Required when standalone is false so nav works; optional when standalone (nav is hidden). */
   onNavigate?: (page: IntervalTimerPage) => void;
+  /** When provided, "Home" in the header navigates to the hub landing; when standalone, Home links to "/". */
+  onNavigateToLanding?: () => void;
   children: ReactNode;
   /** Optional accent for badges/headers (e.g. Tabata red, Mindful green). Nav and primary CTA stay #ffbf00. */
   accentTheme?: ProtocolAccentTheme | null;
-  /** When true, hide protocol nav and show minimal header (Pillar 4 | Daily Warm-Up). */
+  /** When true, hide protocol nav and show minimal header (Home | Protocol Name). */
   standalone?: boolean;
 }
 
@@ -39,6 +41,7 @@ function getNextProtocol(current: IntervalTimerPage): IntervalTimerPage | null {
 const IntervalTimerLanding: React.FC<IntervalTimerLandingProps> = ({
   currentProtocol,
   onNavigate,
+  onNavigateToLanding,
   children,
   accentTheme = null,
   standalone = false,
@@ -46,14 +49,34 @@ const IntervalTimerLanding: React.FC<IntervalTimerLandingProps> = ({
   const prev = getPrevProtocol(currentProtocol);
   const next = getNextProtocol(currentProtocol);
 
+  const homeLabel = 'Home';
+  // When standalone, Home always links to "/"; otherwise use onNavigateToLanding when provided (hub).
+  const useHomeLink = standalone || !onNavigateToLanding;
+  const homeElement = useHomeLink ? (
+    <a
+      href="/"
+      className="font-heading text-lg font-bold tracking-wide text-white/80 transition-colors hover:text-[#ffbf00]"
+    >
+      {homeLabel}
+    </a>
+  ) : (
+    <button
+      type="button"
+      onClick={onNavigateToLanding}
+      className="font-heading text-lg font-bold tracking-wide text-white/80 transition-colors hover:text-[#ffbf00]"
+    >
+      {homeLabel}
+    </button>
+  );
+
   return (
     <IntervalTimerAccentContext.Provider value={accentTheme ?? null}>
       <div className="min-h-screen bg-[#0d0500] pb-20 font-sans text-white">
         <nav className="sticky top-0 z-50 border-b border-white/10 bg-[#0d0500]/95 backdrop-blur-md">
           <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6 lg:px-8">
             <div className="flex items-center gap-2">
+              {homeElement}{' '}
               <span className="font-heading text-lg font-bold tracking-wide text-white/80">
-                Pillar 4{' '}
                 <span className="text-[#ffbf00]">| {getProtocolLabel(currentProtocol)}</span>
               </span>
             </div>

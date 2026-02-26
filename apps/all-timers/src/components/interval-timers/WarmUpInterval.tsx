@@ -18,6 +18,7 @@ import type { HIITTimelineBlock } from '@interval-timers/types';
 
 interface WarmUpIntervalProps {
   onNavigate: (page: IntervalTimerPage) => void;
+  onNavigateToLanding?: () => void;
 }
 
 interface FrozenWarmupSnapshot {
@@ -28,7 +29,7 @@ interface FrozenWarmupSnapshot {
 
 const WARMUP_ACCENT = getProtocolAccent('warmup');
 
-const WarmUpInterval: React.FC<WarmUpIntervalProps> = ({ onNavigate }) => {
+const WarmUpInterval: React.FC<WarmUpIntervalProps> = ({ onNavigate, onNavigateToLanding }) => {
   const [isTimerOpen, setIsTimerOpen] = useState(false);
   const [frozenSnapshot, setFrozenSnapshot] = useState<FrozenWarmupSnapshot | null>(null);
   const { exercises, durationPerExercise } = useWarmupConfig();
@@ -65,6 +66,7 @@ const WarmUpInterval: React.FC<WarmUpIntervalProps> = ({ onNavigate }) => {
       <IntervalTimerLanding
         currentProtocol="warmup"
         onNavigate={onNavigate}
+        onNavigateToLanding={onNavigateToLanding}
         accentTheme={WARMUP_ACCENT}
       >
         {/* Hero */}

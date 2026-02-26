@@ -28,6 +28,7 @@ import {
 
 interface TabataTimerProps {
   onNavigate: (page: IntervalTimerPage) => void;
+  onNavigateToLanding?: () => void;
 }
 
 type MetricType = 'aerobic' | 'anaerobic';
@@ -46,7 +47,7 @@ interface SimContent {
 
 const TABATA_ACCENT = getProtocolAccent('tabata');
 
-const TabataInterval: React.FC<TabataTimerProps> = ({ onNavigate }) => {
+const TabataInterval: React.FC<TabataTimerProps> = ({ onNavigate, onNavigateToLanding }) => {
   const [isReportOpen, setIsReportOpen] = useState(false);
 
   // --- REAL TIMER STATE ---
@@ -302,6 +303,7 @@ const TabataInterval: React.FC<TabataTimerProps> = ({ onNavigate }) => {
       <IntervalTimerLanding
         currentProtocol="tabata"
         onNavigate={onNavigate}
+        onNavigateToLanding={onNavigateToLanding}
         accentTheme={getProtocolAccent('tabata')}
       >
         {/* HERO */}
