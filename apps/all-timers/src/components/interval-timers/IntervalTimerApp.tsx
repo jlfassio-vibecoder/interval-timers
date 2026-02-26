@@ -19,11 +19,19 @@ import {
   getProtocolAccent,
   VALID_PROTOCOLS,
 } from '@interval-timers/timer-core';
+import { getProtocolFromPath, getSlugForProtocol } from '../../lib/seoSlugs';
+import {
+  getProtocolSeoMeta,
+  LANDING_TITLE,
+  LANDING_DESCRIPTION,
+} from '../../lib/protocolSeo';
 
 export type { IntervalTimerPage } from '@interval-timers/timer-core';
 
 function getProtocolFromUrl(): IntervalTimerPage | null {
   if (typeof window === 'undefined') return null;
+  const fromPath = getProtocolFromPath(window.location.pathname);
+  if (fromPath) return fromPath;
   const params = new URLSearchParams(window.location.search);
   const p = params.get('protocol');
   if (p && VALID_PROTOCOLS.includes(p as IntervalTimerPage)) return p as IntervalTimerPage;
@@ -59,19 +67,48 @@ const IntervalTimerApp: React.FC<IntervalTimerAppProps> = ({ initialProtocol }) 
   const handleNavigate = (page: IntervalTimerPage) => {
     setCurrentPage(page);
     window.scrollTo({ top: 0, behavior: 'smooth' });
-    const url = new URL(window.location.href);
-    url.searchParams.set('protocol', page);
-    window.history.pushState({}, '', url.pathname + '?' + url.searchParams.toString());
+    const slug = getSlugForProtocol(page);
+    window.history.pushState({}, '', '/' + slug);
   };
 
   const handleNavigateToLanding = () => {
     setCurrentPage(null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
-    const url = new URL(window.location.href);
-    url.searchParams.delete('protocol');
-    const search = url.searchParams.toString();
-    window.history.pushState({}, '', url.pathname + (search ? '?' + search : ''));
+    window.history.pushState({}, '', '/');
   };
+
+  useEffect(() => {
+    const baseUrl =
+      typeof import.meta.env !== 'undefined' && import.meta.env.VITE_APP_URL
+        ? String(import.meta.env.VITE_APP_URL).replace(/\/$/, '')
+        : typeof window !== 'undefined'
+          ? window.location.origin
+          : '';
+    if (currentPage === null) {
+      document.title = LANDING_TITLE;
+      const desc = document.querySelector('meta[name="description"]');
+      if (desc) desc.setAttribute('content', LANDING_DESCRIPTION);
+      let canonical = document.querySelector('link[rel="canonical"]');
+      if (!canonical) {
+        canonical = document.createElement('link');
+        canonical.setAttribute('rel', 'canonical');
+        document.head.appendChild(canonical);
+      }
+      canonical.setAttribute('href', baseUrl + '/');
+    } else {
+      const meta = getProtocolSeoMeta(currentPage);
+      document.title = meta.title;
+      const desc = document.querySelector('meta[name="description"]');
+      if (desc) desc.setAttribute('content', meta.description);
+      let canonical = document.querySelector('link[rel="canonical"]');
+      if (!canonical) {
+        canonical = document.createElement('link');
+        canonical.setAttribute('rel', 'canonical');
+        document.head.appendChild(canonical);
+      }
+      canonical.setAttribute('href', baseUrl + '/' + getSlugForProtocol(currentPage));
+    }
+  }, [currentPage]);
 
   if (currentPage === null) {
     return <IntervalTimerLandingPage onNavigate={handleNavigate} />;
@@ -139,6 +176,7 @@ const IntervalTimerApp: React.FC<IntervalTimerAppProps> = ({ initialProtocol }) 
           currentProtocol={currentPage}
           onNavigate={handleNavigate}
           onNavigateToLanding={handleNavigateToLanding}
+          getProtocolHref={(p) => '/' + getSlugForProtocol(p)}
           accentTheme={getProtocolAccent(currentPage)}
         >
           <IntervalTimerLandingContent protocol={currentPage} onNavigate={handleNavigate} />

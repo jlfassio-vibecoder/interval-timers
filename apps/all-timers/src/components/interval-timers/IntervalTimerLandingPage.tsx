@@ -18,6 +18,7 @@ import {
   Play,
 } from 'lucide-react';
 import type { IntervalTimerPage } from '@interval-timers/timer-core';
+import { getSlugForProtocol } from '../../lib/seoSlugs';
 
 interface IntervalTimerLandingPageProps {
   onNavigate: (page: IntervalTimerPage) => void;
@@ -190,14 +191,17 @@ const IntervalTimerLandingPage: React.FC<IntervalTimerLandingPageProps> = ({ onN
             specific physiological adaptations—from neural drive to mitochondrial density.
           </p>
           <div className="flex flex-col justify-center gap-4 sm:flex-row">
-            <button
-              type="button"
-              onClick={() => onNavigate('warmup')}
+            <a
+              href="/daily-warm-up"
+              onClick={(e) => {
+                e.preventDefault();
+                onNavigate('warmup');
+              }}
               className="flex items-center justify-center gap-2 rounded-xl bg-[#ffbf00] px-8 py-4 font-bold text-black transition-colors hover:bg-[#e6ac00]"
             >
               <Play size={20} fill="currentColor" />
               Daily Warm-Up Protocol
-            </button>
+            </a>
             <button
               type="button"
               onClick={() =>
@@ -259,10 +263,13 @@ const IntervalTimerLandingPage: React.FC<IntervalTimerLandingPageProps> = ({ onN
             </h3>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
               {category.items.map((item) => (
-                <button
+                <a
                   key={item.id}
-                  type="button"
-                  onClick={() => onNavigate(item.id)}
+                  href={'/' + getSlugForProtocol(item.id)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    onNavigate(item.id);
+                  }}
                   className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-6 text-left shadow-sm transition-all hover:border-white/20 hover:bg-white/10 hover:shadow-xl"
                 >
                   <div
@@ -280,7 +287,7 @@ const IntervalTimerLandingPage: React.FC<IntervalTimerLandingPageProps> = ({ onN
                   <div className="flex items-center text-xs font-bold uppercase tracking-wider text-white/50 transition-colors group-hover:text-[#ffbf00]">
                     Launch Timer <span className="ml-1">→</span>
                   </div>
-                </button>
+                </a>
               ))}
             </div>
           </div>
