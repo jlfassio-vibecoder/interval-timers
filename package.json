@@ -18,6 +18,10 @@
     "build:japanese-walking": "npm run build -w japanese-walking",
     "dev:amrap": "npm run dev -w amrap",
     "build:amrap": "npm run build -w amrap",
-    "build:deploy": "npm run build -w all-timers && npm run build -w amrap && node scripts/copy-amrap-to-dist.cjs"
+    "dev:aerobic": "npm run dev -w aerobic",
+    "build:aerobic": "npm run build -w aerobic",
+    "dev:lactate-threshold": "npm run dev -w lactate-threshold",
+    "build:lactate-threshold": "npm run build -w lactate-threshold",
+    "build:deploy": "npm run build -w all-timers && npm run build -w amrap && npm run build -w lactate-threshold && node scripts/copy-amrap-to-dist.cjs"
   }
 }
