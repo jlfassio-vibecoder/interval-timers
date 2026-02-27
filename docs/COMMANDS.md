@@ -9,7 +9,7 @@ Run these from the monorepo root (`interval-timers/`):
 | `npm run dev` | Start the all-timers dev server (default app) |
 | `npm run dev:all-timers` | Same as `dev` — start all-timers |
 | `npm run build` | Build all-timers for production |
-| `npm run build:deploy` | Build all-timers + amrap and merge into one output (use as Vercel Build Command so /amrap is served by the standalone app) |
+| `npm run build:deploy` | Build all-timers + amrap + lactate-threshold and merge into one output (use as Vercel Build Command so /amrap and /lactate-threshold are served by standalone apps) |
 | `npm run lint` | Lint all-timers |
 
 ### Workspace-specific
@@ -49,9 +49,9 @@ Then open the URL shown (e.g. http://localhost:5174).
 
 ## Deployment (Vercel)
 
-To serve `/amrap` from the standalone app (not the all-timers SPA), set in the Vercel project:
+To serve `/amrap` and `/lactate-threshold` from standalone apps (not the all-timers SPA), set in the Vercel project:
 
 - **Build Command:** `npm run build:deploy`
 - **Output Directory:** `apps/all-timers/dist` (unchanged)
 
-`build:deploy` builds all-timers and amrap, then copies `apps/amrap/dist` into `apps/all-timers/dist/amrap`. Rewrites in `vercel.json` send `/amrap` and `/amrap/*` to that folder.
+`build:deploy` builds all-timers, amrap, and lactate-threshold, then copies each app's dist into `apps/all-timers/dist` (e.g. `amrap`, `lactate-threshold`). Rewrites in `vercel.json` send `/amrap`, `/amrap/*`, `/lactate-threshold`, and `/lactate-threshold/*` to those folders.

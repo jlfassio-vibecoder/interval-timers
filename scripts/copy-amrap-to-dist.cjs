@@ -1,17 +1,25 @@
 /**
- * Copies apps/amrap/dist into apps/all-timers/dist/amrap for merged Vercel deploy.
- * Run after building both all-timers and amrap so /amrap is served by the standalone app.
+ * Copies standalone app dists into apps/all-timers/dist for merged Vercel deploy.
+ * Run after building all-timers and each standalone app so /amrap, /lactate-threshold, etc. are served by standalone apps.
  */
 const fs = require('fs');
 const path = require('path');
 
 const repoRoot = path.resolve(__dirname, '..');
-const amrapDist = path.join(repoRoot, 'apps', 'amrap', 'dist');
-const targetDir = path.join(repoRoot, 'apps', 'all-timers', 'dist', 'amrap');
+const allTimersDist = path.join(repoRoot, 'apps', 'all-timers', 'dist');
 
-if (!fs.existsSync(amrapDist)) {
-  console.error('apps/amrap/dist not found. Run: npm run build -w amrap');
-  process.exit(1);
+const copies = [
+  { src: 'amrap', dest: 'amrap' },
+  { src: 'lactate-threshold', dest: 'lactate-threshold' },
+];
+
+for (const { src, dest } of copies) {
+  const srcDir = path.join(repoRoot, 'apps', src, 'dist');
+  const targetDir = path.join(allTimersDist, dest);
+  if (!fs.existsSync(srcDir)) {
+    console.error(`apps/${src}/dist not found. Run: npm run build -w ${src}`);
+    process.exit(1);
+  }
+  fs.cpSync(srcDir, targetDir, { recursive: true });
+  console.log(`Copied apps/${src}/dist -> apps/all-timers/dist/${dest}`);
 }
-fs.cpSync(amrapDist, targetDir, { recursive: true });
-console.log('Copied apps/amrap/dist -> apps/all-timers/dist/amrap');
