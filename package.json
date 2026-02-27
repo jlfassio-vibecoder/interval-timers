@@ -17,6 +17,7 @@
     "dev:japanese-walking": "npm run dev -w japanese-walking",
     "build:japanese-walking": "npm run build -w japanese-walking",
     "dev:amrap": "npm run dev -w amrap",
-    "build:amrap": "npm run build -w amrap"
+    "build:amrap": "npm run build -w amrap",
+    "build:deploy": "npm run build -w all-timers && npm run build -w amrap && node scripts/copy-amrap-to-dist.cjs"
   }
 }

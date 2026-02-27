@@ -24,7 +24,12 @@ export const PROTOCOL_TO_SLUG: Record<IntervalTimerPage, string> = {
 const SLUG_TO_PROTOCOL_ENTRIES = (Object.entries(PROTOCOL_TO_SLUG) as [IntervalTimerPage, string][]).map(
   ([id, slug]) => [slug, id] as const
 );
-export const SLUG_TO_PROTOCOL: Record<string, IntervalTimerPage> = Object.fromEntries(SLUG_TO_PROTOCOL_ENTRIES);
+/** Legacy path aliases so old URLs still resolve (e.g. /amrap-timer -> amrap). */
+const LEGACY_SLUG_ALIASES: Record<string, IntervalTimerPage> = { 'amrap-timer': 'amrap' };
+export const SLUG_TO_PROTOCOL: Record<string, IntervalTimerPage> = {
+  ...Object.fromEntries(SLUG_TO_PROTOCOL_ENTRIES),
+  ...LEGACY_SLUG_ALIASES,
+};
 
 /**
  * Parse pathname to protocol. Expects path like "/japanese-walking" (leading slash, no query).
