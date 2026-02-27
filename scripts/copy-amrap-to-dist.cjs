@@ -11,6 +11,8 @@ const allTimersDist = path.join(repoRoot, 'apps', 'all-timers', 'dist');
 const copies = [
   { src: 'amrap', dest: 'amrap' },
   { src: 'lactate-threshold', dest: 'lactate-threshold' },
+  { src: 'power-intervals', dest: 'power-intervals' },
+  { src: 'gibala-method', dest: 'gibala-method' },
 ];
 
 for (const { src, dest } of copies) {
