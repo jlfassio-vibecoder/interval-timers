@@ -170,7 +170,7 @@ const LactateInterval: React.FC<LactateIntervalProps> = ({ onNavigate, onNavigat
         .then(() => setIsTelemetryEnabled(true))
         .catch(() => {});
     } else {
-      audioContextRef.current?.suspend();
+      audioContextRef.current?.suspend()?.catch(() => {});
       setIsTelemetryEnabled(false);
     }
   };

@@ -54,4 +54,6 @@ To serve `/amrap` and `/lactate-threshold` from standalone apps (not the all-tim
 - **Build Command:** `npm run build:deploy`
 - **Output Directory:** `apps/all-timers/dist` (unchanged)
 
-`build:deploy` builds all-timers, amrap, and lactate-threshold, then copies each app's dist into `apps/all-timers/dist` (e.g. `amrap`, `lactate-threshold`). Rewrites in `vercel.json` send `/amrap`, `/amrap/*`, `/lactate-threshold`, and `/lactate-threshold/*` to those folders.
+`build:deploy` builds all-timers, amrap, and lactate-threshold, then copies each of those app dists into `apps/all-timers/dist` (e.g. `amrap`, `lactate-threshold`). Rewrites in `vercel.json` send `/amrap`, `/amrap/*`, `/lactate-threshold`, and `/lactate-threshold/*` to those folders.
+
+Other standalone apps (aerobic, tabata, japanese-walking, daily-warmup) are not part of `build:deploy` yet. Paths like `/aerobic-timer` are redirected from `?protocol=aerobic` but are still served by the all-timers SPA until those apps are added to the deploy script and rewrites.
