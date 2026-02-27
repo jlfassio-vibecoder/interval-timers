@@ -17,7 +17,8 @@ import {
 } from 'recharts';
 
 interface AmrapIntervalProps {
-  onNavigate: (page: IntervalTimerPage) => void;
+  /** Optional in standalone app (nav hidden); required when embedded in all-timers. */
+  onNavigate?: (page: IntervalTimerPage) => void;
   onNavigateToLanding?: () => void;
 }
 
@@ -118,9 +119,22 @@ const AmrapInterval: React.FC<AmrapIntervalProps> = ({ onNavigate, onNavigateToL
         .then(() => setIsTelemetryEnabled(true))
         .catch(() => {});
     } else {
-      setIsTelemetryEnabled(false);
+      if (audioContextRef.current?.state === 'running') {
+        audioContextRef.current.suspend().then(() => setIsTelemetryEnabled(false)).catch(() => setIsTelemetryEnabled(false));
+      } else {
+        setIsTelemetryEnabled(false);
+      }
     }
   };
+
+  useEffect(() => {
+    return () => {
+      if (audioContextRef.current) {
+        audioContextRef.current.close().catch(() => {});
+        audioContextRef.current = null;
+      }
+    };
+  }, []);
 
   const playSound = (type: 'start' | 'round' | 'warning' | 'finish') => {
     try {
@@ -236,7 +250,7 @@ const AmrapInterval: React.FC<AmrapIntervalProps> = ({ onNavigate, onNavigateToL
 
   useEffect(() => {
     animateRef.current = animateVisualizer;
-  });
+  }, [animateVisualizer]);
 
   useLayoutEffect(() => {
     requestRef.current = requestAnimationFrame((t) => animateVisualizer(t));
@@ -326,6 +340,7 @@ const AmrapInterval: React.FC<AmrapIntervalProps> = ({ onNavigate, onNavigateToL
   };
 
   const timerStyle = getTimerStyles();
+  const isStandalone = onNavigate == null;
 
   return (
     <>
@@ -334,6 +349,7 @@ const AmrapInterval: React.FC<AmrapIntervalProps> = ({ onNavigate, onNavigateToL
         onNavigate={onNavigate}
         onNavigateToLanding={onNavigateToLanding}
         accentTheme={AMRAP_ACCENT}
+        standalone={isStandalone}
       >
         {/* HERO */}
         <section className="mx-auto max-w-4xl pt-8 text-center">
@@ -548,6 +564,8 @@ const AmrapInterval: React.FC<AmrapIntervalProps> = ({ onNavigate, onNavigateToL
               type="button"
               onClick={toggleTelemetryAudio}
               className="absolute right-4 top-4 z-20 text-white/60 transition-colors hover:text-white"
+              aria-label={isTelemetryEnabled ? 'Disable telemetry audio' : 'Enable telemetry audio'}
+              aria-pressed={isTelemetryEnabled}
             >
               {isTelemetryEnabled ? '🔊' : '🔇'}
             </button>
@@ -634,6 +652,7 @@ const AmrapInterval: React.FC<AmrapIntervalProps> = ({ onNavigate, onNavigateToL
               type="button"
               onClick={() => setIsTimerOpen(false)}
               className="flex h-8 w-8 items-center justify-center rounded-full bg-black/20 font-bold text-white hover:bg-black/40"
+              aria-label="Close timer"
             >
               &times;
             </button>
@@ -726,6 +745,7 @@ const AmrapInterval: React.FC<AmrapIntervalProps> = ({ onNavigate, onNavigateToL
                 type="button"
                 onClick={() => setIsReportOpen(false)}
                 className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 font-bold text-white hover:bg-orange-600/20 hover:text-orange-400"
+                aria-label="Close protocol details"
               >
                 &times;
               </button>

@@ -9,6 +9,7 @@ Run these from the monorepo root (`interval-timers/`):
 | `npm run dev` | Start the all-timers dev server (default app) |
 | `npm run dev:all-timers` | Same as `dev` — start all-timers |
 | `npm run build` | Build all-timers for production |
+| `npm run build:deploy` | Build all-timers + amrap and merge into one output (use as Vercel Build Command so /amrap is served by the standalone app) |
 | `npm run lint` | Lint all-timers |
 
 ### Workspace-specific
@@ -43,3 +44,14 @@ npm run dev:daily-warmup
 ```
 
 Then open the URL shown (e.g. http://localhost:5174).
+
+---
+
+## Deployment (Vercel)
+
+To serve `/amrap` from the standalone app (not the all-timers SPA), set in the Vercel project:
+
+- **Build Command:** `npm run build:deploy`
+- **Output Directory:** `apps/all-timers/dist` (unchanged)
+
+`build:deploy` builds all-timers and amrap, then copies `apps/amrap/dist` into `apps/all-timers/dist/amrap`. Rewrites in `vercel.json` send `/amrap` and `/amrap/*` to that folder.
