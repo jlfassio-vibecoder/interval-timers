@@ -108,6 +108,7 @@ const PhosphagenInterval: React.FC<PhosphagenIntervalProps> = ({
 
     const interval = setInterval(() => {
       setIntensityData((prev) => {
+        if (prev.length === 0) return prev;
         const newData = [...prev.slice(1)];
         const lastTime = prev[prev.length - 1].time;
         const noise = simMode === 'work' ? 15 : 2;
@@ -115,7 +116,7 @@ const PhosphagenInterval: React.FC<PhosphagenIntervalProps> = ({
         newData.push({ time: lastTime + 1, value });
         return newData;
       });
-    }, 100);
+    }, 250);
 
     return () => clearInterval(interval);
   }, [simMode]);
