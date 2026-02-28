@@ -55,7 +55,7 @@ Then open the URL shown (e.g. http://localhost:5174).
 
 ## Deployment (Vercel)
 
-To serve `/amrap`, `/lactate-threshold`, and `/power-intervals` from standalone apps (not the all-timers SPA), set in the Vercel project:
+To serve `/amrap`, `/lactate-threshold`, `/power-intervals`, `/gibala-method`, `/wingate`, and `/timmons` from standalone apps (not the all-timers SPA), set in the Vercel project:
 
 - **Build Command:** `npm run build:deploy`
 - **Output Directory:** `apps/all-timers/dist` (unchanged)

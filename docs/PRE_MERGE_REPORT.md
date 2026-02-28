@@ -1,46 +1,66 @@
 # Pre-Merge Report
 
-**Date:** Final PR gatekeeper pass  
-**Scope:** Phase 4 Aerobic + Lactate Threshold standalone apps, deploy script, Vercel rewrites, Copilot comment triage, anti-slop scrub
+**Role:** Senior Lead Engineer (Final PR Gatekeeper)  
+**Scope:** Phase 4 — Wingate & Timmons standalone apps, deploy script rename, Copilot triage, anti-slop scrub  
+**Date:** Final pass before merge
 
 ---
 
-## Fixed
+## Phase 1: Triage Summary
+
+### Critical Fixes & Slop Detection (High Priority)
+
+- **Security/Logic:** No vulnerabilities, race conditions, or improper error handling found in `apps/wingate` or `apps/timmons`. AudioContext lifecycle uses `suspend().catch(() => {})` and `close().catch(() => {})`; empty catch is intentional for browser API resilience.
+- **Env/Node:** No `import.meta.env` in wingate or timmons client code. No `fs`/`path` or other Node APIs in `src/`. Build-time script `scripts/copy-standalone-apps-to-dist.cjs` correctly uses Node only.
+- **Anti-Slop:** No redundant “obvious” comments, no TODO/FIXME/HACK in changed files. No stray `console.log`/debug/info in `src/`. Section labels (e.g. `{/* SECTION 1: DATA */}`) are structural and match existing protocol components; retained.
+- **Hallucinated APIs:** All imports verified against `@interval-timers/timer-core`, `@interval-timers/timer-ui`, `@interval-timers/types`, `react-dom` (createPortal), and `recharts`. Exports and usage are correct.
+
+### Performance & Optimization (Medium)
+
+- No changes applied. Intensity chart update intervals (500 ms in Timmons, 100 ms in Wingate) are consistent with other protocol apps; no Big O or structural changes made in this pass.
+
+### Style & Architecture (Low/Strict)
+
+- Bar chart `Cell` keys use `key={\`cell-${index}\`}` in both Timmons and Wingate, matching `apps/power-intervals/PhosphagenInterval.tsx`. No change.
+- Package.json files for wingate and timmons are now pretty-printed (multi-line, 2-space) to match other apps.
+
+---
+
+## Fixed (this PR / session)
 
 | Area | Fix |
 |------|-----|
-| **Docs** | COMMANDS.md: Clarified that only amrap and lactate-threshold are in `build:deploy`; added note that aerobic, tabata, japanese-walking, daily-warmup are not in the pipeline yet and paths like `/aerobic-timer` are served by the all-timers SPA. |
-| **Asset paths** | lactate-threshold: Moved sounds README from `public/README.md` to `public/sounds/README.md` so contributors add assets where `@interval-timers/timer-sounds` expects them (`/sounds/...`). |
-| **Asset paths** | lactate-threshold: Moved warmup docs from `public/warmup/` to `public/images/warmup/` so paths match `timer-core` (`WARMUP_IMAGES_BASE = '/images/warmup'`) and align with aerobic app. |
-| **Error handling** | LactateInterval.tsx: `audioContextRef.current?.suspend()` now uses `?.catch(() => {})` to avoid unhandled Promise rejections when the context is already closed or suspend fails. |
+| **Docs** | COMMANDS.md: Deployment intro updated to list all six standalone routes (/amrap, /lactate-threshold, /power-intervals, /gibala-method, /wingate, /timmons). |
+| **Deploy script** | Renamed `copy-amrap-to-dist.cjs` → `copy-standalone-apps-to-dist.cjs`; updated package.json `build:deploy` and PRE_MERGE_REPORT references. |
+| **Deploy script** | Clear target dir before each copy (`fs.rmSync` when exists) to avoid serving stale assets after build output changes. |
+| **Formatting** | apps/wingate/package.json and apps/timmons/package.json pretty-printed to multi-line JSON for consistency and easier diffs. |
 
 ---
 
 ## Slop Scrubbed
 
-- **Redundant comments:** None found in aerobic or lactate-threshold apps; no obvious “setting X to Y” or redundant JSDoc in changed files.
-- **Hallucinated APIs:** All imports and method calls in new/edited files verified; no non-existent utilities or wrong parameters.
-- **Dead logic:** No placeholder logic, unused variables, or redundant try/catch in the PR scope. `console.error` in catch blocks (e.g. AmrapInterval) are intentional and kept.
+- **Redundant comments:** None found in wingate or timmons `src/`; no “setting X to Y” or obvious restatements.
+- **Hallucinated APIs:** None; all imports and method calls verified against package exports.
+- **Dead logic:** No placeholder logic, unused variables, or redundant try/catch in PR scope. `console.log`/`console.error` in `copy-standalone-apps-to-dist.cjs` are intentional build output.
 
 ---
 
 ## Ignored
 
-| Suggestion | Reason |
-|------------|--------|
-| **vercel.json:** Add rewrites for `/aerobic-timer` | Aerobic is intentionally not part of the merged deploy yet; documented in COMMANDS.md. Adding rewrites without building/copying aerobic would 404. |
-| **package.json:** Include aerobic in `build:deploy` | Same decision: aerobic not in pipeline yet. Copilot’s “build:deploy builds aerobic” was incorrect—aerobic is not in the script. |
-| **scripts/copy-amrap-to-dist.cjs:** Add aerobic to `copies` | Same decision: aerobic omitted by design until it is added to the full deploy flow. |
-| **MISSING_IMAGES path “this folder”** (public/warmup) | Already resolved by moving content to `public/images/warmup/`; file at `public/warmup/MISSING_IMAGES.md` no longer exists. |
+| Suggestion / Topic | Reason |
+|--------------------|--------|
+| Bar chart `key={option.name}` vs `key={\`cell-${index}\`}` | Existing pattern in power-intervals uses index-based key for Recharts Cell; consistency over preference. |
+| Chunk size > 500 kB warning | Pre-existing across spokes; no change in this PR. |
+| Astro / Frontmatter / PUBLIC_ prefix | Not applicable; this PR is Vite + React only, no Astro. |
 
 ---
 
 ## Verification
 
-- **Env:** Only `import.meta.env.VITE_APP_URL` used in client code (all-timers); aerobic and lactate-threshold use no env in client. No secrets or non-`VITE_` env in `src/`.
-- **Node APIs:** `fs`/`path` only in config and `scripts/copy-amrap-to-dist.cjs`; not in client components.
-- **Lint:** No linter errors on LactateInterval.tsx or other touched files.
-- **Structure:** lactate-threshold `public/` now matches aerobic (sounds/, images/warmup/); no stray `public/warmup/` or top-level sound README.
+- **Lint:** Root `npm run lint` (all-timers) passes.
+- **Build:** `npm run build:wingate` and `npm run build:timmons` succeed.
+- **Deploy script:** `node scripts/copy-standalone-apps-to-dist.cjs` runs successfully and copies all six app dists (including wingate, timmons) into `apps/all-timers/dist`.
+- **Types:** All imports resolve; no `any` or weakened types introduced in new app code.
 
 ---
 
@@ -48,4 +68,4 @@
 
 **READY TO MERGE**
 
-All triaged Copilot comments have been addressed or explicitly declined with documented rationale. Critical fix applied (suspend Promise handling); doc and asset paths aligned with timer-core and existing apps. Aerobic remains out of the deploy pipeline by design until a follow-up change adds it to build, copy script, and rewrites.
+The PR is functional, consistent with existing patterns, and free of critical issues, slop, and hallucinated APIs. Remaining Copilot-style nits were evaluated and either already addressed (docs, script name, clear-before-copy, package.json formatting) or explicitly ignored for consistency. No human-only decisions required for merge.
