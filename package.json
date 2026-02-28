@@ -22,10 +22,14 @@
     "build:aerobic": "npm run build -w aerobic",
     "dev:lactate-threshold": "npm run dev -w lactate-threshold",
     "build:lactate-threshold": "npm run build -w lactate-threshold",
-    "build:deploy": "npm run build -w all-timers && npm run build -w amrap && npm run build -w lactate-threshold && npm run build -w power-intervals && npm run build -w gibala-method && node scripts/copy-amrap-to-dist.cjs",
+    "build:deploy": "npm run build -w all-timers && npm run build -w amrap && npm run build -w lactate-threshold && npm run build -w power-intervals && npm run build -w gibala-method && npm run build -w wingate && npm run build -w timmons && node scripts/copy-standalone-apps-to-dist.cjs",
     "dev:power-intervals": "npm run dev -w power-intervals",
     "build:power-intervals": "npm run build -w power-intervals",
     "dev:gibala-method": "npm run dev -w gibala-method",
-    "build:gibala-method": "npm run build -w gibala-method"
+    "build:gibala-method": "npm run build -w gibala-method",
+    "dev:wingate": "npm run dev -w wingate",
+    "build:wingate": "npm run build -w wingate",
+    "dev:timmons": "npm run dev -w timmons",
+    "build:timmons": "npm run build -w timmons"
   }
 }
