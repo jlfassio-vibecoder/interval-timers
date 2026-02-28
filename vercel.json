@@ -34,6 +34,22 @@
       "destination": "/gibala-method/$1"
     },
     {
+      "source": "/wingate",
+      "destination": "/wingate/index.html"
+    },
+    {
+      "source": "/wingate/(.*)",
+      "destination": "/wingate/$1"
+    },
+    {
+      "source": "/timmons",
+      "destination": "/timmons/index.html"
+    },
+    {
+      "source": "/timmons/(.*)",
+      "destination": "/timmons/$1"
+    },
+    {
       "source": "/:path*",
       "destination": "/index.html"
     }
@@ -132,7 +148,7 @@
           "value": "wingate"
         }
       ],
-      "destination": "/wingate-test",
+      "destination": "/wingate",
       "permanent": true
     },
     {
@@ -144,7 +160,7 @@
           "value": "timmons"
         }
       ],
-      "destination": "/timmons-protocol",
+      "destination": "/timmons",
       "permanent": true
     },
     {

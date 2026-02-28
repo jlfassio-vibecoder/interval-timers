@@ -13,6 +13,8 @@ const copies = [
   { src: 'lactate-threshold', dest: 'lactate-threshold' },
   { src: 'power-intervals', dest: 'power-intervals' },
   { src: 'gibala-method', dest: 'gibala-method' },
+  { src: 'wingate', dest: 'wingate' },
+  { src: 'timmons', dest: 'timmons' },
 ];
 
 for (const { src, dest } of copies) {

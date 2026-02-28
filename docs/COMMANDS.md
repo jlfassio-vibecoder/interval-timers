@@ -9,7 +9,7 @@ Run these from the monorepo root (`interval-timers/`):
 | `npm run dev` | Start the all-timers dev server (default app) |
 | `npm run dev:all-timers` | Same as `dev` — start all-timers |
 | `npm run build` | Build all-timers for production |
-| `npm run build:deploy` | Build all-timers + amrap + lactate-threshold + power-intervals + gibala-method and merge into one output (use as Vercel Build Command so /amrap, /lactate-threshold, /power-intervals, and /gibala-method are served by standalone apps) |
+| `npm run build:deploy` | Build all-timers + amrap + lactate-threshold + power-intervals + gibala-method + wingate + timmons and merge into one output (use as Vercel Build Command so /amrap, /lactate-threshold, /power-intervals, /gibala-method, /wingate, /timmons are served by standalone apps) |
 | `npm run lint` | Lint all-timers |
 
 ### Workspace-specific
@@ -20,6 +20,10 @@ Run these from the monorepo root (`interval-timers/`):
 | `npm run build:daily-warmup` | Build the Daily Warm-up app |
 | `npm run dev:power-intervals` | Start the Power Intervals (Phosphagen) app dev server |
 | `npm run build:power-intervals` | Build the Power Intervals app |
+| `npm run dev:wingate` | Start the Wingate app dev server |
+| `npm run build:wingate` | Build the Wingate app |
+| `npm run dev:timmons` | Start the Timmons Method app dev server |
+| `npm run build:timmons` | Build the Timmons Method app |
 
 ---
 
@@ -56,6 +60,6 @@ To serve `/amrap`, `/lactate-threshold`, and `/power-intervals` from standalone 
 - **Build Command:** `npm run build:deploy`
 - **Output Directory:** `apps/all-timers/dist` (unchanged)
 
-`build:deploy` builds all-timers, amrap, lactate-threshold, power-intervals, and gibala-method, then copies each of those app dists into `apps/all-timers/dist` (e.g. `amrap`, `lactate-threshold`, `power-intervals`, `gibala-method`). Rewrites in `vercel.json` send `/amrap`, `/amrap/*`, `/lactate-threshold`, `/lactate-threshold/*`, `/power-intervals`, `/power-intervals/*`, `/gibala-method`, and `/gibala-method/*` to those folders.
+`build:deploy` builds all-timers, amrap, lactate-threshold, power-intervals, gibala-method, wingate, and timmons, then copies each of those app dists into `apps/all-timers/dist`. Rewrites in `vercel.json` send `/amrap`, `/lactate-threshold`, `/power-intervals`, `/gibala-method`, `/wingate`, and `/timmons` (and their subpaths) to those folders.
 
 Other standalone apps (aerobic, tabata, japanese-walking, daily-warmup) are not part of `build:deploy` yet. Paths like `/aerobic-timer` are redirected from `?protocol=aerobic` but are still served by the all-timers SPA until those apps are added to the deploy script and rewrites.
