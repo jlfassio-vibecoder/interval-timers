@@ -1,22 +1,12 @@
+import fs from 'node:fs'
 import path from 'path'
 import type { Plugin } from 'vite'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { PROTOCOL_TO_PATH } from './src/lib/protocolPaths'
 
-const STANDALONE_PATHS = [
-  'daily-warm-up',
-  'tabata-timer',
-  'japanese-walking',
-  'aerobic-timer',
-  'amrap',
-  'lactate-threshold',
-  'power-intervals',
-  'gibala-method',
-  'wingate',
-  'timmons',
-  'emom-timer',
-  '10-20-30',
-]
+/** Derived from canonical paths so preview rewrites stay in sync with vercel.json and copy script. */
+const STANDALONE_PATHS = Object.values(PROTOCOL_TO_PATH)
 
 function standalonePathsPreviewPlugin(): Plugin {
   return {
@@ -27,7 +17,12 @@ function standalonePathsPreviewPlugin(): Plugin {
         const match = STANDALONE_PATHS.find(
           (p) => url === `/${p}` || url === `/${p}/`
         )
-        if (match) {
+        // Only rewrite when the standalone app was copied into dist (e.g. after build:deploy).
+        // Otherwise preview would 404; skip rewrite so request is handled by static server.
+        if (
+          match &&
+          fs.existsSync(path.join(__dirname, 'dist', match, 'index.html'))
+        ) {
           req.url =
             `/${match}/index.html` +
             (req.url?.includes('?') ? req.url.slice(req.url.indexOf('?')) : '')
