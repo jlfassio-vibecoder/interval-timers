@@ -10,6 +10,7 @@ Run these from the monorepo root (`interval-timers/`):
 | `npm run dev:landing` | Same as `dev` — start landing |
 | `npm run build` | Build landing for production |
 | `npm run build:deploy` | Build landing + all 12 standalone timer apps and merge into one output (use as Vercel Build Command) |
+| `npm run preview:deploy` | Build and serve the deploy output locally (landing + all standalones) for testing standalone URLs |
 | `npm run lint` | Lint landing |
 
 ### Workspace-specific
@@ -47,8 +48,9 @@ Run these from the monorepo root (`interval-timers/`):
 
 The site is a landing app at `/` plus 12 standalone timer apps, each at its own path:
 
-- **Landing:** `npm run dev` (or `npm run dev:landing`) — serves the protocol grid at `/`.
+- **Landing:** `npm run dev` (or `npm run dev:landing`) — serves the protocol grid at `/`. When only the landing dev server is running, visiting a standalone path (e.g. `/emom-timer`) will show the landing page; that is expected.
 - **Standalone timers:** Each protocol has its own app; use `npm run dev:<app>` to run one (e.g. `npm run dev:daily-warmup`). Paths like `/daily-warm-up`, `/tabata-timer`, `/japanese-walking`, `/aerobic-timer`, `/amrap`, `/lactate-threshold`, `/power-intervals`, `/gibala-method`, `/wingate`, `/timmons`, `/emom-timer`, `/10-20-30` are served by the corresponding standalone app in production.
+- **Testing standalone URLs locally:** To verify that links like `/emom-timer` open the correct timer (not the landing page), run the full production build and preview: `npm run preview:deploy` (or `npm run build:deploy && npm run preview -w landing`). Then open e.g. `http://localhost:4173/emom-timer`.
 
 ---
 

@@ -24,6 +24,7 @@
     "dev:lactate-threshold": "npm run dev -w lactate-threshold",
     "build:lactate-threshold": "npm run build -w lactate-threshold",
     "build:deploy": "npm run build -w landing && npm run build -w daily-warmup && npm run build -w tabata && npm run build -w japanese-walking && npm run build -w aerobic && npm run build -w amrap && npm run build -w lactate-threshold && npm run build -w power-intervals && npm run build -w gibala-method && npm run build -w wingate && npm run build -w timmons && npm run build -w emom && npm run build -w ten-twenty-thirty && node scripts/copy-standalone-apps-to-dist.cjs",
+    "preview:deploy": "npm run build:deploy && npm run preview -w landing",
     "dev:power-intervals": "npm run dev -w power-intervals",
     "build:power-intervals": "npm run build -w power-intervals",
     "dev:gibala-method": "npm run dev -w gibala-method",
