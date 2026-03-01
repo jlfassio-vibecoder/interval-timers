@@ -93,9 +93,9 @@ const TenTwentyThirtyInterval: React.FC<TenTwentyThirtyIntervalProps> = ({
       const peak = simMode === 'all_out' ? 190 : 160;
 
       for (let i = 0; i < 60; i++) {
-        let val = 60; // Low
-        if (i >= 30 && i < 50) val = 120; // Moderate
-        if (i >= 50) val = peak; // High
+        let val = 60;
+        if (i >= 30 && i < 50) val = 120;
+        if (i >= 50) val = peak;
 
         data.push({ time: i, value: val + Math.random() * 5 });
       }
@@ -197,7 +197,7 @@ const TenTwentyThirtyInterval: React.FC<TenTwentyThirtyIntervalProps> = ({
     ctx.stroke();
     ctx.restore();
 
-    ctx.font = 'bold 24px Inter';
+    ctx.font = "bold 24px 'Syncopate', system-ui, sans-serif";
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillStyle = '#fff';

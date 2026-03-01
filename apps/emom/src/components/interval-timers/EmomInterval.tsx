@@ -49,6 +49,7 @@ const EmomInterval: React.FC<EmomIntervalProps> = ({ onNavigate, onNavigateToLan
   const [totalCycles, setTotalCycles] = useState(10);
   const [isPaused, setIsPaused] = useState(false);
   const [taskFinishedAt, setTaskFinishedAt] = useState<number | null>(null);
+  // Round history is populated during the session for a planned user-history feature (accounts).
   const [, setRoundHistory] = useState<
     { round: number; work: number; rest: number }[]
   >([]);
@@ -255,13 +256,13 @@ const EmomInterval: React.FC<EmomIntervalProps> = ({ onNavigate, onNavigateToLan
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    ctx.font = 'bold 20px Inter';
+    ctx.font = "bold 20px 'Syncopate', system-ui, sans-serif";
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillStyle = '#fff';
     ctx.fillText('PACE', centerX, centerY - 10);
     ctx.fillStyle = '#94a3b8';
-    ctx.font = '12px Inter';
+    ctx.font = "12px 'Syncopate', system-ui, sans-serif";
     ctx.fillText(simMode === 'fast' ? 'High Efficiency' : 'Low Efficiency', centerX, centerY + 15);
 
     requestRef.current = requestAnimationFrame((t) => animateRef.current(t));
@@ -324,7 +325,19 @@ const EmomInterval: React.FC<EmomIntervalProps> = ({ onNavigate, onNavigateToLan
       setSecondsInMinute(0);
       playSound('start_round');
     } else if (timerState === 'resting') {
-      setSecondsInMinute(60);
+      // Perform same transition as when rest period completes in the interval,
+      // so skip works immediately and while paused (interval not running).
+      if (cycleCount >= totalCycles) {
+        setTimerState('finished');
+        playSound('complete');
+        setSecondsInMinute(0);
+      } else {
+        setCycleCount((c) => c + 1);
+        setTimerState('working');
+        setTaskFinishedAt(null);
+        playSound('start_round');
+        setSecondsInMinute(0);
+      }
     }
   };
 
