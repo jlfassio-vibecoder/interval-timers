@@ -1,15 +1,19 @@
 /**
- * Copies standalone app dists into apps/all-timers/dist for merged Vercel deploy.
- * Run after building all-timers and each standalone app so /amrap, /lactate-threshold, etc. are served by standalone apps.
+ * Copies standalone app dists into apps/landing/dist for merged Vercel deploy.
+ * Run after building landing and each standalone app so /, /daily-warm-up, /amrap, etc. are served correctly.
  * Clears each target dir before copy to avoid serving stale assets when a build removes/renames files.
  */
 const fs = require('fs');
 const path = require('path');
 
 const repoRoot = path.resolve(__dirname, '..');
-const allTimersDist = path.join(repoRoot, 'apps', 'all-timers', 'dist');
+const landingDist = path.join(repoRoot, 'apps', 'landing', 'dist');
 
 const copies = [
+  { src: 'daily-warmup', dest: 'daily-warm-up' },
+  { src: 'tabata', dest: 'tabata-timer' },
+  { src: 'japanese-walking', dest: 'japanese-walking' },
+  { src: 'aerobic', dest: 'aerobic-timer' },
   { src: 'amrap', dest: 'amrap' },
   { src: 'lactate-threshold', dest: 'lactate-threshold' },
   { src: 'power-intervals', dest: 'power-intervals' },
@@ -22,7 +26,7 @@ const copies = [
 
 for (const { src, dest } of copies) {
   const srcDir = path.join(repoRoot, 'apps', src, 'dist');
-  const targetDir = path.join(allTimersDist, dest);
+  const targetDir = path.join(landingDist, dest);
   if (!fs.existsSync(srcDir)) {
     console.error(`apps/${src}/dist not found. Run: npm run build -w ${src}`);
     process.exit(1);
@@ -31,5 +35,5 @@ for (const { src, dest } of copies) {
     fs.rmSync(targetDir, { recursive: true });
   }
   fs.cpSync(srcDir, targetDir, { recursive: true });
-  console.log(`Copied apps/${src}/dist -> apps/all-timers/dist/${dest}`);
+  console.log(`Copied apps/${src}/dist -> apps/landing/dist/${dest}`);
 }
