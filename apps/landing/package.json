@@ -1,5 +1,5 @@
 {
-  "name": "all-timers",
+  "name": "landing",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -11,17 +11,11 @@
   },
   "dependencies": {
     "@interval-timers/types": "*",
-    "@interval-timers/timer-sounds": "*",
     "@interval-timers/timer-core": "*",
     "@interval-timers/timer-ui": "*",
-    "clsx": "^2.1.1",
-    "framer-motion": "^12.34.3",
     "lucide-react": "^0.575.0",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0",
-    "react-is": "^19.2.4",
-    "recharts": "^3.7.0",
-    "tailwind-merge": "^3.5.0"
+    "react-dom": "^19.2.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

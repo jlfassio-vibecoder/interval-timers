@@ -1,229 +1,50 @@
 {
-  "outputDirectory": "apps/all-timers/dist",
+  "outputDirectory": "apps/landing/dist",
   "rewrites": [
-    {
-      "source": "/amrap",
-      "destination": "/amrap/index.html"
-    },
-    {
-      "source": "/amrap/(.*)",
-      "destination": "/amrap/$1"
-    },
-    {
-      "source": "/lactate-threshold",
-      "destination": "/lactate-threshold/index.html"
-    },
-    {
-      "source": "/lactate-threshold/(.*)",
-      "destination": "/lactate-threshold/$1"
-    },
-    {
-      "source": "/power-intervals",
-      "destination": "/power-intervals/index.html"
-    },
-    {
-      "source": "/power-intervals/(.*)",
-      "destination": "/power-intervals/$1"
-    },
-    {
-      "source": "/gibala-method",
-      "destination": "/gibala-method/index.html"
-    },
-    {
-      "source": "/gibala-method/(.*)",
-      "destination": "/gibala-method/$1"
-    },
-    {
-      "source": "/wingate",
-      "destination": "/wingate/index.html"
-    },
-    {
-      "source": "/wingate/(.*)",
-      "destination": "/wingate/$1"
-    },
-    {
-      "source": "/timmons",
-      "destination": "/timmons/index.html"
-    },
-    {
-      "source": "/timmons/(.*)",
-      "destination": "/timmons/$1"
-    },
-    {
-      "source": "/emom-timer",
-      "destination": "/emom-timer/index.html"
-    },
-    {
-      "source": "/emom-timer/(.*)",
-      "destination": "/emom-timer/$1"
-    },
-    {
-      "source": "/10-20-30",
-      "destination": "/10-20-30/index.html"
-    },
-    {
-      "source": "/10-20-30/(.*)",
-      "destination": "/10-20-30/$1"
-    },
-    {
-      "source": "/:path*",
-      "destination": "/index.html"
-    }
+    { "source": "/amrap", "destination": "/amrap/index.html" },
+    { "source": "/amrap/(.*)", "destination": "/amrap/$1" },
+    { "source": "/lactate-threshold", "destination": "/lactate-threshold/index.html" },
+    { "source": "/lactate-threshold/(.*)", "destination": "/lactate-threshold/$1" },
+    { "source": "/power-intervals", "destination": "/power-intervals/index.html" },
+    { "source": "/power-intervals/(.*)", "destination": "/power-intervals/$1" },
+    { "source": "/gibala-method", "destination": "/gibala-method/index.html" },
+    { "source": "/gibala-method/(.*)", "destination": "/gibala-method/$1" },
+    { "source": "/wingate", "destination": "/wingate/index.html" },
+    { "source": "/wingate/(.*)", "destination": "/wingate/$1" },
+    { "source": "/timmons", "destination": "/timmons/index.html" },
+    { "source": "/timmons/(.*)", "destination": "/timmons/$1" },
+    { "source": "/emom-timer", "destination": "/emom-timer/index.html" },
+    { "source": "/emom-timer/(.*)", "destination": "/emom-timer/$1" },
+    { "source": "/10-20-30", "destination": "/10-20-30/index.html" },
+    { "source": "/10-20-30/(.*)", "destination": "/10-20-30/$1" },
+    { "source": "/daily-warm-up", "destination": "/daily-warm-up/index.html" },
+    { "source": "/daily-warm-up/(.*)", "destination": "/daily-warm-up/$1" },
+    { "source": "/tabata-timer", "destination": "/tabata-timer/index.html" },
+    { "source": "/tabata-timer/(.*)", "destination": "/tabata-timer/$1" },
+    { "source": "/japanese-walking", "destination": "/japanese-walking/index.html" },
+    { "source": "/japanese-walking/(.*)", "destination": "/japanese-walking/$1" },
+    { "source": "/aerobic-timer", "destination": "/aerobic-timer/index.html" },
+    { "source": "/aerobic-timer/(.*)", "destination": "/aerobic-timer/$1" },
+    { "source": "/:path*", "destination": "/index.html" }
   ],
   "redirects": [
-    {
-      "source": "/",
-      "has": [
-        {
-          "type": "query",
-          "key": "protocol",
-          "value": "mindful"
-        }
-      ],
-      "destination": "/japanese-walking",
-      "permanent": true
-    },
-    {
-      "source": "/",
-      "has": [
-        {
-          "type": "query",
-          "key": "protocol",
-          "value": "tabata"
-        }
-      ],
-      "destination": "/tabata-timer",
-      "permanent": true
-    },
-    {
-      "source": "/",
-      "has": [
-        {
-          "type": "query",
-          "key": "protocol",
-          "value": "warmup"
-        }
-      ],
-      "destination": "/daily-warm-up",
-      "permanent": true
-    },
-    {
-      "source": "/",
-      "has": [
-        {
-          "type": "query",
-          "key": "protocol",
-          "value": "aerobic"
-        }
-      ],
-      "destination": "/aerobic-timer",
-      "permanent": true
-    },
-    {
-      "source": "/",
-      "has": [
-        {
-          "type": "query",
-          "key": "protocol",
-          "value": "lactate"
-        }
-      ],
-      "destination": "/lactate-threshold",
-      "permanent": true
-    },
-    {
-      "source": "/",
-      "has": [
-        {
-          "type": "query",
-          "key": "protocol",
-          "value": "phosphagen"
-        }
-      ],
-      "destination": "/power-intervals",
-      "permanent": true
-    },
-    {
-      "source": "/",
-      "has": [
-        {
-          "type": "query",
-          "key": "protocol",
-          "value": "gibala"
-        }
-      ],
-      "destination": "/gibala-method",
-      "permanent": true
-    },
-    {
-      "source": "/",
-      "has": [
-        {
-          "type": "query",
-          "key": "protocol",
-          "value": "wingate"
-        }
-      ],
-      "destination": "/wingate",
-      "permanent": true
-    },
-    {
-      "source": "/",
-      "has": [
-        {
-          "type": "query",
-          "key": "protocol",
-          "value": "timmons"
-        }
-      ],
-      "destination": "/timmons",
-      "permanent": true
-    },
-    {
-      "source": "/",
-      "has": [
-        {
-          "type": "query",
-          "key": "protocol",
-          "value": "emom"
-        }
-      ],
-      "destination": "/emom-timer",
-      "permanent": true
-    },
-    {
-      "source": "/",
-      "has": [
-        {
-          "type": "query",
-          "key": "protocol",
-          "value": "amrap"
-        }
-      ],
-      "destination": "/amrap",
-      "permanent": true
-    },
-    {
-      "source": "/",
-      "has": [
-        {
-          "type": "query",
-          "key": "protocol",
-          "value": "10-20-30"
-        }
-      ],
-      "destination": "/10-20-30",
-      "permanent": true
-    },
-    {
-      "source": "/amrap-timer",
-      "destination": "/amrap",
-      "permanent": true
-    },
-    {
-      "source": "/amrap-timer/:path*",
-      "destination": "/amrap",
-      "permanent": true
-    }
+    { "source": "/", "has": [{ "type": "query", "key": "protocol", "value": "mindful" }], "destination": "/japanese-walking", "permanent": true },
+    { "source": "/", "has": [{ "type": "query", "key": "protocol", "value": "tabata" }], "destination": "/tabata-timer", "permanent": true },
+    { "source": "/", "has": [{ "type": "query", "key": "protocol", "value": "warmup" }], "destination": "/daily-warm-up", "permanent": true },
+    { "source": "/", "has": [{ "type": "query", "key": "protocol", "value": "aerobic" }], "destination": "/aerobic-timer", "permanent": true },
+    { "source": "/", "has": [{ "type": "query", "key": "protocol", "value": "lactate" }], "destination": "/lactate-threshold", "permanent": true },
+    { "source": "/", "has": [{ "type": "query", "key": "protocol", "value": "phosphagen" }], "destination": "/power-intervals", "permanent": true },
+    { "source": "/", "has": [{ "type": "query", "key": "protocol", "value": "gibala" }], "destination": "/gibala-method", "permanent": true },
+    { "source": "/", "has": [{ "type": "query", "key": "protocol", "value": "wingate" }], "destination": "/wingate", "permanent": true },
+    { "source": "/", "has": [{ "type": "query", "key": "protocol", "value": "timmons" }], "destination": "/timmons", "permanent": true },
+    { "source": "/", "has": [{ "type": "query", "key": "protocol", "value": "emom" }], "destination": "/emom-timer", "permanent": true },
+    { "source": "/", "has": [{ "type": "query", "key": "protocol", "value": "amrap" }], "destination": "/amrap", "permanent": true },
+    { "source": "/", "has": [{ "type": "query", "key": "protocol", "value": "10-20-30" }], "destination": "/10-20-30", "permanent": true },
+    { "source": "/amrap-timer", "destination": "/amrap", "permanent": true },
+    { "source": "/amrap-timer/:path*", "destination": "/amrap", "permanent": true },
+    { "source": "/wingate-test", "destination": "/wingate", "permanent": true },
+    { "source": "/wingate-test/:path*", "destination": "/wingate", "permanent": true },
+    { "source": "/timmons-protocol", "destination": "/timmons", "permanent": true },
+    { "source": "/timmons-protocol/:path*", "destination": "/timmons", "permanent": true }
   ]
 }

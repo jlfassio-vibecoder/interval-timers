@@ -1,66 +1,45 @@
-# Pre-Merge Report
+# Pre-Merge Report — cleanup/legacy-all-timers
 
-**Role:** Senior Lead Engineer (Final PR Gatekeeper)  
-**Scope:** Phase 4 — Wingate & Timmons standalone apps, deploy script rename, Copilot triage, anti-slop scrub  
-**Date:** Final pass before merge
-
----
-
-## Phase 1: Triage Summary
-
-### Critical Fixes & Slop Detection (High Priority)
-
-- **Security/Logic:** No vulnerabilities, race conditions, or improper error handling found in `apps/wingate` or `apps/timmons`. AudioContext lifecycle uses `suspend().catch(() => {})` and `close().catch(() => {})`; empty catch is intentional for browser API resilience.
-- **Env/Node:** No `import.meta.env` in wingate or timmons client code. No `fs`/`path` or other Node APIs in `src/`. Build-time script `scripts/copy-standalone-apps-to-dist.cjs` correctly uses Node only.
-- **Anti-Slop:** No redundant “obvious” comments, no TODO/FIXME/HACK in changed files. No stray `console.log`/debug/info in `src/`. Section labels (e.g. `{/* SECTION 1: DATA */}`) are structural and match existing protocol components; retained.
-- **Hallucinated APIs:** All imports verified against `@interval-timers/timer-core`, `@interval-timers/timer-ui`, `@interval-timers/types`, `react-dom` (createPortal), and `recharts`. Exports and usage are correct.
-
-### Performance & Optimization (Medium)
-
-- No changes applied. Intensity chart update intervals (500 ms in Timmons, 100 ms in Wingate) are consistent with other protocol apps; no Big O or structural changes made in this pass.
-
-### Style & Architecture (Low/Strict)
-
-- Bar chart `Cell` keys use `key={\`cell-${index}\`}` in both Timmons and Wingate, matching `apps/power-intervals/PhosphagenInterval.tsx`. No change.
-- Package.json files for wingate and timmons are now pretty-printed (multi-line, 2-space) to match other apps.
+**Branch:** `cleanup/legacy-all-timers`  
+**Scope:** Migration from all-timers app to standalone timers + landing; removal of `apps/all-timers`.
 
 ---
 
-## Fixed (this PR / session)
+## Phase 1: Triage & Execution
 
-| Area | Fix |
-|------|-----|
-| **Docs** | COMMANDS.md: Deployment intro updated to list all six standalone routes (/amrap, /lactate-threshold, /power-intervals, /gibala-method, /wingate, /timmons). |
-| **Deploy script** | Renamed `copy-amrap-to-dist.cjs` → `copy-standalone-apps-to-dist.cjs`; updated package.json `build:deploy` and PRE_MERGE_REPORT references. |
-| **Deploy script** | Clear target dir before each copy (`fs.rmSync` when exists) to avoid serving stale assets after build output changes. |
-| **Formatting** | apps/wingate/package.json and apps/timmons/package.json pretty-printed to multi-line JSON for consistency and easier diffs. |
+Review applied the agreed decision matrix (Critical → fix, Performance → apply if significant, Style → only if matches existing patterns, Anti-slop → scrub).
+
+---
+
+## Fixed
+
+| Item | Location | Action |
+|------|----------|--------|
+| **vercel.json minified + no EOF newline** | `vercel.json` | Pretty-printed with 2-space indent, one entry per line for rewrites/redirects, and added trailing newline. Addresses Copilot feedback for readable diffs and POSIX EOF convention. |
 
 ---
 
 ## Slop Scrubbed
 
-- **Redundant comments:** None found in wingate or timmons `src/`; no “setting X to Y” or obvious restatements.
-- **Hallucinated APIs:** None; all imports and method calls verified against package exports.
-- **Dead logic:** No placeholder logic, unused variables, or redundant try/catch in PR scope. `console.log`/`console.error` in `copy-standalone-apps-to-dist.cjs` are intentional build output.
+- **Redundant comments:** None. Landing uses a single file-level docstring in `LandingPage.tsx` and section markers (`{/* Hero */}`, `{/* Value prop */}`, etc.); these aid navigation and were retained.
+- **Hallucinated APIs:** None. All imports verified: `IntervalTimerPage` and types from `@interval-timers/timer-core` exist in `packages/types` and `packages/timer-core`; `getPathForProtocol` and `PROTOCOL_TO_PATH` in `apps/landing/src/lib/protocolPaths.ts` match `vercel.json` and the copy script.
+- **Dead logic:** None. No unused variables, placeholder logic, or redundant try/catch in the changed/added files.
+- **Node/build safety:** Confirmed. No `import.meta.env` or `process.env` in client code. `fs`/`path` appear only in `vite.config.ts` (build) and `scripts/copy-standalone-apps-to-dist.cjs` (Node script). No Astro; no frontmatter env concerns.
 
 ---
 
 ## Ignored
 
-| Suggestion / Topic | Reason |
-|--------------------|--------|
-| Bar chart `key={option.name}` vs `key={\`cell-${index}\`}` | Existing pattern in power-intervals uses index-based key for Recharts Cell; consistency over preference. |
-| Chunk size > 500 kB warning | Pre-existing across spokes; no change in this PR. |
-| Astro / Frontmatter / PUBLIC_ prefix | Not applicable; this PR is Vite + React only, no Astro. |
+- No Copilot suggestions were left to explicitly ignore. The only pending comment (vercel.json formatting) was applied.
+- **Style/architecture:** No new abstractions or style changes were introduced; existing patterns in `apps/landing` and root config were kept.
 
 ---
 
 ## Verification
 
-- **Lint:** Root `npm run lint` (all-timers) passes.
-- **Build:** `npm run build:wingate` and `npm run build:timmons` succeed.
-- **Deploy script:** `node scripts/copy-standalone-apps-to-dist.cjs` runs successfully and copies all six app dists (including wingate, timmons) into `apps/all-timers/dist`.
-- **Types:** All imports resolve; no `any` or weakened types introduced in new app code.
+- **Lint:** `npm run lint` (landing) — pass.
+- **Build:** `npm run build` (landing) — pass.
+- **Copy script:** `scripts/copy-standalone-apps-to-dist.cjs` uses workspace folder names that match `apps/*` (including `ten-twenty-thirty` → `10-20-30`). `build:deploy` and `vercel.json` rewrites/redirects align with `protocolPaths.ts`.
 
 ---
 
@@ -68,4 +47,4 @@
 
 **READY TO MERGE**
 
-The PR is functional, consistent with existing patterns, and free of critical issues, slop, and hallucinated APIs. Remaining Copilot-style nits were evaluated and either already addressed (docs, script name, clear-before-copy, package.json formatting) or explicitly ignored for consistency. No human-only decisions required for merge.
+No critical or security issues. No slop removed (none found). Vercel config is human-readable and EOF-compliant. Lint and build pass; routing and copy script are consistent across landing, standalones, and Vercel.
