@@ -1,0 +1,563 @@
+<!-- Chosen Palette: "Earthy Science" - Base: Warm Stone/Beige (Calm, readable). Accents: Forest Green (Beginner), Goldenrod (Intermediate), Brick Red (Advanced). Text: Deep Charcoal. -->
+
+<!-- Application Structure Plan:
+    1.  **Header & Hero Context**: Establishes the purpose of the 2026 Meta-Analysis Workout Library.
+    2.  **The interactive Protocol Matrix (Core SPA Feature)**: A split dashboard. 
+        * *Left Panel (Controls & Viz)*: Users select their tier (Beginner/Int/Adv). A dynamic Radar Chart visualizes the physiological demands (Intensity, Skill, Pacing, Volume) of the selected tier, providing immediate, non-textual understanding of the protocol's difficulty profile.
+        * *Right Panel (The Feed)*: Dynamically populates with the specific workout cards for the selected tier. This prevents the user from being overwhelmed by a massive wall of text, focusing their attention only on their current training level.
+    3.  **Scientific Implementation Notes**: A fixed 3-column grid at the bottom outlining the universal rules (Pacing, Loading, Transitions) required to make the workouts effective.
+    *Rationale*: The original markdown is a linear list. This SPA transforms it into a task-oriented dashboard. Users almost always come to a workout document looking for *their* specific level. By making level selection the primary interaction, we drastically reduce cognitive load and improve exploration.
+-->
+
+<!-- Visualization & Content Choices:
+    1.  **Protocol Demands (Chart.js Radar)**:
+        * *Goal*: Inform & Compare. Show how the 5m, 15m, and 20m protocols differ physiologically.
+        * *Presentation*: Radar chart updating on tier selection.
+        * *Justification*: Radar charts are excellent for profiling multiple variables (Skill, Intensity, etc.) for a specific "persona" or tier.
+        * *Method*: Chart.js Canvas (NO SVG).
+    2.  **Workout Feed (Dynamic HTML/Tailwind Cards)**:
+        * *Goal*: Organize & Inform. Present the actual workout steps clearly.
+        * *Presentation*: CSS Grid cards generated via Vanilla JS.
+        * *Justification*: Standard UI patterns for lists of structured items. Easier to read than a raw markdown list.
+    3.  **Implementation Notes (Static HTML Cards)**:
+        * *Goal*: Inform. Ensure users understand the "rules" of the protocols.
+        * *Presentation*: 3-column grid with Unicode icons.
+        * *Justification*: Keeps universal rules persistent and highly visible.
+-->
+
+<!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AMRAP Protocol 2026: Interactive Library</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f5f5f4; /* stone-100 */
+            color: #292524; /* stone-800 */
+            overflow-x: hidden;
+        }
+
+        /* CRITICAL: Chart Container Styling for Responsive Constraints */
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 500px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 350px;
+        }
+
+        @media (min-width: 768px) {
+            .chart-container { height: 350px; }
+        }
+
+        /* Custom UI Enhancements */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(231, 229, 228, 0.8); /* stone-200 */
+        }
+
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #d6d3d1; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #a8a29e; }
+
+        /* Tier Selection Button Transitions */
+        .tier-btn { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .tier-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        
+        .active-beginner { background-color: #16a34a; color: white; border-color: #16a34a; } /* green-600 */
+        .active-intermediate { background-color: #d97706; color: white; border-color: #d97706; } /* amber-600 */
+        .active-advanced { background-color: #dc2626; color: white; border-color: #dc2626; } /* red-600 */
+
+        .workout-card { transition: all 0.3s ease; }
+        .workout-card:hover { transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
+    </style>
+</head>
+<body class="antialiased flex flex-col min-h-screen">
+
+    <!-- Navigation -->
+    <nav class="sticky top-0 z-50 glass-panel shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16 items-center">
+                <div class="flex items-center gap-2">
+                    <span class="text-2xl">⏱️</span>
+                    <h1 class="font-bold text-xl tracking-tight text-stone-900">AMRAP <span class="text-stone-500 font-light">2026</span></h1>
+                </div>
+                <div class="hidden sm:block text-sm font-medium text-stone-500">
+                    Interactive Workout Library
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content Application -->
+    <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-12 w-full">
+
+        <!-- Context Header -->
+        <header class="max-w-3xl mx-auto text-center space-y-4">
+            <div class="inline-block px-3 py-1 bg-stone-200 text-stone-700 text-xs font-bold uppercase tracking-widest rounded-full mb-2">Meta-Analysis Application</div>
+            <h2 class="text-4xl md:text-5xl font-extrabold text-stone-900 tracking-tight">Protocol Explorer</h2>
+            <p class="text-lg text-stone-600 leading-relaxed">
+                Explore structured workouts designed around the 2026 Meta-Analysis for High-Intensity Functional Training. Select a duration tier below to analyze its physiological demands and access specific templates.
+            </p>
+        </header>
+
+        <!-- The Interactive Matrix (Split Dashboard) -->
+        <section class="grid grid-cols-1 lg:grid-cols-12 gap-8 relative">
+            
+            <!-- Left Panel: Controls & Visualization -->
+            <div class="lg:col-span-5 space-y-6 flex flex-col">
+                
+                <!-- Tier Selection -->
+                <div class="glass-panel p-6 rounded-2xl shadow-sm">
+                    <div class="mb-4">
+                        <h3 class="text-xl font-bold text-stone-900">1. Select Protocol Tier</h3>
+                        <p class="text-sm text-stone-500 mt-1">Filter templates by duration and experience level.</p>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <button onclick="app.setTier('beginner')" id="btn-beginner" class="tier-btn border-2 border-stone-200 text-stone-700 bg-white font-bold py-3 px-2 rounded-xl flex flex-col items-center gap-1">
+                            <span class="text-lg">🟢</span>
+                            <span class="text-sm">Beginner</span>
+                            <span class="text-[10px] opacity-80 uppercase tracking-wide">5 Minutes</span>
+                        </button>
+                        <button onclick="app.setTier('intermediate')" id="btn-intermediate" class="tier-btn border-2 border-stone-200 text-stone-700 bg-white font-bold py-3 px-2 rounded-xl flex flex-col items-center gap-1">
+                            <span class="text-lg">🟡</span>
+                            <span class="text-sm">Intermediate</span>
+                            <span class="text-[10px] opacity-80 uppercase tracking-wide">15 Minutes</span>
+                        </button>
+                        <button onclick="app.setTier('advanced')" id="btn-advanced" class="tier-btn border-2 border-stone-200 text-stone-700 bg-white font-bold py-3 px-2 rounded-xl flex flex-col items-center gap-1">
+                            <span class="text-lg">🔴</span>
+                            <span class="text-sm">Advanced</span>
+                            <span class="text-[10px] opacity-80 uppercase tracking-wide">20 Minutes</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Demand Visualization -->
+                <div class="glass-panel p-6 rounded-2xl shadow-sm flex-grow flex flex-col">
+                    <div class="mb-2">
+                        <h3 class="text-xl font-bold text-stone-900">Physiological Profile</h3>
+                        <p class="text-sm text-stone-500">Visualizing the relative demands of the selected tier.</p>
+                    </div>
+                    <div class="flex-grow flex items-center justify-center pt-4">
+                        <div class="chart-container w-full">
+                            <canvas id="demandChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Right Panel: Workout Feed -->
+            <div class="lg:col-span-7">
+                <div class="glass-panel p-6 sm:p-8 rounded-2xl shadow-sm h-full flex flex-col">
+                    
+                    <!-- Feed Header (Dynamic) -->
+                    <div class="mb-8 border-b border-stone-200 pb-6">
+                        <div class="flex flex-wrap justify-between items-start gap-4 mb-3">
+                            <div>
+                                <h2 class="text-3xl font-extrabold text-stone-900" id="feed-title">--</h2>
+                                <p class="text-lg font-medium text-stone-600 mt-1" id="feed-subtitle">--</p>
+                            </div>
+                            <div class="bg-stone-100 text-stone-800 px-4 py-1.5 rounded-full text-sm font-bold flex items-center gap-2 shadow-inner border border-stone-200">
+                                ⏱️ <span id="feed-duration">--</span>
+                            </div>
+                        </div>
+                        <div class="bg-stone-50 p-4 rounded-xl border border-stone-100 mt-4">
+                            <p class="text-sm text-stone-700">
+                                <strong class="text-stone-900">🎯 Primary Goal:</strong> <span id="feed-goal">--</span>
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Workouts Container -->
+                    <div class="flex-grow">
+                        <h3 class="text-lg font-bold text-stone-900 mb-4 flex items-center gap-2">
+                            📋 Workout Templates
+                        </h3>
+                        <!-- Container for JS injected cards -->
+                        <div id="workout-container" class="grid grid-cols-1 md:grid-cols-2 gap-5 custom-scrollbar overflow-y-auto pr-2" style="max-height: 600px;">
+                            <!-- Injected by JS -->
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+        </section>
+
+        <!-- Scientific Implementation Notes (Persistent) -->
+        <section class="bg-stone-900 text-stone-100 rounded-[2rem] p-8 sm:p-12 shadow-2xl relative overflow-hidden mt-8">
+            <!-- Decorative background element -->
+            <div class="absolute top-0 right-0 w-64 h-64 bg-stone-800 rounded-full blur-3xl opacity-50 -translate-y-1/2 translate-x-1/4 pointer-events-none"></div>
+            
+            <div class="relative z-10 max-w-3xl mb-10">
+                <h2 class="text-3xl sm:text-4xl font-extrabold mb-4">Scientific Implementation Notes</h2>
+                <p class="text-stone-400 text-lg leading-relaxed">
+                    Executing the protocol requires adherence to specific physiological rules. Apply these three pillars to every template above to ensure the intended metabolic response.
+                </p>
+            </div>
+
+            <div class="relative z-10 grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Pillar 1 -->
+                <div class="bg-stone-800/80 p-6 rounded-2xl border border-stone-700 hover:border-stone-500 transition-colors">
+                    <div class="w-12 h-12 bg-stone-700 rounded-xl flex items-center justify-center text-2xl mb-5 shadow-inner">📈</div>
+                    <h3 class="text-xl font-bold text-white mb-2">Pacing Strategy</h3>
+                    <p class="text-sm text-stone-300 leading-relaxed">
+                        Start at a pace you feel you can maintain for 30 minutes, even though the workout is shorter. At the <strong>75% time mark</strong>, increase speed for a "Negative Split" finish.
+                    </p>
+                </div>
+
+                <!-- Pillar 2 -->
+                <div class="bg-stone-800/80 p-6 rounded-2xl border border-stone-700 hover:border-stone-500 transition-colors">
+                    <div class="w-12 h-12 bg-stone-700 rounded-xl flex items-center justify-center text-2xl mb-5 shadow-inner">⚖️</div>
+                    <h3 class="text-xl font-bold text-white mb-2">Protocol Loading</h3>
+                    <p class="text-sm text-stone-300 leading-relaxed">
+                        Weights should feel "light to moderate." If you have to rest more than <strong>10 seconds</strong> between movements to complete a set, the weight is too heavy to maintain the required intensity.
+                    </p>
+                </div>
+
+                <!-- Pillar 3 -->
+                <div class="bg-stone-800/80 p-6 rounded-2xl border border-stone-700 hover:border-stone-500 transition-colors">
+                    <div class="w-12 h-12 bg-stone-700 rounded-xl flex items-center justify-center text-2xl mb-5 shadow-inner">🔄</div>
+                    <h3 class="text-xl font-bold text-white mb-2">Rest & Transitions</h3>
+                    <p class="text-sm text-stone-300 leading-relaxed">
+                        The "rest" in these protocols is simply the time it takes to move between stations. <strong>Efficient transitions</strong> are the key to maximizing the 15-20 minute metabolic window.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-stone-200 border-t border-stone-300 mt-auto py-8">
+        <div class="max-w-7xl mx-auto px-4 text-center">
+            <p class="text-sm font-medium text-stone-600">Generated Analysis of the AMRAP Protocol 2026 Meta-Analysis.</p>
+            <p class="text-xs text-stone-500 mt-2 max-w-2xl mx-auto">This dashboard serves as an interactive reference. Consult sports science professionals before initiating maximal effort physical protocols.</p>
+        </div>
+    </footer>
+
+    <!-- Application Logic -->
+    <script>
+        // --- 1. Data Storage (Transcribed from Markdown) ---
+        const protocolData = {
+            beginner: {
+                id: 'beginner',
+                title: 'Beginner Protocols',
+                subtitle: '"The Redline Drills"',
+                duration: '5 Minutes',
+                goal: 'Technical proficiency and learning "Steady Start" pacing. In these short windows, the primary challenge is resisting the urge to "redline" in the first 60 seconds.',
+                colorHex: '#16a34a', // green-600
+                chartData: [45, 20, 85, 25], // Intensity, Skill, Pacing Focus, Volume
+                workouts: [
+                    {
+                        name: "Workout 1: Bodyweight Foundation",
+                        focus: "Vertical Push/Pull and Squat mechanics.",
+                        exercises: [
+                            { qty: "12", move: "Air Squats", type: "Lower Body Push" },
+                            { qty: "8", move: "Ring Rows or Incline Push-ups", type: "Upper Body Pull/Push" },
+                            { qty: "15", move: "Sit-ups", type: "Core/Systemic Bridge" }
+                        ]
+                    },
+                    {
+                        name: "Workout 2: Functional Loading",
+                        focus: "Introduction to external resistance (30% 1RM).",
+                        exercises: [
+                            { qty: "10", move: "Kettlebell Swings", type: "Posterior Chain" },
+                            { qty: "8", move: "Goblet Squats", type: "Lower Body Push" },
+                            { qty: "10", move: "Box Step-ups", type: "Unilateral/Dynamic" }
+                        ]
+                    }
+                ]
+            },
+            intermediate: {
+                id: 'intermediate',
+                title: 'Intermediate Protocols',
+                subtitle: '"The Golden Ratio"',
+                duration: '15 Minutes',
+                goal: 'Sustaining threshold intensity (>85% HR Max) using the 2026 Hybrid Mix.',
+                colorHex: '#d97706', // amber-600
+                chartData: [85, 60, 65, 75], // Intensity, Skill, Pacing Focus, Volume
+                workouts: [
+                    {
+                        name: "Workout 1: The Classic Hybrid",
+                        focus: "Standard hybrid blend.",
+                        exercises: [
+                            { qty: "10", move: "Dumbbell Thrusters", type: "Functional/Multi-joint" },
+                            { qty: "12", move: "Burpees", type: "Bodyweight Conditioning" },
+                            { qty: "6", move: "Box Jumps", type: "Plyometrics - Low Reps" },
+                            { qty: "12", move: "Alternating Renegade Rows", type: "Upper Body Pull" }
+                        ]
+                    },
+                    {
+                        name: "Workout 2: Antagonistic Upper/Lower",
+                        focus: "Opposing muscle group pairing.",
+                        exercises: [
+                            { qty: "12", move: "Dumbbell Goblet Lunges", type: "Lower Body Push" },
+                            { qty: "8", move: "Pull-ups or Lat Pulldowns", type: "Upper Body Pull" },
+                            { qty: "15", move: "Kettlebell American Swings", type: "Systemic Bridge" },
+                            { qty: "12", move: "Hand-Release Push-ups", type: "Upper Body Push" }
+                        ]
+                    },
+                    {
+                        name: "Workout 3: Metabolic Displacement",
+                        focus: "High heart rate variance.",
+                        exercises: [
+                            { qty: "15", move: "Wall Balls", type: "Full Body/Systemic" },
+                            { qty: "10", move: "Single-Arm KB Snatches", type: "Power/Dynamic" },
+                            { qty: "15", move: "V-Ups", type: "Core" },
+                            { qty: "100m", move: "Shuttle Run (or 15 Cal Row)", type: "Monostructural" }
+                        ]
+                    },
+                    {
+                        name: "Workout 4: Power Endurance",
+                        focus: "Maintaining strength under fatigue.",
+                        exercises: [
+                            { qty: "8", move: "Dumbbell Deadlifts", type: "Posterior Chain (Light 40%)" },
+                            { qty: "8", move: "Dumbbell Floor Press", type: "Upper Body Push" },
+                            { qty: "6", move: "Broad Jumps", type: "Plyometrics" },
+                            { qty: "12", move: "Mountain Climbers", type: "Core/Systemic" }
+                        ]
+                    }
+                ]
+            },
+            advanced: {
+                id: 'advanced',
+                title: 'Advanced Protocols',
+                subtitle: '"Max Work Capacity"',
+                duration: '20 Minutes',
+                goal: 'Negative split execution. Aim to make the final 5 minutes the highest round-density of the workout.',
+                colorHex: '#dc2626', // red-600
+                chartData: [95, 90, 100, 100], // Intensity, Skill, Pacing Focus, Volume
+                workouts: [
+                    {
+                        name: "Workout 1: The 2026 Benchmark",
+                        focus: "High-skill standard test.",
+                        exercises: [
+                            { qty: "10", move: "Barbell Clusters (40% 1RM)", type: "Functional" },
+                            { qty: "12", move: "Toes-to-Bar", type: "Core/Gymnastics" },
+                            { qty: "5-8", move: "Depth Jumps", type: "High Intensity Plyo" },
+                            { qty: "20", move: "Double Unders", type: "Dynamic Stability" }
+                        ]
+                    },
+                    {
+                        name: "Workout 2: Power-Recovery Loop",
+                        focus: "Continuous flow under heavy load.",
+                        exercises: [
+                            { qty: "12", move: "Dual DB Clean & Press", type: "Functional" },
+                            { qty: "15", move: "Box Jump Overs", type: "Plyometric/Dynamic" },
+                            { qty: "12", move: "Chest-to-Bar Pull-ups", type: "Upper Body Pull" },
+                            { qty: "20", move: "Weighted Walking Lunges", type: "Lower Body Push" }
+                        ]
+                    },
+                    {
+                        name: "Workout 3: Systemic Fatigue",
+                        focus: "Machine cardio vs external load.",
+                        exercises: [
+                            { qty: "15", move: "Calories Assault/Echo Bike", type: "Monostructural" },
+                            { qty: "10", move: "Sandbag/Medball Cleans", type: "Functional" },
+                            { qty: "12", move: "Burpee Box Jumps", type: "Dynamic Conditioning" },
+                            { qty: "15", move: "Hollow Rocks", type: "Core" }
+                        ]
+                    },
+                    {
+                        name: "Workout 4: The Antagonistic Finale",
+                        focus: "Strict gymnastics & heavy legs.",
+                        exercises: [
+                            { qty: "12", move: "Front Squats (40% 1RM)", type: "Lower Body Push" },
+                            { qty: "10", move: "Strict HSPU or Pike Push-ups", type: "Upper Body Push" },
+                            { qty: "12", move: "Alt. Dumbbell Snatches", type: "Systemic" },
+                            { qty: "10", move: "Strict Toes-to-Bar", type: "Core/Passive Recovery" }
+                        ]
+                    }
+                ]
+            }
+        };
+
+        // --- 2. State Management & Core Logic ---
+        const app = {
+            currentTier: null,
+            chartInstance: null,
+
+            init() {
+                this.initChart();
+                this.setTier('beginner'); // Default state
+            },
+
+            setTier(tierKey) {
+                if(this.currentTier === tierKey) return; // Prevent redundant updates
+                this.currentTier = tierKey;
+                const data = protocolData[tierKey];
+
+                this.updateUIButtons(tierKey);
+                this.updateFeedHeaders(data);
+                this.renderWorkouts(data);
+                this.updateChart(data);
+            },
+
+            updateUIButtons(activeKey) {
+                const buttons = ['beginner', 'intermediate', 'advanced'];
+                buttons.forEach(key => {
+                    const btn = document.getElementById(`btn-${key}`);
+                    // Reset styling
+                    btn.classList.remove('active-beginner', 'active-intermediate', 'active-advanced', 'text-white', 'border-transparent');
+                    btn.classList.add('bg-white', 'text-stone-700', 'border-stone-200');
+                    
+                    // Apply active styling
+                    if (key === activeKey) {
+                        btn.classList.remove('bg-white', 'text-stone-700', 'border-stone-200');
+                        btn.classList.add(`active-${key}`);
+                    }
+                });
+            },
+
+            updateFeedHeaders(data) {
+                document.getElementById('feed-title').textContent = data.title;
+                document.getElementById('feed-subtitle').textContent = data.subtitle;
+                document.getElementById('feed-duration').textContent = data.duration;
+                document.getElementById('feed-goal').textContent = data.goal;
+            },
+
+            renderWorkouts(data) {
+                const container = document.getElementById('workout-container');
+                container.innerHTML = ''; // Clear existing
+
+                data.workouts.forEach((workout, index) => {
+                    const card = document.createElement('div');
+                    card.className = 'workout-card bg-white border border-stone-200 rounded-xl overflow-hidden flex flex-col';
+                    
+                    // Create exercise list items
+                    const exercisesHtml = workout.exercises.map(ex => `
+                        <li class="flex items-start gap-3 py-2 border-b border-stone-100 last:border-0">
+                            <span class="font-bold text-stone-900 bg-stone-100 px-2 py-0.5 rounded text-sm min-w-[36px] text-center">${ex.qty}</span>
+                            <div>
+                                <span class="block text-sm font-semibold text-stone-800">${ex.move}</span>
+                                <span class="block text-[11px] uppercase tracking-wider text-stone-500 font-medium">${ex.type}</span>
+                            </div>
+                        </li>
+                    `).join('');
+
+                    card.innerHTML = `
+                        <div class="p-4 bg-stone-50 border-b border-stone-200">
+                            <h4 class="font-bold text-lg text-stone-900 leading-tight">${workout.name}</h4>
+                            <p class="text-xs text-stone-500 mt-1 italic border-l-2 border-stone-300 pl-2">${workout.focus}</p>
+                        </div>
+                        <div class="p-4 flex-grow bg-white">
+                            <ul class="space-y-1">
+                                ${exercisesHtml}
+                            </ul>
+                        </div>
+                    `;
+                    container.appendChild(card);
+                });
+            },
+
+            // --- 3. Chart Initialization & Updating ---
+            initChart() {
+                const ctx = document.getElementById('demandChart').getContext('2d');
+                
+                // Chart.js global defaults for typography
+                Chart.defaults.font.family = 'Inter, sans-serif';
+                Chart.defaults.color = '#78716c'; // stone-500
+
+                this.chartInstance = new Chart(ctx, {
+                    type: 'radar',
+                    data: {
+                        labels: ['Intensity (HR%)', 'Movement Skill', 'Pacing Focus', 'Total Volume'],
+                        datasets: [{
+                            label: 'Demands',
+                            data: [0,0,0,0], // Initialized empty, updated immediately
+                            backgroundColor: 'rgba(0,0,0,0)',
+                            borderColor: '#000',
+                            borderWidth: 2,
+                            pointBackgroundColor: '#000',
+                            pointBorderColor: '#fff',
+                            pointHoverBackgroundColor: '#fff',
+                            pointHoverBorderColor: '#000',
+                            pointRadius: 4,
+                            pointHoverRadius: 6
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            r: {
+                                angleLines: { color: 'rgba(0,0,0,0.05)' },
+                                grid: { color: 'rgba(0,0,0,0.05)' },
+                                pointLabels: {
+                                    font: { size: 11, weight: '600' },
+                                    color: '#57534e' // stone-600
+                                },
+                                ticks: {
+                                    display: false, // Hide numeric scale for cleaner look
+                                    min: 0,
+                                    max: 100
+                                }
+                            }
+                        },
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                backgroundColor: 'rgba(28, 25, 23, 0.9)', // stone-900
+                                titleFont: { size: 13, weight: 'bold' },
+                                bodyFont: { size: 12 },
+                                padding: 10,
+                                cornerRadius: 8,
+                                displayColors: false,
+                                callbacks: {
+                                    label: function(context) {
+                                        return `Relative Demand: ${context.raw}/100`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            },
+
+            updateChart(data) {
+                if(!this.chartInstance) return;
+                
+                const dataset = this.chartInstance.data.datasets[0];
+                
+                // Animate to new data
+                dataset.data = data.chartData;
+                
+                // Update styling based on tier colors
+                // Adding transparency to the hex color for the fill
+                let r=0, g=0, b=0;
+                if(data.colorHex === '#16a34a') { r=22; g=163; b=74; } // Green
+                if(data.colorHex === '#d97706') { r=217; g=119; b=6; } // Amber
+                if(data.colorHex === '#dc2626') { r=220; g=38; b=38; } // Red
+                
+                dataset.backgroundColor = `rgba(${r}, ${g}, ${b}, 0.2)`;
+                dataset.borderColor = data.colorHex;
+                dataset.pointBackgroundColor = data.colorHex;
+                dataset.pointHoverBorderColor = data.colorHex;
+
+                this.chartInstance.update();
+            }
+        };
+
+        // Bootstrap App
+        document.addEventListener('DOMContentLoaded', () => {
+            app.init();
+        });
+
+    </script>
+</body>
+</html>
