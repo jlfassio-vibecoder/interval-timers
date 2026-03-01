@@ -16,6 +16,8 @@ const copies = [
   { src: 'gibala-method', dest: 'gibala-method' },
   { src: 'wingate', dest: 'wingate' },
   { src: 'timmons', dest: 'timmons' },
+  { src: 'emom', dest: 'emom-timer' },
+  { src: 'ten-twenty-thirty', dest: '10-20-30' },
 ];
 
 for (const { src, dest } of copies) {
