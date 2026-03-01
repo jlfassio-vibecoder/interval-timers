@@ -71,6 +71,8 @@ const AmrapInterval: React.FC<AmrapIntervalProps> = ({ onNavigate, onNavigateToL
   const setup = useAmrapSetup((result) => {
     if (result.type === 'general') {
       document.getElementById('simulator')?.scrollIntoView({ behavior: 'smooth' });
+      // Open time-cap picker so "Pick your time cap (5 / 15 / 20 min)" is honored
+      setIsDurationSelectOpen(true);
     } else {
       startTimer(result.durationMinutes, result.workoutList);
     }

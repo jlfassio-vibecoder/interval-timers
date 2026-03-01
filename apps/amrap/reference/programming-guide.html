@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AMRAP Protocol 2026: Scientific Meta-Analysis</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+        
+        :root {
+            --stone-50: #fafaf9;
+            --stone-900: #1c1917;
+            --orange-600: #ea580c;
+            --teal-600: #0d9488;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--stone-50);
+            color: var(--stone-900);
+            scroll-behavior: smooth;
+        }
+
+        .chart-container {
+            position: relative;
+            width: 100%;
+            height: 350px;
+            margin: 0 auto;
+        }
+        
+        .nav-item.active {
+            border-bottom: 2px solid var(--orange-600);
+            color: var(--orange-600);
+            font-weight: 600;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(231, 229, 228, 0.5);
+        }
+
+        .print-only { display: none; }
+        @media print {
+            .no-print { display: none; }
+            .print-only { display: block; }
+            body { background: white; }
+            .section-card { break-inside: avoid; border: 1px solid #ddd; }
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--stone-50); }
+        ::-webkit-scrollbar-thumb { background: #d6d3d1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #a8a29e; }
+    </style>
+</head>
+<body class="selection:bg-orange-100 selection:text-orange-900">
+
+    <!-- Navigation -->
+    <nav class="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-stone-200 shadow-sm no-print">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16 items-center">
+                <div class="flex-shrink-0 flex items-center gap-2">
+                    <span class="text-2xl">⏱️</span>
+                    <h1 class="font-bold text-xl tracking-tight text-stone-900">AMRAP <span class="text-orange-600 font-light">PRO 2026</span></h1>
+                </div>
+                <div class="hidden md:flex space-x-6" id="nav-menu">
+                    <button onclick="scrollToSection('hero')" class="nav-item active px-1 pt-1 text-sm font-medium text-stone-500 hover:text-stone-900 transition-colors">Overview</button>
+                    <button onclick="scrollToSection('duration')" class="nav-item px-1 pt-1 text-sm font-medium text-stone-500 hover:text-stone-900 transition-colors">Pacing</button>
+                    <button onclick="scrollToSection('exercises')" class="nav-item px-1 pt-1 text-sm font-medium text-stone-500 hover:text-stone-900 transition-colors">Composition</button>
+                    <button onclick="scrollToSection('sequencing')" class="nav-item px-1 pt-1 text-sm font-medium text-stone-500 hover:text-stone-900 transition-colors">Flow</button>
+                    <button onclick="scrollToSection('template')" class="nav-item px-1 pt-1 text-sm font-medium text-stone-500 hover:text-stone-900 transition-colors">Analysis</button>
+                </div>
+                <button onclick="window.print()" class="text-sm font-bold bg-stone-900 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition">Export PDF</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-16 space-y-24">
+
+        <!-- Hero Section -->
+        <section id="hero" class="text-center space-y-8 py-10">
+            <div class="inline-block px-4 py-1.5 mb-4 text-xs font-bold tracking-widest text-orange-600 uppercase bg-orange-50 rounded-full">
+                2026 Sports Science Meta-Analysis
+            </div>
+            <h2 class="text-5xl md:text-7xl font-extrabold text-stone-900 tracking-tight">
+                Maximizing <span class="text-orange-600">Work Capacity</span>
+            </h2>
+            <p class="max-w-3xl mx-auto text-xl text-stone-500 leading-relaxed font-light">
+                Redefining high-intensity functional training through the optimization of 
+                metabolic windows, interleaved recovery, and mechanical tension.
+            </p>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mt-16">
+                <div class="bg-white p-8 rounded-2xl border border-stone-200 shadow-sm hover:shadow-md transition">
+                    <div class="w-12 h-12 bg-orange-50 rounded-xl flex items-center justify-center text-2xl mb-6 mx-auto">🔥</div>
+                    <h3 class="font-bold text-stone-800 text-lg">Metabolic Ceiling</h3>
+                    <p class="text-sm text-stone-500 mt-2 leading-relaxed">Identifying the precise moment where intensity drops from threshold to steady-state.</p>
+                </div>
+                <div class="bg-white p-8 rounded-2xl border border-stone-200 shadow-sm hover:shadow-md transition">
+                    <div class="w-12 h-12 bg-teal-50 rounded-xl flex items-center justify-center text-2xl mb-6 mx-auto">⚖️</div>
+                    <h3 class="font-bold text-stone-800 text-lg">The Golden Ratio</h3>
+                    <p class="text-sm text-stone-500 mt-2 leading-relaxed">Balancing muscular failure against systemic fatigue for maximum round density.</p>
+                </div>
+                <div class="bg-white p-8 rounded-2xl border border-stone-200 shadow-sm hover:shadow-md transition">
+                    <div class="w-12 h-12 bg-stone-50 rounded-xl flex items-center justify-center text-2xl mb-6 mx-auto">🧬</div>
+                    <h3 class="font-bold text-stone-800 text-lg">Hypertrophic Blend</h3>
+                    <p class="text-sm text-stone-500 mt-2 leading-relaxed">A quantitative approach to mixing resistance, plyometrics, and gymnastics.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Pacing Section -->
+        <section id="duration" class="pt-16 border-t border-stone-200">
+            <div class="grid grid-cols-1 lg:grid-cols-5 gap-16 items-center">
+                <div class="lg:col-span-3 order-2 lg:order-1">
+                    <div class="bg-white p-8 rounded-3xl shadow-xl border border-stone-100">
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+                            <div>
+                                <h3 class="font-bold text-xl text-stone-800">Physiological Intensity Curve</h3>
+                                <p class="text-sm text-stone-400">Heart Rate % vs Duration (Minutes)</p>
+                            </div>
+                            <div class="flex bg-stone-100 p-1 rounded-xl">
+                                <button onclick="updatePacingChart('novice')" id="btn-novice" class="px-4 py-2 text-xs font-bold rounded-lg transition-all bg-stone-200 text-stone-700">Novice</button>
+                                <button onclick="updatePacingChart('optimized')" id="btn-optimal" class="px-4 py-2 text-xs font-bold rounded-lg transition-all text-stone-500 hover:text-stone-700">Scientific</button>
+                            </div>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="pacingChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="lg:col-span-2 space-y-8 order-1 lg:order-2">
+                    <h2 class="text-4xl font-extrabold text-stone-900 leading-tight">The 15–20 Minute <br><span class="text-orange-600">Threshold Window</span></h2>
+                    
+                    <div class="space-y-6">
+                        <div class="group p-4 bg-white rounded-2xl border-l-4 border-red-400 shadow-sm">
+                            <h4 class="font-bold text-stone-800">The Redline Trap (&lt;10m)</h4>
+                            <p class="text-sm text-stone-500 mt-1">Excessive lactate accumulation prevents recruitment of high-threshold motor units in later phases.</p>
+                        </div>
+                        <div class="group p-6 bg-orange-600 text-white rounded-2xl shadow-lg transform hover:-translate-y-1 transition">
+                            <h4 class="font-bold text-lg">The Golden Window (15–20m)</h4>
+                            <p class="text-sm opacity-90 mt-2">Maximum VO2 stimulation and metabolic disturbance. Requires "Negative Split" pacing to maintain output.</p>
+                        </div>
+                        <div class="group p-4 bg-white rounded-2xl border-l-4 border-teal-400 shadow-sm">
+                            <h4 class="font-bold text-stone-800">Aerobic Drift (&gt;20m)</h4>
+                            <p class="text-sm text-stone-500 mt-1">Intensity naturally self-regulates downward to sub-threshold levels, reducing hormonal response.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Composition Section -->
+        <section id="exercises" class="py-16 border-t border-stone-200">
+            <div class="text-center max-w-3xl mx-auto mb-16">
+                <h2 class="text-4xl font-extrabold text-stone-900 mb-6">The Hybrid Circuit Mix</h2>
+                <p class="text-stone-500">The 2026 data indicates a specific algorithmic breakdown for exercise selection to maximize work without triggering localized muscle failure.</p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+                <div class="bg-white p-10 rounded-3xl shadow-sm border border-stone-100 flex flex-col items-center">
+                    <h3 class="font-bold text-stone-400 text-xs uppercase tracking-widest mb-8 text-center">Volume Breakdown by Modality</h3>
+                    <div class="chart-container" style="height: 320px;">
+                        <canvas id="compositionChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 gap-4">
+                    <div id="card-functional" class="bg-white p-6 rounded-2xl border border-stone-100 shadow-sm transition-all duration-300">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-4">
+                                <div class="w-10 h-10 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center font-bold">50%</div>
+                                <h4 class="font-bold text-stone-800">Functional / Multi-joint</h4>
+                            </div>
+                            <span class="text-2xl">🏋️‍♂️</span>
+                        </div>
+                        <p class="text-sm text-stone-500 mt-3">Priority: Kettlebell Swings, Thrusters. Goal: 30-50% 1RM to maintain high RPM.</p>
+                    </div>
+                    
+                    <div id="card-bodyweight" class="bg-white p-6 rounded-2xl border border-stone-100 shadow-sm transition-all duration-300">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-4">
+                                <div class="w-10 h-10 rounded-full bg-teal-100 text-teal-600 flex items-center justify-center font-bold">25%</div>
+                                <h4 class="font-bold text-stone-800">Bodyweight Conditioning</h4>
+                            </div>
+                            <span class="text-2xl">🤸</span>
+                        </div>
+                        <p class="text-sm text-stone-500 mt-3">Priority: Burpees, Air Squats. Role: Maintain HR above threshold during 'rest' intervals.</p>
+                    </div>
+
+                    <div id="card-plyo" class="bg-white p-6 rounded-2xl border border-stone-100 shadow-sm transition-all duration-300">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-4">
+                                <div class="w-10 h-10 rounded-full bg-stone-100 text-stone-600 flex items-center justify-center font-bold">25%</div>
+                                <h4 class="font-bold text-stone-800">Power Plyometrics</h4>
+                            </div>
+                            <span class="text-2xl">⚡</span>
+                        </div>
+                        <p class="text-sm text-stone-500 mt-3">Priority: Box Jumps, Broad Jumps. Constraint: Keep reps &lt;8 to avoid eccentric damage.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Sequencing Flow -->
+        <section id="sequencing" class="py-20 bg-stone-900 rounded-[3rem] text-white p-8 md:p-16 overflow-hidden relative">
+            <div class="max-w-2xl mb-16">
+                <h2 class="text-4xl font-extrabold mb-4">The Antagonistic Flow</h2>
+                <p class="text-stone-400">Localized fatigue is the enemy of AMRAP performance. Interleave muscle groups to allow <span class="text-orange-400">passive recovery</span> while intensity remains systemic.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8 relative">
+                <div class="hidden md:block absolute top-1/2 left-0 w-full h-px bg-stone-700 -z-0"></div>
+                
+                <div class="relative z-10 bg-stone-800 p-8 rounded-3xl border border-stone-700 hover:border-orange-500 transition-colors">
+                    <div class="bg-orange-600 w-10 h-10 rounded-full flex items-center justify-center font-bold mb-6">1</div>
+                    <h4 class="font-bold mb-2">Lower Push</h4>
+                    <p class="text-xs text-stone-400">Goblet Squat</p>
+                    <div class="mt-4 pt-4 border-t border-stone-700 text-[10px] text-orange-400 uppercase font-bold">Upper Recovery</div>
+                </div>
+
+                <div class="relative z-10 bg-stone-800 p-8 rounded-3xl border border-stone-700 hover:border-teal-500 transition-colors">
+                    <div class="bg-teal-600 w-10 h-10 rounded-full flex items-center justify-center font-bold mb-6">2</div>
+                    <h4 class="font-bold mb-2">Upper Pull</h4>
+                    <p class="text-xs text-stone-400">Pull-up / Row</p>
+                    <div class="mt-4 pt-4 border-t border-stone-700 text-[10px] text-teal-400 uppercase font-bold">Lower Recovery</div>
+                </div>
+
+                <div class="relative z-10 bg-stone-800 p-8 rounded-3xl border border-stone-700 hover:border-orange-500 transition-colors">
+                    <div class="bg-orange-600 w-10 h-10 rounded-full flex items-center justify-center font-bold mb-6">3</div>
+                    <h4 class="font-bold mb-2">Core / Bridge</h4>
+                    <p class="text-xs text-stone-400">KB Swings</p>
+                    <div class="mt-4 pt-4 border-t border-stone-700 text-[10px] text-orange-400 uppercase font-bold">Stabilization</div>
+                </div>
+
+                <div class="relative z-10 bg-stone-800 p-8 rounded-3xl border border-stone-700 hover:border-teal-500 transition-colors">
+                    <div class="bg-teal-600 w-10 h-10 rounded-full flex items-center justify-center font-bold mb-6">4</div>
+                    <h4 class="font-bold mb-2">Upper Push</h4>
+                    <p class="text-xs text-stone-400">Push-up / Press</p>
+                    <div class="mt-4 pt-4 border-t border-stone-700 text-[10px] text-teal-400 uppercase font-bold">Pull Recovery</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Final Analysis -->
+        <section id="template" class="py-16 border-t border-stone-200">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-12">
+                <div class="bg-white p-8 rounded-3xl shadow-sm border border-stone-100 flex flex-col items-center">
+                    <h3 class="font-bold text-stone-800 mb-4">Efficiency Dashboard</h3>
+                    <div id="gaugeChart" style="width: 100%; height: 280px;"></div>
+                    <p class="text-xs text-stone-400 text-center leading-relaxed">
+                        The optimal zone (85-92%) maximizes glycogen oxidation and mitochondrial biogenesis without overtaxing the CNS.
+                    </p>
+                </div>
+
+                <div class="lg:col-span-2 bg-white rounded-3xl shadow-sm border border-stone-100 overflow-hidden">
+                    <div class="p-6 bg-stone-50 border-b border-stone-100">
+                        <h3 class="font-bold text-stone-800">2026 Protocol Summary</h3>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-stone-100">
+                            <thead class="bg-stone-50/50 text-left text-[10px] uppercase font-bold text-stone-400 tracking-widest">
+                                <tr>
+                                    <th class="px-6 py-4">Metric</th>
+                                    <th class="px-6 py-4">Target</th>
+                                    <th class="px-6 py-4">Scientific Outcome</th>
+                                </tr>
+                            </thead>
+                            <tbody class="text-sm divide-y divide-stone-100 text-stone-600">
+                                <tr>
+                                    <td class="px-6 py-4 font-bold text-stone-800">Duration</td>
+                                    <td class="px-6 py-4 text-orange-600 font-bold">18m 00s</td>
+                                    <td class="px-6 py-4">Peak BDNF release and cortisol balance.</td>
+                                </tr>
+                                <tr>
+                                    <td class="px-6 py-4 font-bold text-stone-800">Loading</td>
+                                    <td class="px-6 py-4">40% 1RM</td>
+                                    <td class="px-6 py-4">Maintains muscular power output curves.</td>
+                                </tr>
+                                <tr>
+                                    <td class="px-6 py-4 font-bold text-stone-800">Rest</td>
+                                    <td class="px-6 py-4">0s (Transitions)</td>
+                                    <td class="px-6 py-4">Keeps cardiac output above 140bpm.</td>
+                                </tr>
+                                <tr>
+                                    <td class="px-6 py-4 font-bold text-stone-800">Rep Range</td>
+                                    <td class="px-6 py-4">10–12 reps</td>
+                                    <td class="px-6 py-4">Maximizes time under tension within round.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="bg-white border-t border-stone-200 py-20 mt-24 text-center no-print">
+        <div class="max-w-7xl mx-auto px-4 space-y-4">
+            <p class="text-sm text-stone-400">&copy; 2026 Sports Science Institute. All rights reserved.</p>
+            <p class="text-[10px] text-stone-300 max-w-xl mx-auto italic">
+                Data generated from simulated high-intensity physiological models. Consult a medical professional before engaging in protocols reaching >90% heart rate max.
+            </p>
+        </div>
+    </footer>
+
+    <script>
+        // --- State ---
+        let pacingChart = null;
+        let compositionChart = null;
+
+        // --- Pacing Chart ---
+        const initPacingChart = () => {
+            const ctx = document.getElementById('pacingChart').getContext('2d');
+            const dataNovice = [40, 95, 96, 92, 85, 80, 75, 72, 70, 68, 65, 62, 60, 58, 55, 52, 50, 48, 45, 42, 40];
+            const dataOptimized = [40, 70, 80, 85, 86, 86, 87, 88, 88, 88, 88, 89, 89, 90, 91, 92, 93, 94, 95, 95, 96];
+
+            pacingChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: Array.from({length: 21}, (_, i) => i),
+                    datasets: [{
+                        label: 'Novice: Redline & Crash',
+                        data: dataNovice,
+                        borderColor: '#d6d3d1',
+                        backgroundColor: 'rgba(214, 211, 209, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 2,
+                        pointRadius: 0,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: { 
+                            min: 40, max: 100,
+                            grid: { color: '#f5f5f4' },
+                            ticks: { callback: v => v + '%' }
+                        },
+                        x: { 
+                            grid: { display: false },
+                            title: { display: true, text: 'Time (Minutes)', font: { size: 10 } }
+                        }
+                    }
+                }
+            });
+        };
+
+        const updatePacingChart = (mode) => {
+            const btnNovice = document.getElementById('btn-novice');
+            const btnOptimal = document.getElementById('btn-optimal');
+            const dataNovice = [40, 95, 96, 92, 85, 80, 75, 72, 70, 68, 65, 62, 60, 58, 55, 52, 50, 48, 45, 42, 40];
+            const dataOptimized = [40, 70, 80, 85, 86, 86, 87, 88, 88, 88, 88, 89, 89, 90, 91, 92, 93, 94, 95, 95, 96];
+
+            if (mode === 'optimized') {
+                pacingChart.data.datasets[0].data = dataOptimized;
+                pacingChart.data.datasets[0].borderColor = '#ea580c';
+                pacingChart.data.datasets[0].backgroundColor = 'rgba(234, 88, 12, 0.1)';
+                pacingChart.data.datasets[0].label = 'Scientific: Negative Split';
+                
+                btnOptimal.className = 'px-4 py-2 text-xs font-bold rounded-lg transition-all bg-orange-600 text-white shadow-md';
+                btnNovice.className = 'px-4 py-2 text-xs font-bold rounded-lg transition-all text-stone-500 hover:text-stone-700';
+            } else {
+                pacingChart.data.datasets[0].data = dataNovice;
+                pacingChart.data.datasets[0].borderColor = '#d6d3d1';
+                pacingChart.data.datasets[0].backgroundColor = 'rgba(214, 211, 209, 0.1)';
+                pacingChart.data.datasets[0].label = 'Novice: Redline & Crash';
+
+                btnNovice.className = 'px-4 py-2 text-xs font-bold rounded-lg transition-all bg-stone-200 text-stone-700';
+                btnOptimal.className = 'px-4 py-2 text-xs font-bold rounded-lg transition-all text-stone-500 hover:text-stone-700';
+            }
+            pacingChart.update();
+        };
+
+        // --- Composition Chart ---
+        const initCompositionChart = () => {
+            const ctx = document.getElementById('compositionChart').getContext('2d');
+            compositionChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Functional', 'Bodyweight', 'Plyo'],
+                    datasets: [{
+                        data: [50, 25, 25],
+                        backgroundColor: ['#ea580c', '#0d9488', '#d6d3d1'],
+                        hoverOffset: 20,
+                        borderWidth: 0,
+                        cutout: '75%'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    onHover: (event, elements) => {
+                        if (elements && elements.length > 0) {
+                            const index = elements[0].index;
+                            const ids = ['card-functional', 'card-bodyweight', 'card-plyo'];
+                            ids.forEach((id, i) => {
+                                const el = document.getElementById(id);
+                                if (i === index) {
+                                    el.classList.add('scale-105', 'ring-2', 'ring-orange-200', 'z-10');
+                                } else {
+                                    el.classList.remove('scale-105', 'ring-2', 'ring-orange-200', 'z-10');
+                                }
+                            });
+                        }
+                    }
+                }
+            });
+        };
+
+        // --- Gauge ---
+        const initGauge = () => {
+            const data = [{
+                domain: { x: [0, 1], y: [0, 1] },
+                value: 88,
+                type: "indicator",
+                mode: "gauge+number",
+                gauge: {
+                    axis: { range: [null, 100], tickwidth: 1, tickcolor: "#d6d3d1" },
+                    bar: { color: "#ea580c" },
+                    bgcolor: "white",
+                    borderwidth: 0,
+                    steps: [
+                        { range: [0, 60], color: "#fafaf9" },
+                        { range: [60, 85], color: "#fff7ed" },
+                        { range: [85, 92], color: "#f0fdf4" },
+                        { range: [92, 100], color: "#fef2f2" }
+                    ],
+                    threshold: {
+                        line: { color: "black", width: 2 },
+                        thickness: 0.75,
+                        value: 92
+                    }
+                }
+            }];
+
+            const layout = {
+                width: 280,
+                height: 250,
+                margin: { t: 0, b: 0, l: 0, r: 0 },
+                paper_bgcolor: "rgba(0,0,0,0)",
+                font: { family: "Inter", color: "#1c1917", size: 16 }
+            };
+
+            Plotly.newPlot('gaugeChart', data, layout, {displayModeBar: false, responsive: true});
+        };
+
+        // --- Scroll Logic ---
+        const scrollToSection = (id) => {
+            const el = document.getElementById(id);
+            const offset = 80;
+            const bodyRect = document.body.getBoundingClientRect().top;
+            const elementRect = el.getBoundingClientRect().top;
+            const elementPosition = elementRect - bodyRect;
+            const offsetPosition = elementPosition - offset;
+
+            window.scrollTo({
+                top: offsetPosition,
+                behavior: 'smooth'
+            });
+        };
+
+        // --- Lifecycle ---
+        window.addEventListener('load', () => {
+            initPacingChart();
+            initCompositionChart();
+            initGauge();
+
+            // Intersection Observer for Nav
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const id = entry.target.getAttribute('id');
+                        document.querySelectorAll('.nav-item').forEach(nav => {
+                            nav.classList.remove('active');
+                            if (nav.getAttribute('onclick').includes(id)) {
+                                nav.classList.add('active');
+                            }
+                        });
+                    }
+                });
+            }, { threshold: 0.3 });
+
+            document.querySelectorAll('section').forEach(section => observer.observe(section));
+        });
+    </script>
+</body>
+</html>

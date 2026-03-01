@@ -5,6 +5,7 @@
     { "source": "/amrap", "destination": "/amrap/index.html" },
     { "source": "/amrap/", "destination": "/amrap/index.html" },
     { "source": "/amrap/programming-guide", "destination": "/amrap/index.html" },
+    { "source": "/amrap/programming-guide/", "destination": "/amrap/index.html" },
     { "source": "/amrap/workout-explorer", "destination": "/amrap/index.html" },
     { "source": "/amrap/workout-explorer/", "destination": "/amrap/index.html" },
     { "source": "/amrap/(.*)", "destination": "/amrap/$1" },
