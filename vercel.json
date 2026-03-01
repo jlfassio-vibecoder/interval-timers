@@ -1,4 +1,5 @@
 {
+  "buildCommand": "npm run build:deploy",
   "outputDirectory": "apps/landing/dist",
   "rewrites": [
     { "source": "/amrap", "destination": "/amrap/index.html" },
