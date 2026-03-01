@@ -10,16 +10,19 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@interval-timers/types": "*",
-    "@interval-timers/timer-sounds": "*",
     "@interval-timers/timer-core": "*",
+    "@interval-timers/timer-sounds": "*",
     "@interval-timers/timer-ui": "*",
+    "@interval-timers/types": "*",
     "clsx": "^2.1.1",
     "framer-motion": "^12.34.3",
     "lucide-react": "^0.575.0",
+    "plotly.js": "^3.4.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-is": "^19.2.4",
+    "react-plotly.js": "^2.6.0",
+    "react-router-dom": "^7.13.1",
     "recharts": "^3.7.0",
     "tailwind-merge": "^3.5.0"
   },

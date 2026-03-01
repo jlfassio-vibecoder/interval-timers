@@ -1,8 +1,12 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import AmrapCtaButton from '@/components/AmrapCtaButton';
 import { IntervalTimerLanding } from '@interval-timers/timer-ui';
 import type { IntervalTimerPage } from '@interval-timers/timer-core';
 import { getProtocolAccent, SETUP_DURATION_SECONDS } from '@interval-timers/timer-core';
+import IntervalTimerSetupModal from './IntervalTimerSetupModal';
+import { useAmrapSetup } from './useAmrapSetup';
+import { AmrapProtocolStep, AmrapWorkoutStep } from './AmrapSetupContent';
 import {
   BarChart,
   Bar,
@@ -45,11 +49,32 @@ const AmrapInterval: React.FC<AmrapIntervalProps> = ({ onNavigate, onNavigateToL
   const [isDurationSelectOpen, setIsDurationSelectOpen] = useState(false);
   const [timerState, setTimerState] = useState<TimerState>('idle');
   const [timeLeft, setTimeLeft] = useState(0);
-  const [totalTime, setTotalTime] = useState(12 * 60);
+  const [totalTime, setTotalTime] = useState(15 * 60);
   const [roundsCompleted, setRoundsCompleted] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
+  const [currentWorkoutPlan, setCurrentWorkoutPlan] = useState<string[]>([]);
 
   const audioContextRef = useRef<AudioContext | null>(null);
+
+  const startTimer = useCallback((minutes: number, workoutList: string[] = []) => {
+    setTotalTime(minutes * 60);
+    setTimeLeft(SETUP_DURATION_SECONDS);
+    setIsDurationSelectOpen(false);
+    setCurrentWorkoutPlan(workoutList);
+    setIsTimerOpen(true);
+    setTimerState('setup');
+    setRoundsCompleted(0);
+    setIsPaused(false);
+    playSound('warning');
+  }, []);
+
+  const setup = useAmrapSetup((result) => {
+    if (result.type === 'general') {
+      document.getElementById('simulator')?.scrollIntoView({ behavior: 'smooth' });
+    } else {
+      startTimer(result.durationMinutes, result.workoutList);
+    }
+  });
 
   const [metric, setMetric] = useState<MetricType>('mental_fortitude');
 
@@ -261,14 +286,7 @@ const AmrapInterval: React.FC<AmrapIntervalProps> = ({ onNavigate, onNavigateToL
   }, [animateVisualizer]);
 
   const startRealTimer = (minutes: number) => {
-    setTotalTime(minutes * 60);
-    setTimeLeft(SETUP_DURATION_SECONDS);
-    setIsDurationSelectOpen(false);
-    setIsTimerOpen(true);
-    setTimerState('setup');
-    setRoundsCompleted(0);
-    setIsPaused(false);
-    playSound('warning');
+    startTimer(minutes, []);
   };
 
   useEffect(() => {
@@ -362,15 +380,13 @@ const AmrapInterval: React.FC<AmrapIntervalProps> = ({ onNavigate, onNavigateToL
             is no scheduled rest; you rest only when you must.
           </p>
           <div className="flex justify-center gap-4">
-            <button
-              type="button"
+            <AmrapCtaButton
               onClick={() =>
                 document.getElementById('simulator')?.scrollIntoView({ behavior: 'smooth' })
               }
-              className="rounded-xl bg-orange-600 px-8 py-3 font-bold text-white shadow-[0_0_20px_rgba(234,88,12,0.4)] transition-transform hover:-translate-y-1 hover:bg-orange-500"
             >
-              Start Timer
-            </button>
+              Go to Timer
+            </AmrapCtaButton>
           </div>
         </section>
 
@@ -455,6 +471,11 @@ const AmrapInterval: React.FC<AmrapIntervalProps> = ({ onNavigate, onNavigateToL
           </div>
         </section>
 
+        {/* CTA: Programming Guide */}
+        <div className="mt-6 flex justify-center">
+          <AmrapCtaButton to="programming-guide">Programming Guide</AmrapCtaButton>
+        </div>
+
         {/* SECTION 2: SIMULATOR */}
         <section id="simulator" className="space-y-8">
           <div className="text-center">
@@ -477,7 +498,7 @@ const AmrapInterval: React.FC<AmrapIntervalProps> = ({ onNavigate, onNavigateToL
                 </div>
                 <h3 className="font-display text-2xl font-bold">{currentSim.phase}</h3>
               </div>
-              <div className="font-mono text-3xl opacity-90">12:00</div>
+              <div className="font-mono text-3xl opacity-90">15:00</div>
             </div>
 
             <div className="grid md:grid-cols-2">
@@ -528,15 +549,16 @@ const AmrapInterval: React.FC<AmrapIntervalProps> = ({ onNavigate, onNavigateToL
             </div>
           </div>
 
-          <div className="pt-8 text-center">
+          <div className="flex flex-col items-center gap-4 pt-8 text-center">
             <button
               type="button"
-              onClick={() => setIsDurationSelectOpen(true)}
-              className="mx-auto flex items-center gap-3 rounded-full bg-orange-600 px-8 py-4 font-bold text-white shadow-2xl transition-all hover:scale-105 hover:bg-orange-500"
+              onClick={setup.open}
+              className="flex items-center gap-3 rounded-full bg-orange-600 px-8 py-4 font-bold text-white shadow-2xl transition-all hover:scale-105 hover:bg-orange-500"
             >
               <span>⏱️</span>
               <span>Launch AMRAP Timer</span>
             </button>
+            <AmrapCtaButton to="workout-explorer">Workout Explorer</AmrapCtaButton>
           </div>
         </section>
 
@@ -598,10 +620,10 @@ const AmrapInterval: React.FC<AmrapIntervalProps> = ({ onNavigate, onNavigateToL
                 </button>
                 <button
                   type="button"
-                  onClick={() => startRealTimer(12)}
+                  onClick={() => startRealTimer(15)}
                   className="group w-full rounded-xl border-2 border-white/10 p-4 text-left transition-all hover:border-orange-500 hover:bg-orange-600/20"
                 >
-                  <div className="text-lg font-bold text-white">Standard (12 Mins)</div>
+                  <div className="text-lg font-bold text-white">Standard (15 Mins)</div>
                   <div className="text-xs font-medium text-white/60">
                     Classic CrossFit time domain
                   </div>
@@ -628,6 +650,29 @@ const AmrapInterval: React.FC<AmrapIntervalProps> = ({ onNavigate, onNavigateToL
           </div>,
           document.body
         )}
+
+      <IntervalTimerSetupModal
+        isOpen={setup.isOpen}
+        onClose={setup.close}
+        step={setup.step}
+        protocolTitle="Select Protocol"
+        protocolSubtitle="General timer or structured workout"
+        workoutTitle="Select Workout"
+        workoutSubtitle="Choose your routine"
+        onBack={setup.back}
+        protocolContent={
+          <AmrapProtocolStep
+            onStartWithGeneral={setup.startWithGeneral}
+            onSelectLevel={setup.selectLevel}
+          />
+        }
+        workoutContent={
+          <AmrapWorkoutStep
+            selectedLevel={setup.selectedLevel}
+            onStartWithWorkout={setup.startWithWorkout}
+          />
+        }
+      />
 
       {/* CUSTOM AMRAP TIMER MODAL */}
       {isTimerOpen && (
@@ -672,6 +717,18 @@ const AmrapInterval: React.FC<AmrapIntervalProps> = ({ onNavigate, onNavigateToL
                     Rounds Completed
                   </div>
                   <div className="mb-6 text-6xl font-bold text-white">{roundsCompleted}</div>
+                  {currentWorkoutPlan.length > 0 && (
+                    <div className="mb-6 max-w-md rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-left">
+                      <div className="mb-2 text-xs font-bold uppercase tracking-widest text-white/50">
+                        This round
+                      </div>
+                      <ul className="list-inside list-disc space-y-1 text-sm text-white/90">
+                        {currentWorkoutPlan.map((ex, i) => (
+                          <li key={i}>{ex}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                   <button
                     type="button"
                     onClick={logRound}
