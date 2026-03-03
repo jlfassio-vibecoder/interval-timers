@@ -23,3 +23,7 @@ lerna-debug.log*
 *.njsproj
 *.sln
 *.sw?
+
+# Local verification artifacts (do not commit)
+*VERIFICATION_REPORT*
+PRE_PR_VERIFICATION_REPORT.png
