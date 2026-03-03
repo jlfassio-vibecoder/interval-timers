@@ -1,5 +1,5 @@
 # Warm-up exercise images
 
-Add image files here for the Daily Warm-Up timer. They are served at `/images/warmup/<filename>` and shown in the **top right of the timer header** for each exercise.
+Add image files here for the Daily Warm-Up timer. They are served at `/images/warmup/<filename>` and shown in the **warmup sidebar** for each exercise.
 
-See **MISSING_IMAGES.md** for the full list of 28 filenames to add. Each exercise in `interval-timer-warmup.ts` is already wired to its image path; add the files with the exact names listed there.
+Image filenames are defined in `WARMUP_IMAGE_MAP` in `packages/timer-core/src/interval-timer-warmup.ts`. Add files with the exact names listed there; the app matches by exercise name (partial match).

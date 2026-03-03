@@ -2,8 +2,8 @@
  * Single source of truth for the Daily Warm-Up design used by all interval timers.
  * Update exercises or duration here; Tabata, Japanese Walking, WarmUpInterval, and
  * future timers will receive the change automatically.
- * Images are shown in the overlay header (top right). Partial match: if an image
- * filename (without extension) is contained in the exercise name (normalized), we use it.
+ * Images are shown in the warmup sidebar. Partial match: if an image filename
+ * (without extension) is contained in the exercise name (normalized), we use it.
  */
 
 import type { HIITTimelineBlock, MistakeCorrectionRow } from '@interval-timers/types';
@@ -24,6 +24,7 @@ const WARMUP_IMAGE_MAP: { pattern: string; file: string }[] = [
   { pattern: 'Press-Press', file: 'press-press-fling-hiit-workout.png' },
   { pattern: 'Adductor', file: 'adductor-rocking-hiit-workout.png' },
   { pattern: 'Segmental', file: 'segmental-cat-cows-hiit-workout.png' },
+  // childs-pose.png may not exist yet in each app's public/images/warmup/; add when available. UI handles missing images.
   { pattern: "Child's Pose", file: 'childs-pose.png' },
 ];
 
@@ -123,7 +124,7 @@ const WARMUP_INSTRUCTIONS: { pattern: string; steps: InstructionStep[] }[] = [
       {
         title: 'Phase 3: Depression',
         body:
-          'While keeping the shoulder protacted (forward), drive it straight down toward your back pocket. Create as much distance between your ear and shoulder as possible.',
+          'While keeping the shoulder protracted (forward), drive it straight down toward your back pocket. Create as much distance between your ear and shoulder as possible.',
       },
       {
         title: 'Phase 4: Retraction',

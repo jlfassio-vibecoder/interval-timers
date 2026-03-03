@@ -1,7 +1,7 @@
 /**
  * Scrollable warm-up exercise wheel. Advances every 30s when started.
  * Centered item is highlighted; others faded. Optional progress bar per segment.
- * Shows name + detail only; image and Execution Protocol steps are shown in the overlay header.
+ * Shows name + detail only; image and Execution Protocol steps are handled by the surrounding sidebar/layout UI.
  */
 import React, { useState, useEffect } from 'react';
 import {

@@ -36,7 +36,11 @@ const RoundsCounter: React.FC<RoundsCounterProps> = ({
   }
 
   const displayCurrent = Math.max(0, Math.min(current, total));
-  const ariaCurrent = valueIsOneBased ? displayCurrent : displayCurrent + 1;
+  // When 0-based, show 1-based in UI so visible text matches aria (e.g. "1 / N" not "0 / N").
+  const displayValue = valueIsOneBased
+    ? displayCurrent
+    : Math.min(displayCurrent + 1, total);
+  const ariaCurrent = displayValue;
   const ariaLabel = label
     ? `${label} ${ariaCurrent} of ${total}`
     : `Round ${ariaCurrent} of ${total}`;
@@ -56,7 +60,7 @@ const RoundsCounter: React.FC<RoundsCounterProps> = ({
         className="font-mono font-bold tabular-nums leading-none text-white"
         style={{ fontSize: 'clamp(1.75rem, 6vw, 3.5rem)' }}
       >
-        {displayCurrent} / {total}
+        {displayValue} / {total}
       </span>
     </div>
   );

@@ -37,7 +37,7 @@ interface IntervalTimerOverlayProps {
   timeline: HIITTimelineBlock[];
   onClose: () => void;
   theme?: IntervalTimerOverlayTheme;
-  /** Enriched warmup exercises (imageUrl, instructions). When provided, used for warmup block header image and wheel. */
+  /** Enriched warmup exercises (imageUrl, instructions, subtitle, mistakeCorrections). When provided, used for the warmup wheel and sidebar content (image, subtitle, step-by-step, mistakes & corrections). */
   warmupExercises?: WarmupExercise[];
   /** Duration per warmup exercise in seconds. Used with warmupExercises. */
   warmupDurationPerExercise?: number;
@@ -309,15 +309,19 @@ const IntervalTimerOverlay: React.FC<IntervalTimerOverlayProps> = ({
       queueMicrotask(() => handlePhaseTransition());
   }, [currentBlock, hasStarted, isPaused, isTransitioningToNext, timeLeft, handlePhaseTransition]);
 
+  // Use same index as WarmUpWheel/counter; clamp only when indexing into warmupList.
+  const sidebarExerciseIndex =
+    isWarmupBlock && warmupList.length > 0
+      ? Math.min(warmupActiveIndex, warmupList.length - 1)
+      : 0;
+
   const headerImageUrl = useMemo(() => {
     if (!currentBlock) return undefined;
     if (currentBlock.type === 'warmup' && warmupList.length > 0) {
-      const elapsed = currentBlock.duration - timeLeft;
-      const idx = Math.min(Math.floor(elapsed / warmupDuration), warmupList.length - 1);
-      return warmupList[idx]?.imageUrl;
+      return warmupList[sidebarExerciseIndex]?.imageUrl;
     }
     return currentBlock.imageUrl;
-  }, [currentBlock, timeLeft, warmupList, warmupDuration]);
+  }, [currentBlock, warmupList, sidebarExerciseIndex]);
 
   useEffect(() => {
     queueMicrotask(() => setImageError(false));
@@ -428,12 +432,7 @@ const IntervalTimerOverlay: React.FC<IntervalTimerOverlayProps> = ({
           {renderControls('timer-volume')}
           <div className="min-h-0 flex-1 overflow-y-auto">
             {currentBlock.type === 'warmup' && (() => {
-              const elapsed = currentBlock.duration - timeLeft;
-              const idx = Math.min(
-                Math.floor(elapsed / warmupDuration),
-                warmupList.length - 1
-              );
-              const exercise = warmupList[idx];
+              const exercise = warmupList[sidebarExerciseIndex];
               const subtitle = exercise?.subtitle ?? '';
               const instructionSteps = exercise?.instructionSteps ?? [];
               const mistakeCorrections = exercise?.mistakeCorrections ?? [];
@@ -498,14 +497,7 @@ const IntervalTimerOverlay: React.FC<IntervalTimerOverlayProps> = ({
                 Next
               </div>
               <div className="mb-2 text-center text-xl font-bold text-[#ffbf00] sm:text-2xl">
-                {(() => {
-                  const elapsed = currentBlock.duration - timeLeft;
-                  const nextIdx = Math.min(
-                    Math.floor(elapsed / warmupDuration),
-                    warmupList.length - 1
-                  );
-                  return warmupList[nextIdx]?.name ?? 'Exercise';
-                })()}
+                {warmupList[sidebarExerciseIndex]?.name ?? 'Exercise'}
               </div>
               <div
                 className="font-mono font-bold tabular-nums leading-none text-[#ffbf00]"
@@ -550,12 +542,7 @@ const IntervalTimerOverlay: React.FC<IntervalTimerOverlayProps> = ({
                 Next:{' '}
                 {(() => {
                   if (currentBlock.type === 'warmup') {
-                    const elapsed = currentBlock.duration - timeLeft;
-                    const exerciseIndex = Math.min(
-                      Math.floor(elapsed / warmupDuration),
-                      warmupList.length - 1
-                    );
-                    const nextExercise = warmupList[exerciseIndex + 1];
+                    const nextExercise = warmupList[sidebarExerciseIndex + 1];
                     return nextExercise ? nextExercise.name : nextBlock ? nextBlock.name : 'Finish';
                   }
                   return nextBlock ? nextBlock.name : 'Finish';
@@ -616,10 +603,11 @@ const IntervalTimerOverlay: React.FC<IntervalTimerOverlayProps> = ({
         Controls
       </button>
 
-      <div
+      <button
+        type="button"
         className={`fixed inset-0 z-[205] bg-black/50 transition-opacity duration-300 md:hidden ${isControlsDrawerOpen ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
         onClick={() => setIsControlsDrawerOpen(false)}
-        aria-hidden="true"
+        aria-label="Close controls"
       />
 
       <div
