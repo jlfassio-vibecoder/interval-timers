@@ -12,8 +12,11 @@ import {
   playLongTone,
   setSoundVolume as setSoundVolumeModule,
 } from '@interval-timers/timer-sounds';
+import ExerciseSubtitle from './ExerciseSubtitle';
+import ExpandableInstructions from './ExpandableInstructions';
+import ExpandableMistakesCorrections from './ExpandableMistakesCorrections';
+import RoundsCounter from './RoundsCounter';
 import WarmUpWheel from './WarmUpWheel';
-import WarmupInstructionsPanel from './WarmupInstructionsPanel';
 import type { WarmupExercise } from './useWarmupConfig';
 import {
   WARMUP_EXERCISES,
@@ -21,7 +24,6 @@ import {
   WARMUP_TRANSITION_SECONDS,
 } from '@interval-timers/timer-core';
 
-const WARMUP_INSTRUCTIONS_PREFERENCE_KEY = 'warmup-instructions-preference';
 const SOUND_VOLUME_KEY = 'interval-timer-sound-volume';
 const VOLUME_MIN = 0.1;
 const VOLUME_MAX = 1;
@@ -39,6 +41,12 @@ interface IntervalTimerOverlayProps {
   warmupExercises?: WarmupExercise[];
   /** Duration per warmup exercise in seconds. Used with warmupExercises. */
   warmupDurationPerExercise?: number;
+  /** When true, hide the "Skip Warm-up" button (e.g. when the app is warmup-only). */
+  hideSkipWarmup?: boolean;
+  /** Override for rounds counter: current round (0-based). When with roundsTotal, used instead of block index. */
+  roundsCurrent?: number;
+  /** Override for rounds counter: total rounds. When with roundsCurrent, used instead of timeline length. */
+  roundsTotal?: number;
 }
 
 const DEFAULT_THEME: IntervalTimerOverlayTheme = { workBg: 'bg-red-600' };
@@ -49,6 +57,9 @@ const IntervalTimerOverlay: React.FC<IntervalTimerOverlayProps> = ({
   theme = DEFAULT_THEME,
   warmupExercises,
   warmupDurationPerExercise = WARMUP_DURATION_PER_EXERCISE,
+  hideSkipWarmup = false,
+  roundsCurrent: roundsCurrentProp,
+  roundsTotal: roundsTotalProp,
 }) => {
   const warmupList: WarmupExercise[] =
     warmupExercises ?? WARMUP_EXERCISES.map((e) => ({ name: e.name, detail: e.detail }));
@@ -60,7 +71,7 @@ const IntervalTimerOverlay: React.FC<IntervalTimerOverlayProps> = ({
   const [imageError, setImageError] = useState(false);
   const [isTransitioningToNext, setIsTransitioningToNext] = useState(false);
   const [transitionCountdown, setTransitionCountdown] = useState(0);
-  const [instructionsDismissedThisSession, setInstructionsDismissedThisSession] = useState(false);
+  const [isControlsDrawerOpen, setIsControlsDrawerOpen] = useState(false);
   const [soundVolume, setSoundVolumeState] = useState(() => {
     try {
       const v = parseFloat(localStorage.getItem(SOUND_VOLUME_KEY) ?? '');
@@ -92,6 +103,27 @@ const IntervalTimerOverlay: React.FC<IntervalTimerOverlayProps> = ({
 
   const currentBlock = timeline[currentIndex];
   const nextBlock = timeline[currentIndex + 1] ?? null;
+
+  // Same formula as WarmUpWheel (elapsedSeconds / durationPerExercise capped by list length) so counter and wheel always show the same exercise.
+  const isWarmupBlock = currentBlock?.type === 'warmup';
+  const warmupElapsed = isWarmupBlock ? currentBlock.duration - timeLeft : 0;
+  const warmupActiveIndex =
+    isWarmupBlock && warmupList.length > 0 && warmupDuration > 0
+      ? Math.min(Math.floor(warmupElapsed / warmupDuration), warmupList.length)
+      : 0;
+
+  const roundsCurrent =
+    roundsCurrentProp !== undefined && roundsTotalProp !== undefined
+      ? roundsCurrentProp
+      : isWarmupBlock
+        ? !hasStarted
+          ? 0
+          : Math.min(warmupActiveIndex + 1, warmupList.length)
+        : currentIndex;
+  const roundsTotal =
+    roundsCurrentProp !== undefined && roundsTotalProp !== undefined
+      ? roundsTotalProp
+      : (isWarmupBlock ? warmupList.length : timeline.length);
 
   // Initialize timeLeft when timeline or index changes (e.g. after skip/previous)
   useEffect(() => {
@@ -311,10 +343,68 @@ const IntervalTimerOverlay: React.FC<IntervalTimerOverlayProps> = ({
             ? 'RECOVERY'
             : 'COOLDOWN';
 
+  const renderControls = (volumeId: string) => (
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-2">
+        <label htmlFor={volumeId} className="text-sm font-medium text-white/80">
+          Volume
+        </label>
+        <div className="flex w-full items-center gap-3">
+          <input
+            id={volumeId}
+            type="range"
+            min={VOLUME_MIN}
+            max={VOLUME_MAX}
+            step={VOLUME_STEP}
+            value={soundVolume}
+            onChange={handleVolumeChange}
+            className="h-2 min-w-0 flex-1 cursor-pointer appearance-none rounded-full bg-white/20 accent-[#ffbf00]"
+            aria-label="Sound volume (low to 10x)"
+          />
+          <span className="w-8 shrink-0 text-right font-mono text-xs text-white/60" aria-hidden>
+            {Math.round(soundVolume * 10)}×
+          </span>
+        </div>
+      </div>
+      <div className="flex flex-col gap-2">
+        {!hasStarted ? (
+          <button
+            type="button"
+            onClick={() => {
+              if (currentBlock?.type === 'warmup') playBell();
+              setHasStarted(true);
+            }}
+            className="rounded-xl bg-[#ffbf00] px-6 py-3 font-bold text-black"
+          >
+            START
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setIsPaused(!isPaused)}
+            className="rounded-xl bg-white/10 px-6 py-3 font-bold text-white"
+          >
+            {isPaused ? 'RESUME' : 'PAUSE'}
+          </button>
+        )}
+        {currentBlock?.type === 'warmup' && !hideSkipWarmup ? (
+          <button
+            type="button"
+            onClick={handlePhaseTransition}
+            className="rounded-xl bg-white/10 px-6 py-3 font-bold text-white hover:bg-white/20"
+            aria-label="Skip warm-up"
+          >
+            Skip Warm-up
+          </button>
+        ) : null}
+      </div>
+    </div>
+  );
+
   return (
     <div className="fixed inset-0 z-[200] flex h-full w-full flex-col overflow-hidden bg-[#0d0500]">
       <div
-        className={`flex items-center justify-between gap-4 p-4 text-white transition-colors duration-300 sm:p-6 ${headerBg}`}
+        className={`flex items-center justify-between gap-4 p-1 text-white transition-colors duration-300 sm:p-1.5 ${headerBg}`}
       >
         <div className="min-w-0 flex-1">
           <div className="text-xs font-bold uppercase opacity-80">{phaseLabel}</div>
@@ -323,16 +413,6 @@ const IntervalTimerOverlay: React.FC<IntervalTimerOverlayProps> = ({
           </h3>
           <p className="truncate text-sm opacity-90">{currentBlock.notes ?? 'Focus on form'}</p>
         </div>
-        {headerImageUrl && !imageError ? (
-          <div className="h-24 w-24 shrink-0 overflow-hidden rounded-lg border border-white/20 md:h-32 md:w-32">
-            <img
-              src={headerImageUrl}
-              alt=""
-              className="h-full w-full object-cover"
-              onError={() => setImageError(true)}
-            />
-          </div>
-        ) : null}
         <button
           type="button"
           onClick={onClose}
@@ -343,9 +423,55 @@ const IntervalTimerOverlay: React.FC<IntervalTimerOverlayProps> = ({
         </button>
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-6 overflow-hidden md:flex-row md:gap-8">
+      <div className="flex min-h-0 flex-1 overflow-hidden pl-1 sm:pl-1.5">
+        <aside className="hidden md:flex md:w-[20.84rem] md:min-h-0 md:flex-col md:shrink-0 md:border-r md:border-white/10 md:p-4 md:gap-4">
+          {renderControls('timer-volume')}
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            {currentBlock.type === 'warmup' && (() => {
+              const elapsed = currentBlock.duration - timeLeft;
+              const idx = Math.min(
+                Math.floor(elapsed / warmupDuration),
+                warmupList.length - 1
+              );
+              const exercise = warmupList[idx];
+              const subtitle = exercise?.subtitle ?? '';
+              const instructionSteps = exercise?.instructionSteps ?? [];
+              const mistakeCorrections = exercise?.mistakeCorrections ?? [];
+              const imageUrl = exercise?.imageUrl;
+              return (
+                <div className="mt-1 flex flex-col gap-1">
+                  {imageUrl && !imageError ? (
+                    <div className="w-full overflow-hidden rounded-lg border border-white/20 aspect-video shrink-0">
+                      <img
+                        src={imageUrl}
+                        alt=""
+                        className="h-full w-full object-cover"
+                        onError={() => setImageError(true)}
+                      />
+                    </div>
+                  ) : null}
+                  <ExerciseSubtitle text={subtitle} className="border-t border-white/10 pt-2" />
+                  <ExpandableInstructions steps={instructionSteps} />
+                  <ExpandableMistakesCorrections rows={mistakeCorrections} />
+                </div>
+              );
+            })()}
+          </div>
+          <div className="mt-auto flex shrink-0 justify-center border-t border-white/10 pt-4">
+            <RoundsCounter
+              current={roundsCurrent}
+              total={roundsTotal}
+              label="Interval"
+              className="text-center"
+              valueIsOneBased={isWarmupBlock}
+            />
+          </div>
+        </aside>
+        <div
+          className={`flex min-h-0 flex-1 flex-col items-center overflow-hidden ${currentBlock.type === 'warmup' ? 'justify-start gap-2 pt-0 sm:gap-3' : 'justify-center gap-6 md:flex-row md:gap-8'}`}
+        >
         {currentBlock.type === 'warmup' && (
-          <div className="flex w-full max-w-[400px] justify-center md:max-w-none md:flex-1 md:justify-end">
+          <div className="flex w-full max-w-[750px] min-h-0 shrink-0 justify-center overflow-hidden">
             <WarmUpWheel
               elapsedSeconds={currentBlock.duration - timeLeft}
               exercises={warmupList}
@@ -353,7 +479,7 @@ const IntervalTimerOverlay: React.FC<IntervalTimerOverlayProps> = ({
             />
           </div>
         )}
-        <div className="flex min-h-0 flex-1 flex-col items-center justify-center">
+        <div className={`flex min-h-0 flex-1 flex-col items-center overflow-hidden ${currentBlock.type === 'warmup' ? 'justify-start' : 'justify-center'}`}>
           {currentBlock.type === 'setup' ? (
             <>
               <div className="mb-2 text-center text-sm font-bold uppercase tracking-wider text-white/70">
@@ -400,7 +526,7 @@ const IntervalTimerOverlay: React.FC<IntervalTimerOverlayProps> = ({
             </div>
           )}
 
-          <div className="mt-4 w-full px-8 sm:mt-6 md:mt-10">
+          <div className="mt-[10vh] w-full px-4 sm:px-6">
             <div className="h-4 overflow-hidden rounded-full bg-white/20">
               <div
                 className={`h-full transition-all duration-1000 ease-linear ${
@@ -412,8 +538,7 @@ const IntervalTimerOverlay: React.FC<IntervalTimerOverlayProps> = ({
                     if (currentBlock.type === 'warmup' && isTransitioningToNext) return 100;
                     const elapsed = currentBlock.duration - timeLeft;
                     if (currentBlock.type === 'warmup') {
-                      const withinExercise = elapsed % warmupDuration;
-                      return Math.min(100, (withinExercise / warmupDuration) * 100);
+                      return Math.min(100, (elapsed / currentBlock.duration) * 100);
                     }
                     return Math.min(100, (elapsed / currentBlock.duration) * 100);
                   })()}%`,
@@ -448,113 +573,67 @@ const IntervalTimerOverlay: React.FC<IntervalTimerOverlayProps> = ({
                 })()}
               </span>
             </div>
+            <div className="mt-3 flex flex-wrap items-center justify-center gap-3 sm:gap-4">
+              <button
+                type="button"
+                onClick={handlePrevious}
+                disabled={(() => {
+                  if (currentBlock?.type === 'warmup') {
+                    const elapsed = currentBlock.duration - timeLeft;
+                    return Math.floor(elapsed / warmupDuration) === 0;
+                  }
+                  if (currentBlock?.type === 'setup') return false;
+                  return currentIndex === 0;
+                })()}
+                className="font-bold text-white/60 hover:text-white disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:text-white/60"
+                aria-label="Previous exercise"
+              >
+                ← PREVIOUS EXERCISE
+              </button>
+              <button
+                type="button"
+                onClick={handleSkip}
+                className="font-bold text-white/60 hover:text-white"
+              >
+                {isTransitioningToNext
+                  ? 'SKIP PAUSE →'
+                  : currentBlock?.type === 'setup'
+                    ? 'SKIP →'
+                    : 'SKIP EXERCISE →'}
+              </button>
+            </div>
           </div>
         </div>
-        {currentBlock.type === 'warmup' &&
-          warmupList.length > 0 &&
-          (() => {
-            const elapsed = currentBlock.duration - timeLeft;
-            const idx = Math.min(Math.floor(elapsed / warmupDuration), warmupList.length - 1);
-            const exercise = warmupList[idx];
-            const instructionSteps = exercise?.instructionSteps ?? [];
-            const hidePreference =
-              typeof window !== 'undefined' &&
-              localStorage.getItem(WARMUP_INSTRUCTIONS_PREFERENCE_KEY) === 'hide';
-            const showPanel =
-              instructionSteps.length > 0 &&
-              !hidePreference &&
-              !instructionsDismissedThisSession;
-            if (!showPanel) return null;
-            return (
-              <WarmupInstructionsPanel
-                exerciseName={exercise?.name ?? 'Exercise'}
-                steps={instructionSteps}
-                onClose={() => setInstructionsDismissedThisSession(true)}
-                onNeverShowAgain={() => {
-                  if (typeof window !== 'undefined') {
-                    localStorage.setItem(WARMUP_INSTRUCTIONS_PREFERENCE_KEY, 'hide');
-                  }
-                  setInstructionsDismissedThisSession(true);
-                }}
-              />
-            );
-          })()}
+        </div>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-4 border-t border-white/10 p-4 sm:p-6 md:p-8">
-        <div className="flex items-center gap-3">
-          <label htmlFor="timer-volume" className="shrink-0 text-sm font-medium text-white/80">
-            Volume
-          </label>
-          <input
-            id="timer-volume"
-            type="range"
-            min={VOLUME_MIN}
-            max={VOLUME_MAX}
-            step={VOLUME_STEP}
-            value={soundVolume}
-            onChange={handleVolumeChange}
-            className="h-2 w-24 cursor-pointer appearance-none rounded-full bg-white/20 accent-[#ffbf00] sm:w-28"
-            aria-label="Sound volume (low to 10x)"
-          />
-          <span className="w-8 shrink-0 text-right font-mono text-xs text-white/60" aria-hidden>
-            {Math.round(soundVolume * 10)}×
-          </span>
-        </div>
+      <button
+        type="button"
+        onClick={() => setIsControlsDrawerOpen(true)}
+        className="fixed bottom-6 right-6 z-[210] flex items-center justify-center rounded-full bg-[#ffbf00] px-5 py-3 font-bold text-black shadow-lg md:hidden"
+        aria-label="Open controls"
+      >
+        Controls
+      </button>
+
+      <div
+        className={`fixed inset-0 z-[205] bg-black/50 transition-opacity duration-300 md:hidden ${isControlsDrawerOpen ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
+        onClick={() => setIsControlsDrawerOpen(false)}
+        aria-hidden="true"
+      />
+
+      <div
+        className={`fixed inset-x-0 bottom-0 z-[210] max-h-[70vh] overflow-y-auto rounded-t-xl border-t border-white/10 bg-[#0d0500] p-4 transition-transform duration-300 ease-out md:hidden ${isControlsDrawerOpen ? 'translate-y-0' : 'translate-y-full'}`}
+        role="dialog"
+        aria-label="Timer controls"
+      >
+        {renderControls('timer-volume-drawer')}
         <button
           type="button"
-          onClick={handlePrevious}
-          disabled={(() => {
-            if (currentBlock?.type === 'warmup') {
-              const elapsed = currentBlock.duration - timeLeft;
-              return Math.floor(elapsed / warmupDuration) === 0;
-            }
-            if (currentBlock?.type === 'setup') return false;
-            return currentIndex === 0;
-          })()}
-          className="font-bold text-white/60 hover:text-white disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:text-white/60"
-          aria-label="Previous exercise"
+          onClick={() => setIsControlsDrawerOpen(false)}
+          className="mt-4 w-full rounded-xl bg-white/10 py-3 font-bold text-white"
         >
-          ← PREVIOUS EXERCISE
-        </button>
-        <div className="flex flex-1 flex-wrap items-center justify-center gap-3">
-          {!hasStarted ? (
-            <button
-              type="button"
-              onClick={() => {
-                if (currentBlock?.type === 'warmup') playBell();
-                setHasStarted(true);
-              }}
-              className="max-w-[200px] rounded-xl bg-[#ffbf00] px-8 py-4 font-bold text-black"
-            >
-              START
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setIsPaused(!isPaused)}
-              className="max-w-[200px] rounded-xl bg-white/10 px-8 py-4 font-bold text-white"
-            >
-              {isPaused ? 'RESUME' : 'PAUSE'}
-            </button>
-          )}
-          {currentBlock?.type === 'warmup' ? (
-            <button
-              type="button"
-              onClick={handlePhaseTransition}
-              className="rounded-xl bg-white/10 px-6 py-4 font-bold text-white hover:bg-white/20"
-              aria-label="Skip warm-up"
-            >
-              Skip Warm-up
-            </button>
-          ) : null}
-        </div>
-        <button
-          type="button"
-          onClick={handleSkip}
-          className="font-bold text-white/60 hover:text-white"
-        >
-          {isTransitioningToNext ? 'SKIP PAUSE →' : currentBlock?.type === 'setup' ? 'SKIP →' : 'SKIP EXERCISE →'}
+          Close
         </button>
       </div>
     </div>

@@ -5,6 +5,8 @@ export {
   SETUP_DURATION_SECONDS,
   getWarmupImageUrl,
   getWarmupInstructions,
+  getWarmupMistakesCorrections,
+  getWarmupSubtitle,
   getSetupBlock,
   getDefaultWarmupBlock,
   DEFAULT_WARMUP_TOTAL_SECONDS,

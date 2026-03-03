@@ -4,6 +4,13 @@ export interface InstructionStep {
   body: string;
 }
 
+/** One row for Common Mistakes & Corrections (mistake, cause, fix). */
+export interface MistakeCorrectionRow {
+  mistake: string;
+  whyItHappens: string;
+  theFix: string;
+}
+
 export type IntervalTimerPage =
   | 'warmup'
   | 'tabata'
