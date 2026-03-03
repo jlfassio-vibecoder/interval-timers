@@ -142,6 +142,7 @@ const WarmUpInterval: React.FC<WarmUpIntervalProps> = ({ onNavigate }) => {
             theme={{ workBg: WARMUP_ACCENT.workBg }}
             warmupExercises={frozenSnapshot.exercises}
             warmupDurationPerExercise={frozenSnapshot.durationPerExercise}
+            hideSkipWarmup
           />,
           document.body
         )}

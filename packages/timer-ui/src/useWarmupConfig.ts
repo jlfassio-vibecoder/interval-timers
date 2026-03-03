@@ -12,8 +12,33 @@ import {
   WARMUP_DURATION_PER_EXERCISE,
   getWarmupImageUrl,
   getWarmupInstructions,
+  getWarmupMistakesCorrections,
+  getWarmupSubtitle,
 } from '@interval-timers/timer-core';
-import type { InstructionStep } from '@interval-timers/types';
+import type { InstructionStep, MistakeCorrectionRow } from '@interval-timers/types';
+
+/** Vite injects BASE_URL at build time; normalize for concatenation (no trailing slash). */
+function getBaseUrl(): string {
+  try {
+    const base =
+      typeof import.meta !== 'undefined' &&
+      import.meta.env &&
+      typeof (import.meta as { env?: { BASE_URL?: string } }).env?.BASE_URL === 'string'
+      ? (import.meta as { env: { BASE_URL: string } }).env.BASE_URL
+      : '';
+    return base ? base.replace(/\/$/, '') : '';
+  } catch {
+    return '';
+  }
+}
+
+/** Prefix a root-relative or path-only image URL with the app base so it loads under base path. */
+function resolveImageUrl(pathOrUrl: string): string {
+  if (pathOrUrl.startsWith('http://') || pathOrUrl.startsWith('https://')) return pathOrUrl;
+  const base = getBaseUrl();
+  const path = pathOrUrl.startsWith('/') ? pathOrUrl.slice(1) : pathOrUrl;
+  return base ? `${base}/${path}` : `/${path}`;
+}
 
 export interface WarmupExercise {
   name: string;
@@ -22,6 +47,10 @@ export interface WarmupExercise {
   instructions?: string[];
   /** Step-by-step protocol (title + body). Used by WarmupInstructionsPanel. */
   instructionSteps?: InstructionStep[];
+  /** Common mistakes and corrections. Used by ExpandableMistakesCorrections. */
+  mistakeCorrections?: MistakeCorrectionRow[];
+  /** Short subtitle shown above instructions in sidebar. Used by ExerciseSubtitle. */
+  subtitle?: string;
 }
 
 export interface WarmupConfig {
@@ -32,13 +61,19 @@ export interface WarmupConfig {
 }
 
 const FALLBACK_EXERCISES: WarmupExercise[] = WARMUP_EXERCISES.map((e) => {
-  const imageUrl = getWarmupImageUrl(e.name);
+  const rawUrl = getWarmupImageUrl(e.name);
+  const imageUrl = rawUrl ? resolveImageUrl(rawUrl) : undefined;
   const instructionSteps = getWarmupInstructions(e.name);
+  const mistakeCorrections = getWarmupMistakesCorrections(e.name);
+  const subtitle = getWarmupSubtitle(e.name);
   return {
     name: e.name,
     detail: e.detail,
     ...(imageUrl && { imageUrl }),
     ...(instructionSteps && instructionSteps.length > 0 && { instructionSteps }),
+    ...(mistakeCorrections &&
+      mistakeCorrections.length > 0 && { mistakeCorrections }),
+    ...(subtitle && { subtitle }),
   };
 });
 
@@ -68,13 +103,20 @@ export function useWarmupConfig(): WarmupConfig {
       const slots = data.slots ?? [];
       if (slots.length > 0) {
         setExercises(
-          slots.map((s) => ({
-            name: s.name,
-            detail: s.detail,
-            ...(s.imageUrl && { imageUrl: s.imageUrl }),
-            ...(Array.isArray(s.instructions) &&
-              s.instructions.length > 0 && { instructions: s.instructions }),
-          }))
+          slots.map((s) => {
+            const mistakeCorrections = getWarmupMistakesCorrections(s.name);
+            const subtitle = getWarmupSubtitle(s.name);
+            return {
+              name: s.name,
+              detail: s.detail,
+              ...(s.imageUrl && { imageUrl: resolveImageUrl(s.imageUrl) }),
+              ...(Array.isArray(s.instructions) &&
+                s.instructions.length > 0 && { instructions: s.instructions }),
+              ...(mistakeCorrections &&
+                mistakeCorrections.length > 0 && { mistakeCorrections }),
+              ...(subtitle && { subtitle }),
+            };
+          })
         );
         setDurationPerExercise(
           typeof data.durationPerExercise === 'number' && data.durationPerExercise >= 10
