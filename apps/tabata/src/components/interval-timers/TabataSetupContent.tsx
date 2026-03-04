@@ -2,18 +2,54 @@ import { WORKOUT_DATABASE, TABATA_PROTOCOL_LABELS } from './interval-timer-setup
 import type { TabataWorkoutCategory } from './interval-timer-setup-data';
 import { TABATA_DEFAULT_CYCLES } from './interval-timer-setup-data';
 
-/** Protocol step: Standard Tabata button + four category buttons. */
+/** Protocol step: warm-up choice + Standard Tabata button + four category buttons. */
 export interface TabataProtocolStepProps {
+  includeWarmup: boolean;
+  onIncludeWarmupChange: (value: boolean) => void;
   onStartWithStandard: () => void;
   onSelectCategory: (category: TabataWorkoutCategory) => void;
 }
 
 export function TabataProtocolStep({
+  includeWarmup,
+  onIncludeWarmupChange,
   onStartWithStandard,
   onSelectCategory,
 }: TabataProtocolStepProps) {
   return (
     <div className="space-y-4">
+      {/* Before you start: optional Daily Warm-Up */}
+      <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+        <h3 className="mb-1 font-bold text-white">Before you start</h3>
+        <p className="mb-3 text-xs text-white/70">
+          Daily Warm-Up prepares joints and muscles. Recommended before high-intensity intervals.
+        </p>
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={() => onIncludeWarmupChange(true)}
+            className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition ${
+              includeWarmup
+                ? 'border-[#ffbf00] bg-[#ffbf00]/20 text-[#ffbf00]'
+                : 'border-white/10 bg-black/20 text-white/70 hover:border-white/20 hover:text-white'
+            }`}
+          >
+            Include Warm-Up (~14 min)
+          </button>
+          <button
+            type="button"
+            onClick={() => onIncludeWarmupChange(false)}
+            className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition ${
+              !includeWarmup
+                ? 'border-[#ffbf00] bg-[#ffbf00]/20 text-[#ffbf00]'
+                : 'border-white/10 bg-black/20 text-white/70 hover:border-white/20 hover:text-white'
+            }`}
+          >
+            Skip, go straight to Tabata
+          </button>
+        </div>
+      </div>
+
       <button
         type="button"
         onClick={onStartWithStandard}

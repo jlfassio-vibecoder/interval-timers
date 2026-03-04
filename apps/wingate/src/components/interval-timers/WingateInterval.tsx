@@ -3,10 +3,10 @@ import { createPortal } from 'react-dom';
 import {
   IntervalTimerLanding,
   IntervalTimerOverlay,
+  IntervalTimerSetupModal,
   useWarmupConfig,
   type WarmupExercise,
 } from '@interval-timers/timer-ui';
-import IntervalTimerSetupModal from './IntervalTimerSetupModal';
 import type { IntervalTimerPage } from '@interval-timers/timer-core';
 import { getProtocolAccent } from '@interval-timers/timer-core';
 import type { HIITTimelineBlock } from '@interval-timers/types';
@@ -50,6 +50,7 @@ const WingateInterval: React.FC<WingateIntervalProps> = ({ onNavigate, onNavigat
   const [isSetupOpen, setIsSetupOpen] = useState(false);
   const [isTimerOpen, setIsTimerOpen] = useState(false);
   const [totalCycles, setTotalCycles] = useState(4);
+  const [includeWarmup, setIncludeWarmup] = useState(false);
   const [frozenWarmup, setFrozenWarmup] = useState<{
     exercises: WarmupExercise[];
     durationPerExercise: number;
@@ -58,7 +59,11 @@ const WingateInterval: React.FC<WingateIntervalProps> = ({ onNavigate, onNavigat
   const { exercises, durationPerExercise } = useWarmupConfig();
 
   const wingateTimeline = useMemo<HIITTimelineBlock[]>(() => {
-    const blocks: HIITTimelineBlock[] = [getDefaultWarmupBlock(), getSetupBlock()];
+    const blocks: HIITTimelineBlock[] = [];
+    if (frozenWarmup) {
+      blocks.push(getDefaultWarmupBlock());
+    }
+    blocks.push(getSetupBlock());
     for (let i = 0; i < totalCycles; i++) {
       blocks.push({
         type: 'work',
@@ -75,12 +80,16 @@ const WingateInterval: React.FC<WingateIntervalProps> = ({ onNavigate, onNavigat
     }
     blocks.push({ type: 'cooldown', duration: 300, name: 'Cool Down', notes: '5 Mins Easy Spin' });
     return blocks;
-  }, [totalCycles]);
+  }, [totalCycles, frozenWarmup]);
 
   const startWithCycles = (cycles: number) => {
     setTotalCycles(cycles);
     setIsSetupOpen(false);
-    setFrozenWarmup({ exercises: [...exercises], durationPerExercise });
+    if (includeWarmup) {
+      setFrozenWarmup({ exercises: [...exercises], durationPerExercise });
+    } else {
+      setFrozenWarmup(null);
+    }
     setIsTimerOpen(true);
   };
 
@@ -279,6 +288,36 @@ const WingateInterval: React.FC<WingateIntervalProps> = ({ onNavigate, onNavigat
 
   const durationContent = (
     <div className="space-y-4">
+      <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+        <h3 className="mb-1 font-bold text-white">Before you start</h3>
+        <p className="mb-3 text-xs text-white/70">
+          Daily Warm-Up prepares joints and muscles. Recommended before high-intensity intervals.
+        </p>
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={() => setIncludeWarmup(true)}
+            className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition ${
+              includeWarmup
+                ? 'border-[#ffbf00] bg-[#ffbf00]/20 text-[#ffbf00]'
+                : 'border-white/10 bg-black/20 text-white/70 hover:border-white/20 hover:text-white'
+            }`}
+          >
+            Include Warm-Up (~14 min)
+          </button>
+          <button
+            type="button"
+            onClick={() => setIncludeWarmup(false)}
+            className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition ${
+              !includeWarmup
+                ? 'border-[#ffbf00] bg-[#ffbf00]/20 text-[#ffbf00]'
+                : 'border-white/10 bg-black/20 text-white/70 hover:border-white/20 hover:text-white'
+            }`}
+          >
+            Skip, go straight to Wingate
+          </button>
+        </div>
+      </div>
       <button
         type="button"
         onClick={() => startWithCycles(4)}
@@ -508,7 +547,10 @@ const WingateInterval: React.FC<WingateIntervalProps> = ({ onNavigate, onNavigat
           <div className="pt-8 text-center">
             <button
               type="button"
-              onClick={() => setIsSetupOpen(true)}
+              onClick={() => {
+                setIncludeWarmup(false);
+                setIsSetupOpen(true);
+              }}
               className="mx-auto flex items-center gap-3 rounded-full bg-lime-500 px-8 py-4 font-bold text-black shadow-[0_0_20px_rgba(132,204,22,0.4)] transition-all hover:scale-105 hover:bg-lime-400"
             >
               <span>⏱️</span>

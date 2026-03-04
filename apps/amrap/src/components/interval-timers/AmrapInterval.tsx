@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import AmrapCtaButton from '@/components/AmrapCtaButton';
-import { IntervalTimerLanding } from '@interval-timers/timer-ui';
+import { IntervalTimerLanding, IntervalTimerSetupModal } from '@interval-timers/timer-ui';
 import type { IntervalTimerPage } from '@interval-timers/timer-core';
 import { getProtocolAccent, SETUP_DURATION_SECONDS } from '@interval-timers/timer-core';
-import IntervalTimerSetupModal from './IntervalTimerSetupModal';
 import { useAmrapSetup } from './useAmrapSetup';
 import { AmrapProtocolStep, AmrapWorkoutStep } from './AmrapSetupContent';
 import {

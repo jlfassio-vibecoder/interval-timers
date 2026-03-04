@@ -22,6 +22,8 @@ interface EmomIntervalProps {
 }
 
 type TimerState = 'idle' | 'warmup' | 'setup' | 'working' | 'resting' | 'finished';
+
+const WARMUP_DURATION_SECONDS = 10;
 type MetricType = 'work_capacity' | 'fatigue_rate';
 type SimMode = 'fast' | 'slow';
 
@@ -285,7 +287,7 @@ const EmomInterval: React.FC<EmomIntervalProps> = ({ onNavigate, onNavigateToLan
     setIsDurationSelectOpen(false);
     setIsTimerOpen(true);
     setTimerState('warmup');
-    setTimeLeft(10);
+    setTimeLeft(WARMUP_DURATION_SECONDS);
     setCycleCount(1);
     setSecondsInMinute(0);
     setTaskFinishedAt(null);
@@ -789,7 +791,7 @@ const EmomInterval: React.FC<EmomIntervalProps> = ({ onNavigate, onNavigateToLan
                   fill="none"
                   stroke={timerState === 'working' ? '#2dd4bf' : '#475569'}
                   strokeWidth="2"
-                  strokeDasharray={`${(timerState === 'warmup' ? (10 - timeLeft) / 10 : timerState === 'setup' ? (SETUP_DURATION_SECONDS - timeLeft) / SETUP_DURATION_SECONDS : secondsInMinute / 60) * 251.2} 251.2`}
+                  strokeDasharray={`${(timerState === 'setup' ? (SETUP_DURATION_SECONDS - timeLeft) / SETUP_DURATION_SECONDS : secondsInMinute / 60) * 251.2} 251.2`}
                   transform="rotate(-90 50 50)"
                 />
               </svg>
@@ -809,7 +811,7 @@ const EmomInterval: React.FC<EmomIntervalProps> = ({ onNavigate, onNavigateToLan
               onClick={skipToNextPhase}
               className="w-1/3 rounded-xl px-4 py-3 font-bold text-white/60 hover:text-white md:px-8 md:py-4"
             >
-              {timerState === 'warmup' ? 'Skip Warm-up' : 'SKIP'}
+              {timerState === 'warmup' ? 'Skip Warm-up' : timerState === 'setup' ? 'Skip setup' : 'SKIP'}
             </button>
           </div>
         </div>

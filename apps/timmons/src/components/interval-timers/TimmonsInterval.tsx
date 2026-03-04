@@ -44,10 +44,7 @@ const TimmonsInterval: React.FC<TimmonsIntervalProps> = ({ onNavigate, onNavigat
   const [isTimerOpen, setIsTimerOpen] = useState(false);
 
   const timmonsTimeline = useMemo<HIITTimelineBlock[]>(() => {
-    const blocks: HIITTimelineBlock[] = [
-      { type: 'warmup', duration: 10, name: 'Get Ready', notes: 'Protocol Starting' },
-      getSetupBlock(),
-    ];
+    const blocks: HIITTimelineBlock[] = [getSetupBlock()];
     for (let i = 0; i < 3; i++) {
       blocks.push({
         type: 'work',

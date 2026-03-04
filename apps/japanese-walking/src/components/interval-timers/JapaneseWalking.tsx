@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import {
   IntervalTimerLanding,
   IntervalTimerOverlay,
+  IntervalTimerSetupModal,
   useWarmupConfig,
   type WarmupExercise,
 } from '@interval-timers/timer-ui';
@@ -47,7 +48,9 @@ const ACCENT = getProtocolAccent('mindful');
 
 const JapaneseWalking: React.FC<JapaneseWalkingProps> = ({ onNavigate, onNavigateToLanding }) => {
   const [isReportOpen, setIsReportOpen] = useState(false);
+  const [isSetupOpen, setIsSetupOpen] = useState(false);
   const [isTimerOpen, setIsTimerOpen] = useState(false);
+  const [includeWarmup, setIncludeWarmup] = useState(false);
   const [frozenWarmup, setFrozenWarmup] = useState<{
     exercises: WarmupExercise[];
     durationPerExercise: number;
@@ -56,7 +59,11 @@ const JapaneseWalking: React.FC<JapaneseWalkingProps> = ({ onNavigate, onNavigat
   const { exercises, durationPerExercise } = useWarmupConfig();
 
   const japaneseWalkingTimeline = useMemo<HIITTimelineBlock[]>(() => {
-    const blocks: HIITTimelineBlock[] = [getDefaultWarmupBlock(), getSetupBlock()];
+    const blocks: HIITTimelineBlock[] = [];
+    if (frozenWarmup) {
+      blocks.push(getDefaultWarmupBlock());
+    }
+    blocks.push(getSetupBlock());
     for (let i = 0; i < 5; i++) {
       blocks.push({ type: 'work', duration: 180, name: 'Fast Walk', notes: 'RPE 13-14' });
       blocks.push({ type: 'rest', duration: 180, name: 'Recovery Walk', notes: 'Breathe & step' });
@@ -68,7 +75,7 @@ const JapaneseWalking: React.FC<JapaneseWalkingProps> = ({ onNavigate, onNavigat
       notes: 'Return to baseline',
     });
     return blocks;
-  }, []);
+  }, [frozenWarmup]);
 
   const [metric, setMetric] = useState<MetricType>('vo2');
 
@@ -519,8 +526,8 @@ const JapaneseWalking: React.FC<JapaneseWalkingProps> = ({ onNavigate, onNavigat
             <button
               type="button"
               onClick={() => {
-                setFrozenWarmup({ exercises: [...exercises], durationPerExercise });
-                setIsTimerOpen(true);
+                setIncludeWarmup(false);
+                setIsSetupOpen(true);
               }}
               className="mx-auto flex items-center gap-3 rounded-full bg-[#ffbf00] px-8 py-4 font-bold text-black shadow-2xl transition-all hover:scale-105"
             >
@@ -562,6 +569,63 @@ const JapaneseWalking: React.FC<JapaneseWalkingProps> = ({ onNavigate, onNavigat
           </div>
         </section>
       </IntervalTimerLanding>
+
+      <IntervalTimerSetupModal
+        isOpen={isSetupOpen}
+        onClose={() => setIsSetupOpen(false)}
+        step="protocol"
+        protocolTitle="Before you start"
+        protocolSubtitle="Optional Daily Warm-Up"
+        workoutTitle=""
+        workoutSubtitle=""
+        onBack={() => {}}
+        protocolContent={
+          <div className="space-y-4">
+            <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+              <h3 className="mb-1 font-bold text-white">Before you start</h3>
+              <p className="mb-3 text-xs text-white/70">
+                Daily Warm-Up prepares joints and muscles. Recommended before high-intensity
+                intervals.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIncludeWarmup(true);
+                    setFrozenWarmup({ exercises: [...exercises], durationPerExercise });
+                    setIsSetupOpen(false);
+                    setIsTimerOpen(true);
+                  }}
+                  className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition ${
+                    includeWarmup
+                      ? 'border-[#ffbf00] bg-[#ffbf00]/20 text-[#ffbf00]'
+                      : 'border-white/10 bg-black/20 text-white/70 hover:border-white/20 hover:text-white'
+                  }`}
+                >
+                  Include Warm-Up (~14 min)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIncludeWarmup(false);
+                    setFrozenWarmup(null);
+                    setIsSetupOpen(false);
+                    setIsTimerOpen(true);
+                  }}
+                  className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition ${
+                    !includeWarmup
+                      ? 'border-[#ffbf00] bg-[#ffbf00]/20 text-[#ffbf00]'
+                      : 'border-white/10 bg-black/20 text-white/70 hover:border-white/20 hover:text-white'
+                  }`}
+                >
+                  Skip, go straight to Japanese Walking
+                </button>
+              </div>
+            </div>
+          </div>
+        }
+        workoutContent={<div />}
+      />
 
       {typeof document !== 'undefined' &&
         isTimerOpen &&

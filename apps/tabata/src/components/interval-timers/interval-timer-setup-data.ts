@@ -99,6 +99,8 @@ export type TabataWorkoutOption = (typeof WORKOUT_DATABASE)[TabataWorkoutCategor
 export interface TabataSetupResult {
   cycles: number;
   workoutList: string[];
+  /** When true, prepend Daily Warm-Up block to the timer. Default false (skip). */
+  includeWarmup?: boolean;
 }
 
 /** Default number of Tabata cycles (8 rounds of 20/10). */
