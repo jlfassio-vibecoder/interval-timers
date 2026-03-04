@@ -21,7 +21,7 @@ interface GibalaMethodProps {
   onNavigateToLanding?: () => void;
 }
 
-type TimerState = 'idle' | 'warmup' | 'setup' | 'work' | 'rest' | 'cooldown' | 'finished';
+type TimerState = 'idle' | 'setup' | 'work' | 'rest' | 'cooldown' | 'finished';
 type MetricType = 'efficiency' | 'discomfort';
 type SimMode = 'work' | 'rest';
 
@@ -272,11 +272,10 @@ const GibalaMethod: React.FC<GibalaMethodProps> = ({ onNavigate, onNavigateToLan
     setTotalCycles(cycles);
     setIsDurationSelectOpen(false);
     setIsTimerOpen(true);
-    setTimerState('warmup');
-    setTimeLeft(180); // 3 mins warmup
+    setTimerState('setup');
+    setTimeLeft(SETUP_DURATION_SECONDS);
     setCycleCount(1);
     setIsPaused(false);
-    playBell('rest');
   };
 
   useEffect(() => {
@@ -290,11 +289,7 @@ const GibalaMethod: React.FC<GibalaMethodProps> = ({ onNavigate, onNavigateToLan
   }, [isDurationSelectOpen]);
 
   const handlePhaseTransition = useCallback((manual = false) => {
-    if (timerState === 'warmup') {
-      if (!manual) playBell('rest');
-      setTimerState('setup');
-      setTimeLeft(SETUP_DURATION_SECONDS);
-    } else if (timerState === 'setup') {
+    if (timerState === 'setup') {
       if (!manual) playBell('work');
       setTimerState('work');
       setTimeLeft(60); // 60s Work
@@ -356,8 +351,6 @@ const GibalaMethod: React.FC<GibalaMethodProps> = ({ onNavigate, onNavigateToLan
 
   const getTimerStyles = () => {
     switch (timerState) {
-      case 'warmup':
-        return { bg: 'bg-slate-600', text: 'Warm Up', sub: '3 Mins Easy' };
       case 'setup':
         return { bg: 'bg-slate-600', text: 'Setup', sub: 'Get into position' };
       case 'work':
@@ -686,7 +679,7 @@ const GibalaMethod: React.FC<GibalaMethodProps> = ({ onNavigate, onNavigateToLan
           >
             <div>
               <div className="mb-1 text-[10px] font-bold uppercase tracking-widest opacity-80 md:text-xs">
-                {timerState === 'warmup' || timerState === 'setup' || timerState === 'cooldown'
+                {timerState === 'setup' || timerState === 'cooldown'
                   ? 'Preparation'
                   : `Cycle ${cycleCount} of ${totalCycles}`}
               </div>
@@ -739,13 +732,13 @@ const GibalaMethod: React.FC<GibalaMethodProps> = ({ onNavigate, onNavigateToLan
             <button
               onClick={() => skipPhase()}
               className={`w-1/3 rounded-xl px-4 py-3 font-bold md:px-8 md:py-4 ${
-                timerState === 'warmup' || timerState === 'setup'
+                timerState === 'setup'
                   ? 'bg-white/10 text-white hover:bg-white/20'
                   : 'bg-transparent text-slate-500 hover:bg-slate-900'
               }`}
               type="button"
             >
-              {timerState === 'warmup' ? 'Skip Warm-up' : 'SKIP'}
+              {timerState === 'setup' ? 'Skip setup' : 'SKIP'}
             </button>
           </div>
         </div>

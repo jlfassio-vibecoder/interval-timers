@@ -49,10 +49,7 @@ const TenTwentyThirtyInterval: React.FC<TenTwentyThirtyIntervalProps> = ({
   const [totalCycles, setTotalCycles] = useState(5);
 
   const tenTwentyThirtyTimeline = useMemo<HIITTimelineBlock[]>(() => {
-    const blocks: HIITTimelineBlock[] = [
-      { type: 'warmup', duration: 10, name: 'Get Ready', notes: 'Starting 30-20-10' },
-      getSetupBlock(),
-    ];
+    const blocks: HIITTimelineBlock[] = [getSetupBlock()];
     for (let i = 0; i < totalCycles; i++) {
       blocks.push({
         type: 'work',

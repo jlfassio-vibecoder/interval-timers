@@ -50,6 +50,7 @@ const LactateInterval: React.FC<LactateIntervalProps> = ({ onNavigate, onNavigat
   const [isSetupOpen, setIsSetupOpen] = useState(false);
   const [isTimerOpen, setIsTimerOpen] = useState(false);
   const [totalCycles, setTotalCycles] = useState(10);
+  const [includeWarmup, setIncludeWarmup] = useState(false);
   const [frozenWarmup, setFrozenWarmup] = useState<{
     exercises: WarmupExercise[];
     durationPerExercise: number;
@@ -58,7 +59,11 @@ const LactateInterval: React.FC<LactateIntervalProps> = ({ onNavigate, onNavigat
   const { exercises, durationPerExercise } = useWarmupConfig();
 
   const lactateTimeline = useMemo<HIITTimelineBlock[]>(() => {
-    const blocks: HIITTimelineBlock[] = [getDefaultWarmupBlock(), getSetupBlock()];
+    const blocks: HIITTimelineBlock[] = [];
+    if (frozenWarmup) {
+      blocks.push(getDefaultWarmupBlock());
+    }
+    blocks.push(getSetupBlock());
     for (let i = 0; i < totalCycles; i++) {
       blocks.push({
         type: 'work',
@@ -75,12 +80,16 @@ const LactateInterval: React.FC<LactateIntervalProps> = ({ onNavigate, onNavigat
     }
     blocks.push({ type: 'cooldown', duration: 180, name: 'Cool Down', notes: 'Flush the system' });
     return blocks;
-  }, [totalCycles]);
+  }, [totalCycles, frozenWarmup]);
 
   const startWithCycles = (cycles: number) => {
     setTotalCycles(cycles);
     setIsSetupOpen(false);
-    setFrozenWarmup({ exercises: [...exercises], durationPerExercise });
+    if (includeWarmup) {
+      setFrozenWarmup({ exercises: [...exercises], durationPerExercise });
+    } else {
+      setFrozenWarmup(null);
+    }
     setIsTimerOpen(true);
   };
 
@@ -274,6 +283,36 @@ const LactateInterval: React.FC<LactateIntervalProps> = ({ onNavigate, onNavigat
 
   const durationContent = (
     <div className="space-y-4">
+      <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+        <h3 className="mb-1 font-bold text-white">Before you start</h3>
+        <p className="mb-3 text-xs text-white/70">
+          Daily Warm-Up prepares joints and muscles. Recommended before high-intensity intervals.
+        </p>
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={() => setIncludeWarmup(true)}
+            className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition ${
+              includeWarmup
+                ? 'border-[#ffbf00] bg-[#ffbf00]/20 text-[#ffbf00]'
+                : 'border-white/10 bg-black/20 text-white/70 hover:border-white/20 hover:text-white'
+            }`}
+          >
+            Include Warm-Up (~14 min)
+          </button>
+          <button
+            type="button"
+            onClick={() => setIncludeWarmup(false)}
+            className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition ${
+              !includeWarmup
+                ? 'border-[#ffbf00] bg-[#ffbf00]/20 text-[#ffbf00]'
+                : 'border-white/10 bg-black/20 text-white/70 hover:border-white/20 hover:text-white'
+            }`}
+          >
+            Skip, go straight to Lactate Threshold
+          </button>
+        </div>
+      </div>
       <button
         type="button"
         onClick={() => startWithCycles(10)}
@@ -499,7 +538,10 @@ const LactateInterval: React.FC<LactateIntervalProps> = ({ onNavigate, onNavigat
           <div className="pt-8 text-center">
             <button
               type="button"
-              onClick={() => setIsSetupOpen(true)}
+              onClick={() => {
+                setIncludeWarmup(false);
+                setIsSetupOpen(true);
+              }}
               className="mx-auto flex items-center gap-3 rounded-full bg-[#ffbf00] px-8 py-4 font-bold text-black shadow-2xl transition-all hover:scale-105"
             >
               <span>⏱️</span>

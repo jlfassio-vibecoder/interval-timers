@@ -10,11 +10,13 @@ export function useTabataSetup(onComplete: (result: TabataSetupResult) => void) 
   const [isOpen, setIsOpen] = useState(false);
   const [step, setStep] = useState<'protocol' | 'workout'>('protocol');
   const [selectedCategory, setSelectedCategory] = useState<TabataWorkoutCategory | null>(null);
+  const [includeWarmup, setIncludeWarmup] = useState(false);
 
   const open = useCallback(() => {
     setIsOpen(true);
     setStep('protocol');
     setSelectedCategory(null);
+    setIncludeWarmup(false);
   }, []);
 
   const close = useCallback(() => {
@@ -31,16 +33,16 @@ export function useTabataSetup(onComplete: (result: TabataSetupResult) => void) 
   }, []);
 
   const startWithStandard = useCallback(() => {
-    onComplete({ cycles: TABATA_DEFAULT_CYCLES, workoutList: [] });
+    onComplete({ cycles: TABATA_DEFAULT_CYCLES, workoutList: [], includeWarmup });
     setIsOpen(false);
-  }, [onComplete]);
+  }, [onComplete, includeWarmup]);
 
   const startWithWorkout = useCallback(
     (cycles: number, list: string[]) => {
-      onComplete({ cycles, workoutList: list });
+      onComplete({ cycles, workoutList: list, includeWarmup });
       setIsOpen(false);
     },
-    [onComplete]
+    [onComplete, includeWarmup]
   );
 
   return {
@@ -51,6 +53,8 @@ export function useTabataSetup(onComplete: (result: TabataSetupResult) => void) 
     back,
     selectCategory,
     selectedCategory,
+    includeWarmup,
+    setIncludeWarmup,
     startWithStandard,
     startWithWorkout,
   };

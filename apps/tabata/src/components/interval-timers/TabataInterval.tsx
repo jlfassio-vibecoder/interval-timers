@@ -64,7 +64,11 @@ const TabataInterval: React.FC<TabataTimerProps> = ({ onNavigate }) => {
   const setup = useTabataSetup((result) => {
     setTotalCycles(result.cycles);
     setCurrentWorkoutPlan(result.workoutList);
-    setFrozenWarmup({ exercises: [...exercises], durationPerExercise });
+    if (result.includeWarmup) {
+      setFrozenWarmup({ exercises: [...exercises], durationPerExercise });
+    } else {
+      setFrozenWarmup(null);
+    }
     setIsTimerOpen(true);
   });
 
@@ -80,9 +84,13 @@ const TabataInterval: React.FC<TabataTimerProps> = ({ onNavigate }) => {
     };
   }, []);
 
-  /** Timeline for shared overlay: default warmup from interval-timer-warmup (currently 14 min: 28 × 30s via getDefaultWarmupBlock), then totalCycles × (work 20s + rest 10s), then cooldown 120s. */
+  /** Timeline for shared overlay: optional warmup, then setup, then totalCycles × (work 20s + rest 10s), then cooldown 120s. */
   const tabataTimeline = useMemo<HIITTimelineBlock[]>(() => {
-    const blocks: HIITTimelineBlock[] = [getDefaultWarmupBlock(), getSetupBlock()];
+    const blocks: HIITTimelineBlock[] = [];
+    if (frozenWarmup) {
+      blocks.push(getDefaultWarmupBlock());
+    }
+    blocks.push(getSetupBlock());
     for (let i = 0; i < totalCycles; i++) {
       const workName =
         currentWorkoutPlan.length > 0
@@ -93,7 +101,7 @@ const TabataInterval: React.FC<TabataTimerProps> = ({ onNavigate }) => {
     }
     blocks.push({ type: 'cooldown', duration: 120, name: 'Cool Down', notes: 'Flush Lactic Acid' });
     return blocks;
-  }, [totalCycles, currentWorkoutPlan]);
+  }, [totalCycles, currentWorkoutPlan, frozenWarmup]);
 
   // --- SECTION 1: IMPACT DATA ---
   const [metric, setMetric] = useState<MetricType>('aerobic');
@@ -344,15 +352,22 @@ const TabataInterval: React.FC<TabataTimerProps> = ({ onNavigate }) => {
             Tabata in 1996. It is the most efficient method to improve both aerobic and anaerobic
             capacity simultaneously.
           </p>
-          <div className="flex justify-center gap-4">
+          <div className="inline-grid w-max max-w-full grid-cols-1 gap-4 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={setup.open}
+              className="min-w-0 rounded-xl bg-[#ffbf00] px-8 py-3.5 font-bold text-black shadow-lg transition-transform hover:-translate-y-1"
+            >
+              Launch Tabata Timer
+            </button>
             <button
               type="button"
               onClick={() =>
                 document.getElementById('simulator')?.scrollIntoView({ behavior: 'smooth' })
               }
-              className="rounded-xl bg-[#ffbf00] px-8 py-3 font-bold text-black shadow-lg transition-transform hover:-translate-y-1"
+              className="min-w-0 rounded-xl bg-[#ffbf00] px-8 py-3.5 font-bold text-black shadow-lg transition-transform hover:-translate-y-1"
             >
-              Start Tabata
+              Learn More
             </button>
           </div>
         </section>
@@ -512,21 +527,10 @@ const TabataInterval: React.FC<TabataTimerProps> = ({ onNavigate }) => {
                   >
                     10s REST
                   </button>
-                </div>
-              </div>
             </div>
           </div>
-
-          <div className="pt-8 text-center">
-            <button
-              type="button"
-              onClick={setup.open}
-              className="mx-auto flex items-center gap-3 rounded-full bg-[#ffbf00] px-8 py-4 font-bold text-black shadow-2xl transition-all hover:scale-105"
-            >
-              <span>⏱️</span>
-              <span>Launch Tabata Timer</span>
-            </button>
-          </div>
+        </div>
+      </div>
         </section>
 
         {/* SECTION 3: VISUALIZER */}
@@ -573,6 +577,8 @@ const TabataInterval: React.FC<TabataTimerProps> = ({ onNavigate }) => {
         onBack={setup.back}
         protocolContent={
           <TabataProtocolStep
+            includeWarmup={setup.includeWarmup}
+            onIncludeWarmupChange={setup.setIncludeWarmup}
             onStartWithStandard={setup.startWithStandard}
             onSelectCategory={setup.selectCategory}
           />
