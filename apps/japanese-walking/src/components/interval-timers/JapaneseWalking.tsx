@@ -3,10 +3,10 @@ import { createPortal } from 'react-dom';
 import {
   IntervalTimerLanding,
   IntervalTimerOverlay,
+  IntervalTimerSetupModal,
   useWarmupConfig,
   type WarmupExercise,
 } from '@interval-timers/timer-ui';
-import IntervalTimerSetupModal from './IntervalTimerSetupModal';
 import type { IntervalTimerPage } from '@interval-timers/timer-core';
 import { getProtocolAccent } from '@interval-timers/timer-core';
 import type { HIITTimelineBlock } from '@interval-timers/types';

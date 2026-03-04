@@ -21,7 +21,9 @@ interface EmomIntervalProps {
   onNavigateToLanding?: () => void;
 }
 
-type TimerState = 'idle' | 'setup' | 'working' | 'resting' | 'finished';
+type TimerState = 'idle' | 'warmup' | 'setup' | 'working' | 'resting' | 'finished';
+
+const WARMUP_DURATION_SECONDS = 10;
 type MetricType = 'work_capacity' | 'fatigue_rate';
 type SimMode = 'fast' | 'slow';
 
@@ -284,13 +286,14 @@ const EmomInterval: React.FC<EmomIntervalProps> = ({ onNavigate, onNavigateToLan
     setTotalCycles(cycles);
     setIsDurationSelectOpen(false);
     setIsTimerOpen(true);
-    setTimerState('setup');
-    setTimeLeft(SETUP_DURATION_SECONDS);
+    setTimerState('warmup');
+    setTimeLeft(WARMUP_DURATION_SECONDS);
     setCycleCount(1);
     setSecondsInMinute(0);
     setTaskFinishedAt(null);
     setRoundHistory([]);
     setIsPaused(false);
+    playSound('warning');
   };
 
   useEffect(() => {
@@ -316,7 +319,10 @@ const EmomInterval: React.FC<EmomIntervalProps> = ({ onNavigate, onNavigateToLan
   };
 
   const skipToNextPhase = () => {
-    if (timerState === 'setup') {
+    if (timerState === 'warmup') {
+      setTimerState('setup');
+      setTimeLeft(SETUP_DURATION_SECONDS);
+    } else if (timerState === 'setup') {
       setTimerState('working');
       setSecondsInMinute(0);
       playSound('start_round');
@@ -341,7 +347,16 @@ const EmomInterval: React.FC<EmomIntervalProps> = ({ onNavigate, onNavigateToLan
     let interval: number | undefined;
     if (isTimerOpen && !isPaused && timerState !== 'idle' && timerState !== 'finished') {
       interval = window.setInterval(() => {
-        if (timerState === 'setup') {
+        if (timerState === 'warmup') {
+          setTimeLeft((prev) => {
+            if (prev <= 1) {
+              setTimerState('setup');
+              return SETUP_DURATION_SECONDS;
+            }
+            if (prev <= 4) playSound('warning');
+            return prev - 1;
+          });
+        } else if (timerState === 'setup') {
           setTimeLeft((prev) => {
             if (prev <= 1) {
               setTimerState('working');
@@ -379,6 +394,8 @@ const EmomInterval: React.FC<EmomIntervalProps> = ({ onNavigate, onNavigateToLan
 
   const getTimerStyles = () => {
     switch (timerState) {
+      case 'warmup':
+        return { bg: 'bg-slate-800', text: 'Get Ready', sub: 'Protocol Starting' };
       case 'setup':
         return { bg: 'bg-slate-800', text: 'Setup', sub: 'Get into position' };
       case 'working':
@@ -713,7 +730,7 @@ const EmomInterval: React.FC<EmomIntervalProps> = ({ onNavigate, onNavigateToLan
           >
             <div>
               <div className="mb-1 text-[10px] font-bold uppercase tracking-widest opacity-80 md:text-xs">
-                {timerState === 'setup'
+                {timerState === 'warmup' || timerState === 'setup'
                   ? 'Preparation'
                   : timerState === 'finished'
                     ? 'Complete'
@@ -738,7 +755,7 @@ const EmomInterval: React.FC<EmomIntervalProps> = ({ onNavigate, onNavigateToLan
               <div
                 className={`font-mono text-8xl font-bold tabular-nums leading-none tracking-tighter drop-shadow-2xl md:text-[180px] ${timerState === 'working' ? 'text-teal-400' : 'text-white/40'}`}
               >
-                00:{formatTime(timerState === 'setup' ? timeLeft : secondsInMinute)}
+                00:{formatTime(timerState === 'warmup' || timerState === 'setup' ? timeLeft : secondsInMinute)}
               </div>
 
               {timerState === 'working' && (
@@ -794,7 +811,7 @@ const EmomInterval: React.FC<EmomIntervalProps> = ({ onNavigate, onNavigateToLan
               onClick={skipToNextPhase}
               className="w-1/3 rounded-xl px-4 py-3 font-bold text-white/60 hover:text-white md:px-8 md:py-4"
             >
-              {timerState === 'setup' ? 'Skip setup' : 'SKIP'}
+              {timerState === 'warmup' ? 'Skip Warm-up' : timerState === 'setup' ? 'Skip setup' : 'SKIP'}
             </button>
           </div>
         </div>

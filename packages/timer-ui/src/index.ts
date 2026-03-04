@@ -18,3 +18,5 @@ export type { WarmupInstructionsPanelProps } from './WarmupInstructionsPanel';
 export { IntervalTimerAccentContext, useIntervalTimerAccent } from './intervalTimerAccentContext';
 export { useWarmupConfig } from './useWarmupConfig';
 export type { WarmupConfig, WarmupExercise } from './useWarmupConfig';
+export { default as IntervalTimerSetupModal } from './IntervalTimerSetupModal';
+export type { SetupModalStep, IntervalTimerSetupModalProps } from './IntervalTimerSetupModal';
