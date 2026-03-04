@@ -4,7 +4,7 @@
  * transitions, same look for all 11 interval timers.
  */
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import type { HIITTimelineBlock } from '@interval-timers/types';
+import type { HIITTimelineBlock, InstructionStep } from '@interval-timers/types';
 import {
   playReady,
   playBell,
@@ -47,6 +47,8 @@ interface IntervalTimerOverlayProps {
   roundsCurrent?: number;
   /** Override for rounds counter: total rounds. When with roundsCurrent, used instead of timeline length. */
   roundsTotal?: number;
+  /** Optional per-block instructions shown in the sidebar when current block name matches (e.g. Warm-Up Walk script). */
+  customBlockInstructions?: Array<{ blockName: string; steps: InstructionStep[]; title?: string }>;
 }
 
 const DEFAULT_THEME: IntervalTimerOverlayTheme = { workBg: 'bg-red-600' };
@@ -60,6 +62,7 @@ const IntervalTimerOverlay: React.FC<IntervalTimerOverlayProps> = ({
   hideSkipWarmup = false,
   roundsCurrent: roundsCurrentProp,
   roundsTotal: roundsTotalProp,
+  customBlockInstructions,
 }) => {
   const warmupList: WarmupExercise[] =
     warmupExercises ?? WARMUP_EXERCISES.map((e) => ({ name: e.name, detail: e.detail }));
@@ -462,6 +465,24 @@ const IntervalTimerOverlay: React.FC<IntervalTimerOverlayProps> = ({
                   </div>
                 );
               })())}
+            {currentBlock.type !== 'warmup' &&
+              (() => {
+                const custom = customBlockInstructions?.find(
+                  (c) => c.blockName === currentBlock.name
+                );
+                if (!custom?.steps.length) return null;
+                return (
+                  <div className="mt-1 flex min-h-0 flex-1 flex-col">
+                    <ExpandableInstructions
+                      steps={custom.steps}
+                      title={custom.title ?? 'Instructions'}
+                      defaultExpanded={true}
+                      className="min-h-0 flex-1 shrink flex flex-col"
+                      contentClassName="min-h-0 flex-1 overflow-y-auto pt-2"
+                    />
+                  </div>
+                );
+              })()}
           </div>
           <div className="mt-auto flex shrink-0 justify-center border-t border-white/10 pt-4">
             <RoundsCounter

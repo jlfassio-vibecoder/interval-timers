@@ -14,6 +14,8 @@ export interface ExpandableInstructionsProps {
   defaultExpanded?: boolean;
   /** Optional extra class for the wrapper (e.g. flex-1 for sidebar layout). */
   className?: string;
+  /** Optional class for the scrollable content area. When set (e.g. "min-h-0 flex-1 overflow-y-auto"), fills available height instead of using max-h-64. */
+  contentClassName?: string;
 }
 
 const ExpandableInstructions: React.FC<ExpandableInstructionsProps> = ({
@@ -21,10 +23,14 @@ const ExpandableInstructions: React.FC<ExpandableInstructionsProps> = ({
   title = 'Step-by-Step Execution',
   defaultExpanded = false,
   className = '',
+  contentClassName,
 }) => {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
 
   if (steps.length === 0) return null;
+
+  const scrollContentClass =
+    contentClassName ?? 'max-h-64 overflow-y-auto pt-2';
 
   return (
     <div
@@ -45,7 +51,7 @@ const ExpandableInstructions: React.FC<ExpandableInstructionsProps> = ({
         </span>
       </button>
       {isExpanded && (
-        <div className="max-h-64 overflow-y-auto pt-2">
+        <div className={scrollContentClass}>
           <ol className="list-none space-y-3 pl-0">
             {steps.map((step, i) => (
               <li key={i} className="flex gap-2">
