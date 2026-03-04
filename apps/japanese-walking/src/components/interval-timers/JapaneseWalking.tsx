@@ -73,11 +73,28 @@ interface SimContent {
 
 const ACCENT = getProtocolAccent('mindful');
 
+/** Session length presets: label -> number of fast/recovery rounds (each round = 6 min). */
+const SESSION_PRESETS: Record<'30' | '45' | '60' | '90', number> = {
+  '30': 3,
+  '45': 7,
+  '60': 10,
+  '90': 15,
+};
+
+/** Benefit statements for each preset, based on Nose protocol science (VO2 peak +18%, BP -9 mmHg over 5 months). */
+const PRESET_BENEFITS: Record<'30' | '45' | '60' | '90', string> = {
+  '30': 'Fits a busy day. Builds the habit.',
+  '45': 'More time at intensity for VO2 and BP benefit.',
+  '60': 'Strong dose—supports the 5‑month research outcomes.',
+  '90': 'Maximum cumulative benefit for VO2 peak and blood pressure.',
+};
+
 const JapaneseWalking: React.FC<JapaneseWalkingProps> = ({ onNavigate, onNavigateToLanding }) => {
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [isSetupOpen, setIsSetupOpen] = useState(false);
   const [isTimerOpen, setIsTimerOpen] = useState(false);
   const [includeWarmup, setIncludeWarmup] = useState(false);
+  const [sessionPreset, setSessionPreset] = useState<'30' | '45' | '60' | '90'>('30');
   const [frozenWarmup, setFrozenWarmup] = useState<{
     exercises: WarmupExercise[];
     durationPerExercise: number;
@@ -86,6 +103,7 @@ const JapaneseWalking: React.FC<JapaneseWalkingProps> = ({ onNavigate, onNavigat
   const { exercises, durationPerExercise } = useWarmupConfig();
 
   const japaneseWalkingTimeline = useMemo<HIITTimelineBlock[]>(() => {
+    const rounds = SESSION_PRESETS[sessionPreset];
     const blocks: HIITTimelineBlock[] = [];
     if (frozenWarmup) {
       blocks.push(getDefaultWarmupBlock());
@@ -97,7 +115,7 @@ const JapaneseWalking: React.FC<JapaneseWalkingProps> = ({ onNavigate, onNavigat
       name: WARM_UP_WALK_BLOCK_NAME,
       notes: 'Mindful Walking — sync breath and step',
     });
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < rounds; i++) {
       blocks.push({ type: 'work', duration: 180, name: 'Fast Walk', notes: 'RPE 13-14' });
       blocks.push({ type: 'rest', duration: 180, name: 'Recovery Walk', notes: 'Breathe & step' });
     }
@@ -108,7 +126,7 @@ const JapaneseWalking: React.FC<JapaneseWalkingProps> = ({ onNavigate, onNavigat
       notes: 'Return to baseline',
     });
     return blocks;
-  }, [frozenWarmup]);
+  }, [frozenWarmup, sessionPreset]);
 
   const [metric, setMetric] = useState<MetricType>('vo2');
 
@@ -612,6 +630,35 @@ const JapaneseWalking: React.FC<JapaneseWalkingProps> = ({ onNavigate, onNavigat
         protocolContent={
           <div className="space-y-4">
             <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+              <h3 className="mb-1 font-bold text-white">Session length</h3>
+              <p className="mb-3 text-xs text-white/70">
+                Warm-up walk and cooldown are included.
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                {(['30', '45', '60', '90'] as const).map((preset) => {
+                  const benefit = PRESET_BENEFITS[preset];
+                  const selected = sessionPreset === preset;
+                  return (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setSessionPreset(preset)}
+                      className={`rounded-lg border px-3 py-2 text-left text-sm font-medium transition ${
+                        selected
+                          ? 'border-[#ffbf00] bg-[#ffbf00]/20 text-[#ffbf00]'
+                          : 'border-white/10 bg-black/20 text-white/70 hover:border-white/20 hover:text-white'
+                      }`}
+                    >
+                      <span className="font-bold">~{preset} min</span>
+                      <span className="block text-xs opacity-80">
+                        {benefit}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-black/20 p-4">
               <h3 className="mb-1 font-bold text-white">Before you start</h3>
               <p className="mb-3 text-xs text-white/70">
                 Daily Warm-Up prepares joints and muscles. Recommended before high-intensity
@@ -712,7 +759,7 @@ const JapaneseWalking: React.FC<JapaneseWalkingProps> = ({ onNavigate, onNavigat
               <p>
                 After Get Set, a 5-minute Warm-Up Walk introduces Mindful Walking. Then 3 minutes
                 fast (target &gt;70% HR max) followed by 3 minutes slow (target ~40% effort),
-                repeated 5 times. Total session ~38 minutes including warm-up walk and cooldown.
+                repeated 3 times (30 min preset). Total session length varies by preset (~30, ~45, ~60, ~90 min) including warm-up walk and cooldown.
               </p>
               <h4>The Results</h4>
               <p>
