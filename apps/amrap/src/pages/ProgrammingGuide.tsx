@@ -125,6 +125,7 @@ export default function ProgrammingGuide() {
       currentProtocol="amrap"
       standalone
       accentTheme={AMRAP_ACCENT}
+      brandLabel="AI Fitness Guy"
     >
       <div className="mx-auto max-w-5xl space-y-16 pb-24">
         {/* Back link */}

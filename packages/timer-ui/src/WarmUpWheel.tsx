@@ -89,11 +89,11 @@ const WarmUpWheel: React.FC<WarmUpWheelProps> = ({
 
   return (
     <div
-      className="relative w-full max-w-[750px] flex-shrink-0 overflow-hidden"
+      className="relative w-full max-w-[900px] flex-shrink-0 overflow-hidden"
       style={{ height: containerHeight }}
     >
       <div
-        className="flex flex-col items-center transition-transform duration-[600ms] ease-[cubic-bezier(0.33,1,0.68,1)] px-4 sm:px-6"
+        className="flex w-full flex-col items-center transition-transform duration-[600ms] ease-[cubic-bezier(0.33,1,0.68,1)] px-4 sm:px-6"
         style={{
           transform: `translateY(${translateY}px)`,
           marginTop: centerOffset * 0.5,
@@ -109,7 +109,6 @@ const WarmUpWheel: React.FC<WarmUpWheelProps> = ({
               style={{
                 height: itemHeight,
                 opacity: isActive ? 1 : 0.3,
-                transform: isActive ? 'scale(1.1)' : 'scale(0.9)',
               }}
             >
               <div className="flex w-full min-w-0 items-center justify-center px-2 sm:px-3">
@@ -138,7 +137,6 @@ const WarmUpWheel: React.FC<WarmUpWheelProps> = ({
           style={{
             height: itemHeight,
             opacity: activeIndex === exercises.length ? 1 : 0.3,
-            transform: activeIndex === exercises.length ? 'scale(1.1)' : 'scale(0.9)',
           }}
         >
           <h3

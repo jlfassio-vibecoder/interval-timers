@@ -314,6 +314,7 @@ const IntervalTimerOverlay: React.FC<IntervalTimerOverlayProps> = ({
     isWarmupBlock && warmupList.length > 0
       ? Math.min(warmupActiveIndex, warmupList.length - 1)
       : 0;
+  const isWarmupComplete = isWarmupBlock && warmupActiveIndex >= warmupList.length;
 
   const headerImageUrl = useMemo(() => {
     if (!currentBlock) return undefined;
@@ -412,7 +413,7 @@ const IntervalTimerOverlay: React.FC<IntervalTimerOverlayProps> = ({
       >
         <div className="min-w-0 flex-1">
           <div className="text-xs font-bold uppercase opacity-80">{phaseLabel}</div>
-          <h3 className="font-display truncate text-2xl font-bold sm:text-3xl">
+          <h3 className="font-display line-clamp-2 text-2xl font-bold sm:text-3xl">
             {currentBlock.name}
           </h3>
           <p className="truncate text-sm opacity-90">{currentBlock.notes ?? 'Focus on form'}</p>
@@ -428,33 +429,39 @@ const IntervalTimerOverlay: React.FC<IntervalTimerOverlayProps> = ({
       </div>
 
       <div className="flex min-h-0 flex-1 overflow-hidden pl-1 sm:pl-1.5">
-        <aside className="hidden md:flex md:w-[20.84rem] md:min-h-0 md:flex-col md:shrink-0 md:border-r md:border-white/10 md:p-4 md:gap-4">
+        <aside className="hidden md:flex md:w-[20.84rem] md:min-h-0 md:flex-col md:shrink-0 md:p-4 md:gap-4">
           {renderControls('timer-volume')}
           <div className="min-h-0 flex-1 overflow-y-auto">
-            {currentBlock.type === 'warmup' && (() => {
-              const exercise = warmupList[sidebarExerciseIndex];
-              const subtitle = exercise?.subtitle ?? '';
-              const instructionSteps = exercise?.instructionSteps ?? [];
-              const mistakeCorrections = exercise?.mistakeCorrections ?? [];
-              const imageUrl = exercise?.imageUrl;
-              return (
-                <div className="mt-1 flex flex-col gap-1">
-                  {imageUrl && !imageError ? (
-                    <div className="w-full overflow-hidden rounded-lg border border-white/20 aspect-video shrink-0">
-                      <img
-                        src={imageUrl}
-                        alt=""
-                        className="h-full w-full object-cover"
-                        onError={() => setImageError(true)}
-                      />
-                    </div>
-                  ) : null}
-                  <ExerciseSubtitle text={subtitle} className="border-t border-white/10 pt-2" />
-                  <ExpandableInstructions steps={instructionSteps} />
-                  <ExpandableMistakesCorrections rows={mistakeCorrections} />
+            {currentBlock.type === 'warmup' &&
+              (isWarmupComplete ? (
+                <div className="mt-1 flex flex-col items-center justify-center gap-2 py-6 text-center">
+                  <p className="font-display text-lg font-bold text-[#ffbf00]">Warm-up complete</p>
+                  <p className="text-sm text-white/70">You're ready for the main workout.</p>
                 </div>
-              );
-            })()}
+              ) : (() => {
+                const exercise = warmupList[sidebarExerciseIndex];
+                const subtitle = exercise?.subtitle ?? '';
+                const instructionSteps = exercise?.instructionSteps ?? [];
+                const mistakeCorrections = exercise?.mistakeCorrections ?? [];
+                const imageUrl = exercise?.imageUrl;
+                return (
+                  <div className="mt-1 flex flex-col gap-1">
+                    {imageUrl && !imageError ? (
+                      <div className="w-full overflow-hidden rounded-lg border border-white/20 aspect-video shrink-0">
+                        <img
+                          src={imageUrl}
+                          alt=""
+                          className="h-full w-full object-cover"
+                          onError={() => setImageError(true)}
+                        />
+                      </div>
+                    ) : null}
+                    <ExerciseSubtitle text={subtitle} className="border-t border-white/10 pt-2" />
+                    <ExpandableInstructions steps={instructionSteps} />
+                    <ExpandableMistakesCorrections rows={mistakeCorrections} />
+                  </div>
+                );
+              })())}
           </div>
           <div className="mt-auto flex shrink-0 justify-center border-t border-white/10 pt-4">
             <RoundsCounter
@@ -470,7 +477,7 @@ const IntervalTimerOverlay: React.FC<IntervalTimerOverlayProps> = ({
           className={`flex min-h-0 flex-1 flex-col items-center overflow-hidden ${currentBlock.type === 'warmup' ? 'justify-start gap-2 pt-0 sm:gap-3' : 'justify-center gap-6 md:flex-row md:gap-8'}`}
         >
         {currentBlock.type === 'warmup' && (
-          <div className="flex w-full max-w-[750px] min-h-0 shrink-0 justify-center overflow-hidden">
+          <div className="flex w-full max-w-[900px] min-h-0 shrink-0 justify-center overflow-hidden">
             <WarmUpWheel
               elapsedSeconds={currentBlock.duration - timeLeft}
               exercises={warmupList}
@@ -497,7 +504,9 @@ const IntervalTimerOverlay: React.FC<IntervalTimerOverlayProps> = ({
                 Next
               </div>
               <div className="mb-2 text-center text-xl font-bold text-[#ffbf00] sm:text-2xl">
-                {warmupList[sidebarExerciseIndex]?.name ?? 'Exercise'}
+                {isWarmupComplete
+                  ? (nextBlock?.name ?? 'Finish')
+                  : (warmupList[sidebarExerciseIndex]?.name ?? 'Exercise')}
               </div>
               <div
                 className="font-mono font-bold tabular-nums leading-none text-[#ffbf00]"

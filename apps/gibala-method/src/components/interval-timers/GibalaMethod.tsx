@@ -383,12 +383,18 @@ const GibalaMethod: React.FC<GibalaMethodProps> = ({ onNavigate, onNavigateToLan
         onNavigateToLanding={onNavigateToLanding}
         accentTheme={ACCENT}
         standalone={onNavigate == null}
+        brandLabel="AI Fitness Guy"
       >
         {/* HERO */}
         <section className="mx-auto max-w-4xl pt-8 text-center">
           <h1 className="font-display mb-6 text-4xl font-bold leading-tight text-white md:text-6xl">
             The <span className="text-emerald-400">Sustainable</span> Standard
           </h1>
+          <img
+            src={`${import.meta.env.BASE_URL}logo_transparent_500x500.png`}
+            alt="Interval Timers"
+            className="mx-auto mb-10 h-28 w-28 object-contain md:h-36 md:w-36"
+          />
           <p className="mb-10 text-xl leading-relaxed text-white/80">
             The <strong>Gibala Method</strong> (60s Work / 75s Rest). Developed by Dr. Martin
             Gibala, this protocol offers the potent benefits of HIIT without the extreme discomfort

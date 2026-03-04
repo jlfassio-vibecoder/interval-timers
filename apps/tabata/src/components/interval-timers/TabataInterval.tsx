@@ -327,12 +327,18 @@ const TabataInterval: React.FC<TabataTimerProps> = ({ onNavigate }) => {
         onNavigate={onNavigate}
         accentTheme={getProtocolAccent('tabata')}
         standalone={isStandalone}
+        brandLabel="AI Fitness Guy"
       >
         {/* HERO */}
         <section className="mx-auto max-w-4xl pt-8 text-center">
           <h1 className="font-display mb-6 text-4xl font-bold leading-tight text-white md:text-6xl">
             The Original <span className="text-[#ffbf00]">4-Minute</span> Miracle
           </h1>
+          <img
+            src={`${import.meta.env.BASE_URL}logo_transparent_500x500.png`}
+            alt="Interval Timers"
+            className="mx-auto mb-10 h-28 w-28 object-contain md:h-36 md:w-36"
+          />
           <p className="mb-10 text-xl leading-relaxed text-white/80">
             The <strong>Tabata Protocol</strong> (20s Work / 10s Rest). Discovered by Dr. Izumi
             Tabata in 1996. It is the most efficient method to improve both aerobic and anaerobic

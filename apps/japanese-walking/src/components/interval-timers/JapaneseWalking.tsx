@@ -305,6 +305,7 @@ const JapaneseWalking: React.FC<JapaneseWalkingProps> = ({ onNavigate, onNavigat
         onNavigateToLanding={onNavigateToLanding}
         accentTheme={ACCENT}
         standalone={isStandalone}
+        brandLabel="AI Fitness Guy"
       >
         {/* HERO */}
         <section className="mx-auto max-w-4xl pt-8 text-center">
@@ -312,6 +313,11 @@ const JapaneseWalking: React.FC<JapaneseWalkingProps> = ({ onNavigate, onNavigat
             The Synthesis of <span className="text-[#ffbf00]">Power</span> &{' '}
             <span className="text-green-400">Peace</span>
           </h1>
+          <img
+            src={`${import.meta.env.BASE_URL}logo_transparent_500x500.png`}
+            alt="Interval Timers"
+            className="mx-auto mb-10 h-28 w-28 object-contain md:h-36 md:w-36"
+          />
           <p className="mb-10 text-xl leading-relaxed text-white/80">
             Dr. Hiroshi Nose&apos;s <strong>Japanese Walking</strong> protocol alternates 3 minutes
             fast with 3 minutes slow. Use <strong>Mindful Walking</strong> breath during

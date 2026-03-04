@@ -82,6 +82,7 @@ export default function WorkoutExplorer() {
       currentProtocol="amrap"
       standalone
       accentTheme={AMRAP_ACCENT}
+      brandLabel="AI Fitness Guy"
     >
       <div className="mx-auto max-w-7xl space-y-12 px-4 pb-24 sm:px-6 lg:px-8">
         <div className="pt-4">

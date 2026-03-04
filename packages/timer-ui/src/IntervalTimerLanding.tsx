@@ -26,6 +26,8 @@ interface IntervalTimerLandingProps {
   accentTheme?: ProtocolAccentTheme | null;
   /** When true, hide protocol nav and show minimal header (Home | Protocol Name). */
   standalone?: boolean;
+  /** Optional brand line shown below the "Home | Protocol" title in the header (e.g. "AI Fitness Guy"). */
+  brandLabel?: string;
 }
 
 function getPrevProtocol(current: IntervalTimerPage): IntervalTimerPage | null {
@@ -48,6 +50,7 @@ const IntervalTimerLanding: React.FC<IntervalTimerLandingProps> = ({
   children,
   accentTheme = null,
   standalone = false,
+  brandLabel,
 }) => {
   const prev = getPrevProtocol(currentProtocol);
   const next = getNextProtocol(currentProtocol);
@@ -87,11 +90,24 @@ const IntervalTimerLanding: React.FC<IntervalTimerLandingProps> = ({
       <div className="min-h-screen bg-[#0d0500] pb-20 font-sans text-white">
         <nav className="sticky top-0 z-50 border-b border-white/10 bg-[#0d0500]/95 backdrop-blur-md">
           <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center gap-2">
-              {homeElement}{' '}
-              <span className="font-heading text-lg font-bold tracking-wide text-white/80">
-                <span className="text-[#ffbf00]">| {getProtocolLabel(currentProtocol)}</span>
-              </span>
+            <div className="flex flex-col gap-0.5">
+              <div className="flex items-center gap-2">
+                {homeElement}{' '}
+                <span className="font-heading text-lg font-bold tracking-wide text-white/80">
+                  <span className="text-[#ffbf00]">| {getProtocolLabel(currentProtocol)}</span>
+                </span>
+              </div>
+              {brandLabel ? (
+                <span
+                  className="font-display text-xs font-bold uppercase tracking-tight text-[#ffbf00]"
+                  style={{
+                    textShadow:
+                      '0 1px 0 rgba(255,255,255,0.15), 0 -1px 2px rgba(0,0,0,0.4)',
+                  }}
+                >
+                  {brandLabel}
+                </span>
+              ) : null}
             </div>
             {!standalone && (
               <>

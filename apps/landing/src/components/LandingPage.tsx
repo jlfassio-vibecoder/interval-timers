@@ -2,7 +2,7 @@
  * Landing page: hero, value props, protocol grid, footer.
  * All links navigate to canonical standalone timer paths (full page navigation).
  */
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Flame,
   Wind,
@@ -16,9 +16,11 @@ import {
   Gauge,
   TrendingUp,
   Play,
+  List,
 } from 'lucide-react';
 import type { IntervalTimerPage } from '@interval-timers/timer-core';
 import { getPathForProtocol } from '../lib/protocolPaths';
+import TimersDrawer from './TimersDrawer';
 
 const protocols: {
   category: string;
@@ -163,8 +165,53 @@ const protocols: {
 ];
 
 const LandingPage: React.FC = () => {
+  const [timersDrawerOpen, setTimersDrawerOpen] = useState(false);
+  const drawerSections = useMemo(
+    () =>
+      protocols.map((section) => ({
+        category: section.category,
+        items: section.items.map((item) => ({
+          label: item.name,
+          href: getPathForProtocol(item.id),
+        })),
+      })),
+    []
+  );
+
   return (
     <div className="min-h-screen bg-[#0d0500] font-sans text-white">
+      {/* Site header – AI Fitness Guy branding */}
+      <header className="sticky top-0 z-50 border-b border-white/10 bg-[#0d0500]/95 backdrop-blur-sm">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
+          <a
+            href="https://aifitnessguy.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-display text-lg font-bold uppercase tracking-tight text-[#ffbf00] transition-colors hover:text-[#ffcc33]"
+            style={{
+              textShadow:
+                '0 1px 0 rgba(255,255,255,0.15), 0 -1px 2px rgba(0,0,0,0.4)',
+            }}
+          >
+            AI FITNESS GUY
+          </a>
+          <button
+            type="button"
+            onClick={() => setTimersDrawerOpen(true)}
+            className="flex items-center gap-2 rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm font-bold text-white transition-colors hover:bg-white/10 hover:text-[#ffbf00]"
+          >
+            <List size={18} />
+            All Timers
+          </button>
+        </div>
+      </header>
+
+      <TimersDrawer
+        open={timersDrawerOpen}
+        onClose={() => setTimersDrawerOpen(false)}
+        sections={drawerSections}
+      />
+
       {/* Hero */}
       <header className="relative overflow-hidden border-b border-white/10">
         <div className="absolute inset-0 opacity-10">
@@ -182,6 +229,11 @@ const LandingPage: React.FC = () => {
               Energy System
             </span>
           </h1>
+          <img
+            src="/logo_transparent_500x500.png"
+            alt="Interval Timers"
+            className="mx-auto mb-10 h-32 w-32 object-contain md:h-40 md:w-40"
+          />
           <p className="mx-auto mb-10 max-w-2xl text-lg leading-relaxed text-white/70 md:text-xl">
             Stop guessing. Train with scientifically validated interval protocols designed to target
             specific physiological adaptations—from neural drive to mitochondrial density.

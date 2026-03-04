@@ -309,12 +309,18 @@ const LactateInterval: React.FC<LactateIntervalProps> = ({ onNavigate, onNavigat
         onNavigateToLanding={onNavigateToLanding}
         accentTheme={ACCENT}
         standalone={onNavigate == null}
+        brandLabel="AI Fitness Guy"
       >
         {/* HERO */}
         <section className="mx-auto max-w-4xl pt-8 text-center">
           <h1 className="font-display mb-6 text-4xl font-bold leading-tight text-white md:text-6xl">
             Conditioning <span className="text-amber-400">Grit</span>
           </h1>
+          <img
+            src={`${import.meta.env.BASE_URL}logo_transparent_500x500.png`}
+            alt="Interval Timers"
+            className="mx-auto mb-10 h-28 w-28 object-contain md:h-36 md:w-36"
+          />
           <p className="mb-10 text-xl leading-relaxed text-white/80">
             The <strong>2:1 Work-to-Rest Ratio</strong> (40s Work / 20s Rest). This protocol is
             designed to flood the muscles with lactate, forcing the body to become efficient at

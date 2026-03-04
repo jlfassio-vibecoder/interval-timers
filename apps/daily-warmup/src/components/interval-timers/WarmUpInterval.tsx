@@ -68,12 +68,18 @@ const WarmUpInterval: React.FC<WarmUpIntervalProps> = ({ onNavigate }) => {
         onNavigate={onNavigate}
         accentTheme={WARMUP_ACCENT}
         standalone
+        brandLabel="AI Fitness Guy"
       >
         {/* Hero */}
         <section className="mx-auto max-w-4xl pt-8 text-center">
           <h1 className="font-display mb-6 text-4xl font-bold leading-tight text-white md:text-6xl">
             Daily <span className="text-[#ffbf00]">Warm-Up</span>
           </h1>
+          <img
+            src={`${import.meta.env.BASE_URL}logo_transparent_500x500.png`}
+            alt="Interval Timers"
+            className="mx-auto mb-10 h-28 w-28 object-contain md:h-36 md:w-36"
+          />
           <p className="mb-10 text-xl leading-relaxed text-white/80">
             Joint mobility and activation. A simple 15-minute routine to prepare your body for
             movement—or to do as a stand-alone daily habit.

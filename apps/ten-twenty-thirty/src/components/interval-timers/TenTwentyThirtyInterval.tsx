@@ -243,12 +243,18 @@ const TenTwentyThirtyInterval: React.FC<TenTwentyThirtyIntervalProps> = ({
         onNavigateToLanding={onNavigateToLanding}
         accentTheme={ACCENT}
         standalone={onNavigate == null}
+        brandLabel="AI Fitness Guy"
       >
         {/* HERO */}
         <section className="mx-auto max-w-4xl pt-8 text-center">
           <h1 className="font-display mb-6 text-4xl font-bold leading-tight text-white md:text-6xl">
             The <span className="text-cyan-400">Copenhagen</span> Method
           </h1>
+          <img
+            src={`${import.meta.env.BASE_URL}logo_transparent_500x500.png`}
+            alt="Interval Timers"
+            className="mx-auto mb-10 h-28 w-28 object-contain md:h-36 md:w-36"
+          />
           <p className="mb-10 text-xl leading-relaxed text-white/80">
             <strong>10-20-30</strong>. The protocol that replaced &quot;30-30-30&quot; for runners
             and cyclists. 30s low, 20s moderate, 10s fast. Repeat for 5 minutes. The key discovery?
