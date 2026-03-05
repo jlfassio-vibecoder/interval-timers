@@ -167,14 +167,19 @@ const protocols: {
 const LandingPage: React.FC = () => {
   const [timersDrawerOpen, setTimersDrawerOpen] = useState(false);
   const drawerSections = useMemo(
-    () =>
-      protocols.map((section) => ({
+    () => [
+      ...protocols.map((section) => ({
         category: section.category,
         items: section.items.map((item) => ({
           label: item.name,
           href: getPathForProtocol(item.id),
         })),
       })),
+      {
+        category: 'Resources',
+        items: [{ label: 'Bio-Sync60', href: '/bio-sync60' }],
+      },
+    ],
     []
   );
 
@@ -195,14 +200,25 @@ const LandingPage: React.FC = () => {
           >
             AI FITNESS GUY
           </a>
-          <button
-            type="button"
-            onClick={() => setTimersDrawerOpen(true)}
-            className="flex items-center gap-2 rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm font-bold text-white transition-colors hover:bg-white/10 hover:text-[#ffbf00]"
-          >
-            <List size={18} />
-            All Timers
-          </button>
+          <div className="flex items-center gap-2">
+            <a
+              href="/bio-sync60"
+              className="flex items-center gap-2 rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm font-bold transition-colors hover:bg-white/10 hover:border-white/30"
+            >
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#E06C3E]" aria-hidden />
+              <span>
+                <span className="text-sky-300">Bio-</span><span className="text-amber-200/90">Sync60</span>
+              </span>
+            </a>
+            <button
+              type="button"
+              onClick={() => setTimersDrawerOpen(true)}
+              className="flex items-center gap-2 rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm font-bold text-white transition-colors hover:bg-white/10 hover:text-[#ffbf00]"
+            >
+              <List size={18} />
+              All Timers
+            </button>
+          </div>
         </div>
       </header>
 
