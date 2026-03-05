@@ -9,8 +9,42 @@ import {
 } from '@interval-timers/timer-ui';
 import type { IntervalTimerPage } from '@interval-timers/timer-core';
 import { getProtocolAccent } from '@interval-timers/timer-core';
-import type { HIITTimelineBlock } from '@interval-timers/types';
-import { getDefaultWarmupBlock, getSetupBlock } from '@interval-timers/timer-core';
+import type { HIITTimelineBlock, InstructionStep } from '@interval-timers/types';
+import {
+  getDefaultWarmupBlock,
+  getSetupBlock,
+  SETUP_DURATION_SECONDS,
+} from '@interval-timers/timer-core';
+
+/** Block name for the 5-minute warm-up walk (used to show Mindful Walking script in overlay). */
+const WARM_UP_WALK_BLOCK_NAME = 'Warm-Up Walk';
+
+/** Block name for each 3-minute recovery interval (same script as warm-up in overlay). */
+const RECOVERY_WALK_BLOCK_NAME = 'Recovery Walk';
+
+/** Script explaining Mindful Walking for the Warm-Up Walk and Recovery intervals. */
+const MINDFUL_WALKING_SCRIPT: InstructionStep[] = [
+  {
+    title: 'Arrive in the body',
+    body: 'Feel your feet on the ground. Notice the contact of each step—heel, sole, toes. You are here; the walk is the practice.',
+  },
+  {
+    title: 'Sync breath and step',
+    body: 'Match breath to your steps. The ratio depends on pace, fitness, and age: many use 3–4 steps inhale and 3–6 steps exhale. A longer exhale (e.g. 4 in, 6 out) at slow pace is common and supports recovery. Find a rhythm that feels natural—no single pattern fits everyone.',
+  },
+  {
+    title: 'Soften the body',
+    body: 'Release tension in the shoulders and jaw. Let your arms swing naturally. Keep the gaze relaxed, not fixed.',
+  },
+  {
+    title: 'I have arrived, I am home',
+    body: "Thich Nhat Hanh's phrase: with each step you can say silently 'I have arrived' on one foot and 'I am home' on the next. No need to rush to the next interval—this is the practice.",
+  },
+  {
+    title: 'Use this in Recovery',
+    body: 'During each 3-minute Recovery Walk, return to breath-step sync and relaxed posture. At recovery pace you may prefer a longer exhale (e.g. 4 steps in, 6 out). It prepares you for the next Fast Walk.',
+  },
+];
 import {
   BarChart,
   Bar,
@@ -46,11 +80,45 @@ interface SimContent {
 
 const ACCENT = getProtocolAccent('mindful');
 
+// Timing constants (seconds) used to approximate total session duration per preset.
+const WARM_UP_WALK_SECONDS = 300;
+const ROUND_SECONDS = 360;
+const COOLDOWN_SECONDS = 120;
+
+/**
+ * Compute the number of fast/recovery rounds needed to approximate a target
+ * total session length (in minutes), given fixed setup, warm-up walk, and cooldown.
+ */
+function computeRoundsForMinutes(minutes: number): number {
+  const targetSeconds = minutes * 60;
+  const fixedOverhead =
+    SETUP_DURATION_SECONDS + WARM_UP_WALK_SECONDS + COOLDOWN_SECONDS;
+  const rawRounds = (targetSeconds - fixedOverhead) / ROUND_SECONDS;
+  return Math.max(1, Math.round(rawRounds));
+}
+
+/** Session length presets: label -> number of fast/recovery rounds (each round = 6 min). */
+const SESSION_PRESETS: Record<'30' | '45' | '60' | '90', number> = {
+  '30': computeRoundsForMinutes(30),
+  '45': computeRoundsForMinutes(45),
+  '60': computeRoundsForMinutes(60),
+  '90': computeRoundsForMinutes(90),
+};
+
+/** Benefit statements for each preset, based on Nose protocol science (VO2 peak +18%, BP -9 mmHg over 5 months). */
+const PRESET_BENEFITS: Record<'30' | '45' | '60' | '90', string> = {
+  '30': 'Fits a busy day. Builds the habit.',
+  '45': 'More time at intensity for VO2 and BP benefit.',
+  '60': 'Strong dose—supports the 5‑month research outcomes.',
+  '90': 'Maximum cumulative benefit for VO2 peak and blood pressure.',
+};
+
 const JapaneseWalking: React.FC<JapaneseWalkingProps> = ({ onNavigate, onNavigateToLanding }) => {
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [isSetupOpen, setIsSetupOpen] = useState(false);
   const [isTimerOpen, setIsTimerOpen] = useState(false);
   const [includeWarmup, setIncludeWarmup] = useState(false);
+  const [sessionPreset, setSessionPreset] = useState<'30' | '45' | '60' | '90'>('30');
   const [frozenWarmup, setFrozenWarmup] = useState<{
     exercises: WarmupExercise[];
     durationPerExercise: number;
@@ -59,14 +127,26 @@ const JapaneseWalking: React.FC<JapaneseWalkingProps> = ({ onNavigate, onNavigat
   const { exercises, durationPerExercise } = useWarmupConfig();
 
   const japaneseWalkingTimeline = useMemo<HIITTimelineBlock[]>(() => {
+    const rounds = SESSION_PRESETS[sessionPreset];
     const blocks: HIITTimelineBlock[] = [];
     if (frozenWarmup) {
       blocks.push(getDefaultWarmupBlock());
     }
     blocks.push(getSetupBlock());
-    for (let i = 0; i < 5; i++) {
+    blocks.push({
+      type: 'work',
+      duration: 300,
+      name: WARM_UP_WALK_BLOCK_NAME,
+      notes: 'Mindful Walking — sync breath and step',
+    });
+    for (let i = 0; i < rounds; i++) {
       blocks.push({ type: 'work', duration: 180, name: 'Fast Walk', notes: 'RPE 13-14' });
-      blocks.push({ type: 'rest', duration: 180, name: 'Recovery Walk', notes: 'Breathe & step' });
+      blocks.push({
+        type: 'rest',
+        duration: 180,
+        name: RECOVERY_WALK_BLOCK_NAME,
+        notes: 'Breathe & step',
+      });
     }
     blocks.push({
       type: 'cooldown',
@@ -75,7 +155,7 @@ const JapaneseWalking: React.FC<JapaneseWalkingProps> = ({ onNavigate, onNavigat
       notes: 'Return to baseline',
     });
     return blocks;
-  }, [frozenWarmup]);
+  }, [frozenWarmup, sessionPreset]);
 
   const [metric, setMetric] = useState<MetricType>('vo2');
 
@@ -128,9 +208,9 @@ const JapaneseWalking: React.FC<JapaneseWalkingProps> = ({ onNavigate, onNavigat
       bgColor: 'bg-green-700',
       borderColor: 'border-green-200',
       phase: 'Recovery Phase',
-      status: 'Recovery Walk (3 Mins)',
+      status: `${RECOVERY_WALK_BLOCK_NAME} (3 Mins)`,
       instruction:
-        'Transition to 40% effort. Do not stop. Use Mindful Walking: synchronize breath and step. Inhale for 3 steps, exhale for 3 steps. Release shoulder tension.',
+        'Transition to 40% effort. Do not stop. Use Mindful Walking: sync breath and step (e.g. 3–4 in, 3–6 out; find your rhythm). Release shoulder tension.',
       quote: '"I have arrived. I am home."',
       icon: '🧘',
     },
@@ -331,15 +411,25 @@ const JapaneseWalking: React.FC<JapaneseWalkingProps> = ({ onNavigate, onNavigat
             recovery—inhale and exhale in sync with your steps—to ground the mind while training the
             heart.
           </p>
-          <div className="flex justify-center gap-4">
+          <div className="inline-grid w-max max-w-full grid-cols-1 gap-4 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => {
+                setIncludeWarmup(false);
+                setIsSetupOpen(true);
+              }}
+              className="min-w-0 rounded-xl bg-[#ffbf00] px-8 py-3.5 font-bold text-black shadow-lg transition-transform hover:-translate-y-1"
+            >
+              Launch Japanese Walking Timer
+            </button>
             <button
               type="button"
               onClick={() =>
                 document.getElementById('simulator')?.scrollIntoView({ behavior: 'smooth' })
               }
-              className="rounded-xl bg-[#ffbf00] px-8 py-3 font-bold text-black shadow-lg transition-transform hover:-translate-y-1"
+              className="min-w-0 rounded-xl bg-[#ffbf00] px-8 py-3.5 font-bold text-black shadow-lg transition-transform hover:-translate-y-1"
             >
-              Experience Protocol
+              Learn More
             </button>
           </div>
         </section>
@@ -522,19 +612,6 @@ const JapaneseWalking: React.FC<JapaneseWalkingProps> = ({ onNavigate, onNavigat
             </div>
           </div>
 
-          <div className="pt-8 text-center">
-            <button
-              type="button"
-              onClick={() => {
-                setIncludeWarmup(false);
-                setIsSetupOpen(true);
-              }}
-              className="mx-auto flex items-center gap-3 rounded-full bg-[#ffbf00] px-8 py-4 font-bold text-black shadow-2xl transition-all hover:scale-105"
-            >
-              <span>⏱️</span>
-              <span>Launch Japanese Walking Timer</span>
-            </button>
-          </div>
         </section>
 
         {/* SECTION 3: VISUALIZER */}
@@ -581,6 +658,35 @@ const JapaneseWalking: React.FC<JapaneseWalkingProps> = ({ onNavigate, onNavigat
         onBack={() => {}}
         protocolContent={
           <div className="space-y-4">
+            <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+              <h3 className="mb-1 font-bold text-white">Session length</h3>
+              <p className="mb-3 text-xs text-white/70">
+                Warm-up walk and cooldown are included.
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                {(['30', '45', '60', '90'] as const).map((preset) => {
+                  const benefit = PRESET_BENEFITS[preset];
+                  const selected = sessionPreset === preset;
+                  return (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setSessionPreset(preset)}
+                      className={`rounded-lg border px-3 py-2 text-left text-sm font-medium transition ${
+                        selected
+                          ? 'border-[#ffbf00] bg-[#ffbf00]/20 text-[#ffbf00]'
+                          : 'border-white/10 bg-black/20 text-white/70 hover:border-white/20 hover:text-white'
+                      }`}
+                    >
+                      <span className="font-bold">~{preset} min</span>
+                      <span className="block text-xs opacity-80">
+                        {benefit}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
             <div className="rounded-xl border border-white/10 bg-black/20 p-4">
               <h3 className="mb-1 font-bold text-white">Before you start</h3>
               <p className="mb-3 text-xs text-white/70">
@@ -640,6 +746,18 @@ const JapaneseWalking: React.FC<JapaneseWalkingProps> = ({ onNavigate, onNavigat
             theme={{ workBg: ACCENT.workBg }}
             warmupExercises={frozenWarmup?.exercises}
             warmupDurationPerExercise={frozenWarmup?.durationPerExercise}
+            customBlockInstructions={[
+              {
+                blockName: WARM_UP_WALK_BLOCK_NAME,
+                steps: MINDFUL_WALKING_SCRIPT,
+                title: 'Mindful Walking',
+              },
+              {
+                blockName: RECOVERY_WALK_BLOCK_NAME,
+                steps: MINDFUL_WALKING_SCRIPT,
+                title: 'Mindful Walking',
+              },
+            ]}
           />,
           document.body
         )}
@@ -673,19 +791,22 @@ const JapaneseWalking: React.FC<JapaneseWalkingProps> = ({ onNavigate, onNavigat
               </p>
               <h4>The Protocol</h4>
               <p>
-                3 minutes fast (target &gt;70% HR max) followed by 3 minutes slow (target ~40%
-                effort), repeated 5 times. Total session ~33 minutes including warmup and cooldown.
+                After Get Set, a 5-minute Warm-Up Walk introduces Mindful Walking. Then 3 minutes
+                fast (target &gt;70% HR max) followed by 3 minutes slow (target ~40% effort),
+                repeated 3 times (30 min preset). Total session length varies by preset (~30, ~45, ~60, ~90 min) including warm-up walk and cooldown.
               </p>
               <h4>The Results</h4>
               <p>
                 Five months of interval walking increased VO2 peak by ~18% and reduced blood
                 pressure by ~9 mmHg compared to steady-state walking control groups.
               </p>
-              <h4>Mindful Walking (Recovery)</h4>
+              <h4>Mindful Walking (Warm-Up &amp; Recovery)</h4>
               <p>
-                During the slow phase, apply Thich Nhat Hanh&apos;s Mindful Walking: match your
-                breath to your steps. Inhale for 3 steps, exhale for 3 steps. This keeps you present
-                and supports recovery between high-intensity efforts.
+                The 5-minute Warm-Up Walk and each 3-minute Recovery use Thich Nhat Hanh&apos;s
+                Mindful Walking: match your breath to your steps. The ratio varies with pace,
+                fitness, and age—e.g. 3–4 steps inhale, 3–6 exhale (a longer exhale at slow pace is
+                common). Find what feels natural. Feel your feet, release tension. &quot;I have arrived.
+                I am home.&quot; This keeps you present and supports recovery between fast intervals.
               </p>
             </div>
           </div>
