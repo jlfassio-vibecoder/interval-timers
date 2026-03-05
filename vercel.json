@@ -42,6 +42,9 @@
     { "source": "/aerobic-timer", "destination": "/aerobic-timer/index.html" },
     { "source": "/aerobic-timer/", "destination": "/aerobic-timer/index.html" },
     { "source": "/aerobic-timer/(.*)", "destination": "/aerobic-timer/$1" },
+    { "source": "/bio-sync60", "destination": "/bio-sync-sixty/index.html" },
+    { "source": "/bio-sync60/", "destination": "/bio-sync-sixty/index.html" },
+    { "source": "/bio-sync60/(.*)", "destination": "/bio-sync-sixty/$1" },
     { "source": "/:path*", "destination": "/index.html" }
   ],
   "redirects": [
@@ -62,6 +65,8 @@
     { "source": "/wingate-test", "destination": "/wingate", "permanent": true },
     { "source": "/wingate-test/:path*", "destination": "/wingate", "permanent": true },
     { "source": "/timmons-protocol", "destination": "/timmons", "permanent": true },
-    { "source": "/timmons-protocol/:path*", "destination": "/timmons", "permanent": true }
+    { "source": "/timmons-protocol/:path*", "destination": "/timmons", "permanent": true },
+    { "source": "/bio-sync-sixty", "destination": "/bio-sync60", "permanent": true },
+    { "source": "/bio-sync-sixty/:path*", "destination": "/bio-sync60/:path*", "permanent": true }
   ]
 }

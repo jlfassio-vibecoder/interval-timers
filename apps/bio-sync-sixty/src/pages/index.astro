@@ -1,0 +1,19 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Hero from '../components/Hero';
+import ScienceSection from '../components/ScienceSection';
+import ProtocolSection from '../components/ProtocolSection';
+import ProgressionSection from '../components/ProgressionSection';
+import TrendsSection from '../components/TrendsSection';
+---
+<Layout>
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+    <div class="space-y-24 animate-in fade-in duration-500">
+      <Hero />
+      <ScienceSection client:only="react" />
+      <ProtocolSection client:load />
+      <ProgressionSection client:load />
+      <TrendsSection />
+    </div>
+  </main>
+</Layout>

@@ -404,6 +404,10 @@ const JapaneseWalking: React.FC<JapaneseWalkingProps> = ({ onNavigate, onNavigat
             src={`${import.meta.env.BASE_URL}logo_transparent_500x500.png`}
             alt="Interval Timers"
             className="mx-auto mb-10 h-28 w-28 object-contain md:h-36 md:w-36"
+            style={{
+              filter:
+                'drop-shadow(0 0 40px rgba(224,108,62,0.455)) drop-shadow(0 0 70px rgba(224,108,62,0.26))',
+            }}
           />
           <p className="mb-10 text-xl leading-relaxed text-white/80">
             Dr. Hiroshi Nose&apos;s <strong>Japanese Walking</strong> protocol alternates 3 minutes

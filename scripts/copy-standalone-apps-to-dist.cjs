@@ -22,6 +22,7 @@ const copies = [
   { src: 'timmons', dest: 'timmons' },
   { src: 'emom', dest: 'emom-timer' },
   { src: 'ten-twenty-thirty', dest: '10-20-30' },
+  { src: 'bio-sync-sixty', dest: 'bio-sync-sixty' },
 ];
 
 for (const { src, dest } of copies) {
