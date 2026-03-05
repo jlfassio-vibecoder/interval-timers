@@ -13,5 +13,4 @@ From the repo root:
 From this directory:
 
 1. `npm install`
-2. Optionally set `GEMINI_API_KEY` in `.env.local` if needed.
-3. `npm run dev`
+2. `npm run dev`

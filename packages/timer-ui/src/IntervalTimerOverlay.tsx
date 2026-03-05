@@ -240,7 +240,7 @@ const IntervalTimerOverlay: React.FC<IntervalTimerOverlayProps> = ({
     timeLeft,
     handlePhaseTransition,
     warmupDuration,
-    warmupList.length,
+    warmupList,
     isTransitioningToNext,
   ]);
 
@@ -292,7 +292,6 @@ const IntervalTimerOverlay: React.FC<IntervalTimerOverlayProps> = ({
     timeLeft,
     warmupDuration,
     warmupList,
-    warmupList.length,
   ]);
 
   // Transition countdown timer (5s or 10s "Next" pause between warmup exercises)

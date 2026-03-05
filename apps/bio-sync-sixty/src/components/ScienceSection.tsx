@@ -8,7 +8,7 @@ const ScienceSection: React.FC = () => {
     <section id="science" className="scroll-mt-24">
       <div className="border-l-4 border-sync-orange pl-6 mb-10">
         <h2 className="text-3xl font-display font-bold text-sync-blue">The Science of Sync</h2>
-        <p className="text-gray-500 mt-2">Why legacy "intensity" fails and biological precision and environmental synchronization wins.</p>
+        <p className="text-gray-500 mt-2">Why legacy "intensity" fails and biological precision and environmental synchronization win.</p>
       </div>
 
       <div className="space-y-10">

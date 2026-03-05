@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { format, parse, addHours, addMinutes, isAfter, isBefore, differenceInMinutes, startOfDay } from 'date-fns';
-import { MapPin, Sun, Moon, Clock, Search, Navigation, AlertCircle, Info, Sunrise, Sunset, Utensils } from 'lucide-react';
+import { addHours, addMinutes, isAfter, isBefore, differenceInMinutes } from 'date-fns';
+import { fromZonedTime, toZonedTime, formatInTimeZone } from 'date-fns-tz';
+import { MapPin, Sun, Clock, Search, Navigation, AlertCircle, Info, Sunrise, Sunset, Utensils } from 'lucide-react';
 import { motion } from 'motion/react';
 import { cn } from './lib/utils';
 
@@ -8,6 +9,8 @@ interface LocationData {
   name: string;
   lat: number;
   lng: number;
+  /** IANA timezone (e.g. America/New_York). From Open-Meteo when searching; when missing we use browser timezone so feeding window aligns with location. */
+  timezone?: string;
 }
 
 interface SunData {
@@ -44,6 +47,7 @@ export default function App() {
     setIsLoadingSun(true);
     setError(null);
     try {
+      // API returns UTC times; we interpret wake/bed and display in location timezone (or browser tz when unknown).
       const res = await fetch(`https://api.sunrise-sunset.org/json?lat=${lat}&lng=${lng}&formatted=0`);
       const data = await res.json();
       if (data.status === 'OK') {
@@ -90,6 +94,7 @@ export default function App() {
       name: `${result.name}, ${result.admin1 || result.country}`,
       lat: result.latitude,
       lng: result.longitude,
+      timezone: result.timezone, // Open-Meteo returns IANA timezone so feeding window aligns with selected location
     });
     setSearchResults([]);
     setSearchQuery('');
@@ -113,11 +118,9 @@ export default function App() {
         const { latitude, longitude } = position.coords;
         try {
           const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`;
+          // User-Agent cannot be set from client fetch (forbidden header); browser sends its own.
           const res = await fetch(url, {
-            headers: {
-              'Accept': 'application/json',
-              'User-Agent': 'BioSync60-MasterClock/1.0 (https://github.com/interval-timers)',
-            },
+            headers: { 'Accept': 'application/json' },
           });
           const data = res.ok ? await res.json() : null;
           const addr = data?.address;
@@ -149,11 +152,15 @@ export default function App() {
                 ? 'Location request timed out. Try again.'
                 : 'Unable to retrieve your location. Use HTTPS or localhost and check permissions.';
         setError(message);
-      }
+      },
+      opts
     );
   };
 
-  // Calculate feeding window
+  // Effective timezone: use location's so feeding window aligns with selected place; fallback to browser when unknown (e.g. current location).
+  const tz = location?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+  // Calculate feeding window (sun data is UTC; wake/bed interpreted in location timezone)
   let feedingStart: Date | null = null;
   let feedingEnd: Date | null = null;
   let wakeDate: Date | null = null;
@@ -162,16 +169,19 @@ export default function App() {
   let isOptimal = false;
 
   if (sunData && wakeTime && bedTime) {
-    const today = startOfDay(new Date());
-    wakeDate = parse(wakeTime, 'HH:mm', today);
-    bedDate = parse(bedTime, 'HH:mm', today);
-    
-    // If bed time is before wake time, assume it's the next day
+    const zonedNow = toZonedTime(new Date(), tz);
+    const [wakeH, wakeM] = wakeTime.split(':').map(Number);
+    const [bedH, bedM] = bedTime.split(':').map(Number);
+    const y = zonedNow.getFullYear();
+    const mo = zonedNow.getMonth();
+    const d = zonedNow.getDate();
+    wakeDate = fromZonedTime(new Date(y, mo, d, wakeH, wakeM), tz);
+    bedDate = fromZonedTime(new Date(y, mo, d, bedH, bedM), tz);
+
     if (isBefore(bedDate, wakeDate)) {
       bedDate = addHours(bedDate, 24);
     }
 
-    // Optimal start is sunrise or wake time + hunger delay, whichever is later
     const metabolicReadyTime = addMinutes(wakeDate, hungerDelay);
     feedingStart = isAfter(metabolicReadyTime, sunData.sunrise) ? metabolicReadyTime : sunData.sunrise;
     feedingEnd = addHours(feedingStart, feedingDuration);
@@ -307,7 +317,7 @@ export default function App() {
                     <Sun className="w-4 h-4" /> Civil Daylight
                   </h2>
                   <span className="text-[10px] text-zinc-500 font-mono uppercase tracking-widest">
-                    {format(new Date(), 'MMM d, yyyy')}
+                    {formatInTimeZone(new Date(), tz, 'MMM d, yyyy')}
                   </span>
                 </div>
                 
@@ -316,7 +326,7 @@ export default function App() {
                     <div className="w-12 h-12 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mx-auto mb-3">
                       <Sunrise className="w-6 h-6 text-amber-400" />
                     </div>
-                    <p className="text-2xl font-light text-white">{format(sunData.civilSunrise, 'h:mm')}</p>
+                    <p className="text-2xl font-light text-white">{formatInTimeZone(sunData.civilSunrise, tz, 'h:mm')}</p>
                     <p className="text-xs text-zinc-500 font-medium uppercase tracking-wider mt-1">Sunrise</p>
                   </div>
                   
@@ -344,7 +354,7 @@ export default function App() {
                     <div className="w-12 h-12 rounded-full bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center mx-auto mb-3">
                       <Sunset className="w-6 h-6 text-indigo-400" />
                     </div>
-                    <p className="text-2xl font-light text-white">{format(sunData.civilSunset, 'h:mm')}</p>
+                    <p className="text-2xl font-light text-white">{formatInTimeZone(sunData.civilSunset, tz, 'h:mm')}</p>
                     <p className="text-xs text-zinc-500 font-medium uppercase tracking-wider mt-1">Sunset</p>
                   </div>
                 </div>
@@ -485,13 +495,13 @@ export default function App() {
                     <div className="bg-black/20 rounded-2xl p-5 border border-white/5">
                       <p className="text-xs text-zinc-500 font-medium uppercase tracking-wider mb-1">Start Fast-Break</p>
                       <p className="text-3xl sm:text-4xl font-light text-white">
-                        {format(feedingStart, 'h:mm')} <span className="text-lg text-zinc-500">{format(feedingStart, 'a')}</span>
+                        {formatInTimeZone(feedingStart, tz, 'h:mm')} <span className="text-lg text-zinc-500">{formatInTimeZone(feedingStart, tz, 'a')}</span>
                       </p>
                     </div>
                     <div className="bg-black/20 rounded-2xl p-5 border border-white/5">
                       <p className="text-xs text-zinc-500 font-medium uppercase tracking-wider mb-1">Start Fasting</p>
                       <p className="text-3xl sm:text-4xl font-light text-emerald-400">
-                        {format(feedingEnd, 'h:mm')} <span className="text-lg text-emerald-400/50">{format(feedingEnd, 'a')}</span>
+                        {formatInTimeZone(feedingEnd, tz, 'h:mm')} <span className="text-lg text-emerald-400/50">{formatInTimeZone(feedingEnd, tz, 'a')}</span>
                       </p>
                     </div>
                   </div>
@@ -510,12 +520,12 @@ export default function App() {
                     {/* The Bar */}
                     <div className="h-12 bg-black/40 rounded-xl relative overflow-hidden border border-white/5">
                       
-                      {/* Daylight overlay */}
+                      {/* Daylight overlay (positions in location local time) */}
                       <div 
                         className="absolute top-0 bottom-0 bg-amber-500/20 border-x border-amber-500/30"
                         style={{
-                          left: `${(sunData.sunrise.getHours() + sunData.sunrise.getMinutes()/60) / 24 * 100}%`,
-                          right: `${100 - (sunData.sunset.getHours() + sunData.sunset.getMinutes()/60) / 24 * 100}%`
+                          left: `${(toZonedTime(sunData.sunrise, tz).getHours() + toZonedTime(sunData.sunrise, tz).getMinutes()/60) / 24 * 100}%`,
+                          right: `${100 - (toZonedTime(sunData.sunset, tz).getHours() + toZonedTime(sunData.sunset, tz).getMinutes()/60) / 24 * 100}%`
                         }}
                       />
                       
@@ -523,7 +533,7 @@ export default function App() {
                       <div 
                         className="absolute top-1 bottom-1 bg-emerald-500/20 border border-emerald-500/50 rounded-lg shadow-[0_0_15px_rgba(16,185,129,0.2)]"
                         style={{
-                          left: `${(feedingStart.getHours() + feedingStart.getMinutes()/60) / 24 * 100}%`,
+                          left: `${(toZonedTime(feedingStart, tz).getHours() + toZonedTime(feedingStart, tz).getMinutes()/60) / 24 * 100}%`,
                           width: `${feedingDuration / 24 * 100}%`
                         }}
                       />
@@ -532,7 +542,7 @@ export default function App() {
                       {wakeDate && (
                         <div 
                           className="absolute top-0 bottom-0 w-px bg-blue-400 z-10"
-                          style={{ left: `${(wakeDate.getHours() + wakeDate.getMinutes()/60) / 24 * 100}%` }}
+                          style={{ left: `${(toZonedTime(wakeDate, tz).getHours() + toZonedTime(wakeDate, tz).getMinutes()/60) / 24 * 100}%` }}
                         >
                           <div className="absolute -top-6 -translate-x-1/2 text-[10px] text-blue-400 font-medium bg-[#171717] px-1 rounded">Wake</div>
                         </div>
@@ -542,7 +552,7 @@ export default function App() {
                       {bedDate && (
                         <div 
                           className="absolute top-0 bottom-0 w-px bg-indigo-400 z-10"
-                          style={{ left: `${(bedDate.getHours() + bedDate.getMinutes()/60) / 24 * 100}%` }}
+                          style={{ left: `${(toZonedTime(bedDate, tz).getHours() + toZonedTime(bedDate, tz).getMinutes()/60) / 24 * 100}%` }}
                         >
                           <div className="absolute -top-6 -translate-x-1/2 text-[10px] text-indigo-400 font-medium bg-[#171717] px-1 rounded">Bed</div>
                         </div>

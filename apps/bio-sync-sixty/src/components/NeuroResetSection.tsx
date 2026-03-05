@@ -14,13 +14,16 @@ function NeuroResetSection({ embedded = false }: NeuroResetSectionProps) {
   const gradientId = useId().replace(/:/g, '-');
 
   useEffect(() => {
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
     function runCycle() {
       setStressWidth(20);
       setVagalWidth(90);
       setStressLabel('OPTIMIZED');
       setStressLabelClass('text-xs text-cyan-400 font-bold');
-
-      setTimeout(() => {
+      if (timeoutId !== null) {
+        clearTimeout(timeoutId);
+      }
+      timeoutId = setTimeout(() => {
         setStressWidth(80);
         setVagalWidth(25);
         setStressLabel('RECOVERY REQUIRED');
@@ -29,7 +32,12 @@ function NeuroResetSection({ embedded = false }: NeuroResetSectionProps) {
     }
     runCycle();
     const interval = setInterval(runCycle, 12000);
-    return () => clearInterval(interval);
+    return () => {
+      if (timeoutId !== null) {
+        clearTimeout(timeoutId);
+      }
+      clearInterval(interval);
+    };
   }, []);
 
   return (
