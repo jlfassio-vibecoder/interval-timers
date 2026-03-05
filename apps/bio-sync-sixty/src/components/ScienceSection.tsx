@@ -1,18 +1,18 @@
 import React from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { BASE, CHART_DATA } from '../constants';
+import NeuroResetSection from './NeuroResetSection';
 
 const ScienceSection: React.FC = () => {
   return (
     <section id="science" className="scroll-mt-24">
       <div className="border-l-4 border-sync-orange pl-6 mb-10">
-        <h2 className="text-3xl font-display font-bold text-sync-blue">The Sync Science</h2>
-        <p className="text-gray-500 mt-2">Why legacy "intensity" fails and biological precision wins.</p>
+        <h2 className="text-3xl font-display font-bold text-sync-blue">The Science of Sync</h2>
+        <p className="text-gray-500 mt-2">Why legacy "intensity" fails and biological precision and environmental synchronization wins.</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-        
-        {/* CARD 1: Mitochondrial Health (VT1) */}
+      <div className="space-y-10">
+        {/* Mitochondrial Health (VT1) - full width */}
         <div className="bg-white rounded-2xl p-6 md:p-8 shadow-sm border border-gray-100 flex flex-col">
           <div className="flex items-center justify-between mb-6">
             <h3 className="font-display font-bold text-xl text-sync-blue">Mitochondrial Calibration</h3>
@@ -39,59 +39,17 @@ const ScienceSection: React.FC = () => {
             <span>Generic Formula Risk</span>
             <span>Bio-Sync60 Precision</span>
           </div>
+          <a
+            href={BASE + '/mitochondrial'}
+            className="mt-8 w-full bg-sync-blue text-white font-bold py-3 rounded-lg text-sm hover:bg-sync-dark transition-all shadow-sm flex items-center justify-center gap-2 block text-center"
+          >
+            <span>⚡</span>
+            <span>Deep Dive: The Mitochondrial Calibration</span>
+          </a>
         </div>
 
-        {/* CARD 2: Neuro-Reset (Vagal Tone) */}
-        <div className="bg-white rounded-2xl p-6 md:p-8 shadow-sm border border-gray-100 flex flex-col">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="font-display font-bold text-xl text-sync-blue">The Neuro-Reset</h3>
-            <span className="text-2xl">🧠</span>
-          </div>
-          <p className="text-sm text-gray-600 mb-6 leading-relaxed">
-            We don't "relax" by accident. We mechanically trigger the <strong>Trigeminal-Vagal Axis</strong> via cold exposure to force the Mammalian Diving Reflex, instantly lowering anxiety baselines.
-          </p>
-          
-          {/* Vagal Loop Visual */}
-          <div className="flex-grow bg-sync-base/50 rounded-xl p-6 relative flex items-center justify-center">
-            <div className="text-center space-y-4 w-full max-w-sm">
-              {/* Step 1 */}
-              <div className="flex items-center justify-between">
-                <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-xl shadow-sm z-10">❄️</div>
-                <div className="flex-1 h-0.5 bg-gray-300 relative mx-2">
-                  <div className="absolute inset-0 bg-sync-blue/50 animate-width-pulse"></div>
-                </div>
-                <div className="text-xs font-bold text-gray-500 uppercase">Trigeminal Nerve</div>
-              </div>
-              
-              {/* Central Processor */}
-              <div className="bg-white border border-gray-200 p-3 rounded-lg shadow-sm z-10 relative">
-                <span className="text-xs font-bold text-sync-blue block mb-1">Brainstem (Vagal Nuclei)</span>
-                <div className="w-full h-1 bg-gray-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-sync-orange w-3/4"></div>
-                </div>
-              </div>
-
-              {/* Step 2 */}
-              <div className="flex items-center justify-between">
-                <div className="text-xs font-bold text-gray-500 uppercase">Parasympathetic</div>
-                <div className="flex-1 h-0.5 bg-gray-300 mx-2"></div>
-                <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center text-xl shadow-sm z-10">🫀</div>
-              </div>
-
-              <div className="text-xs text-gray-400 italic mt-2">Result: Increased HRV & Calm Focus</div>
-            </div>
-          </div>
-          
-          <div className="mt-8">
-             <a
-               href={BASE + '/neuro'}
-               className="w-full bg-sync-blue text-white font-bold py-3 rounded-lg text-sm hover:bg-sync-dark transition-all shadow-sm flex items-center justify-center gap-2 block text-center"
-             >
-               <span>🧠</span>
-               <span>Deep Dive: The Neuro-Reset</span>
-             </a>
-          </div>
-        </div>
+        {/* Neuro-Reset section - full width below */}
+        <NeuroResetSection />
       </div>
 
       {/* CHRONONUTRITION BANNER */}
@@ -106,6 +64,13 @@ const ScienceSection: React.FC = () => {
               <span className="text-sync-orange font-bold mr-2">The Rule:</span>
               <span className="text-sm">10-Hour Feeding Window (e.g., 8am - 6pm)</span>
             </div>
+            <a
+              href={BASE + '/master-clock'}
+              className="inline-flex items-center justify-center gap-2 bg-white text-sync-blue font-bold py-3 px-5 rounded-lg text-sm hover:bg-sync-orange hover:text-white transition-all shadow-lg"
+            >
+              <span>🕐</span>
+              <span>Set Your Feeding Window (Master Clock)</span>
+            </a>
           </div>
           {/* Clock Visual */}
           <div className="flex flex-col items-center gap-6">

@@ -23,13 +23,16 @@ const copies = [
   { src: 'emom', dest: 'emom-timer' },
   { src: 'ten-twenty-thirty', dest: '10-20-30' },
   { src: 'bio-sync-sixty', dest: 'bio-sync-sixty' },
+  { src: 'bio-sync-sixty/apps/master-clock', dest: 'bio-sync-sixty/master-clock', workspace: 'master-clock' },
 ];
 
-for (const { src, dest } of copies) {
+for (const copy of copies) {
+  const { src, dest, workspace } = { workspace: null, ...copy };
   const srcDir = path.join(repoRoot, 'apps', src, 'dist');
   const targetDir = path.join(landingDist, dest);
+  const buildHint = workspace || src;
   if (!fs.existsSync(srcDir)) {
-    console.error(`apps/${src}/dist not found. Run: npm run build -w ${src}`);
+    console.error(`apps/${src}/dist not found. Run: npm run build -w ${buildHint}`);
     process.exit(1);
   }
   if (fs.existsSync(targetDir)) {

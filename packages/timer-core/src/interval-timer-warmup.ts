@@ -912,13 +912,39 @@ export const WARMUP_EXERCISES: { name: string; detail: string }[] = [
 
 export const WARMUP_DURATION_PER_EXERCISE = 30;
 
-/** Pause between warmup exercises: main timer stops, "Next" countdown lets user position. */
+/** Pause between warmup exercises (same exercise, different side/direction): main timer stops, "Next" countdown. */
 export const WARMUP_TRANSITION_SECONDS = 5;
+
+/** Pause when switching to a different warmup exercise: longer break so user can change position. */
+export const WARMUP_TRANSITION_EXERCISE_CHANGE_SECONDS = 10;
 
 /** 10-second setup block after warmup so user can get into position before first work interval. */
 export const SETUP_DURATION_SECONDS = 10;
 
 export const DEFAULT_WARMUP_TOTAL_SECONDS = WARMUP_EXERCISES.length * WARMUP_DURATION_PER_EXERCISE;
+
+/**
+ * Base name for "same exercise" comparison: part before " - " or full name.
+ * Same base → same exercise (different side/direction) → 5s; different base → 10s.
+ */
+function getWarmupExerciseBaseName(name: string): string {
+  const idx = name.indexOf(' - ');
+  return idx >= 0 ? name.slice(0, idx).trim() : name.trim();
+}
+
+/**
+ * Returns transition seconds between two warmup exercises: 5s if same exercise (different side/direction), 10s if different exercise.
+ */
+export function getWarmupTransitionSeconds(
+  currentExerciseName: string,
+  nextExerciseName: string
+): number {
+  const currentBase = getWarmupExerciseBaseName(currentExerciseName);
+  const nextBase = getWarmupExerciseBaseName(nextExerciseName);
+  return currentBase === nextBase
+    ? WARMUP_TRANSITION_SECONDS
+    : WARMUP_TRANSITION_EXERCISE_CHANGE_SECONDS;
+}
 
 export function getSetupBlock(): HIITTimelineBlock {
   return {

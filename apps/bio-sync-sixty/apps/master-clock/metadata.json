@@ -1,0 +1,7 @@
+{
+  "name": "Bio-Sync60",
+  "description": "Chrononutrition app for optimizing the Metabolic Switch with Early Time-Restricted Eating (eTRE) based on seasonal daylight.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}

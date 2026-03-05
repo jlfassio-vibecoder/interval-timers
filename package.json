@@ -3,6 +3,7 @@
   "private": true,
   "workspaces": [
     "apps/*",
+    "apps/bio-sync-sixty/apps/*",
     "packages/*"
   ],
   "scripts": {
@@ -23,7 +24,7 @@
     "build:aerobic": "npm run build -w aerobic",
     "dev:lactate-threshold": "npm run dev -w lactate-threshold",
     "build:lactate-threshold": "npm run build -w lactate-threshold",
-    "build:deploy": "npm run build -w landing && npm run build -w daily-warmup && npm run build -w tabata && npm run build -w japanese-walking && npm run build -w aerobic && npm run build -w amrap && npm run build -w lactate-threshold && npm run build -w power-intervals && npm run build -w gibala-method && npm run build -w wingate && npm run build -w timmons && npm run build -w emom && npm run build -w ten-twenty-thirty && npm run build -w bio-sync-sixty && node scripts/copy-standalone-apps-to-dist.cjs",
+    "build:deploy": "npm run build -w landing && npm run build -w daily-warmup && npm run build -w tabata && npm run build -w japanese-walking && npm run build -w aerobic && npm run build -w amrap && npm run build -w lactate-threshold && npm run build -w power-intervals && npm run build -w gibala-method && npm run build -w wingate && npm run build -w timmons && npm run build -w emom && npm run build -w ten-twenty-thirty && npm run build -w bio-sync-sixty && npm run build -w master-clock && node scripts/copy-standalone-apps-to-dist.cjs",
     "preview:deploy": "npm run build:deploy && npm run preview -w landing",
     "dev:power-intervals": "npm run dev -w power-intervals",
     "build:power-intervals": "npm run build -w power-intervals",
@@ -38,6 +39,8 @@
     "dev:ten-twenty-thirty": "npm run dev -w ten-twenty-thirty",
     "build:ten-twenty-thirty": "npm run build -w ten-twenty-thirty",
     "dev:bio-sync-sixty": "npm run dev -w bio-sync-sixty",
-    "build:bio-sync-sixty": "npm run build -w bio-sync-sixty"
+    "build:bio-sync-sixty": "npm run build -w bio-sync-sixty",
+    "dev:master-clock": "npm run dev -w master-clock",
+    "build:master-clock": "npm run build -w master-clock"
   }
 }

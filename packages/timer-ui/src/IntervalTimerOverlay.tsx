@@ -21,7 +21,7 @@ import type { WarmupExercise } from './useWarmupConfig';
 import {
   WARMUP_EXERCISES,
   WARMUP_DURATION_PER_EXERCISE,
-  WARMUP_TRANSITION_SECONDS,
+  getWarmupTransitionSeconds,
 } from '@interval-timers/timer-core';
 
 const SOUND_VOLUME_KEY = 'interval-timer-sound-volume';
@@ -269,9 +269,14 @@ const IntervalTimerOverlay: React.FC<IntervalTimerOverlayProps> = ({
             elapsedAfterTick % warmupDuration === 0 &&
             Math.floor(elapsedAfterTick / warmupDuration) < warmupList.length;
           if (isExerciseBoundary) {
+            const nextExerciseIndex = Math.floor(elapsedAfterTick / warmupDuration);
+            const transitionSeconds = getWarmupTransitionSeconds(
+              warmupList[nextExerciseIndex - 1].name,
+              warmupList[nextExerciseIndex].name
+            );
             playBell();
             setIsTransitioningToNext(true);
-            setTransitionCountdown(WARMUP_TRANSITION_SECONDS);
+            setTransitionCountdown(transitionSeconds);
             return next;
           }
         }
@@ -286,10 +291,11 @@ const IntervalTimerOverlay: React.FC<IntervalTimerOverlayProps> = ({
     isTransitioningToNext,
     timeLeft,
     warmupDuration,
+    warmupList,
     warmupList.length,
   ]);
 
-  // Transition countdown timer (5s "Next" pause between warmup exercises)
+  // Transition countdown timer (5s or 10s "Next" pause between warmup exercises)
   useEffect(() => {
     if (!isTransitioningToNext || transitionCountdown <= 0) return;
     const interval = window.setInterval(
@@ -432,7 +438,7 @@ const IntervalTimerOverlay: React.FC<IntervalTimerOverlayProps> = ({
       </div>
 
       <div className="flex min-h-0 flex-1 overflow-hidden pl-1 sm:pl-1.5">
-        <aside className="hidden md:flex md:w-[20.84rem] md:min-h-0 md:flex-col md:shrink-0 md:p-4 md:gap-4">
+        <aside className="hidden md:flex md:w-[20.84rem] md:min-h-0 md:flex-col md:shrink-0 md:p-4 md:gap-4 border-2 border-white/30 rounded-lg">
           {renderControls('timer-volume')}
           <div className="min-h-0 flex-1 overflow-y-auto">
             {currentBlock.type === 'warmup' &&
