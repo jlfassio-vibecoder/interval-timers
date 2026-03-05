@@ -10,10 +10,17 @@ import {
 import type { IntervalTimerPage } from '@interval-timers/timer-core';
 import { getProtocolAccent } from '@interval-timers/timer-core';
 import type { HIITTimelineBlock, InstructionStep } from '@interval-timers/types';
-import { getDefaultWarmupBlock, getSetupBlock } from '@interval-timers/timer-core';
+import {
+  getDefaultWarmupBlock,
+  getSetupBlock,
+  SETUP_DURATION_SECONDS,
+} from '@interval-timers/timer-core';
 
 /** Block name for the 5-minute warm-up walk (used to show Mindful Walking script in overlay). */
 const WARM_UP_WALK_BLOCK_NAME = 'Warm-Up Walk';
+
+/** Block name for each 3-minute recovery interval (same script as warm-up in overlay). */
+const RECOVERY_WALK_BLOCK_NAME = 'Recovery Walk';
 
 /** Script explaining Mindful Walking for the Warm-Up Walk and Recovery intervals. */
 const MINDFUL_WALKING_SCRIPT: InstructionStep[] = [
@@ -73,12 +80,29 @@ interface SimContent {
 
 const ACCENT = getProtocolAccent('mindful');
 
+// Timing constants (seconds) used to approximate total session duration per preset.
+const WARM_UP_WALK_SECONDS = 300;
+const ROUND_SECONDS = 360;
+const COOLDOWN_SECONDS = 120;
+
+/**
+ * Compute the number of fast/recovery rounds needed to approximate a target
+ * total session length (in minutes), given fixed setup, warm-up walk, and cooldown.
+ */
+function computeRoundsForMinutes(minutes: number): number {
+  const targetSeconds = minutes * 60;
+  const fixedOverhead =
+    SETUP_DURATION_SECONDS + WARM_UP_WALK_SECONDS + COOLDOWN_SECONDS;
+  const rawRounds = (targetSeconds - fixedOverhead) / ROUND_SECONDS;
+  return Math.max(1, Math.round(rawRounds));
+}
+
 /** Session length presets: label -> number of fast/recovery rounds (each round = 6 min). */
 const SESSION_PRESETS: Record<'30' | '45' | '60' | '90', number> = {
-  '30': 3,
-  '45': 7,
-  '60': 10,
-  '90': 15,
+  '30': computeRoundsForMinutes(30),
+  '45': computeRoundsForMinutes(45),
+  '60': computeRoundsForMinutes(60),
+  '90': computeRoundsForMinutes(90),
 };
 
 /** Benefit statements for each preset, based on Nose protocol science (VO2 peak +18%, BP -9 mmHg over 5 months). */
@@ -117,7 +141,12 @@ const JapaneseWalking: React.FC<JapaneseWalkingProps> = ({ onNavigate, onNavigat
     });
     for (let i = 0; i < rounds; i++) {
       blocks.push({ type: 'work', duration: 180, name: 'Fast Walk', notes: 'RPE 13-14' });
-      blocks.push({ type: 'rest', duration: 180, name: 'Recovery Walk', notes: 'Breathe & step' });
+      blocks.push({
+        type: 'rest',
+        duration: 180,
+        name: RECOVERY_WALK_BLOCK_NAME,
+        notes: 'Breathe & step',
+      });
     }
     blocks.push({
       type: 'cooldown',
@@ -179,7 +208,7 @@ const JapaneseWalking: React.FC<JapaneseWalkingProps> = ({ onNavigate, onNavigat
       bgColor: 'bg-green-700',
       borderColor: 'border-green-200',
       phase: 'Recovery Phase',
-      status: 'Recovery Walk (3 Mins)',
+      status: `${RECOVERY_WALK_BLOCK_NAME} (3 Mins)`,
       instruction:
         'Transition to 40% effort. Do not stop. Use Mindful Walking: sync breath and step (e.g. 3–4 in, 3–6 out; find your rhythm). Release shoulder tension.',
       quote: '"I have arrived. I am home."',
@@ -720,6 +749,11 @@ const JapaneseWalking: React.FC<JapaneseWalkingProps> = ({ onNavigate, onNavigat
             customBlockInstructions={[
               {
                 blockName: WARM_UP_WALK_BLOCK_NAME,
+                steps: MINDFUL_WALKING_SCRIPT,
+                title: 'Mindful Walking',
+              },
+              {
+                blockName: RECOVERY_WALK_BLOCK_NAME,
                 steps: MINDFUL_WALKING_SCRIPT,
                 title: 'Mindful Walking',
               },
