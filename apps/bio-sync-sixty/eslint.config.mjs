@@ -1,3 +1,4 @@
+/** ESLint flat config: typescript-eslint meta-package + Astro. All deps in package.json (no @typescript-eslint/*). */
 import js from '@eslint/js';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';

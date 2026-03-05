@@ -68,8 +68,12 @@ const Navigation: React.FC = () => {
           </div>
           <div className="md:hidden">
             <button
+              type="button"
               className="text-gray-600 font-bold p-2"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              aria-label="Toggle navigation menu"
+              aria-expanded={isMobileMenuOpen}
+              aria-controls="mobile-menu"
             >
               ☰
             </button>

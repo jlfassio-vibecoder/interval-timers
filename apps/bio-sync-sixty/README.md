@@ -9,7 +9,7 @@ Astro app for the Bio-Sync Sixty (90-90-1) experience in the interval-timers mon
 From this app directory:
 
 1. Install dependencies: `npm install`
-2. Start dev server: `npm run dev` (serves at port 5177)
+2. Start dev server: `npm run dev` (serves at port 5186)
 
 From the monorepo root:
 

@@ -132,24 +132,27 @@ const ProtocolSection: React.FC = () => {
           {[1, 2, 3].map((phaseNum) => {
              const isActive = activePhase === phaseNum;
              return (
-               <div 
+               <button
                  key={phaseNum}
-                 className="flex flex-col items-center cursor-pointer group" 
+                 type="button"
+                 className="flex flex-col items-center cursor-pointer group border-0 bg-transparent p-0"
                  onClick={() => handlePhaseChange(phaseNum as 1 | 2 | 3)}
+                 aria-pressed={isActive}
+                 aria-label={`Phase ${phaseNum}, ${phaseNum === 1 ? 'Days 1-20' : phaseNum === 2 ? 'Days 21-40' : 'Days 41-60'}`}
                >
                  <div 
                    className={`w-9 h-9 rounded-full border-4 mb-2 transition-all duration-300 
                      ${isActive 
                        ? 'border-sync-orange bg-sync-orange scale-110' 
                        : 'border-gray-300 bg-white group-hover:border-sync-blue'}`}
-                 ></div>
+                 />
                  <span className={`text-xs font-bold transition-colors ${isActive ? 'text-sync-blue' : 'text-gray-500 group-hover:text-sync-blue'}`}>
                    Phase {phaseNum}
                  </span>
                  <span className="text-[10px] text-gray-500">
                    {phaseNum === 1 ? 'Days 1-20' : phaseNum === 2 ? 'Days 21-40' : 'Days 41-60'}
                  </span>
-               </div>
+               </button>
              )
           })}
         </div>
