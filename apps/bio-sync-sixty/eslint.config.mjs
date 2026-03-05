@@ -1,17 +1,18 @@
+import js from '@eslint/js';
+import globals from 'globals';
+import tseslint from 'typescript-eslint';
 import eslintPluginAstro from 'eslint-plugin-astro';
-import tseslint from '@typescript-eslint/eslint-plugin';
-import tsParser from '@typescript-eslint/parser';
+import { defineConfig, globalIgnores } from 'eslint/config';
 
-export default [
+export default defineConfig([
+  globalIgnores(['dist', '.astro']),
   ...eslintPluginAstro.configs.recommended,
   {
-    files: ['**/*.ts', '**/*.tsx'],
+    files: ['**/*.{ts,tsx}'],
+    extends: [js.configs.recommended, tseslint.configs.recommended],
     languageOptions: {
-      parser: tsParser,
-      parserOptions: {
-        ecmaFeatures: { jsx: true },
-      },
+      ecmaVersion: 2020,
+      globals: globals.browser,
     },
-    plugins: { '@typescript-eslint': tseslint },
   },
-];
+]);

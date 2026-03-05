@@ -192,7 +192,10 @@ const Pillar90901: React.FC = () => {
             </div>
 
             {/* Dynamic Content Container */}
-            <div className="bg-white/80 backdrop-blur-sm rounded-3xl border border-white/50 shadow-xl p-6 md:p-8 grid grid-cols-1 lg:grid-cols-2 gap-8 items-start animate-in fade-in slide-in-from-bottom-4 duration-500 key={activePhase}">
+            <div
+              key={activePhase}
+              className="bg-white/80 backdrop-blur-sm rounded-3xl border border-white/50 shadow-xl p-6 md:p-8 grid grid-cols-1 lg:grid-cols-2 gap-8 items-start animate-in fade-in slide-in-from-bottom-4 duration-500"
+            >
                 
                 {/* Left Column: Text & Instructions */}
                 <div className="space-y-6">

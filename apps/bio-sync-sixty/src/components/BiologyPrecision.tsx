@@ -37,17 +37,17 @@ const BiologyPrecision: React.FC = () => {
   // --- SECTION 2: GREY ZONE LOGIC ---
   const [activeZone, setActiveZone] = useState<'zone2' | 'zone3'>('zone2');
   const fuelData = [
-    { name: 'Fat', value: activeZone === 'zone2' ? 85 : 30, fill: '#E06C3E' }, // Orange for Fat
-    { name: 'Sugar', value: activeZone === 'zone2' ? 15 : 70, fill: '#2B4C59' }  // Blue for Sugar
+    { name: 'Fat', value: activeZone === 'zone2' ? 85 : 30, fill: '#E06C3E' },
+    { name: 'Sugar', value: activeZone === 'zone2' ? 15 : 70, fill: '#2B4C59' }
   ];
 
   // --- SECTION 3: VT1 GAUGE LOGIC ---
   const [effort, setEffort] = useState(30);
   const gaugeData = [
-    { name: 'Zone 1', value: 25, fill: '#A6B08F' }, // Sage
-    { name: 'Zone 2 (VT1)', value: 25, fill: '#2B4C59' }, // Blue (Target)
-    { name: 'Grey Zone', value: 25, fill: '#FBBF24' }, // Yellow/Warning
-    { name: 'Red Zone', value: 25, fill: '#E06C3E' } // Orange/Red
+    { name: 'Zone 1', value: 25, fill: '#A6B08F' },
+    { name: 'Zone 2 (VT1)', value: 25, fill: '#2B4C59' },
+    { name: 'Grey Zone', value: 25, fill: '#FBBF24' },
+    { name: 'Red Zone', value: 25, fill: '#E06C3E' }
   ];
 
   const getGaugeFeedback = (val: number) => {

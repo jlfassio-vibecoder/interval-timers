@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { PHASE_CONTENT } from '../constants';
 
 const ProtocolSection: React.FC = () => {
@@ -6,7 +6,6 @@ const ProtocolSection: React.FC = () => {
   const [animating, setAnimating] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Handle phase transition animation
   const handlePhaseChange = (phase: 1 | 2 | 3) => {
     if (phase === activePhase) return;
     setAnimating(true);

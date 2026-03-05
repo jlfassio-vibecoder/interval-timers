@@ -1,4 +1,4 @@
-/** Base path when app is served under /bio-sync60/ (no trailing slash). */
+/** Base path for the app (no trailing slash). Use for building links; must match astro.config base and Vercel rewrites. */
 export const BASE = '/bio-sync60';
 
 export const PHASE_CONTENT = {
