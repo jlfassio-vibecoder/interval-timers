@@ -203,6 +203,7 @@ export default function App() {
     const hoursBeforeBed = differenceInMinutes(bedDate, feedingEnd) / 60;
     if (hoursBeforeBed < 2) {
       warnings.push(`Your window ends only ${Math.round(hoursBeforeBed * 10) / 10} hours before bed. Aim for at least 2 hours of fasting before sleep.`);
+      isOptimal = false;
     }
   }
 
