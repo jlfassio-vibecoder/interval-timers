@@ -249,6 +249,10 @@ const LandingPage: React.FC = () => {
             src="/logo_transparent_500x500.png"
             alt="Interval Timers"
             className="mx-auto mb-10 h-32 w-32 object-contain md:h-40 md:w-40"
+            style={{
+              filter:
+                'drop-shadow(0 0 40px rgba(224,108,62,0.455)) drop-shadow(0 0 70px rgba(224,108,62,0.26))',
+            }}
           />
           <p className="mx-auto mb-10 max-w-2xl text-lg leading-relaxed text-white/70 md:text-xl">
             Stop guessing. Train with scientifically validated interval protocols designed to target
