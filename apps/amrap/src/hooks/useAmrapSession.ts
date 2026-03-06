@@ -1,6 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
-import type { AmrapSessionRow, AmrapParticipantRow, AmrapRoundRow } from '@/lib/supabase';
+import type {
+  AmrapSessionRow,
+  AmrapSessionPublic,
+  AmrapParticipantRow,
+  AmrapRoundRow,
+} from '@/lib/supabase';
 
 const SESSION_STORAGE_KEYS = {
   hostToken: 'amrap_friends_host_token',
@@ -20,9 +25,7 @@ export function setStoredHostToken(sessionId: string, token: string): void {
   try {
     const key = `${SESSION_STORAGE_KEYS.hostToken}_${sessionId}`;
     sessionStorage.setItem(key, token);
-  } catch {
-    // ignore
-  }
+  } catch {}
 }
 
 export function getStoredParticipantId(sessionId: string): string | null {
@@ -38,13 +41,11 @@ export function setStoredParticipantId(sessionId: string, participantId: string)
   try {
     const key = `${SESSION_STORAGE_KEYS.participantId}_${sessionId}`;
     sessionStorage.setItem(key, participantId);
-  } catch {
-    // ignore
-  }
+  } catch {}
 }
 
 export interface AmrapSessionData {
-  session: AmrapSessionRow | null;
+  session: AmrapSessionPublic | null;
   participants: AmrapParticipantRow[];
   rounds: AmrapRoundRow[];
   isHost: boolean;
@@ -53,8 +54,13 @@ export interface AmrapSessionData {
   loading: boolean;
 }
 
+function toPublicSession(row: AmrapSessionRow): AmrapSessionPublic {
+  const { host_token: _tk, ...rest } = row;
+  return rest as AmrapSessionPublic;
+}
+
 export function useAmrapSession(sessionId: string | undefined): AmrapSessionData {
-  const [session, setSession] = useState<AmrapSessionRow | null>(null);
+  const [session, setSession] = useState<AmrapSessionPublic | null>(null);
   const [participants, setParticipants] = useState<AmrapParticipantRow[]>([]);
   const [rounds, setRounds] = useState<AmrapRoundRow[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -67,7 +73,7 @@ export function useAmrapSession(sessionId: string | undefined): AmrapSessionData
   const fetchSession = useCallback(async (id: string) => {
     const { data, error: e } = await supabase
       .from('amrap_sessions')
-      .select('*')
+      .select('id, duration_minutes, workout_list, state, time_left_sec, is_paused, started_at, created_at')
       .eq('id', id)
       .single();
     if (e) {
@@ -75,7 +81,7 @@ export function useAmrapSession(sessionId: string | undefined): AmrapSessionData
       setSession(null);
       return;
     }
-    setSession(data as AmrapSessionRow);
+    setSession(data as AmrapSessionPublic);
     setError(null);
   }, []);
 
@@ -128,7 +134,7 @@ export function useAmrapSession(sessionId: string | undefined): AmrapSessionData
           filter: `id=eq.${sessionId}`,
         },
         (payload) => {
-          if (payload.new) setSession(payload.new as AmrapSessionRow);
+          if (payload.new) setSession(toPublicSession(payload.new as AmrapSessionRow));
         }
       )
       .subscribe();

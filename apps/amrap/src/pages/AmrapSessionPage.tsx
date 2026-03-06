@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import {
@@ -90,6 +90,7 @@ export default function AmrapSessionPage() {
     startSetup,
   } = sessionState;
 
+  const [logRoundError, setLogRoundError] = useState<string | null>(null);
   const workoutList = session?.workout_list ?? [];
   const myRounds = participantId
     ? rounds.filter((r) => r.participant_id === participantId)
@@ -98,19 +99,21 @@ export default function AmrapSessionPage() {
 
   const logRound = useCallback(async () => {
     if (!sessionId || !participantId || timerState !== 'work') return;
+    setLogRoundError(null);
     const elapsedSec = totalTime - timeLeft;
-    const nextIndex = myRounds.length + 1;
-    await supabase.from('amrap_rounds').insert({
-      session_id: sessionId,
-      participant_id: participantId,
-      round_index: nextIndex,
-      elapsed_sec_at_round: elapsedSec,
+    const { error } = await supabase.rpc('log_round', {
+      p_session_id: sessionId,
+      p_participant_id: participantId,
+      p_elapsed_sec_at_round: elapsedSec,
     });
-  }, [sessionId, participantId, timerState, totalTime, timeLeft, myRounds.length]);
+    if (error) setLogRoundError(error.message);
+  }, [sessionId, participantId, timerState, totalTime, timeLeft]);
 
   const copyShareLink = useCallback(() => {
-    const url = window.location.href.replace(/\?.*$/, '');
-    navigator.clipboard.writeText(url);
+    try {
+      const url = window.location.href.replace(/\?.*$/, '');
+      void navigator.clipboard.writeText(url);
+    } catch {}
   }, []);
 
   if (loading || !sessionId) {
@@ -209,13 +212,18 @@ export default function AmrapSessionPage() {
                   </div>
                 )}
                 {timerState === 'work' && (
-                  <button
-                    type="button"
-                    onClick={logRound}
-                    className="rounded-2xl bg-orange-600 px-12 py-6 text-xl font-bold text-white shadow-[0_0_40px_rgba(234,88,12,0.4)] transition-all hover:bg-orange-500 active:scale-95"
-                  >
-                    LOG ROUND
-                  </button>
+                  <>
+                    {logRoundError && (
+                      <p className="mb-2 text-sm text-red-400">{logRoundError}</p>
+                    )}
+                    <button
+                      type="button"
+                      onClick={logRound}
+                      className="rounded-2xl bg-orange-600 px-12 py-6 text-xl font-bold text-white shadow-[0_0_40px_rgba(234,88,12,0.4)] transition-all hover:bg-orange-500 active:scale-95"
+                    >
+                      LOG ROUND
+                    </button>
+                  </>
                 )}
               </div>
             )}

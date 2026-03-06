@@ -23,6 +23,9 @@ export type AmrapSessionRow = {
   created_at: string;
 };
 
+/** Session fields safe to expose to all clients; exclude host_token to prevent takeover. */
+export type AmrapSessionPublic = Omit<AmrapSessionRow, 'host_token'>;
+
 export type AmrapParticipantRow = {
   id: string;
   session_id: string;

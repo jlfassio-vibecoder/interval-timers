@@ -81,3 +81,16 @@ The site is a landing app at `/` plus 13 standalone timer apps, each at its own 
 `build:deploy` builds the landing app, then all 13 standalone apps (daily-warmup, tabata, japanese-walking, aerobic, amrap, lactate-threshold, power-intervals, gibala-method, wingate, timmons, emom, ten-twenty-thirty, bio-sync-sixty), and copies each app’s dist into `apps/landing/dist`. Rewrites in `vercel.json` route each path to the correct app. Legacy paths `/wingate-test` and `/timmons-protocol` redirect to `/wingate` and `/timmons`.
 
 **If standalone URLs show the landing page in production:** Ensure `vercel.json` includes `buildCommand: "npm run build:deploy"` (it overrides Vercel's auto-detected build). The project **Root Directory** must be the repo root (not `apps/landing`), so the build command and output paths resolve correctly.
+
+---
+
+## Supabase (HIIT project)
+
+Project: `dgxoyhkqdxarewmanbrq` — https://dgxoyhkqdxarewmanbrq.supabase.co
+
+- **Env:** Copy root `.env.example` to `.env` at repo root and fill in values. The AMRAP app and Supabase CLI use this.
+- **CLI:** From repo root, load env then run Supabase commands:
+  - `export $(grep -v '^#' .env | xargs)` then e.g. `supabase migration list`
+  - Or use the DB URL directly: `psql "$DATABASE_URL" -c "…"`
+- **MCP (Cursor):** The Supabase MCP in `~/.cursor/mcp.json` is set to `project_ref=dgxoyhkqdxarewmanbrq` with the anon key in `Authorization`. **Restart Cursor** after changing MCP config. If the MCP still connects to the wrong project, use a [Personal Access Token](https://supabase.com/dashboard/account/tokens) in the `Authorization` header instead of the anon key.
+- **Schema layout:** One project; `public` holds current app-prefixed tables (e.g. `amrap_sessions`). Schemas `amrap` and `shared` exist for future use: put new app-specific objects in `amrap`, cross-app (e.g. user_saved_timers) in `shared`. See `supabase/README.md`.

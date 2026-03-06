@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { SETUP_DURATION_SECONDS } from '@interval-timers/timer-core';
-import type { AmrapSessionRow } from '@/lib/supabase';
+import type { AmrapSessionPublic } from '@/lib/supabase';
 
 export type SessionTimerState = 'waiting' | 'setup' | 'work' | 'finished';
 
@@ -29,7 +29,7 @@ export interface UseSessionStateResult {
 
 export function useSessionState(
   sessionId: string | undefined,
-  session: AmrapSessionRow | null,
+  session: AmrapSessionPublic | null,
   isHost: boolean,
   hostToken: string | null
 ): UseSessionStateResult {
@@ -128,7 +128,7 @@ export function useSessionState(
     setTimeLeft(session.time_left_sec);
     setTimerState((session.state as SessionTimerState) ?? 'waiting');
     setIsPaused(session.is_paused ?? false);
-  }, [session?.id]);
+  }, [session?.id, session?.time_left_sec, session?.state, session?.is_paused]);
 
   useEffect(() => {
     if (!isHost || !sessionId || timerState === 'waiting' || timerState === 'finished') return;

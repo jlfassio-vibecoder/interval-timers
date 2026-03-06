@@ -1,5 +1,9 @@
 -- Require host nickname on create, non-empty nickname on join (RPC only)
 
+-- Drop original create_session(int, jsonb) so only one signature exists; avoids PostgREST/Supabase
+-- RPC overload ambiguity (client calls create_session(int, text, jsonb)).
+DROP FUNCTION IF EXISTS create_session(int, jsonb);
+
 -- Parameter order (duration, host_nickname, workout_list) matches schema cache / client call order.
 CREATE OR REPLACE FUNCTION create_session(
   p_duration_minutes int,
@@ -46,18 +50,24 @@ AS $$
 DECLARE
   v_count int;
   v_participant_id uuid;
+  v_session_id uuid;
 BEGIN
   IF NULLIF(trim(p_nickname), '') IS NULL THEN
     RAISE EXCEPTION 'Name or nickname is required';
   END IF;
 
+  -- Lock the session row to serialize concurrent joins and check existence atomically.
+  SELECT id INTO v_session_id
+  FROM amrap_sessions
+  WHERE id = p_session_id
+  FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Session not found';
+  END IF;
+
   SELECT count(*) INTO v_count FROM amrap_participants WHERE session_id = p_session_id;
   IF v_count >= 6 THEN
     RAISE EXCEPTION 'Session is full (max 6 participants)';
-  END IF;
-
-  IF NOT EXISTS (SELECT 1 FROM amrap_sessions WHERE id = p_session_id) THEN
-    RAISE EXCEPTION 'Session not found';
   END IF;
 
   INSERT INTO amrap_participants (session_id, nickname, role)

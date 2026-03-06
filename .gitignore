@@ -30,3 +30,6 @@ lerna-debug.log*
 # Local verification artifacts (do not commit)
 *VERIFICATION_REPORT*
 PRE_PR_VERIFICATION_REPORT.png
+
+# Supabase CLI local state
+supabase/.temp/
