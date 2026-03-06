@@ -8,7 +8,7 @@
     { "source": "/amrap/programming-guide/", "destination": "/amrap/index.html" },
     { "source": "/amrap/workout-explorer", "destination": "/amrap/index.html" },
     { "source": "/amrap/workout-explorer/", "destination": "/amrap/index.html" },
-    { "source": "/amrap/(.*)", "destination": "/amrap/$1" },
+    { "source": "/amrap/(.*)", "destination": "/amrap/index.html" },
     { "source": "/lactate-threshold", "destination": "/lactate-threshold/index.html" },
     { "source": "/lactate-threshold/", "destination": "/lactate-threshold/index.html" },
     { "source": "/lactate-threshold/(.*)", "destination": "/lactate-threshold/$1" },
