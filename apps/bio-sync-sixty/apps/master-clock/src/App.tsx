@@ -448,8 +448,8 @@ export default function App() {
                   />
                   <div className="flex justify-between text-xs text-zinc-500 mt-2 font-mono">
                     <span>0m</span>
-                    <span className={cn(hungerDelay >= 60 && hungerDelay <= 120 && "text-emerald-400 font-medium")}>1h</span>
-                    <span className={cn(hungerDelay >= 60 && hungerDelay <= 120 && "text-emerald-400 font-medium")}>2h</span>
+                    <span className={cn(hungerDelay >= 60 && hungerDelay <= 90 && "text-emerald-400 font-medium")}>1h</span>
+                    <span className={cn(hungerDelay >= 120 && hungerDelay <= 150 && "text-emerald-400 font-medium")}>2h</span>
                     <span>3h</span>
                     <span>4h</span>
                     <span>5h</span>

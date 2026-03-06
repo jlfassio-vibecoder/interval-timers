@@ -1,50 +1,48 @@
-# Pre-Merge Report
+# Pre-Merge Report — Master Clock / Metabolic Window PR
 
-**Branch:** update/tabata-timer  
-**Scope:** Optional warm-up for interval timers, modal centralization, accessibility, removal of built-in warm-up from EMOM/Gibala/10-20-30/Timmons.
+**Branch:** updates/master-clock-final-touches  
+**Scope:** `apps/bio-sync-sixty` (master-clock App.tsx, README, Cookbook, Handbook, ProtocolSection, ScienceSection)
 
 ---
 
-## Fixed
+## Fixed (Critical / Performance / Logic)
 
 | Item | Location | Action |
 |------|----------|--------|
-| **Modal duplication** | 7 apps had local `IntervalTimerSetupModal.tsx` | Centralized in `@interval-timers/timer-ui`; all apps import from package. |
-| **Dialog semantics & a11y** | `IntervalTimerSetupModal` | Added `role="dialog"`, `aria-modal="true"`, `aria-labelledby`/`aria-describedby` (via `useId()`), Escape-to-close, initial focus on dialog panel. |
-| **Clickable backdrop a11y** | `IntervalTimerSetupModal` | Replaced backdrop `<div aria-hidden="true" onClick={...}>` with `<button type="button" aria-label="Close" ...>` so the control is exposed to assistive tech. |
-| **Mobile drawer backdrop** | `IntervalTimerOverlay` | Already a `<button>` with `aria-label="Close controls"`; no change. |
+| **Redundant daylight warnings** | `App.tsx` (daylight/sunset checks) | Introduced `extendsPastCivilSunset` and only add "first bite at/after civil sunset" and "daylight very short" when `!extendsPastCivilSunset` so users don’t see two overlapping messages for the same issue. |
+| **Unreachable branch** | `App.tsx` (Metabolic Readiness helper text) | With `step="30"`, values &lt;60 are only 0 and 30 (both ≤45). Removed the dead `hungerDelay < 60` branch and collapsed to `<= 45` → `<= 120` → else. |
+| **Awkward delay display** | `App.tsx` (Metabolic Readiness card label) | Non–whole-hour values (90, 150, 210, 270) now shown as mixed "Nh Xm" (e.g. +1h 30m, +2h 30m) instead of +90m, +150m, etc. |
 
 ---
 
 ## Slop Scrubbed
 
-| Item | Location | Action |
-|------|----------|--------|
-| Redundant comments | Scanned `packages/timer-ui`, `packages/timer-core` | None removed. Only substantive comments retained (e.g. “First work after setup or rest: 3 beeps” in overlay). |
-| Dead logic / placeholders | Scanned changed files | No placeholder logic, unused variables, or redundant try/catch in modified code. |
-| TODO/FIXME/HACK | Repo scan | No TODO/FIXME/HACK left in changed code. |
+- **Redundant comments:** None removed. Existing comments document API behavior (UTC vs timezone), warning logic (avoid duplicate messages), and section intent (hunger delay, bedtime). All are non-obvious and kept.
+- **Unused code / dead logic:** Unreachable `hungerDelay < 60` branch removed (see above). No other dead code or placeholder logic found.
+- **TODO / FIXME / commented-out blocks:** Grep over `apps/bio-sync-sixty/apps/master-clock/src` found none.
+- **Console logging:** No `console.log`/`debug`/`info` in changed files.
+- **Hallucinated APIs:** All used symbols verified: `date-fns` (`addHours`, `addMinutes`, `isAfter`, `isBefore`, `differenceInMinutes`), `date-fns-tz` (`fromZonedTime`, `toZonedTime`, `formatInTimeZone`), `lucide-react`, `motion/react`, `cn` from `./lib/utils` — all exist and are used correctly.
 
 ---
 
-## Ignored (with reason)
+## Ignored
 
-| Suggestion | Reason |
-|------------|--------|
-| **sidebarExerciseIndex “desync”** | Sidebar already branches on `isWarmupComplete` and shows “Warm-up complete” when `warmupActiveIndex >= warmupList.length`. Index is clamped only for array access; completion state is handled. No logic error. |
-| **Spelling “protacted”** | Already corrected to “protracted” in `interval-timer-warmup.ts`. |
-| **childs-pose.png missing** | Comment in `WARMUP_IMAGE_MAP` documents that asset may be missing; UI tolerates missing images. No code change. |
-| **Module/header comments (images in header)** | `interval-timer-warmup.ts` and `WarmUpWheel.tsx` already state “sidebar” / “surrounding sidebar/layout UI”. No update. |
-| **RoundsCounter 0/1-based** | Component has `valueIsOneBased`; overlay passes `valueIsOneBased={isWarmupBlock}`. Display and aria use same `displayValue`. No inconsistency. |
-| **Focus trap in setup modal** | Not implemented to limit churn. Escape and initial focus added; full trap can be added later if needed. |
+- **Style/nitpick suggestions** that would add new abstractions or patterns not used elsewhere in the app (e.g. extracting a “format hunger delay” helper) — **ignored** to avoid unnecessary churn and stay consistent with existing inline logic in the component.
+- **`process.env` in client:** Only reference is in `vite.config.ts` (build config, e.g. `DISABLE_HMR`). No `import.meta.env` or `process.env` in client `src/` — **no change.**
 
 ---
 
-## Verification
+## Security & Build-Time Safety
 
-- **Env:** Only `import.meta.env.BASE_URL` and guarded `import.meta.env` check in client code; no secrets or non-`VITE_` usage.
-- **Node/fs:** No Node-only APIs in `src/`; build/tooling only.
-- **Lint:** No new linter errors in modified files.
-- **Build:** `pnpm run build` (landing) succeeds.
+- **Env leakage:** No secrets or non-`VITE_` env vars used in client code. Master-clock `src/` does not use `import.meta.env` or `process.env`.
+- **Node in browser bundle:** No `fs`, `path`, or other Node-only APIs imported in `src/`.
+- **Astro/public env:** N/A for this PR (no Astro frontmatter env changes).
+
+---
+
+## Build Verification
+
+- `npm run build --workspace=apps/bio-sync-sixty/apps/master-clock` — **passed** (Vite build completed successfully).
 
 ---
 
@@ -52,4 +50,4 @@
 
 **READY TO MERGE**
 
-All critical and accessibility items from the triage are addressed. Remaining Copilot suggestions were either already applied, false positives, or intentionally deferred (e.g. focus trap). No security, slop, or regression issues identified.
+All triaged Copilot comments have been applied where valid. No critical or performance issues remain. No slop, dead code, or hallucinated APIs in the changed scope. Code is consistent with existing patterns and passes the build.
