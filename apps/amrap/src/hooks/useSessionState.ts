@@ -106,23 +106,6 @@ export function useSessionState(
     });
   }, [pushState]);
 
-  if (!isHost && session) {
-    return {
-      timeLeft: session.time_left_sec,
-      totalTime,
-      timerState: session.state as SessionTimerState,
-      isPaused: session.is_paused,
-      setTimerState: () => {},
-      setTimeLeft: () => {},
-      setIsPaused: () => {},
-      pushState: async () => false,
-      skipSetup: () => {},
-      finish: () => {},
-      startWork: () => {},
-      startSetup: () => {},
-    };
-  }
-
   useEffect(() => {
     if (!session) return;
     setTimeLeft(session.time_left_sec);
