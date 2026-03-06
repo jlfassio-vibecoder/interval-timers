@@ -65,7 +65,7 @@ const Handbook: React.FC = () => {
     2: {
       title: "Phase 2: Metabolic Flexibility (Days 21–40)",
       objective: "Optimize mitochondrial density and fuel switching.",
-      description: "With the nervous system stabilized, the protocol increases the demand on the metabolic engines. The \"Japanese Walking\" intervals become stricter and more intense, driving VO2 peak improvements. The feeding window becomes more intuitive as hunger hormones (ghrelin/leptin) re-align with the solar day.",
+      description: "With the nervous system stabilized, the protocol increases the demand on the metabolic engines. The \"Japanese Walking\" intervals become stricter and more intense, driving VO2 peak improvements. The metabolic window becomes more intuitive as hunger hormones (ghrelin/leptin) re-align with the solar day.",
       focus: "Increasing mitochondrial biogenesis via VT1 precision and triggering the \"Metabolic Switch\" consistently.",
       volume: "Introduction of progressive overload in \"Functional Force\" resistance sessions.",
       adaptation: "Participants report \"Clear-Headed Fasting\"—the ability to perform morning movement without caloric aid, signaling efficient fat oxidation and ketone utilization."
@@ -300,10 +300,10 @@ const Handbook: React.FC = () => {
 
               <h4 className="text-xl font-bold text-gray-800 mb-3">Initiating the "Metabolic Switch"</h4>
               <p>
-                The Bio-Sync60 "Digital Sunset" and feeding cutoff (The 10-Hour Rule) are designed to extend the overnight fasting window to a minimum of 14 hours. This duration initiates the transition toward the "Metabolic Switch" — the progressive shift from glucose utilization to fatty acid oxidation and ketone production. Research indicates this switch occurs across a range of 12–36 hours, depending on pre-fast meal composition, glycogen stores, and physical activity level (Anton et al., 2018). By combining the 14-hour window with the morning VT1 movement anchor (which accelerates glycogen depletion), Bio-Sync60 participants reliably enter the early phases of this metabolic transition during their overnight fast.
+                The Bio-Sync60 "Digital Sunset" and metabolic window cutoff (The 10-Hour Rule) are designed to extend the overnight fasting window to a minimum of 14 hours. This duration initiates the transition toward the "Metabolic Switch" — the progressive shift from glucose utilization to fatty acid oxidation and ketone production. Research indicates this switch occurs across a range of 12–36 hours, depending on pre-fast meal composition, glycogen stores, and physical activity level (Anton et al., 2018). By combining the 14-hour window with the morning VT1 movement anchor (which accelerates glycogen depletion), Bio-Sync60 participants reliably enter the early phases of this metabolic transition during their overnight fast.
               </p>
               <p className="mt-4">
-                This transition typically begins between 12 and 16 hours of fasting, depending on pre-fast meal composition. Ketones are not merely an alternative fuel source; they are potent signaling molecules. They upregulate the expression of Brain-Derived Neurotrophic Factor (BDNF), enhancing neuroplasticity, and suppress the NLRP3 inflammasome, thereby reducing systemic inflammation. By compressing the feeding window to the earlier part of the day (eTRE), participants maximize these autophagic and regenerative processes during sleep.
+                This transition typically begins between 12 and 16 hours of fasting, depending on pre-fast meal composition. Ketones are not merely an alternative fuel source; they are potent signaling molecules. They upregulate the expression of Brain-Derived Neurotrophic Factor (BDNF), enhancing neuroplasticity, and suppress the NLRP3 inflammasome, thereby reducing systemic inflammation. By compressing the metabolic window to the earlier part of the day (eTRE), participants maximize these autophagic and regenerative processes during sleep.
               </p>
 
               <div className="mt-8">

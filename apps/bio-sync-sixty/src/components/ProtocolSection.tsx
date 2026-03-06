@@ -61,7 +61,7 @@ const ProtocolSection: React.FC = () => {
 
           <h4 className="font-bold text-sync-blue text-lg mt-4">🌅 Morning Updates</h4>
           <ul className="list-disc pl-5 space-y-2">
-              <li><strong>Protein Anchor:</strong> Continues (30g within 30 mins). This opens your feeding window.</li>
+              <li><strong>Protein Anchor:</strong> Continues (30g within 30 mins). This opens your active fueling phase.</li>
               <li><strong>Cold Shower Finisher:</strong> Turn handle to coldest setting for final 2 minutes. Force slow exhale.</li>
           </ul>
 
@@ -70,8 +70,8 @@ const ProtocolSection: React.FC = () => {
 
           <h4 className="font-bold text-sync-blue text-lg mt-6">🍽️ Nutrition: eTRE</h4>
           <ul className="list-disc pl-5 space-y-2">
-              <li><strong>10-Hour Window:</strong> If breakfast is 8am, dinner ends by 6pm.</li>
-              <li><strong>The Fast:</strong> Water/Black Coffee only outside window.</li>
+              <li><strong>10-Hour Metabolic Window:</strong> If breakfast is 8am, dinner ends by 6pm.</li>
+              <li><strong>The Fast:</strong> Water/Black Coffee only outside your metabolic window.</li>
           </ul>
 
           <div className="bg-red-50 p-4 rounded-lg border border-red-100 text-red-800 text-xs font-bold mt-4">

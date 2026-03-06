@@ -62,14 +62,14 @@ const ScienceSection: React.FC = () => {
             </p>
             <div className="inline-flex items-center bg-white/10 px-4 py-2 rounded-lg backdrop-blur-sm border border-white/10">
               <span className="text-sync-orange font-bold mr-2">The Rule:</span>
-              <span className="text-sm">10-Hour Feeding Window (e.g., 8am - 6pm)</span>
+              <span className="text-sm">10-Hour Metabolic Window (e.g., 8am - 6pm)</span>
             </div>
             <a
               href={BASE + '/master-clock'}
               className="inline-flex items-center justify-center gap-2 bg-white text-sync-blue font-bold py-3 px-5 rounded-lg text-sm hover:bg-sync-orange hover:text-white transition-all shadow-lg"
             >
               <span>🕐</span>
-              <span>Set Your Feeding Window (Master Clock)</span>
+              <span>Set Your Metabolic Window (Master Clock)</span>
             </a>
           </div>
           {/* Clock Visual */}
@@ -77,7 +77,7 @@ const ScienceSection: React.FC = () => {
             <div className="w-32 h-32 rounded-full border-4 border-white/20 relative flex items-center justify-center bg-sync-blue">
               <div className="absolute inset-0 rounded-full border-4 border-sync-orange" style={{ clipPath: 'polygon(50% 50%, 100% 0, 100% 100%, 0 100%, 0 40%)', transform: 'rotate(45deg)' }}></div>
               <div className="text-center z-10">
-                <div className="text-xs text-gray-400 uppercase">Window</div>
+                <div className="text-xs text-gray-400 uppercase">Metabolic</div>
                 <div className="font-bold text-xl">10h</div>
               </div>
             </div>
