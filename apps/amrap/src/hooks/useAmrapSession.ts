@@ -52,6 +52,7 @@ export interface AmrapSessionData {
   participantId: string | null;
   error: string | null;
   loading: boolean;
+  refetch: () => Promise<void>;
 }
 
 function toPublicSession(row: AmrapSessionRow): AmrapSessionPublic {
@@ -167,6 +168,12 @@ export function useAmrapSession(sessionId: string | undefined): AmrapSessionData
   }, [sessionId, fetchParticipants]);
 
   useEffect(() => {
+    if (!sessionId || session?.state !== 'waiting') return;
+    const interval = setInterval(() => fetchParticipants(sessionId), 3000);
+    return () => clearInterval(interval);
+  }, [sessionId, session?.state, fetchParticipants]);
+
+  useEffect(() => {
     if (!sessionId) return;
 
     const channel = supabase
@@ -188,6 +195,15 @@ export function useAmrapSession(sessionId: string | undefined): AmrapSessionData
     };
   }, [sessionId, fetchRounds]);
 
+  const refetch = useCallback(async () => {
+    if (!sessionId) return;
+    await Promise.all([
+      fetchSession(sessionId),
+      fetchParticipants(sessionId),
+      fetchRounds(sessionId),
+    ]);
+  }, [sessionId, fetchSession, fetchParticipants, fetchRounds]);
+
   return {
     session,
     participants,
@@ -196,5 +212,6 @@ export function useAmrapSession(sessionId: string | undefined): AmrapSessionData
     participantId,
     error,
     loading,
+    refetch,
   };
 }

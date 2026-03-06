@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 import {
   useAmrapSession,
   getStoredHostToken,
+  setStoredParticipantId,
 } from '@/hooks/useAmrapSession';
 import { useSessionState } from '@/hooks/useSessionState';
 import type { AmrapRoundRow, AmrapParticipantRow } from '@/lib/supabase';
@@ -74,6 +75,7 @@ export default function AmrapSessionPage() {
     participantId,
     error,
     loading,
+    refetch,
   } = useAmrapSession(sessionId);
   const hostToken = sessionId ? getStoredHostToken(sessionId) : null;
   const sessionState = useSessionState(sessionId, session, isHost, hostToken);
@@ -91,6 +93,10 @@ export default function AmrapSessionPage() {
   } = sessionState;
 
   const [logRoundError, setLogRoundError] = useState<string | null>(null);
+  const [joinNickname, setJoinNickname] = useState('');
+  const [joinError, setJoinError] = useState<string | null>(null);
+  const [joinLoading, setJoinLoading] = useState(false);
+  const [, setJoinKey] = useState(0);
   const workoutList = session?.workout_list ?? [];
   const myRounds = participantId
     ? rounds.filter((r) => r.participant_id === participantId)
@@ -115,6 +121,30 @@ export default function AmrapSessionPage() {
       void navigator.clipboard.writeText(url);
     } catch {}
   }, []);
+
+  const handleJoinSession = useCallback(async () => {
+    const name = joinNickname.trim();
+    if (!name) {
+      setJoinError('Enter your name or a nickname');
+      return;
+    }
+    if (!sessionId) return;
+    setJoinLoading(true);
+    setJoinError(null);
+    const { data, error } = await supabase.rpc('join_session', {
+      p_session_id: sessionId,
+      p_nickname: name,
+    });
+    setJoinLoading(false);
+    if (error) {
+      setJoinError(error.message);
+      return;
+    }
+    const result = data as { participant_id: string };
+    setStoredParticipantId(sessionId, result.participant_id);
+    await refetch();
+    setJoinKey((k) => k + 1);
+  }, [sessionId, joinNickname, refetch]);
 
   if (loading || !sessionId) {
     return (
@@ -277,6 +307,40 @@ export default function AmrapSessionPage() {
           <h3 className="mb-4 text-lg font-bold text-white">
             Who&apos;s here <span className="font-normal text-white/60">({participants.length})</span>
           </h3>
+          {!participantId && !isHost && (
+            <div className="mb-4 rounded-xl border border-white/10 bg-black/20 p-4">
+              <p className="mb-3 text-sm text-white/80">
+                Add your name to join this session and appear on the leaderboard.
+              </p>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                <div className="flex-1">
+                  <label htmlFor="join-nickname" className="sr-only">
+                    Your name or nickname
+                  </label>
+                  <input
+                    id="join-nickname"
+                    type="text"
+                    value={joinNickname}
+                    onChange={(e) => setJoinNickname(e.target.value)}
+                    placeholder="Your name or nickname"
+                    className="w-full rounded-lg border border-white/20 bg-black/30 px-3 py-2 text-white placeholder:text-white/50 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+                    disabled={joinLoading}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleJoinSession}
+                  disabled={joinLoading || !joinNickname.trim()}
+                  className="rounded-xl bg-orange-600 px-6 py-2.5 font-bold text-white shadow-[0_0_20px_rgba(234,88,12,0.3)] transition-all hover:bg-orange-500 disabled:opacity-50 disabled:hover:bg-orange-600"
+                >
+                  {joinLoading ? 'Joining…' : 'Join'}
+                </button>
+              </div>
+              {joinError && (
+                <p className="mt-2 text-sm text-red-400">{joinError}</p>
+              )}
+            </div>
+          )}
           <ul className="flex flex-wrap gap-2">
             {participants.map((p) => (
               <li
