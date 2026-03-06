@@ -191,19 +191,22 @@ export default function App() {
     maxDaylightFuelingHours = Math.max(0, differenceInMinutes(sunData.civilSunset, feedingStart) / 60);
     const maxDaylightRounded = Math.round(maxDaylightFuelingHours * 10) / 10;
 
-    // Check if window extends past civil sunset
-    if (isAfter(feedingEnd, sunData.civilSunset)) {
+    const extendsPastCivilSunset = isAfter(feedingEnd, sunData.civilSunset);
+    if (extendsPastCivilSunset) {
       warnings.push(`Your ${feedingDuration}-hour active fueling phase extends past civil sunset. With your schedule, max daylight-aligned window is ${maxDaylightRounded}h. Consider waking earlier or shortening the window.`);
+      isOptimal = false;
     } else {
       isOptimal = true;
     }
-
-    if (maxDaylightFuelingHours === 0) {
-      warnings.push(`Your first bite time is at or after civil sunset. To align with daylight, wake earlier or shorten your metabolic readiness delay.`);
-      isOptimal = false;
-    } else if (maxDaylightFuelingHours < 6) {
-      warnings.push(`Daylight is very short today (max ${maxDaylightRounded}h window to civil sunset). Consider waking earlier or a shorter metabolic delay to fit eating within daylight.`);
-      isOptimal = false;
+    // Only add daylight-specific warnings when we did not already warn about extending past sunset (avoids redundant messages).
+    if (!extendsPastCivilSunset) {
+      if (maxDaylightFuelingHours === 0) {
+        warnings.push(`Your first bite time is at or after civil sunset. To align with daylight, wake earlier or shorten your metabolic readiness delay.`);
+        isOptimal = false;
+      } else if (maxDaylightFuelingHours < 6) {
+        warnings.push(`Daylight is very short today (max ${maxDaylightRounded}h window to civil sunset). Consider waking earlier or a shorter metabolic delay to fit eating within daylight.`);
+        isOptimal = false;
+      }
     }
 
     // Check hunger delay (Melatonin-Insulin Conflict)
@@ -418,7 +421,11 @@ export default function App() {
                   <Utensils className="w-4 h-4" /> Metabolic Readiness
                 </div>
                 <span className={cn("font-mono", hungerDelay < 60 ? "text-amber-400" : "text-emerald-400")}>
-                  {hungerDelay >= 60 && hungerDelay % 60 === 0 ? `+${hungerDelay / 60}h` : `+${hungerDelay}m`}
+                  {hungerDelay < 60
+                    ? `+${hungerDelay}m`
+                    : hungerDelay % 60 === 0
+                      ? `+${hungerDelay / 60}h`
+                      : `+${Math.floor(hungerDelay / 60)}h ${hungerDelay % 60}m`}
                 </span>
               </h2>
               
@@ -451,11 +458,9 @@ export default function App() {
                   <p className="text-xs text-zinc-500 mt-3 leading-relaxed">
                     {hungerDelay <= 45
                       ? "⚠️ Eating too soon may cause glucose spikes due to the melatonin–insulin conflict. Cortisol is still surging (CAR)."
-                      : hungerDelay < 60
-                        ? "⚠️ Eating too soon may cause glucose spikes due to high melatonin. Aim for at least 60 mins."
-                        : hungerDelay <= 120
-                          ? "✅ 1–2 hours allows melatonin to dissipate and cortisol to stabilize. Aligns with Dr. Satchin Panda's recommendation."
-                          : "✅ Waiting until genuine hunger (3–5h after waking) can improve fasting glucose. The \"First Bite\" resets organ clocks regardless of clock time."}
+                      : hungerDelay <= 120
+                        ? "✅ 1–2 hours allows melatonin to dissipate and cortisol to stabilize. Aligns with Dr. Satchin Panda's recommendation."
+                        : "✅ Waiting until genuine hunger (3–5h after waking) can improve fasting glucose. The \"First Bite\" resets organ clocks regardless of clock time."}
                   </p>
                 </div>
               </div>
