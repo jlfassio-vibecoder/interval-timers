@@ -1049,7 +1049,7 @@ const Cookbook: React.FC = () => {
             "Gather and prep all ingredients listed.",
             "Cook protein component (if required) until done.",
             "Assemble with sides and garnishes.",
-            "Consume within the active feeding window."
+            "Consume within the active fueling phase."
         ]
     }
   });
@@ -1477,7 +1477,7 @@ const Cookbook: React.FC = () => {
                     {activeMeal === 'breakfast' 
                         ? '21 Recipes Engineered for Speed, Bioavailability, and mTOR Activation.'
                         : activeMeal === 'lunch'
-                        ? '21 Lunches Optimized for the 10-Hour Feeding Window.'
+                        ? '21 Lunches Optimized for the 10-Hour Metabolic Window.'
                         : '21 Dinners Designed for Sustained Release & Sleep Quality.'}
                 </p>
             </div>

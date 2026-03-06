@@ -9,7 +9,7 @@ interface LocationData {
   name: string;
   lat: number;
   lng: number;
-  /** IANA timezone (e.g. America/New_York). From Open-Meteo when searching; when missing we use browser timezone so feeding window aligns with location. */
+  /** IANA timezone (e.g. America/New_York). From Open-Meteo when searching; when missing we use browser timezone so metabolic window aligns with location. */
   timezone?: string;
 }
 
@@ -94,7 +94,7 @@ export default function App() {
       name: `${result.name}, ${result.admin1 || result.country}`,
       lat: result.latitude,
       lng: result.longitude,
-      timezone: result.timezone, // Open-Meteo returns IANA timezone so feeding window aligns with selected location
+      timezone: result.timezone, // Open-Meteo returns IANA timezone so metabolic window aligns with selected location
     });
     setSearchResults([]);
     setSearchQuery('');
@@ -157,14 +157,15 @@ export default function App() {
     );
   };
 
-  // Effective timezone: use location's so feeding window aligns with selected place; fallback to browser when unknown (e.g. current location).
+  // Effective timezone: use location's so metabolic window aligns with selected place; fallback to browser when unknown (e.g. current location).
   const tz = location?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-  // Calculate feeding window (sun data is UTC; wake/bed interpreted in location timezone)
+  // Calculate metabolic window (sun data is UTC; wake/bed interpreted in location timezone)
   let feedingStart: Date | null = null;
   let feedingEnd: Date | null = null;
   let wakeDate: Date | null = null;
   let bedDate: Date | null = null;
+  let maxDaylightFuelingHours: number | null = null;
   let warnings: string[] = [];
   let isOptimal = false;
 
@@ -183,14 +184,26 @@ export default function App() {
     }
 
     const metabolicReadyTime = addMinutes(wakeDate, hungerDelay);
-    feedingStart = isAfter(metabolicReadyTime, sunData.sunrise) ? metabolicReadyTime : sunData.sunrise;
+    feedingStart = isAfter(metabolicReadyTime, sunData.civilSunrise) ? metabolicReadyTime : sunData.civilSunrise;
     feedingEnd = addHours(feedingStart, feedingDuration);
 
-    // Check if window extends past sunset
-    if (isAfter(feedingEnd, sunData.sunset)) {
-      warnings.push(`Your ${feedingDuration}-hour window extends past sunset. Consider waking up earlier to fully align with daylight.`);
+    // Max fueling phase that fits within civil daylight (first bite to civil sunset)
+    maxDaylightFuelingHours = Math.max(0, differenceInMinutes(sunData.civilSunset, feedingStart) / 60);
+    const maxDaylightRounded = Math.round(maxDaylightFuelingHours * 10) / 10;
+
+    // Check if window extends past civil sunset
+    if (isAfter(feedingEnd, sunData.civilSunset)) {
+      warnings.push(`Your ${feedingDuration}-hour active fueling phase extends past civil sunset. With your schedule, max daylight-aligned window is ${maxDaylightRounded}h. Consider waking earlier or shortening the window.`);
     } else {
       isOptimal = true;
+    }
+
+    if (maxDaylightFuelingHours === 0) {
+      warnings.push(`Your first bite time is at or after civil sunset. To align with daylight, wake earlier or shorten your metabolic readiness delay.`);
+      isOptimal = false;
+    } else if (maxDaylightFuelingHours < 6) {
+      warnings.push(`Daylight is very short today (max ${maxDaylightRounded}h window to civil sunset). Consider waking earlier or a shorter metabolic delay to fit eating within daylight.`);
+      isOptimal = false;
     }
 
     // Check hunger delay (Melatonin-Insulin Conflict)
@@ -202,7 +215,7 @@ export default function App() {
     // Check if window is too close to bedtime (ideally 2-3 hours before)
     const hoursBeforeBed = differenceInMinutes(bedDate, feedingEnd) / 60;
     if (hoursBeforeBed < 2) {
-      warnings.push(`Your window ends only ${Math.round(hoursBeforeBed * 10) / 10} hours before bed. Aim for at least 2 hours of fasting before sleep.`);
+      warnings.push(`Your active fueling phase ends only ${Math.round(hoursBeforeBed * 10) / 10} hours before bed. Aim for at least 2 hours of fasting before sleep.`);
       isOptimal = false;
     }
   }
@@ -217,7 +230,7 @@ export default function App() {
             Bio-Sync<span className="text-emerald-500">{feedingDuration < 10 ? `0${feedingDuration}` : feedingDuration}</span>
           </h1>
           <p className="text-zinc-400 text-lg max-w-xl">
-            Align your {feedingDuration}-hour feeding window with seasonal daylight to perfect the Metabolic Switch.
+            Align your {feedingDuration}-hour metabolic window with seasonal daylight to perfect the Metabolic Switch.
           </p>
         </header>
 
@@ -387,6 +400,14 @@ export default function App() {
                     className="w-full bg-black/20 border border-white/10 rounded-xl py-2.5 px-4 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all [color-scheme:dark]"
                   />
                 </div>
+                {sunData && feedingStart && (
+                  <div className="pt-2 border-t border-white/5">
+                    <p className="text-xs font-medium text-zinc-500">First bite (est.)</p>
+                    <p className="text-sm font-medium text-emerald-400 mt-0.5">
+                      {formatInTimeZone(feedingStart, tz, 'h:mm a')}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -397,7 +418,7 @@ export default function App() {
                   <Utensils className="w-4 h-4" /> Metabolic Readiness
                 </div>
                 <span className={cn("font-mono", hungerDelay < 60 ? "text-amber-400" : "text-emerald-400")}>
-                  +{hungerDelay}m
+                  {hungerDelay >= 60 && hungerDelay % 60 === 0 ? `+${hungerDelay / 60}h` : `+${hungerDelay}m`}
                 </span>
               </h2>
               
@@ -409,8 +430,8 @@ export default function App() {
                   <input
                     type="range"
                     min="0"
-                    max="180"
-                    step="15"
+                    max="300"
+                    step="30"
                     value={hungerDelay}
                     onChange={(e) => setHungerDelay(parseInt(e.target.value))}
                     className={cn(
@@ -420,30 +441,58 @@ export default function App() {
                   />
                   <div className="flex justify-between text-xs text-zinc-500 mt-2 font-mono">
                     <span>0m</span>
-                    <span>60m</span>
-                    <span>120m</span>
-                    <span>180m</span>
+                    <span className={cn(hungerDelay >= 60 && hungerDelay <= 120 && "text-emerald-400 font-medium")}>1h</span>
+                    <span className={cn(hungerDelay >= 60 && hungerDelay <= 120 && "text-emerald-400 font-medium")}>2h</span>
+                    <span>3h</span>
+                    <span>4h</span>
+                    <span>5h</span>
                   </div>
+                  <p className="text-[10px] text-zinc-500 mt-1 font-medium text-center">1–2h optimal; up to 5h supported (e.g. 5am wake → 10am first bite)</p>
                   <p className="text-xs text-zinc-500 mt-3 leading-relaxed">
-                    {hungerDelay < 60 
-                      ? "⚠️ Eating too soon may cause glucose spikes due to high melatonin."
-                      : "✅ Waiting 60-90 mins allows melatonin to drop and cortisol to stabilize."}
+                    {hungerDelay <= 45
+                      ? "⚠️ Eating too soon may cause glucose spikes due to the melatonin–insulin conflict. Cortisol is still surging (CAR)."
+                      : hungerDelay < 60
+                        ? "⚠️ Eating too soon may cause glucose spikes due to high melatonin. Aim for at least 60 mins."
+                        : hungerDelay <= 120
+                          ? "✅ 1–2 hours allows melatonin to dissipate and cortisol to stabilize. Aligns with Dr. Satchin Panda's recommendation."
+                          : "✅ Waiting until genuine hunger (3–5h after waking) can improve fasting glucose. The \"First Bite\" resets organ clocks regardless of clock time."}
                   </p>
                 </div>
               </div>
             </div>
 
-            {/* Feeding Window Card */}
+            {/* Active Fueling Phase Card */}
             <div className="bg-[#171717] rounded-2xl p-6 border border-white/5 shadow-xl">
               <h2 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-4 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Sun className="w-4 h-4" /> Feeding Window
+                  <Sun className="w-4 h-4" /> Active Fueling Phase
                 </div>
                 <span className="text-emerald-400 font-mono">{feedingDuration}h</span>
               </h2>
               
               <div className="space-y-4">
-                <div>
+                <div className={cn("relative", sunData && maxDaylightFuelingHours != null && maxDaylightFuelingHours < 12 && "pt-5")}>
+                  {sunData && maxDaylightFuelingHours != null && maxDaylightFuelingHours < 12 && (
+                    <>
+                      <div
+                        className="absolute top-5 bottom-0 w-0.5 bg-amber-400/80 z-10 pointer-events-none"
+                        style={{
+                          left: `${Math.min(100, Math.max(0, ((maxDaylightFuelingHours - 6) / 6) * 100))}%`,
+                          transform: 'translateX(-50%)',
+                        }}
+                        title={`Daylight max: ${Math.round(maxDaylightFuelingHours * 10) / 10}h`}
+                      />
+                      <div
+                        className="absolute top-0 text-[10px] text-amber-400/90 font-medium whitespace-nowrap pointer-events-none"
+                        style={{
+                          left: `${Math.min(100, Math.max(0, ((maxDaylightFuelingHours - 6) / 6) * 100))}%`,
+                          transform: 'translateX(-50%)',
+                        }}
+                      >
+                        Daylight max
+                      </div>
+                    </>
+                  )}
                   <input
                     type="range"
                     min="6"
@@ -451,7 +500,7 @@ export default function App() {
                     step="1"
                     value={feedingDuration}
                     onChange={(e) => setFeedingDuration(parseInt(e.target.value))}
-                    className="w-full accent-emerald-500 cursor-pointer"
+                    className="w-full accent-emerald-500 cursor-pointer relative z-0"
                   />
                   <div className="flex justify-between text-xs text-zinc-500 mt-2 font-mono">
                     <span>6h</span>
@@ -459,6 +508,11 @@ export default function App() {
                     <span>10h</span>
                     <span>12h</span>
                   </div>
+                  {sunData && maxDaylightFuelingHours != null && maxDaylightFuelingHours < 12 && (
+                    <p className="text-[10px] text-amber-400/80 mt-1 text-center">
+                      Max {Math.round(maxDaylightFuelingHours * 10) / 10}h to civil sunset
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -481,7 +535,7 @@ export default function App() {
                   </div>
                   <h3 className="text-lg font-medium text-white mb-2">Set your location</h3>
                   <p className="text-sm text-zinc-500 max-w-xs">
-                    We need your location to calculate seasonal daylight hours and optimize your feeding window.
+                    We need your location to calculate seasonal daylight hours and optimize your metabolic window.
                   </p>
                 </div>
               ) : isLoadingSun ? (
@@ -521,16 +575,16 @@ export default function App() {
                     {/* The Bar */}
                     <div className="h-12 bg-black/40 rounded-xl relative overflow-hidden border border-white/5">
                       
-                      {/* Daylight overlay (positions in location local time) */}
+                      {/* Daylight overlay (civil twilight; positions in location local time) */}
                       <div 
                         className="absolute top-0 bottom-0 bg-amber-500/20 border-x border-amber-500/30"
                         style={{
-                          left: `${(toZonedTime(sunData.sunrise, tz).getHours() + toZonedTime(sunData.sunrise, tz).getMinutes()/60) / 24 * 100}%`,
-                          right: `${100 - (toZonedTime(sunData.sunset, tz).getHours() + toZonedTime(sunData.sunset, tz).getMinutes()/60) / 24 * 100}%`
+                          left: `${(toZonedTime(sunData.civilSunrise, tz).getHours() + toZonedTime(sunData.civilSunrise, tz).getMinutes()/60) / 24 * 100}%`,
+                          right: `${100 - (toZonedTime(sunData.civilSunset, tz).getHours() + toZonedTime(sunData.civilSunset, tz).getMinutes()/60) / 24 * 100}%`
                         }}
                       />
                       
-                      {/* Feeding Window overlay */}
+                      {/* Active fueling phase overlay */}
                       <div 
                         className="absolute top-1 bottom-1 bg-emerald-500/20 border border-emerald-500/50 rounded-lg shadow-[0_0_15px_rgba(16,185,129,0.2)]"
                         style={{
@@ -568,7 +622,7 @@ export default function App() {
                       </div>
                       <div className="flex items-center gap-2">
                         <div className="w-3 h-3 rounded bg-emerald-500/20 border border-emerald-500/50"></div>
-                        <span className="text-emerald-400">{feedingDuration}h Feeding Window</span>
+                        <span className="text-emerald-400">{feedingDuration}h Active Fueling Phase</span>
                       </div>
                     </div>
                   </div>
@@ -583,7 +637,7 @@ export default function App() {
                         <div>
                           <p className="text-sm font-medium text-emerald-400 mb-1">Perfectly Aligned</p>
                           <p className="text-xs text-emerald-400/70 leading-relaxed">
-                            Your {feedingDuration}-hour window is perfectly aligned with daylight hours, optimizing your circadian rhythm and metabolic switch.
+                            Your {feedingDuration}-hour metabolic window is perfectly aligned with daylight hours, optimizing your circadian rhythm and metabolic switch.
                           </p>
                         </div>
                       </div>
@@ -605,9 +659,56 @@ export default function App() {
             <div className="bg-[#171717] rounded-2xl p-6 border border-white/5 shadow-xl">
               <h3 className="text-sm font-medium text-white mb-2">The Science of eTRE</h3>
               <p className="text-sm text-zinc-400 leading-relaxed">
-                By aligning food intake with daylight, we significantly reduce the Glycemic Area Under Curve (AUC), forcing the body to burn fat for fuel during the "Digital Sunset." A {feedingDuration}-hour window gives your digestive system a {24 - feedingDuration}-hour rest to repair and rejuvenate.
+                By aligning food intake with daylight, we significantly reduce the Glycemic Area Under Curve (AUC), forcing the body to burn fat for fuel during the "Digital Sunset." A {feedingDuration}-hour active fueling phase gives your digestive system a {24 - feedingDuration}-hour rest to repair and rejuvenate.
               </p>
             </div>
+
+            {/* The Science of Metabolic Readiness */}
+            <details className="bg-[#171717] rounded-2xl border border-white/5 shadow-xl group">
+              <summary className="p-6 cursor-pointer list-none text-sm font-medium text-white hover:text-emerald-400 transition-colors [&::-webkit-details-marker]:hidden">
+                The Science of Metabolic Readiness
+              </summary>
+              <div className="px-6 pb-6 pt-0 space-y-4 text-sm text-zinc-400 leading-relaxed border-t border-white/5">
+                <p>
+                  To determine an optimal metabolic window, a Lead Chronobiologist integrates astronomical data (geographical light cycles) with endogenous hormonal markers and subjective biofeedback (satiety). The synthesis of these factors allows for a personalized calculation of the "Metabolic Day."
+                </p>
+
+                <h4 className="text-xs font-semibold text-zinc-300 uppercase tracking-wider mt-4">1. Geographical and Civil Timing: The "First Light" Anchor</h4>
+                <p>The Suprachiasmatic Nucleus (SCN), or "Master Clock," is primarily entrained by light exposure.</p>
+                <ul className="list-disc pl-5 space-y-1">
+                  <li><strong className="text-zinc-300">Civil Sunrise:</strong> Metabolic processes, including resting energy expenditure and digestive efficiency, are naturally higher during daylight hours.</li>
+                  <li><strong className="text-zinc-300">The Calculation:</strong> The most robust circadian alignment occurs when the first nutrient intake ("First Bite") follows "First Light" (sunrise or bright light exposure).</li>
+                  <li><strong className="text-zinc-300">Standard Formula:</strong> A hypothetical ideal window is often cited as a 10-hour span within the daylight cycle, e.g. 8:00 AM to 6:00 PM.</li>
+                </ul>
+
+                <h4 className="text-xs font-semibold text-zinc-300 uppercase tracking-wider mt-4">2. The Hormonal Buffer: Why the "30-Minute Rule" is Often a Myth</h4>
+                <p>The suggestion to eat within 30 minutes of waking is increasingly scrutinized due to the transition from "Biological Night" to "Biological Day."</p>
+                <ul className="list-disc pl-5 space-y-1">
+                  <li><strong className="text-zinc-300">The Melatonin–Insulin Conflict:</strong> Upon waking, melatonin remains elevated. Because melatonin inhibits pancreatic insulin secretion, eating too soon can cause exaggerated glucose spikes.</li>
+                  <li><strong className="text-zinc-300">The Cortisol Awakening Response (CAR):</strong> Cortisol surges by 50% to 75% within the first 30–45 minutes after waking to mobilize endogenous glucose (the "Dawn Phenomenon").</li>
+                  <li><strong className="text-zinc-300">Refined Recommendation:</strong> Experts like Dr. Satchin Panda recommend waiting <strong className="text-white">1 to 2 hours</strong> after waking before the first bite. This delay allows melatonin to dissipate and cortisol-induced glucose release to stabilize.</li>
+                </ul>
+
+                <h4 className="text-xs font-semibold text-zinc-300 uppercase tracking-wider mt-4">3. Biological Hunger Signaling and Satiety</h4>
+                <ul className="list-disc pl-5 space-y-1">
+                  <li><strong className="text-zinc-300">Endogenous Hunger Rhythms:</strong> Research shows an endogenous trough in hunger at approximately 8:00 AM, theorized to protect the final stages of sleep.</li>
+                  <li><strong className="text-zinc-300">Wait for "Genuinely Hungry":</strong> For many, the best fasting glucose and post-lunch stability occur when breakfast is delayed until genuine hunger—often between 10:00 AM and 11:00 AM—aligning with the natural post-waking cortisol peak.</li>
+                  <li><strong className="text-zinc-300">The "First Bite" Rule:</strong> Regardless of clock time, the "Organ Clocks" (liver, pancreas, gut) are reset by the first caloric event of the day.</li>
+                </ul>
+
+                <h4 className="text-xs font-semibold text-zinc-300 uppercase tracking-wider mt-4">4. Constructing the Personalized Calculation</h4>
+                <ol className="list-decimal pl-5 space-y-1">
+                  <li><strong className="text-zinc-300">Anchor to Light (T_light):</strong> Seek natural light exposure within 30 minutes of waking to set the SCN.</li>
+                  <li><strong className="text-zinc-300">Wait for Metabolic Readiness (T_first_bite):</strong> Wait 1 to 2 hours post-waking, or until subjective hunger is present.</li>
+                  <li><strong className="text-zinc-300">Define the Window (W):</strong> Apply a consistent eating duration, typically 8 to 10 hours. <code className="text-emerald-400/90 bg-white/5 px-1 rounded text-xs">T_last_bite = T_first_bite + W</code></li>
+                  <li><strong className="text-zinc-300">The Bedtime Buffer:</strong> Ensure T_last_bite is at least <strong className="text-white">2 to 3 hours</strong> before sleep to avoid processing nutrients while melatonin is rising.</li>
+                </ol>
+
+                <p className="text-zinc-500 text-xs mt-4 pt-2 border-t border-white/5">
+                  In summary: the optimal window is not a fixed 30-minute post-wake rule but a synchronization of light exposure, hormone dissipation, and biological hunger.
+                </p>
+              </div>
+            </details>
 
           </div>
         </div>

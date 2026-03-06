@@ -1,6 +1,6 @@
 # Master Clock
 
-Align your feeding window with seasonal daylight for the Bio-Sync60 Metabolic Switch.
+Align your metabolic window with seasonal daylight for the Bio-Sync60 Metabolic Switch.
 
 This app is built and deployed as part of the Sync60 project at **/bio-sync60/master-clock** (see repo root `build:deploy` and `scripts/copy-standalone-apps-to-dist.cjs`).
 
