@@ -7,6 +7,7 @@ export default defineConfig({
   plugins: [react()],
   base: '/amrap/',
   server: { port: 5177 },
+  envDir: path.resolve(__dirname, '../..'),
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

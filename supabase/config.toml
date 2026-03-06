@@ -1,0 +1,28 @@
+# HIIT Workout Timers — Supabase project
+# Project: https://dgxoyhkqdxarewmanbrq.supabase.co
+# DB credentials in repo root .env (DATABASE_URL / SUPABASE_DB_PASSWORD)
+
+project_id = "interval-timers"
+
+[remotes.main]
+project_id = "dgxoyhkqdxarewmanbrq"
+
+[api]
+port = 54321
+schemas = ["public"]
+max_rows = 1000
+
+[db]
+port = 54322
+major_version = 15
+
+[studio]
+port = 54323
+
+[auth]
+site_url = "http://localhost:3000"
+enable_signup = true
+
+[auth.email]
+enable_signup = true
+enable_confirmations = false
