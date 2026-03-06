@@ -32,6 +32,24 @@ export const AMRAP_WORKOUT_LIBRARY: Record<AmrapLevel, AmrapWorkoutOption[]> = {
         '10 Box Step-ups',
       ],
     },
+    {
+      name: 'Foundational Hinge',
+      focus: 'Basic posterior recruitment.',
+      exercises: [
+        '15 Band Good Mornings',
+        '12 Seated Band Rows',
+        '15 BW Glute Bridges',
+      ],
+    },
+    {
+      name: 'Pull Mechanics',
+      focus: 'Upper back density.',
+      exercises: [
+        '12 Band Face Pulls',
+        '15 Bird-Dogs',
+        '12 Standing Band Rows',
+      ],
+    },
   ],
   intermediate: [
     {
@@ -74,6 +92,26 @@ export const AMRAP_WORKOUT_LIBRARY: Record<AmrapLevel, AmrapWorkoutOption[]> = {
         '12 Mountain Climbers',
       ],
     },
+    {
+      name: 'Elastic Chain',
+      focus: 'Constant tension hinge/pull.',
+      exercises: [
+        '15 Banded Glute Bridges',
+        '12 Staggered Band Good Mornings',
+        '15 Band T-Flyes',
+        '12 Single Leg BW RDL',
+      ],
+    },
+    {
+      name: 'Posterior Circuit',
+      focus: 'Hamstring and back density.',
+      exercises: [
+        '15 Standing Band High Rows',
+        '20 Band Pull-Aparts',
+        '12 BW Superman Holds (3s)',
+        '15 Banded Air Squats',
+      ],
+    },
   ],
   advanced: [
     {
@@ -114,6 +152,26 @@ export const AMRAP_WORKOUT_LIBRARY: Record<AmrapLevel, AmrapWorkoutOption[]> = {
         '10 Strict Handstand Push-ups or Pike Push-ups',
         '12 Alternating Dumbbell Snatches',
         '10 Strict Toes-to-Bar or Knee Raises',
+      ],
+    },
+    {
+      name: 'Advanced Pull Loop',
+      focus: 'Explosive pull & controlled hinge.',
+      exercises: [
+        '15 Band Good Mornings (Fast Up)',
+        '15 Band Rows (Neutral)',
+        '12/side Single Leg Banded RDL',
+        '15 Band Face Pulls + Hold',
+      ],
+    },
+    {
+      name: 'The Chain Finale',
+      focus: 'End-range glute & back burn.',
+      exercises: [
+        '20 Banded Glute Bridges',
+        '15 Band Pull-Aparts (T-Pos)',
+        '12 Band Rows (Wide Grip)',
+        '15 BW Reverse Lunges',
       ],
     },
   ],

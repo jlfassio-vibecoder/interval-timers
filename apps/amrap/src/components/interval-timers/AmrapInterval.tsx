@@ -386,13 +386,15 @@ const AmrapInterval: React.FC<AmrapIntervalProps> = ({ onNavigate, onNavigateToL
             time window. Your goal is to complete as much work as possible within that window. There
             is no scheduled rest; you rest only when you must.
           </p>
-          <div className="flex justify-center gap-4">
+          <div className="inline-grid w-max max-w-full grid-cols-1 gap-4 sm:grid-cols-2">
+            <AmrapCtaButton onClick={setup.open}>Launch AMRAP Timer</AmrapCtaButton>
+            <AmrapCtaButton to="with-friends">AMRAP With Friends</AmrapCtaButton>
             <AmrapCtaButton
               onClick={() =>
                 document.getElementById('simulator')?.scrollIntoView({ behavior: 'smooth' })
               }
             >
-              Go to Timer
+              Learn More
             </AmrapCtaButton>
           </div>
         </section>
@@ -557,14 +559,6 @@ const AmrapInterval: React.FC<AmrapIntervalProps> = ({ onNavigate, onNavigateToL
           </div>
 
           <div className="flex flex-col items-center gap-4 pt-8 text-center">
-            <button
-              type="button"
-              onClick={setup.open}
-              className="flex items-center gap-3 rounded-full bg-orange-600 px-8 py-4 font-bold text-white shadow-2xl transition-all hover:scale-105 hover:bg-orange-500"
-            >
-              <span>⏱️</span>
-              <span>Launch AMRAP Timer</span>
-            </button>
             <AmrapCtaButton to="workout-explorer">Workout Explorer</AmrapCtaButton>
           </div>
         </section>
