@@ -20,7 +20,11 @@ function LocalVideoTile({ videoTrack, label }: VideoTileProps) {
     if (!videoTrack || !containerRef.current) return
     videoTrack.play(containerRef.current)
     return () => {
-      videoTrack.stop()
+      try {
+        videoTrack.stop()
+      } catch {
+        // Track may already be closed by useAgoraChannel.leave()
+      }
     }
   }, [videoTrack])
 
@@ -42,7 +46,11 @@ export function RemoteVideoTile({ user, label }: RemoteVideoTileProps) {
     if (!track || !containerRef.current) return
     track.play(containerRef.current)
     return () => {
-      track.stop()
+      try {
+        track.stop()
+      } catch {
+        // Track may already be closed when leaving
+      }
     }
   }, [track])
 

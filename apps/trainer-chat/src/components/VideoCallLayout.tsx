@@ -83,8 +83,9 @@ function ControlBar({
       <button
         type="button"
         onClick={() => {
-          setVideoMuted((v) => !v)
-          onMuteVideo(!videoMuted)
+          const nextMuted = !videoMuted
+          setVideoMuted(nextMuted)
+          onMuteVideo(nextMuted)
         }}
         className={clsx(
           'rounded-lg px-4 py-2 text-sm font-medium transition-colors',
@@ -96,8 +97,9 @@ function ControlBar({
       <button
         type="button"
         onClick={() => {
-          setAudioMuted((a) => !a)
-          onMuteAudio(!audioMuted)
+          const nextMuted = !audioMuted
+          setAudioMuted(nextMuted)
+          onMuteAudio(nextMuted)
         }}
         className={clsx(
           'rounded-lg px-4 py-2 text-sm font-medium transition-colors',

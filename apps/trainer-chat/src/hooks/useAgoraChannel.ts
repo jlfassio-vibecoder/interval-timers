@@ -55,7 +55,17 @@ export function useAgoraChannel(
   const leave = useCallback(async () => {
     const client = clientRef.current
     const tracks = tracksRef.current
-    if (tracks) {
+    if (tracks && client) {
+      try {
+        await client.unpublish([tracks.video, tracks.audio])
+      } catch {
+        // Ignore if already unpublished
+      }
+      try {
+        tracks.video.stop()
+      } catch {
+        // Ignore if already stopped
+      }
       tracks.video.close()
       tracks.audio.close()
       tracksRef.current = null
@@ -139,6 +149,16 @@ export function useAgoraChannel(
     return () => {
       const tracks = tracksRef.current
       if (tracks) {
+        try {
+          void client.unpublish([tracks.video, tracks.audio])
+        } catch {
+          // Ignore
+        }
+        try {
+          tracks.video.stop()
+        } catch {
+          // Ignore
+        }
         tracks.video.close()
         tracks.audio.close()
         tracksRef.current = null
