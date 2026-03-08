@@ -21,6 +21,7 @@ export type AmrapSessionRow = {
   is_paused: boolean;
   started_at: string | null;
   created_at: string;
+  scheduled_start_at: string | null;
 };
 
 /** Session fields safe to expose to all clients; exclude host_token to prevent takeover. */
@@ -40,4 +41,12 @@ export type AmrapRoundRow = {
   participant_id: string;
   round_index: number;
   elapsed_sec_at_round: number;
+};
+
+export type AmrapSessionMessageRow = {
+  id: string;
+  session_id: string;
+  participant_id: string;
+  body: string;
+  created_at: string;
 };

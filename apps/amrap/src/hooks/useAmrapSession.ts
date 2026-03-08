@@ -25,7 +25,9 @@ export function setStoredHostToken(sessionId: string, token: string): void {
   try {
     const key = `${SESSION_STORAGE_KEYS.hostToken}_${sessionId}`;
     sessionStorage.setItem(key, token);
-  } catch {}
+  } catch {
+    /* sessionStorage unavailable */
+  }
 }
 
 export function getStoredParticipantId(sessionId: string): string | null {
@@ -41,7 +43,9 @@ export function setStoredParticipantId(sessionId: string, participantId: string)
   try {
     const key = `${SESSION_STORAGE_KEYS.participantId}_${sessionId}`;
     sessionStorage.setItem(key, participantId);
-  } catch {}
+  } catch {
+    /* sessionStorage unavailable */
+  }
 }
 
 export interface AmrapSessionData {
@@ -56,6 +60,7 @@ export interface AmrapSessionData {
 }
 
 function toPublicSession(row: AmrapSessionRow): AmrapSessionPublic {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- omit host_token from public session
   const { host_token: _tk, ...rest } = row;
   return rest as AmrapSessionPublic;
 }
@@ -74,7 +79,7 @@ export function useAmrapSession(sessionId: string | undefined): AmrapSessionData
   const fetchSession = useCallback(async (id: string) => {
     const { data, error: e } = await supabase
       .from('amrap_sessions')
-      .select('id, duration_minutes, workout_list, state, time_left_sec, is_paused, started_at, created_at')
+      .select('id, duration_minutes, workout_list, state, time_left_sec, is_paused, started_at, created_at, scheduled_start_at')
       .eq('id', id)
       .single();
     if (e) {
@@ -108,6 +113,7 @@ export function useAmrapSession(sessionId: string | undefined): AmrapSessionData
 
   useEffect(() => {
     if (!sessionId) {
+      /* eslint-disable react-hooks/set-state-in-effect -- initial state when no sessionId */
       setLoading(false);
       setError('No session ID');
       return;

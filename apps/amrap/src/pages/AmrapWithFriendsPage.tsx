@@ -6,6 +6,8 @@ import {
   setStoredParticipantId,
 } from '@/hooks/useAmrapSession';
 import AmrapCtaButton from '@/components/AmrapCtaButton';
+import WeekCalendar from '@/components/WeekCalendar';
+import CreateFlowSchedulePicker from '@/components/CreateFlowSchedulePicker';
 import {
   AMRAP_WORKOUT_LIBRARY,
   AMRAP_LEVEL_DURATION,
@@ -14,7 +16,7 @@ import {
 import type { AmrapLevel } from '@/components/interval-timers/amrap-setup-data';
 
 type CreateStep = 'level' | 'workout';
-type Tab = 'create' | 'join';
+type Tab = 'create' | 'join' | 'schedule';
 
 export default function AmrapWithFriendsPage() {
   const navigate = useNavigate();
@@ -27,9 +29,15 @@ export default function AmrapWithFriendsPage() {
   const [createError, setCreateError] = useState<string | null>(null);
   const [joinError, setJoinError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [scheduledAt, setScheduledAt] = useState('');
 
   const handleCreateSession = useCallback(
-    async (durationMinutes: number, workoutList: string[], nickname: string) => {
+    async (
+      durationMinutes: number,
+      workoutList: string[],
+      nickname: string,
+      scheduledDateTime?: string
+    ) => {
       const name = nickname.trim();
       if (!name) {
         setCreateError('Enter your name or a nickname');
@@ -41,6 +49,9 @@ export default function AmrapWithFriendsPage() {
         p_duration_minutes: durationMinutes,
         p_workout_list: workoutList,
         p_host_nickname: name,
+        p_scheduled_start_at: scheduledDateTime
+          ? new Date(scheduledDateTime).toISOString()
+          : null,
       });
       setLoading(false);
       if (error) {
@@ -125,6 +136,17 @@ export default function AmrapWithFriendsPage() {
           >
             Join session
           </button>
+          <button
+            type="button"
+            onClick={() => setTab('schedule')}
+            className={`flex-1 rounded-lg py-2.5 text-sm font-bold transition-colors ${
+              tab === 'schedule'
+                ? 'bg-orange-600 text-white'
+                : 'text-white/70 hover:text-white'
+            }`}
+          >
+            Schedule
+          </button>
         </div>
 
         <div className="space-y-10">
@@ -187,6 +209,13 @@ export default function AmrapWithFriendsPage() {
                   >
                     ← Change level
                   </button>
+                  <div className="mb-4">
+                    <CreateFlowSchedulePicker
+                      value={scheduledAt}
+                      onChange={setScheduledAt}
+                      minDate={new Date()}
+                    />
+                  </div>
                   <div className="grid max-h-[40vh] grid-cols-1 gap-3 overflow-y-auto md:grid-cols-2">
                     {workouts.map((option) => (
                       <button
@@ -194,7 +223,7 @@ export default function AmrapWithFriendsPage() {
                         type="button"
                         disabled={loading}
                         onClick={() =>
-                          handleCreateSession(duration, [...option.exercises], hostNickname)
+                          handleCreateSession(duration, [...option.exercises], hostNickname, scheduledAt || undefined)
                         }
                         className="rounded-xl border border-white/10 bg-black/20 p-4 text-left transition-all hover:border-orange-500 hover:bg-orange-600/10 disabled:opacity-50"
                       >
@@ -247,6 +276,9 @@ export default function AmrapWithFriendsPage() {
               )}
             </section>
           )}
+
+          {/* Schedule */}
+          {tab === 'schedule' && <WeekCalendar />}
         </div>
       </div>
     </div>
