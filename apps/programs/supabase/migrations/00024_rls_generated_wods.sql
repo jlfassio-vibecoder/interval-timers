@@ -1,0 +1,1 @@
+ALTER TABLE public.generated_wods ENABLE ROW LEVEL SECURITY;

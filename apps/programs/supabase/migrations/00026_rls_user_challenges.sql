@@ -1,0 +1,1 @@
+ALTER TABLE public.user_challenges ENABLE ROW LEVEL SECURITY;

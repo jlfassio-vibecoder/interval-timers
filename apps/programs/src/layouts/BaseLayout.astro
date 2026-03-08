@@ -1,0 +1,100 @@
+---
+import '../styles/global.css';
+import faviconSvgUrl from '../assets/favicon/favicon.svg?url';
+import favicon96Url from '../assets/favicon/favicon-96x96.png?url';
+import appleTouchUrl from '../assets/favicon/apple-touch-icon.png?url';
+import ToastProvider from '../components/react/ToastProvider';
+import Footer from '../components/astro/Footer.astro';
+
+interface Props {
+  title?: string;
+  /** Optional meta description for SEO and OG */
+  description?: string;
+  /** Optional canonical URL for SEO and OG */
+  canonicalUrl?: string;
+  /** Optional OG/Twitter image URL for sharing */
+  ogImage?: string;
+  /** When set (e.g. on homepage), preload this image as LCP candidate */
+  preloadHeroLogo?: string;
+  /** When true, preload the /api/programs endpoint for faster data fetch */
+  preloadProgramsApi?: boolean;
+}
+
+const {
+  title = 'AI Workout Generator | Stop Guessing. Start Training. Science-Based Workout Plans.',
+  description,
+  canonicalUrl,
+  ogImage,
+  preloadHeroLogo,
+  preloadProgramsApi,
+} = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{title}</title>
+    {description && <meta name="description" content={description} />}
+    {canonicalUrl && <link rel="canonical" href={canonicalUrl} />}
+    <meta property="og:title" content={title} />
+    {description && <meta property="og:description" content={description} />}
+    {canonicalUrl && <meta property="og:url" content={canonicalUrl} />}
+    <meta property="og:type" content="website" />
+    {ogImage && <meta property="og:image" content={ogImage} />}
+    {
+      description && (
+        <meta name="twitter:card" content={ogImage ? 'summary_large_image' : 'summary'} />
+      )
+    }
+    {description && <meta name="twitter:title" content={title} />}
+    {description && <meta name="twitter:description" content={description} />}
+    {ogImage && <meta name="twitter:image" content={ogImage} />}
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/svg+xml" href={faviconSvgUrl} />
+    <link rel="icon" type="image/png" sizes="96x96" href={favicon96Url} />
+    <link rel="apple-touch-icon" sizes="180x180" href={appleTouchUrl} />
+    <link rel="manifest" href="/site.webmanifest" />
+    <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
+    <meta name="theme-color" content="#0d0500" />
+    <!-- Preconnect to external domains for faster connection setup (reCAPTCHA) -->
+    <link rel="preconnect" href="https://www.google.com" crossorigin />
+    <link rel="preconnect" href="https://www.gstatic.com" crossorigin />
+    <link
+      rel="preload"
+      href="/fonts/space-grotesk-v22-latin-400.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      href="/fonts/space-grotesk-v22-latin-700.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      href="/fonts/syncopate-v24-latin-700.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    {preloadHeroLogo && <link rel="preload" as="image" href={preloadHeroLogo} />}
+    {
+      preloadProgramsApi && (
+        <link rel="preload" href="/api/programs" as="fetch" crossorigin="anonymous" />
+      )
+    }
+    <script>
+      import '../pwa';
+    </script>
+  </head>
+  <body>
+    <slot />
+    <Footer />
+    <ToastProvider client:idle />
+  </body>
+</html>

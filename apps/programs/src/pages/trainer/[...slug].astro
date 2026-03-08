@@ -1,0 +1,15 @@
+---
+/**
+ * Catch-all for /trainer/* so client-side routes (roster, roster/:userId, intel)
+ * are served the same React app. Direct hits and refreshes on /trainer/roster etc. no longer 404.
+ */
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import TrainerRoute from '../../components/react/trainer/TrainerRoute';
+---
+
+<BaseLayout
+  title="Mission Control | AI Fit Copilot"
+  description="Command center for training operations."
+>
+  <TrainerRoute client:only="react" />
+</BaseLayout>

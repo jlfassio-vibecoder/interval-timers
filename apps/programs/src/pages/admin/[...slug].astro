@@ -1,0 +1,24 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import AdminDashboard from '../../components/react/admin/AdminDashboard';
+import { adminPaths } from '@/lib/admin/config';
+import { verifyAdminRequest } from '@/lib/supabase/admin/auth';
+
+export const prerender = false;
+
+try {
+  await verifyAdminRequest(Astro.request, Astro.cookies);
+} catch (e) {
+  const msg = e instanceof Error ? e.message : '';
+  if (msg === 'UNAUTHORIZED') {
+    return Astro.redirect('/?admin_required=1');
+  }
+  return Astro.redirect(adminPaths.login);
+}
+---
+
+<BaseLayout title="Admin Dashboard">
+  <div class="min-h-screen bg-bg-dark text-white">
+    <AdminDashboard client:only="react" />
+  </div>
+</BaseLayout>

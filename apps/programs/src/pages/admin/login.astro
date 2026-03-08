@@ -1,0 +1,27 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import AppWrapper from '../../components/react/AppWrapper';
+import AdminLoginGate from '../../components/react/admin/AdminLoginGate';
+import { adminPaths } from '@/lib/admin/config';
+import { verifyAdminRequest } from '@/lib/supabase/admin/auth';
+
+export const prerender = false;
+
+// If already authenticated as admin, redirect to dashboard
+try {
+  await verifyAdminRequest(Astro.request, Astro.cookies);
+  return Astro.redirect(adminPaths.root);
+} catch {
+  // Not authenticated or not admin - render login page
+}
+---
+
+<BaseLayout title="Admin Login">
+  <div class="min-h-screen bg-bg-dark text-white">
+    <AppWrapper client:load pathname={Astro.url.pathname}>
+      <main>
+        <AdminLoginGate client:load />
+      </main>
+    </AppWrapper>
+  </div>
+</BaseLayout>

@@ -1,0 +1,223 @@
+---
+// Static Hero Section - Pure HTML for SEO
+// Use ?url to bypass /_image endpoint (causes 500 in production)
+import logoTransparentUrl from '../../assets/images/logo_transparent_256.png?url';
+---
+
+<header
+  class="relative flex h-[100svh] min-h-[600px] flex-col items-center justify-center overflow-hidden px-4 pt-24"
+>
+  <div class="z-10 flex w-full max-w-6xl flex-col items-center pb-12 text-center md:pb-16">
+    <!-- Category nav bar: marquee with gradient fade (visible below fixed site nav) -->
+    <div class="relative mb-4 w-full max-w-4xl overflow-hidden">
+      <div class="animate-marquee-slow flex w-fit">
+        <!-- Dot wrappers: w-6/md:w-8 = fixed cell for gap alignment; pl-[0.2em]/md:pl-[0.3em] match text tracking so dot sits centered between words -->
+        <div class="flex shrink-0 items-center gap-6 whitespace-nowrap">
+          <span
+            class="font-mono text-xs uppercase tracking-[0.2em] text-orange-light md:text-base md:tracking-[0.3em]"
+            >AI Workout Plans</span
+          >
+          <span
+            class="flex w-6 flex-shrink-0 items-center justify-center pl-[0.2em] md:w-8 md:pl-[0.3em]"
+            aria-hidden="true"
+          >
+            <span class="h-1.5 w-1.5 animate-pulse rounded-full bg-orange-medium md:h-2 md:w-2"
+            ></span>
+          </span>
+          <span
+            class="font-mono text-xs uppercase tracking-[0.2em] text-orange-light md:text-base md:tracking-[0.3em]"
+            >Hypertrophy & Strength</span
+          >
+          <span
+            class="flex w-6 flex-shrink-0 items-center justify-center pl-[0.2em] md:w-8 md:pl-[0.3em]"
+            aria-hidden="true"
+          >
+            <span class="h-1.5 w-1.5 animate-pulse rounded-full bg-orange-medium md:h-2 md:w-2"
+            ></span>
+          </span>
+          <span
+            class="font-mono text-xs uppercase tracking-[0.2em] text-orange-light md:text-base md:tracking-[0.3em]"
+            >Boot Camp Fitness</span
+          >
+          <span
+            class="flex w-6 flex-shrink-0 items-center justify-center pl-[0.2em] md:w-8 md:pl-[0.3em]"
+            aria-hidden="true"
+          >
+            <span class="h-1.5 w-1.5 animate-pulse rounded-full bg-orange-medium md:h-2 md:w-2"
+            ></span>
+          </span>
+          <span
+            class="font-mono text-xs uppercase tracking-[0.2em] text-orange-light md:text-base md:tracking-[0.3em]"
+            >Bodyweight Complexes</span
+          >
+          <span
+            class="flex w-6 flex-shrink-0 items-center justify-center pl-[0.2em] md:w-8 md:pl-[0.3em]"
+            aria-hidden="true"
+          >
+            <span class="h-1.5 w-1.5 animate-pulse rounded-full bg-orange-medium md:h-2 md:w-2"
+            ></span>
+          </span>
+          <span
+            class="font-mono text-xs uppercase tracking-[0.2em] text-orange-light md:text-base md:tracking-[0.3em]"
+            >Science-Based Workouts</span
+          >
+          <span
+            class="flex w-6 flex-shrink-0 items-center justify-center pl-[0.2em] md:w-8 md:pl-[0.3em]"
+            aria-hidden="true"
+          >
+            <span class="h-1.5 w-1.5 animate-pulse rounded-full bg-orange-medium md:h-2 md:w-2"
+            ></span>
+          </span>
+          <span
+            class="font-mono text-xs uppercase tracking-[0.2em] text-orange-light md:text-base md:tracking-[0.3em]"
+            >Personalized Programs</span
+          >
+          <span
+            class="flex w-6 flex-shrink-0 items-center justify-center pl-[0.2em] md:w-8 md:pl-[0.3em]"
+            aria-hidden="true"
+          >
+            <span class="h-1.5 w-1.5 animate-pulse rounded-full bg-orange-medium md:h-2 md:w-2"
+            ></span>
+          </span>
+        </div>
+        <div class="flex shrink-0 items-center gap-6 whitespace-nowrap">
+          <span
+            class="ml-6 font-mono text-xs uppercase tracking-[0.2em] text-orange-light md:text-base md:tracking-[0.3em]"
+            >AI Workout Plans</span
+          >
+          <span
+            class="flex w-6 flex-shrink-0 items-center justify-center pl-[0.2em] md:w-8 md:pl-[0.3em]"
+            aria-hidden="true"
+          >
+            <span class="h-1.5 w-1.5 animate-pulse rounded-full bg-orange-medium md:h-2 md:w-2"
+            ></span>
+          </span>
+          <span
+            class="font-mono text-xs uppercase tracking-[0.2em] text-orange-light md:text-base md:tracking-[0.3em]"
+            >Hypertrophy & Strength</span
+          >
+          <span
+            class="flex w-6 flex-shrink-0 items-center justify-center pl-[0.2em] md:w-8 md:pl-[0.3em]"
+            aria-hidden="true"
+          >
+            <span class="h-1.5 w-1.5 animate-pulse rounded-full bg-orange-medium md:h-2 md:w-2"
+            ></span>
+          </span>
+          <span
+            class="font-mono text-xs uppercase tracking-[0.2em] text-orange-light md:text-base md:tracking-[0.3em]"
+            >Boot Camp Fitness</span
+          >
+          <span
+            class="flex w-6 flex-shrink-0 items-center justify-center pl-[0.2em] md:w-8 md:pl-[0.3em]"
+            aria-hidden="true"
+          >
+            <span class="h-1.5 w-1.5 animate-pulse rounded-full bg-orange-medium md:h-2 md:w-2"
+            ></span>
+          </span>
+          <span
+            class="font-mono text-xs uppercase tracking-[0.2em] text-orange-light md:text-base md:tracking-[0.3em]"
+            >Bodyweight Complexes</span
+          >
+          <span
+            class="flex w-6 flex-shrink-0 items-center justify-center pl-[0.2em] md:w-8 md:pl-[0.3em]"
+            aria-hidden="true"
+          >
+            <span class="h-1.5 w-1.5 animate-pulse rounded-full bg-orange-medium md:h-2 md:w-2"
+            ></span>
+          </span>
+          <span
+            class="font-mono text-xs uppercase tracking-[0.2em] text-orange-light md:text-base md:tracking-[0.3em]"
+            >Science-Based Workouts</span
+          >
+          <span
+            class="flex w-6 flex-shrink-0 items-center justify-center pl-[0.2em] md:w-8 md:pl-[0.3em]"
+            aria-hidden="true"
+          >
+            <span class="h-1.5 w-1.5 animate-pulse rounded-full bg-orange-medium md:h-2 md:w-2"
+            ></span>
+          </span>
+          <span
+            class="font-mono text-xs uppercase tracking-[0.2em] text-orange-light md:text-base md:tracking-[0.3em]"
+            >Personalized Programs</span
+          >
+          <span
+            class="flex w-6 flex-shrink-0 items-center justify-center pl-[0.2em] md:w-8 md:pl-[0.3em]"
+            aria-hidden="true"
+          >
+            <span class="h-1.5 w-1.5 animate-pulse rounded-full bg-orange-medium md:h-2 md:w-2"
+            ></span>
+          </span>
+        </div>
+      </div>
+      <!-- Gradient fade on edges -->
+      <div
+        class="pointer-events-none absolute inset-y-0 left-0 w-20 bg-gradient-to-r from-bg-dark to-transparent"
+      >
+      </div>
+      <div
+        class="pointer-events-none absolute inset-y-0 right-0 w-20 bg-gradient-to-l from-bg-dark to-transparent"
+      >
+      </div>
+    </div>
+
+    <div class="relative flex w-full flex-col items-center justify-center gap-4 px-4 md:gap-6">
+      <h1
+        class="text-center font-heading text-[10vw] font-black leading-[0.9] tracking-tighter text-orange-light md:text-[8vw]"
+      >
+        AI WORKOUT<br />
+        GENERATOR
+      </h1>
+      <img
+        src={logoTransparentUrl}
+        alt="AI Workout Generator logo"
+        width={192}
+        height={192}
+        class="h-auto w-24 shrink-0 md:w-32"
+        loading="eager"
+        decoding="async"
+        fetchpriority="high"
+      />
+    </div>
+
+    <div
+      class="via-orange-medium/50 mb-4 mt-4 h-px w-full max-w-md bg-gradient-to-r from-transparent to-transparent md:mt-8"
+    >
+    </div>
+
+    <h2 class="mb-6 font-heading text-xl font-bold text-white md:mb-8 md:text-3xl">
+      Stop Guessing. Start Training.
+    </h2>
+
+    <p class="mb-6 text-base text-white/80 md:mb-8 md:text-lg">
+      Science-based AI programs. Zero hallucinations.
+    </p>
+
+    <div class="mt-6 flex flex-col items-center gap-4 sm:flex-row sm:justify-center md:mt-8">
+      <a
+        href="/onboard"
+        class="cta-primary"
+        data-cta="hero-generate-workout"
+        aria-label="Generate Workout — build your plan then create account"
+      >
+        Generate Workout
+        <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M8 5v14l11-7z"></path>
+        </svg>
+      </a>
+    </div>
+  </div>
+</header>
+
+<style>
+  @keyframes marquee-slow {
+    0% {
+      transform: translateX(0);
+    }
+    100% {
+      transform: translateX(-50%);
+    }
+  }
+  .animate-marquee-slow {
+    animation: marquee-slow 48s linear infinite;
+  }
+</style>

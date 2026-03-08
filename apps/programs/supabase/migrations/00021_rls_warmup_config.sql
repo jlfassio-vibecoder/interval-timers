@@ -1,0 +1,1 @@
+ALTER TABLE public.warmup_config ENABLE ROW LEVEL SECURITY;

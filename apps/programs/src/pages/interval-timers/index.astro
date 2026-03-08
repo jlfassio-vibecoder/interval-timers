@@ -1,0 +1,20 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import AppWrapper from '../../components/react/AppWrapper';
+import IntervalTimerApp from '../../components/react/interval-timers/IntervalTimerApp';
+---
+
+<BaseLayout title="Interval Timers | AI Fitcopilot | Tabata, EMOM, AMRAP & More.">
+  <div
+    class="relative min-h-screen overflow-x-hidden text-white selection:bg-orange-light selection:text-black"
+  >
+    <AppWrapper client:load pathname={Astro.url.pathname} />
+    <main>
+      <section
+        class="relative z-10 overflow-hidden border-t border-white/10 bg-black/20 py-16 backdrop-blur-sm md:py-24"
+      >
+        <IntervalTimerApp client:load initialProtocol={Astro.url.searchParams.get('protocol')} />
+      </section>
+    </main>
+  </div>
+</BaseLayout>

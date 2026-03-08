@@ -1,0 +1,108 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import StandaloneNav from '../../components/react/StandaloneNav';
+import Breadcrumbs from '../../components/astro/Breadcrumbs.astro';
+import { getCurrentUserFromRequest } from '../../lib/supabase/admin/auth';
+import {
+  checkProgramAccess,
+  getSecureFullProgram,
+} from '../../lib/supabase/server/program-entitlements';
+import { getProgramPreview } from '../../lib/supabase/public/program-service';
+import ProgramSalesView from '../../components/react/public/ProgramSalesView';
+import ActiveProgramView from '../../components/react/public/ActiveProgramView';
+
+const programId = Astro.params.id;
+let preview: Awaited<ReturnType<typeof getProgramPreview>> = null;
+let fullProgram: Awaited<ReturnType<typeof getSecureFullProgram>> | null = null;
+let showActiveView = false;
+let notFound = false;
+
+if (!programId) {
+  notFound = true;
+} else {
+  const user = await getCurrentUserFromRequest(Astro.request, Astro.cookies);
+
+  if (user) {
+    const hasAccess = await checkProgramAccess(user.uid, programId);
+    if (hasAccess) {
+      try {
+        fullProgram = await getSecureFullProgram(user.uid, programId);
+        showActiveView = true;
+      } catch (err) {
+        if (
+          err instanceof Error &&
+          (err.message === 'FORBIDDEN' || err.message.includes('not found'))
+        ) {
+          preview = await getProgramPreview(programId);
+          if (!preview) notFound = true;
+        } else {
+          notFound = true;
+        }
+      }
+    } else {
+      preview = await getProgramPreview(programId);
+      if (!preview) notFound = true;
+    }
+  } else {
+    preview = await getProgramPreview(programId);
+    if (!preview) notFound = true;
+  }
+}
+
+if (notFound) {
+  Astro.response.status = 404;
+}
+
+const pageTitle =
+  showActiveView && fullProgram
+    ? `${fullProgram.title} | AI Fitcopilot | AI-Powered Hypertrophy & Tactical Workout Programs.`
+    : preview
+      ? `${preview.metadata.title} | AI Fitcopilot | AI-Powered Hypertrophy & Tactical Workout Programs.`
+      : 'Not Found | AI Fitcopilot | AI-Powered Hypertrophy & Tactical Workout Programs.';
+
+const breadcrumbTitle =
+  (showActiveView && fullProgram ? fullProgram.title : preview?.metadata.title) ?? 'Program';
+---
+
+<BaseLayout title={pageTitle}>
+  <div
+    class="relative min-h-screen overflow-x-hidden text-white selection:bg-orange-light selection:text-black"
+  >
+    <StandaloneNav client:load pathname={Astro.url.pathname} />
+    <main class="pt-24">
+      {
+        !notFound && (preview || fullProgram) ? (
+          <Breadcrumbs
+            items={[
+              { label: 'Home', href: '/' },
+              { label: 'Programs', href: '/programs' },
+              { label: breadcrumbTitle },
+            ]}
+          />
+        ) : null
+      }
+      {
+        notFound ? (
+          <div class="mx-auto max-w-4xl px-4 py-20 text-center">
+            <h1 class="mb-4 font-heading text-2xl font-bold text-white md:text-3xl">
+              Program not found
+            </h1>
+            <p class="mb-6 text-white/70">
+              This program may be unpublished or the link is invalid.
+            </p>
+            <a
+              href="/programs"
+              class="inline-flex items-center gap-2 rounded-lg bg-orange-light px-5 py-3 font-bold uppercase tracking-wider text-black transition hover:bg-white"
+            >
+              Browse programs
+            </a>
+          </div>
+        ) : showActiveView && fullProgram ? (
+          <ActiveProgramView client:load program={fullProgram} programId={programId ?? undefined} />
+        ) : preview ? (
+          <ProgramSalesView client:load program={preview} />
+        ) : null
+      }
+    </main>
+  </div>
+</BaseLayout>

@@ -1,0 +1,49 @@
+---
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Breadcrumb row for detail pages. Last item is current page (no link).
+ */
+interface Item {
+  label: string;
+  href?: string;
+}
+
+interface Props {
+  items: Item[];
+}
+
+const { items } = Astro.props as Props;
+---
+
+<nav
+  aria-label="Breadcrumb"
+  class="border-b border-white/10 bg-black/20 px-4 py-3 backdrop-blur-sm md:px-6"
+>
+  <ol class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-white/80">
+    {
+      items.map((item, i) => {
+        const isLast = i === items.length - 1;
+        const link = item.href != null && !isLast;
+        return (
+          <li class="flex items-center gap-x-2">
+            {i > 0 ? <span aria-hidden="true">/</span> : null}
+            {link ? (
+              <a href={item.href} class="transition-colors hover:text-orange-light hover:underline">
+                {item.label}
+              </a>
+            ) : (
+              <span
+                class={isLast ? 'font-medium text-white' : ''}
+                aria-current={isLast ? 'page' : undefined}
+              >
+                {item.label}
+              </span>
+            )}
+          </li>
+        );
+      })
+    }
+  </ol>
+</nav>

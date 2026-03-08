@@ -1,0 +1,1 @@
+ALTER TABLE public.exercise_images ENABLE ROW LEVEL SECURITY;

@@ -1,0 +1,123 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import StandaloneNav from '../../components/react/StandaloneNav';
+import Breadcrumbs from '../../components/astro/Breadcrumbs.astro';
+import { getCurrentUserFromRequest } from '../../lib/supabase/admin/auth';
+import { checkChallengeAccess, getSecureFullChallenge } from '@/lib/supabase/server/entitlements';
+import { getChallengePreview } from '@/lib/supabase/public/challenge-service';
+import { getAllZonesServer } from '../../lib/supabase/admin/server-equipment';
+import ChallengeSalesView from '../../components/react/public/ChallengeSalesView';
+import ActiveChallengeView from '../../components/react/public/ActiveChallengeView';
+
+const challengeId = Astro.params.id;
+let preview: Awaited<ReturnType<typeof getChallengePreview>> = null;
+let fullChallenge: Awaited<ReturnType<typeof getSecureFullChallenge>> | null = null;
+let showActiveView = false;
+let notFound = false;
+
+if (!challengeId) {
+  notFound = true;
+} else {
+  const user = await getCurrentUserFromRequest(Astro.request, Astro.cookies);
+
+  if (user) {
+    const hasAccess = await checkChallengeAccess(user.uid, challengeId);
+    if (hasAccess) {
+      try {
+        fullChallenge = await getSecureFullChallenge(user.uid, challengeId);
+        showActiveView = true;
+      } catch (err) {
+        if (err instanceof Error && err.message.includes('not found')) {
+          notFound = true;
+        } else {
+          preview = await getChallengePreview(challengeId);
+        }
+      }
+    } else {
+      preview = await getChallengePreview(challengeId);
+      if (!preview) notFound = true;
+    }
+  } else {
+    preview = await getChallengePreview(challengeId);
+    if (!preview) notFound = true;
+  }
+}
+
+if (notFound) {
+  Astro.response.status = 404;
+}
+
+const pageTitle =
+  showActiveView && fullChallenge
+    ? `${fullChallenge.title} | AI Fitcopilot | AI-Powered Hypertrophy & Tactical Workout Programs.`
+    : preview
+      ? `${preview.metadata.title} | AI Fitcopilot | AI-Powered Hypertrophy & Tactical Workout Programs.`
+      : 'Not Found | AI Fitcopilot | AI-Powered Hypertrophy & Tactical Workout Programs.';
+
+const pageDescription =
+  showActiveView && fullChallenge
+    ? fullChallenge.description ||
+      fullChallenge.tagline ||
+      `${fullChallenge.title} — ${fullChallenge.durationWeeks}-week fitness challenge`
+    : preview
+      ? preview.metadata.description ||
+        preview.metadata.tagline ||
+        `${preview.metadata.title} — ${preview.metadata.durationWeeks}-week fitness challenge`
+      : undefined;
+
+const siteUrl = Astro.url.origin;
+const canonicalPageUrl = challengeId ? `${siteUrl}/challenges/${challengeId}` : undefined;
+
+const breadcrumbTitle =
+  (showActiveView && fullChallenge ? fullChallenge.title : preview?.metadata.title) ?? 'Challenge';
+
+const zones = await getAllZonesServer();
+const zonesForClient = zones.map((z) => ({ id: z.id, name: z.name }));
+---
+
+<BaseLayout title={pageTitle} description={pageDescription} canonicalUrl={canonicalPageUrl}>
+  <div
+    class="relative min-h-screen overflow-x-hidden text-white selection:bg-orange-light selection:text-black"
+  >
+    <StandaloneNav client:load pathname={Astro.url.pathname} />
+    <main class="pt-24">
+      {
+        !notFound && (preview || fullChallenge) ? (
+          <Breadcrumbs
+            items={[
+              { label: 'Home', href: '/' },
+              { label: 'Challenges', href: '/challenges' },
+              { label: breadcrumbTitle },
+            ]}
+          />
+        ) : null
+      }
+      {
+        notFound ? (
+          <div class="mx-auto max-w-4xl px-4 py-20 text-center">
+            <h1 class="mb-4 font-heading text-2xl font-bold text-white md:text-3xl">
+              Challenge not found
+            </h1>
+            <p class="mb-6 text-white/70">
+              This challenge may be unpublished or the link is invalid.
+            </p>
+            <a
+              href="/challenges"
+              class="inline-flex items-center gap-2 rounded-lg bg-orange-light px-5 py-3 font-bold uppercase tracking-wider text-black transition hover:bg-white"
+            >
+              Browse challenges
+            </a>
+          </div>
+        ) : showActiveView && fullChallenge ? (
+          <ActiveChallengeView
+            client:load
+            challenge={fullChallenge}
+            challengeId={challengeId ?? undefined}
+          />
+        ) : preview ? (
+          <ChallengeSalesView client:load challenge={preview} zones={zonesForClient} />
+        ) : null
+      }
+    </main>
+  </div>
+</BaseLayout>

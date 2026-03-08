@@ -1,0 +1,160 @@
+---
+// Static Programs Section - Pure HTML for SEO
+// Use ?url to bypass /_image endpoint (causes 500 in production)
+import ProgramsButton from '../react/ProgramsButton';
+import bodyweightImageUrl from '../../assets/images/advanced-pilates-flow-001-900w.jpg?url';
+---
+
+<div
+  class="bg-[#ff4000]/3 pointer-events-none absolute right-[-20%] top-1/2 h-[50vw] w-[50vw] rounded-full blur-[80px]"
+  style="transform: translateZ(0)"
+>
+</div>
+
+<div class="relative mx-auto max-w-7xl px-4 md:px-6">
+  <div class="grid grid-cols-1 items-center gap-8 md:grid-cols-12 md:gap-12 lg:gap-16">
+    <div class="order-2 min-w-0 md:relative md:z-20 md:order-1 md:col-span-5">
+      <h2
+        id="programs-heading"
+        class="mb-4 font-heading font-bold leading-tight md:mb-8"
+        style="font-size: clamp(1.75rem, 4vw + 1rem, 3rem);"
+      >
+        Personalized AI Programs
+      </h2>
+      <p
+        class="mb-6 text-base font-light leading-relaxed text-gray-200 drop-shadow-md md:mb-12 md:text-xl"
+      >
+        Build programs that adapt to <strong>your</strong> goals, equipment, and schedule. Our Closed-Loop
+        Engine uses biomechanically verified exercises—no algorithmic hallucinations.
+      </p>
+
+      <div class="space-y-4 md:space-y-8">
+        <div class="flex min-w-0 items-start gap-4 md:gap-6">
+          <div
+            class="shrink-0 rounded-2xl border border-white/5 bg-white/10 p-3 backdrop-blur-md md:p-4"
+          >
+            <svg
+              class="h-5 w-5 text-[#ffa500] md:h-6 md:w-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+              ></path>
+            </svg>
+          </div>
+          <div class="min-w-0">
+            <h3 class="mb-1 font-heading text-base font-bold md:mb-2 md:text-xl">
+              Hypertrophy & Muscle Building
+            </h3>
+            <p class="text-sm text-gray-300">
+              Progressive volume and time-under-tension for muscle growth.
+            </p>
+          </div>
+        </div>
+        <div class="flex min-w-0 items-start gap-4 md:gap-6">
+          <div
+            class="shrink-0 rounded-2xl border border-white/5 bg-white/10 p-3 backdrop-blur-md md:p-4"
+          >
+            <svg
+              class="h-5 w-5 text-[#ffa500] md:h-6 md:w-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+              ></path>
+            </svg>
+          </div>
+          <div class="min-w-0">
+            <h3 class="mb-1 font-heading text-base font-bold md:mb-2 md:text-xl">
+              Strength Training & Power
+            </h3>
+            <p class="text-sm text-gray-300">
+              Low reps, high intensity, and smart rest for peak output.
+            </p>
+          </div>
+        </div>
+        <div class="flex min-w-0 items-start gap-4 md:gap-6">
+          <div
+            class="shrink-0 rounded-2xl border border-white/5 bg-white/10 p-3 backdrop-blur-md md:p-4"
+          >
+            <svg
+              class="h-5 w-5 text-[#ffa500] md:h-6 md:w-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"
+              ></path>
+            </svg>
+          </div>
+          <div class="min-w-0">
+            <h3 class="mb-1 font-heading text-base font-bold md:mb-2 md:text-xl">
+              HIIT & Metabolic Conditioning
+            </h3>
+            <p class="text-sm text-gray-300">
+              High-intensity interval flows scaled to your stamina.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div
+      class="relative order-1 min-h-[280px] w-full min-w-0 sm:h-[380px] sm:min-h-[320px] md:order-2 md:col-span-7 md:h-[500px] lg:h-[700px]"
+    >
+      <div
+        class="absolute inset-0 rotate-3 rounded-2xl bg-gradient-to-br from-orange-medium to-orange-darkest opacity-30 blur-xl md:rounded-3xl"
+      >
+      </div>
+      <div
+        class="group relative h-full w-full overflow-hidden rounded-2xl border border-white/10 shadow-2xl md:rounded-3xl"
+      >
+        <img
+          src={bodyweightImageUrl}
+          alt="Training"
+          width={1200}
+          height={800}
+          class="h-full w-full object-cover object-center transition-transform duration-[1.5s] group-hover:scale-110"
+          loading="lazy"
+        />
+        <div
+          class="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-80"
+        >
+        </div>
+
+        <div
+          class="absolute bottom-4 left-4 flex flex-col gap-2 sm:bottom-6 sm:left-6 md:bottom-10 md:left-10 md:gap-0"
+        >
+          <div
+            class="bg-gradient-to-b from-white to-white/0 bg-clip-text font-heading text-2xl font-bold text-transparent opacity-50 sm:text-3xl md:text-4xl md:text-6xl"
+          >
+            BODYWEIGHT
+          </div>
+          <div
+            class="text-sm font-bold uppercase tracking-widest text-white sm:text-base md:mt-2 md:text-xl"
+          >
+            Fusion Zones
+          </div>
+        </div>
+
+        <div class="absolute bottom-4 right-4 z-20 sm:bottom-6 sm:right-6 md:bottom-10 md:right-10">
+          <ProgramsButton client:visible />
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

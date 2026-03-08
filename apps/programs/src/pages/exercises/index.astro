@@ -1,0 +1,46 @@
+---
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Public Exercises list page. Published (approved) exercises, filterable by Vitals.
+ */
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import StandaloneNav from '../../components/react/StandaloneNav';
+import { getPublishedExercises } from '@/lib/supabase/public/generated-exercise-service';
+import { getAllZonesServer } from '../../lib/supabase/admin/server-equipment';
+import ExercisePrescriptionEngine from '../../components/react/public/ExercisePrescriptionEngine';
+
+export const prerender = false;
+
+let availableExercises: Awaited<ReturnType<typeof getPublishedExercises>> = [];
+let zonesForClient: { id: string; name: string }[] = [];
+try {
+  availableExercises = await getPublishedExercises();
+  const zones = await getAllZonesServer();
+  zonesForClient = zones.map((z) => ({ id: z.id, name: z.name }));
+} catch (err) {
+  if (import.meta.env.DEV) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    console.error('[exercises/index] Failed to load exercises or zones:', message);
+  }
+}
+---
+
+<BaseLayout
+  title="Exercises | AI Fitcopilot | AI-Powered Hypertrophy & Tactical Workout Programs."
+  description="Browse the exercise library. Filter by client experience and goals."
+>
+  <div
+    class="relative min-h-screen overflow-x-hidden text-white selection:bg-orange-light selection:text-black"
+  >
+    <StandaloneNav client:load pathname={Astro.url.pathname} />
+    <main class="pt-24">
+      <ExercisePrescriptionEngine
+        client:load
+        availableExercises={availableExercises}
+        zones={zonesForClient}
+      />
+    </main>
+  </div>
+</BaseLayout>

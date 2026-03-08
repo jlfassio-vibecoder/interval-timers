@@ -1,0 +1,46 @@
+---
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Deep Dive Learning Center.
+ * Browse and filter exercises with comprehensive deep dive guides.
+ */
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import StandaloneNav from '../../components/react/StandaloneNav';
+import { getPublishedExercises } from '@/lib/supabase/public/generated-exercise-service';
+import { getAllZonesServer } from '../../lib/supabase/admin/server-equipment';
+import ExercisePrescriptionEngine from '../../components/react/public/ExercisePrescriptionEngine';
+
+export const prerender = false;
+
+const availableExercises = await getPublishedExercises();
+// Filter to only include exercises that have deep dive content
+const deepDiveExercises = availableExercises.filter((ex) => ex.deepDiveHtmlContent);
+
+// Zones fetched server-side and passed as props
+const zones = await getAllZonesServer();
+const zonesForClient = zones.map((z) => ({ id: z.id, name: z.name }));
+---
+
+<BaseLayout
+  title="Science & Mastery | AI Fitcopilot | AI-Powered Hypertrophy & Tactical Workout Programs."
+  description="In-depth guides: biomechanics, muscle maps, and expert cues for client education. Science & Mastery for every movement."
+>
+  <div
+    class="relative min-h-screen overflow-x-hidden text-white selection:bg-orange-light selection:text-black"
+  >
+    <StandaloneNav client:load pathname={Astro.url.pathname} />
+    <main class="pt-24">
+      <ExercisePrescriptionEngine
+        client:load
+        availableExercises={deepDiveExercises}
+        zones={zonesForClient}
+        linkToDeepDive={true}
+        ctaLabelWhenDeepDive="Science & Mastery"
+        headerTitle="Science & Mastery"
+        headerSubtitle="In-depth guides: biomechanics, muscle maps, and expert cues."
+      />
+    </main>
+  </div>
+</BaseLayout>
