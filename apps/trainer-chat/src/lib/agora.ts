@@ -28,9 +28,9 @@ export async function getTokenOrFetch(channelName: string, uid: number): Promise
       return { error: msg }
     }
     const data = (await res.json()) as { token?: string }
-    const token = data?.token ?? null
-    if (!token) return { error: 'Token server returned no token' }
-    return { token }
+    const fetchedToken = data?.token ?? null
+    if (!fetchedToken) return { error: 'Token server returned no token' }
+    return { token: fetchedToken }
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Token fetch failed'
     const isNetwork = msg.includes('fetch') || msg.includes('Failed') || msg.includes('Network')

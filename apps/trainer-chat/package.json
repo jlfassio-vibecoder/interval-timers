@@ -10,7 +10,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "agora-access-token": "^2.0.4",
     "agora-rtc-sdk-ng": "^4.24.2",
     "clsx": "^2.1.1",
     "react": "^19.2.0",
@@ -18,6 +17,7 @@
     "react-router-dom": "^7.13.1"
   },
   "devDependencies": {
+    "agora-token": "^2.0.5",
     "concurrently": "^9.1.0",
     "dotenv": "^16.4.5",
     "@eslint/js": "^9.39.1",

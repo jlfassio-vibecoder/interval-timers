@@ -8,11 +8,6 @@ export default function VideoCallPage() {
   const navigate = useNavigate()
   const isHost = searchParams.get('host') === '1'
 
-  const handleLeave = async () => {
-    await leave()
-    navigate('/')
-  }
-
   const {
     joined,
     localVideoTrack,
@@ -22,6 +17,11 @@ export default function VideoCallPage() {
     muteAudio,
     error,
   } = useAgoraChannel(channelId ?? '', isHost)
+
+  const handleLeave = async () => {
+    await leave()
+    navigate('/')
+  }
 
   if (error) {
     return (

@@ -52,6 +52,17 @@ export function useAgoraChannel(
     setRemoteUsers((prev) => prev.filter((u) => String(u.uid) !== String(uid)))
   }, [])
 
+  // Explicitly clear one track on unpublish. addRemoteUser uses ?? so undefined would keep the old value.
+  const clearRemoteUserTrack = useCallback((uid: string | number, mediaType: 'video' | 'audio') => {
+    setRemoteUsers((prev) =>
+      prev.map((u) =>
+        String(u.uid) === String(uid)
+          ? { ...u, ...(mediaType === 'video' ? { videoTrack: undefined } : { audioTrack: undefined }) }
+          : u
+      )
+    )
+  }, [])
+
   const leave = useCallback(async () => {
     const client = clientRef.current
     const tracks = tracksRef.current
@@ -101,14 +112,15 @@ export function useAgoraChannel(
 
     client.on('user-published', async (user, mediaType) => {
       await client.subscribe(user, mediaType)
+      if (mediaType === 'audio' && user.audioTrack) {
+        user.audioTrack.play()
+      }
       addRemoteUser(user.uid, user.videoTrack, user.audioTrack)
     })
     client.on('user-unpublished', (user, mediaType) => {
-      addRemoteUser(
-        user.uid,
-        mediaType === 'video' ? undefined : user.videoTrack,
-        mediaType === 'audio' ? undefined : user.audioTrack
-      )
+      if (mediaType === 'video' || mediaType === 'audio') {
+        clearRemoteUserTrack(user.uid, mediaType)
+      }
     })
     client.on('user-left', (user) => {
       removeRemoteUser(user.uid)
@@ -117,7 +129,8 @@ export function useAgoraChannel(
     const run = async () => {
       try {
         setError(null)
-        const uid = isHost ? 0 : Math.floor(Math.random() * 0xffffff) + 1
+        // uid 0 causes Agora to auto-assign a random uid; use 1 for host so participants can identify host
+        const uid = isHost ? 1 : Math.floor(Math.random() * 0xffffff) + 2
         const result = await getTokenOrFetch(channelName, uid)
         if ('error' in result) {
           setError(result.error)
@@ -171,7 +184,7 @@ export function useAgoraChannel(
       setRemoteUsers([])
       setJoined(false)
     }
-  }, [channelName, isHost, addRemoteUser, removeRemoteUser])
+  }, [channelName, isHost, addRemoteUser, removeRemoteUser, clearRemoteUserTrack])
 
   return {
     joined,

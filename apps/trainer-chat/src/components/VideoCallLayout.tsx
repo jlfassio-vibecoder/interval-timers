@@ -21,8 +21,9 @@ export default function VideoCallLayout({
   onMuteVideo,
   onMuteAudio,
 }: VideoCallLayoutProps) {
-  const hostUser = remoteUsers.find((u) => String(u.uid) === '0')
-  const otherUsers = remoteUsers.filter((u) => String(u.uid) !== '0')
+  // Host is uid 1
+  const hostUser = remoteUsers.find((u) => String(u.uid) === '1')
+  const otherUsers = remoteUsers.filter((u) => String(u.uid) !== '1')
 
   if (isHost) {
     return (
@@ -106,7 +107,7 @@ function ControlBar({
           audioMuted ? 'bg-red-600/50 text-white' : 'bg-white/10 text-white hover:bg-white/20'
         )}
       >
-        {audioMuted ? 'Muted' : 'Unmute'}
+        {audioMuted ? 'Mic off' : 'Mic on'}
       </button>
       <button
         type="button"

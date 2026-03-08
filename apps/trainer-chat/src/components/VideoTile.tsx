@@ -5,7 +5,6 @@ import type { RemoteUserWithTracks } from '@/hooks/useAgoraChannel'
 interface VideoTileProps {
   videoTrack?: ICameraVideoTrack | null
   label: string
-  isLocal?: boolean
 }
 
 interface RemoteVideoTileProps {
@@ -23,7 +22,7 @@ function LocalVideoTile({ videoTrack, label }: VideoTileProps) {
       try {
         videoTrack.stop()
       } catch {
-        // Track may already be closed by useAgoraChannel.leave()
+        // Already closed
       }
     }
   }, [videoTrack])
@@ -49,7 +48,7 @@ export function RemoteVideoTile({ user, label }: RemoteVideoTileProps) {
       try {
         track.stop()
       } catch {
-        // Track may already be closed when leaving
+        // Already closed
       }
     }
   }, [track])

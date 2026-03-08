@@ -5,7 +5,7 @@
  */
 import { createServer } from 'http'
 import { config } from 'dotenv'
-import pkg from 'agora-access-token'
+import pkg from 'agora-token'
 const { RtcTokenBuilder, RtcRole } = pkg
 import path from 'path'
 import { fileURLToPath } from 'url'
@@ -14,7 +14,7 @@ import { existsSync } from 'fs'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const cwd = process.cwd()
 const candidates = [
-  path.resolve(__dirname, '../../.env'),
+  path.resolve(__dirname, '../../../.env'),
   path.resolve(cwd, '.env'),
   path.resolve(cwd, '../.env'),
   path.resolve(cwd, '../../.env'),
@@ -67,19 +67,19 @@ createServer((req, res) => {
     return
   }
   try {
-    const ts = Math.floor(Date.now() / 1000)
+    // agora-token uses tokenExpire as seconds from now (not absolute timestamp)
     const token = RtcTokenBuilder.buildTokenWithUid(
       APP_ID,
       APP_CERT,
       channel,
       uid,
       RtcRole.PUBLISHER,
-      ts + EXPIRY_SEC
+      EXPIRY_SEC
     )
     send(res, 200, { token })
   } catch (e) {
     send(res, 500, { error: e?.message ?? 'Token generation failed' })
   }
 }).listen(PORT, () => {
-  console.log(`[agora-token] http://localhost:${PORT}/token?channel=AMRAP&uid=0`)
+  console.log(`[agora-token] http://localhost:${PORT}/token?channel=AMRAP&uid=1`)
 })
