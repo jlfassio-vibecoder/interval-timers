@@ -1,39 +1,12 @@
-# Pre-PR verification: lint, type-check, tests, security scan, env check
-name: CI
-
-on:
-  push:
-    branches: [main, master]
-  pull_request:
-    branches: [main, master]
-
-jobs:
-  verify:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20.20.0' # Pin to match local; avoids npm resolution drift
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Lint
-        run: npm run lint
-
-      - name: Type check
-        run: npm run type-check
-
-      - name: Test
-        run: npm run test
-
-      - name: Security scan
-        run: npm run security:scan
-
-      - name: Check env
-        run: npm run check-env
-        env:
-          CI: 'true'
+# Deprecated / non-functional workflow stub.
+#
+# GitHub Actions only runs workflows from the repository root at `.github/workflows/`.
+# Any YAML file under `apps/programs/.github/workflows/` will never be executed.
+#
+# The programs CI has been moved to the root:
+#   .github/workflows/ci-programs.yml
+#
+# That workflow runs lint, type-check, tests, security scan, and env check
+# for the programs app (scoped via `npm run ... -w programs`).
+#
+# This file is kept as documentation only and is not a valid workflow.

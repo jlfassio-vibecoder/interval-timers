@@ -19,7 +19,7 @@ This document describes how the Programs app (Astro) fits into the Workout Gener
 - `src/` with Astro + React components, types, contexts, PWA.
 - Custom `server.js` for production (Express + compression, serves Astro’s handler).
 - Scripts: copy-favicon, check-env, db-push, security scan, Vitest.
-- **Package name** in `package.json` is `"ai-fit-copilot"` (folder is `programs`).
+- **Package name** in `package.json` is `"programs"` (matches folder name).
 
 ### Compatibility With the Monorepo
 
@@ -37,10 +37,9 @@ This document describes how the Programs app (Astro) fits into the Workout Gener
   - `npm install`
 - So all workspaces (including `programs`) get dependencies; you can remove `apps/programs/node_modules` and rely on the root install if you want a clean workspace.
 
-### 2. Package Name (Optional but Useful)
+### 2. Package Name (Done)
 
-- In `apps/programs/package.json`, consider changing `"name": "ai-fit-copilot"` to `"name": "programs"` so:
-  - `npm run dev --workspace=programs` and Turbo filters like `--filter=programs` match the folder name and docs.
+- `apps/programs/package.json` has `"name": "programs"`, so `npm run dev --workspace=programs` and Turbo filters like `--filter=programs` match the folder name and docs.
 
 ### 3. Turbo
 
@@ -53,7 +52,6 @@ This document describes how the Programs app (Astro) fits into the Workout Gener
 
 - In the **root** `package.json`, add a convenience script for the Astro app, e.g.:
   - `"dev:programs": "turbo run dev --filter=programs"`
-  - (If you keep the name `ai-fit-copilot`, use `--filter=ai-fit-copilot`.)
 
 ### 5. Ports and Running
 
@@ -88,8 +86,8 @@ This document describes how the Programs app (Astro) fits into the Workout Gener
 | ------------ | ------------------------------------------------------------------------------------------------- |
 | Workspace    | Already included via `apps/*`; run `npm install` at root.                                         |
 | Turbo        | No change; `dist/**` already in build outputs.                                                    |
-| Root script  | Add `dev:programs` (or `dev:astro`) with `turbo run dev --filter=programs` (or `ai-fit-copilot`). |
-| Package name | Optionally set `"name": "programs"` in `apps/programs/package.json`.                              |
+| Root script  | Add `dev:programs` with `turbo run dev --filter=programs`. |
+| Package name | Already set to `"programs"` in `apps/programs/package.json`. |
 | Port         | 3006; no conflict.                                                                                |
 | Env          | Use `apps/programs/.env` and `.env.local` as today.                                               |
 | COMMANDS.md  | Document programs, port 3006, and how to run from root and from `apps/programs`.                  |

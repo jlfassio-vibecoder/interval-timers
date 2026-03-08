@@ -1,0 +1,51 @@
+# Programs app: lint, type-check, tests, security scan, env check
+# Runs on push/PR to main/master.
+name: CI (Programs)
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'apps/programs/**'
+      - 'package.json'
+      - 'package-lock.json'
+  pull_request:
+    branches: [main, master]
+    paths:
+      - 'apps/programs/**'
+      - 'package.json'
+      - 'package-lock.json'
+
+jobs:
+  verify-programs:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.20.0' # Pin to match programs app; avoids npm resolution drift
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint -w programs
+
+      - name: Type check
+        run: npm run type-check -w programs
+
+      - name: Test
+        run: npm run test -w programs
+
+      - name: Security scan
+        run: npm run security:scan -w programs
+
+      - name: Check env
+        run: npm run check-env -w programs
+        env:
+          CI: 'true'

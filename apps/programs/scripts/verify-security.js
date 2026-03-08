@@ -5,9 +5,8 @@
  */
 
 import { readFileSync, readdirSync, statSync } from 'fs';
-import { join, extname } from 'path';
+import { join, extname, relative, basename, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { dirname } from 'path';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -56,7 +55,7 @@ const CHECK_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.astro', '.mjs', '.cjs'
 let errors = [];
 
 function shouldIgnore(filePath) {
-  const relativePath = filePath.replace(projectRoot + '/', '');
+  const relativePath = relative(projectRoot, filePath);
   return IGNORE_PATTERNS.some(pattern => relativePath.includes(pattern));
 }
 
@@ -69,7 +68,7 @@ function scanFile(filePath) {
 
     SECRET_PATTERNS.forEach(({ name, pattern, message, excludeFiles }) => {
       if (excludeFiles) {
-        const fileName = filePath.split('/').pop();
+        const fileName = basename(filePath);
         if (excludeFiles.includes(fileName)) return;
       }
 
@@ -86,7 +85,7 @@ function scanFile(filePath) {
           }
 
           errors.push({
-            file: filePath.replace(projectRoot + '/', ''),
+            file: relative(projectRoot, filePath),
             line: index + 1,
             pattern: name,
             message,

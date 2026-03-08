@@ -19,6 +19,6 @@ This repository is a fork of `ai-fitness-guy`, repurposed as a multi-user coachi
 
 1. Install dependencies:
    `npm install`
-2. Set required env vars in `.env.local` (Firebase, reCAPTCHA, Gemini, Runway; see PRE_PR_CHECKLIST.md). Run `npm run check-env` to validate.
+2. Set required env vars in `.env.local` for Supabase (see `.env.example` and `PRE_PR_CHECKLIST.md`). Optional/legacy env vars (for hosting/integrations) include Firebase, reCAPTCHA, Gemini, and Runway. Run `npm run check-env` to validate.
 3. Run the app:
    `npm run dev`
