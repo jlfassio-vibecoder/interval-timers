@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS amrap_session_messages (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   session_id uuid NOT NULL REFERENCES amrap_sessions(id) ON DELETE CASCADE,
   participant_id uuid NOT NULL REFERENCES amrap_participants(id) ON DELETE CASCADE,
-  body text NOT NULL,
+  body text NOT NULL CHECK (char_length(body) > 0 AND char_length(body) <= 500),
   created_at timestamptz NOT NULL DEFAULT now()
 );
 

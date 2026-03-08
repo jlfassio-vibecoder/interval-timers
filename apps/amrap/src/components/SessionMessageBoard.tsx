@@ -60,7 +60,7 @@ export default function SessionMessageBoard({
         <p className="mb-2 text-sm font-medium text-orange-400">Say hi to the group!</p>
       )}
 
-      {/* ~3 messages visible before scroll (each bubble ~4rem + 0.5rem gap) */}
+      {/* ~3 messages visible before scroll */}
       <div
         ref={listRef}
         className="min-h-[120px] max-h-[13.5rem] flex-1 space-y-2 overflow-y-auto pr-1"

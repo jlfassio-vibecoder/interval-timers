@@ -30,10 +30,11 @@ export function useScheduledSessions(weekStart: Date, weekEnd: Date) {
       return;
     }
     setSessions((data as ScheduledSession[]) ?? []);
-  }, [weekStart, weekEnd]);
+  // Stable primitive deps so fetchSessions isn't recreated when caller passes new Date refs (avoids unnecessary re-fetch).
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- weekStart.getTime() / weekEnd.getTime() are intentional
+  }, [weekStart.getTime(), weekEnd.getTime()]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch on mount / when range changes
     fetchSessions();
   }, [fetchSessions]);
 

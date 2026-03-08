@@ -55,7 +55,10 @@ export function useSessionMessages(
         },
         (payload) => {
           const row = payload.new as AmrapSessionMessageRow;
-          setMessages((prev) => [...prev, row]);
+          // Dedupe by id in case the same row was already applied (e.g. from initial fetch completing after Realtime delivered it).
+          setMessages((prev) =>
+            prev.some((m) => m.id === row.id) ? prev : [...prev, row]
+          );
         }
       )
       .subscribe();

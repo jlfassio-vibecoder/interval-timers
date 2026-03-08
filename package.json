@@ -42,8 +42,5 @@
     "build:bio-sync-sixty": "npm run build -w bio-sync-sixty",
     "dev:master-clock": "npm run dev -w master-clock",
     "build:master-clock": "npm run build -w master-clock"
-  },
-  "dependencies": {
-    "@vercel/analytics": "^1.6.1"
   }
 }

@@ -14,6 +14,7 @@ max_rows = 1000
 
 [db]
 port = 54322
+# Match remote Supabase project; local `supabase start` may require rebuild if upgrading from 15.
 major_version = 17
 
 [studio]

@@ -81,6 +81,10 @@ export default function CreateFlowSchedulePicker({
     const [h, m] = (t || defaultTime).split(':').map(Number);
     const combined = new Date(base);
     combined.setHours(isNaN(h) ? 18 : h, isNaN(m) ? 0 : m, 0, 0);
+    if (minDate && combined.getTime() < minDate.getTime()) {
+      combined.setTime(minDate.getTime());
+      setTimePart(format(combined, 'HH:mm'));
+    }
     onChange(toDatetimeLocal(combined));
   };
 

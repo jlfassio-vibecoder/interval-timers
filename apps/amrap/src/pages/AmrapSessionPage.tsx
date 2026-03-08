@@ -170,10 +170,10 @@ export default function AmrapSessionPage() {
     )
       return;
     const startAt = new Date(session.scheduled_start_at).getTime();
-    if (Date.now() < startAt) return;
+    if (now < startAt) return;
     hasAutoStartedRef.current = true;
     startSetup();
-  }, [isHost, timerState, session?.scheduled_start_at, startSetup]);
+  }, [isHost, timerState, session?.scheduled_start_at, startSetup, now]);
 
   const workoutList = session?.workout_list ?? [];
   const myRounds = participantId
