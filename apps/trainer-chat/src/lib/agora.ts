@@ -1,0 +1,46 @@
+import AgoraRTC from 'agora-rtc-sdk-ng'
+
+const appId = import.meta.env.VITE_AGORA_APP_ID as string
+const token = import.meta.env.VITE_AGORA_TOKEN as string | undefined
+
+export function getAppId(): string {
+  return appId ?? ''
+}
+
+/** Token for joining channel. Required when App Certificate is enabled in Agora Console. */
+export function getToken(): string | null {
+  const t = token?.trim()
+  return t && t.length > 0 ? t : null
+}
+
+export type TokenResult = { token: string } | { error: string }
+
+/** Fetch token from local token server (dev). Uses env token if set. */
+export async function getTokenOrFetch(channelName: string, uid: number): Promise<TokenResult> {
+  const envToken = getToken()
+  if (envToken) return { token: envToken }
+  try {
+    const url = `/api/agora-token?channel=${encodeURIComponent(channelName)}&uid=${uid}`
+    const res = await fetch(url)
+    if (!res.ok) {
+      const err = (await res.json().catch(() => ({}))) as { error?: string }
+      const msg = err?.error ?? `Token server ${res.status}`
+      return { error: msg }
+    }
+    const data = (await res.json()) as { token?: string }
+    const token = data?.token ?? null
+    if (!token) return { error: 'Token server returned no token' }
+    return { token }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'Token fetch failed'
+    const isNetwork = msg.includes('fetch') || msg.includes('Failed') || msg.includes('Network')
+    const hint = isNetwork
+      ? ' — Is the token server running? Run: npm run dev:trainer-chat (starts both Vite + token server)'
+      : ''
+    return { error: msg + hint }
+  }
+}
+
+export function createClient() {
+  return AgoraRTC.createClient({ mode: 'rtc', codec: 'vp8' })
+}
