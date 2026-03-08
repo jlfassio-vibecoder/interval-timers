@@ -77,8 +77,21 @@ export function useAgoraChannel(
       } catch {
         // Ignore if already stopped
       }
-      tracks.video.close()
-      tracks.audio.close()
+      try {
+        tracks.audio.stop()
+      } catch {
+        // Ignore if already stopped
+      }
+      try {
+        tracks.video.close()
+      } catch {
+        // Ignore if already closed
+      }
+      try {
+        tracks.audio.close()
+      } catch {
+        // Ignore if already closed
+      }
       tracksRef.current = null
     }
     if (client) {
@@ -172,8 +185,21 @@ export function useAgoraChannel(
         } catch {
           // Ignore
         }
-        tracks.video.close()
-        tracks.audio.close()
+        try {
+          tracks.audio.stop()
+        } catch {
+          // Ignore
+        }
+        try {
+          tracks.video.close()
+        } catch {
+          // Ignore
+        }
+        try {
+          tracks.audio.close()
+        } catch {
+          // Ignore
+        }
         tracksRef.current = null
       }
       client.removeAllListeners()
