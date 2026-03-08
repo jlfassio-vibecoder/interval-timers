@@ -111,10 +111,13 @@ export function useSessionState(
     setTimeLeft(session.time_left_sec);
     setTimerState((session.state as SessionTimerState) ?? 'waiting');
     setIsPaused(session.is_paused ?? false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- sync from server; session fields are the source of truth
   }, [session?.id, session?.time_left_sec, session?.state, session?.is_paused]);
 
+  // Run 1s countdown for both host and participants so the clock updates every second.
+  // Only the host pushes state to the server (throttled); participants just tick locally.
   useEffect(() => {
-    if (!isHost || !sessionId || timerState === 'waiting' || timerState === 'finished') return;
+    if (!sessionId || timerState === 'waiting' || timerState === 'finished') return;
     if (isPaused) return;
 
     const interval = window.setInterval(() => {
@@ -122,30 +125,36 @@ export function useSessionState(
         if (prev <= 1) {
           if (timerState === 'setup') {
             setTimerState('work');
-            pushState({
-              state: 'work',
-              time_left_sec: totalTime,
-              is_paused: false,
-              started_at: new Date().toISOString(),
-            });
+            if (isHost) {
+              pushState({
+                state: 'work',
+                time_left_sec: totalTime,
+                is_paused: false,
+                started_at: new Date().toISOString(),
+              });
+            }
             return totalTime;
           }
           if (timerState === 'work') {
             setTimerState('finished');
-            pushState({ state: 'finished', time_left_sec: 0, is_paused: false });
+            if (isHost) {
+              pushState({ state: 'finished', time_left_sec: 0, is_paused: false });
+            }
             return 0;
           }
           return prev;
         }
         const next = prev - 1;
-        const now = Date.now();
-        if (now - lastPushRef.current >= THROTTLE_PUSH_MS) {
-          lastPushRef.current = now;
-          pushState({
-            state: timerState === 'setup' ? 'setup' : 'work',
-            time_left_sec: next,
-            is_paused: false,
-          });
+        if (isHost) {
+          const now = Date.now();
+          if (now - lastPushRef.current >= THROTTLE_PUSH_MS) {
+            lastPushRef.current = now;
+            pushState({
+              state: timerState === 'setup' ? 'setup' : 'work',
+              time_left_sec: next,
+              is_paused: false,
+            });
+          }
         }
         return next;
       });

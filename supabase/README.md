@@ -31,7 +31,45 @@ supabase migration list
 4. `20250305300000_amrap_log_round_rpc.sql` — log_round RPC, unique constraint on rounds
 5. `20250305400000_amrap_rls_tighten.sql` — Column grants (no host_token), drop rounds INSERT policy
 6. `20250305500000_schemas_amrap_shared.sql` — Create `amrap` and `shared` schemas and grants
+7. `20250305600000_amrap_session_messages.sql` — Session message board table and Realtime
+8. `20250305700000_amrap_rounds_realtime.sql` — Realtime for amrap_rounds
+9. `20250305800000_amrap_scheduled_start.sql` — scheduled_start_at and create_session overload
 
 ## Verification
 
 Use `supabase/verify_amrap_migrations.sql` in the SQL Editor to confirm RPCs, constraints, and RLS. After applying the schema migration, you should see schemas `amrap` and `shared` in the project.
+
+## Resetting the database (e.g. after wrong schema from another project)
+
+If the database was changed by another project or you want to start over:
+
+1. **Run the reset script** in Supabase Dashboard → SQL Editor (or via `psql`):
+   - Open `supabase/reset_database.sql` and run it. This drops only this repo’s objects (amrap_* tables, RPCs, `amrap` and `shared` schemas).
+
+2. **Drop any other project’s schemas** (optional):  
+   In SQL Editor, list non-system schemas:
+   ```sql
+   SELECT nspname FROM pg_catalog.pg_namespace
+   WHERE nspname NOT LIKE 'pg_%' AND nspname NOT IN ('information_schema');
+   ```
+   Then for each unwanted schema: `DROP SCHEMA IF EXISTS schema_name CASCADE;`  
+   If the other project added tables in `public`, drop those manually (e.g. `DROP TABLE other_table CASCADE;`).
+
+3. **Re-apply this repo’s migrations** in order (see Migrations list above), e.g. by running each `supabase/migrations/*.sql` file in order via SQL Editor or `psql`.
+
+## Using the Supabase CLI
+
+Use **`supabase login`** (browser); no access token in `.env` needed.
+
+1. **Log in and link** (from repo root):
+   ```bash
+   supabase login
+   export $(grep -v '^#' .env | xargs)
+   supabase link --project-ref dgxoyhkqdxarewmanbrq --password "$SUPABASE_DB_PASSWORD"
+   ```
+   Use the **account that owns** project `dgxoyhkqdxarewmanbrq`. If you get `Unauthorized`, run `supabase logout` then `supabase login` again with that account.
+
+2. After a successful link, use `supabase db push`, `supabase db pull`, `supabase migration list`, etc. as needed.
+
+**If migration history doesn’t match local files:**  
+Run `supabase/repair_migration_history.sql` (e.g. `psql "$DATABASE_URL" -f supabase/repair_migration_history.sql` with `.env` loaded, or paste into Dashboard → SQL Editor).
