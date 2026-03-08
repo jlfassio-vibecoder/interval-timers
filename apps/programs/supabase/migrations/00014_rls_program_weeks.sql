@@ -1,0 +1,1 @@
+ALTER TABLE public.program_weeks ENABLE ROW LEVEL SECURITY;

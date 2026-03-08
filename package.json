@@ -43,6 +43,8 @@
     "dev:master-clock": "npm run dev -w master-clock",
     "build:master-clock": "npm run build -w master-clock",
     "dev:trainer-chat": "npm run dev -w trainer-chat",
-    "build:trainer-chat": "npm run build -w trainer-chat"
+    "build:trainer-chat": "npm run build -w trainer-chat",
+    "dev:programs": "npm run dev -w programs",
+    "build:programs": "npm run build -w programs"
   }
 }

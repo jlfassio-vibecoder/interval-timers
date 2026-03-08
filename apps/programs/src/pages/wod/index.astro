@@ -1,0 +1,59 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import AppWrapper from '../../components/react/AppWrapper';
+import WODIndexContent from '../../components/react/public/WODIndexContent';
+import { getPublishedWODs } from '@/lib/supabase/public/wod-service';
+import { WOD } from '../../data/wod';
+import type { Artist } from '../../types';
+
+import imgCalisthenics001Url from '../../assets/images/outdoor-calisthenics-workout-001.jpg?url';
+import imgBootCamp001Url from '../../assets/images/outdoor-boot-camp-sand-bag-001.jpg?url';
+import imgSpeedUrl from '../../assets/images/outdoor-speed-and-agility-001.jpg?url';
+
+export const prerender = false;
+
+const optimizedWODImages: Record<string, { src: string }> = {
+  'wod-beginner': { src: imgCalisthenics001Url },
+  'wod-intermediate': { src: imgBootCamp001Url },
+  'wod-advanced': { src: imgSpeedUrl },
+};
+
+let publishedWODsList: Artist[] = [];
+try {
+  const raw = await getPublishedWODs();
+  publishedWODsList = raw.map((w) => ({
+    id: w.id,
+    name: w.name,
+    genre: w.genre,
+    image: w.image,
+    day: w.day,
+    description: w.description,
+    intensity: w.intensity,
+    workoutDetail: w.workoutDetail,
+    exerciseOverrides: w.exerciseOverrides,
+  }));
+} catch {
+  publishedWODsList = [];
+}
+const wodsForDisplay = publishedWODsList.length > 0 ? publishedWODsList : WOD;
+---
+
+<BaseLayout title="WOD | AI Fitcopilot | AI-Powered Hypertrophy & Tactical Workout Programs.">
+  <div
+    class="relative min-h-screen overflow-x-hidden text-white selection:bg-orange-light selection:text-black"
+  >
+    <AppWrapper client:load pathname={Astro.url.pathname} />
+    <main>
+      <section
+        class="relative z-10 overflow-hidden border-t border-white/10 bg-black/20 py-16 backdrop-blur-sm md:py-24"
+      >
+        <WODIndexContent
+          client:load
+          optimizedImages={optimizedWODImages}
+          publishedWODs={wodsForDisplay}
+        />
+      </section>
+      <div id="purchase-flow-mount"></div>
+    </main>
+  </div>
+</BaseLayout>

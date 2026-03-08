@@ -1,0 +1,27 @@
+---
+import { pricingPlans } from '../../data/pricing';
+import PricingCard from './PricingCard.astro';
+---
+
+<section
+  id="pricing"
+  class="relative z-10 overflow-hidden border-t border-white/10 bg-black/20 py-20 backdrop-blur-sm md:py-32"
+  aria-labelledby="pricing-heading"
+>
+  <div class="mx-auto max-w-7xl px-4 md:px-6">
+    <div class="mb-12 text-center md:mb-16">
+      <h2
+        id="pricing-heading"
+        class="font-heading text-4xl font-bold leading-tight text-white md:text-5xl"
+      >
+        Choose Your <span class="text-orange-light">Perfect Plan</span>
+      </h2>
+      <p class="mx-auto mt-4 max-w-2xl text-lg font-light text-gray-200 md:text-xl">
+        Start with Premium and upgrade as you grow. All plans include our core features.
+      </p>
+    </div>
+    <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      {pricingPlans.map((plan) => <PricingCard plan={plan} />)}
+    </div>
+  </div>
+</section>

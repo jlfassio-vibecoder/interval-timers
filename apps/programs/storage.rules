@@ -1,0 +1,42 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Exercise images (image-only saves)
+    match /exercise-images/{userId}/{fileName} {
+      allow write: if request.auth != null && request.auth.uid == userId;
+      allow read: if true;
+    }
+
+    // Generated exercises (full exercise saves with biomechanics)
+    match /generated-exercises/{userId}/{fileName} {
+      allow write: if request.auth != null && request.auth.uid == userId;
+      allow read: if true;
+    }
+
+    // Gallery images subfolder (carousel images per exercise)
+    match /generated-exercises/{userId}/gallery/{fileName} {
+      allow write: if request.auth != null && request.auth.uid == userId;
+      allow read: if true;
+    }
+
+    // Exercise demonstration videos (per exercise, admin upload)
+    match /generated-exercises/{exerciseId}/video/{fileName} {
+      allow write: if request.auth != null
+        && (request.auth.token.admin == true || request.auth.token.isAdmin == true);
+      allow read: if true;
+    }
+
+    // Source video uploads for Runway video-to-video (admin only)
+    match /generated-exercises/{exerciseId}/video-input/{fileName} {
+      allow write: if request.auth != null
+        && (request.auth.token.admin == true || request.auth.token.isAdmin == true);
+      allow read: if true;
+    }
+
+    // WOD exercise images (Exercise Visualization Lab saves)
+    match /wod-exercise-images/{userId}/{fileName} {
+      allow write: if request.auth != null && request.auth.uid == userId;
+      allow read: if true;
+    }
+  }
+}

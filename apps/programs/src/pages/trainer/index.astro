@@ -1,0 +1,11 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import TrainerRoute from '../../components/react/trainer/TrainerRoute';
+---
+
+<BaseLayout
+  title="Mission Control | AI Fit Copilot"
+  description="Command center for training operations."
+>
+  <TrainerRoute client:only="react" />
+</BaseLayout>

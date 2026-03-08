@@ -1,0 +1,1 @@
+ALTER TABLE public.exercises ENABLE ROW LEVEL SECURITY;

@@ -1,0 +1,1 @@
+ALTER TABLE public.programs ENABLE ROW LEVEL SECURITY;

@@ -1,0 +1,19 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import AppWrapper from '../components/react/AppWrapper';
+import { WorkoutPlanBuilder } from '../components/react/WorkoutPlanBuilder/WorkoutPlanBuilder';
+---
+
+<BaseLayout
+  title="Build Your Workout Plan | AI Workout Generator"
+  description="Answer a few questions about your goals and equipment. Create your account to generate and save your personalized AI workout plan."
+>
+  <div
+    class="relative min-h-screen overflow-x-hidden text-white selection:bg-orange-light selection:text-black"
+  >
+    <AppWrapper client:load pathname={Astro.url.pathname} />
+    <main>
+      <WorkoutPlanBuilder client:load skipIntro />
+    </main>
+  </div>
+</BaseLayout>

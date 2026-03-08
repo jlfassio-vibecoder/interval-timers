@@ -1,0 +1,1 @@
+ALTER TABLE public.equipment_zones ENABLE ROW LEVEL SECURITY;

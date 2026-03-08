@@ -1,0 +1,16 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --bg-dark: #0d0500;
+    --color-accent: #f97316;
+    --color-orange-light: #fed7aa;
+    --orange: #ea580c;
+    --orange-medium: #c2410c;
+    --orange-dark: #9a3412;
+    --orange-darkest: #7c2d12;
+    --text-primary: #fafafa;
+  }
+}

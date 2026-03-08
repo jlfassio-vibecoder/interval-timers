@@ -45,6 +45,8 @@ Run these from the monorepo root (`interval-timers/`):
 | `npm run build:bio-sync-sixty` | Build the Bio-Sync Sixty app |
 | `npm run dev:master-clock` | Start the Master Clock app dev server (Bio-Sync60) |
 | `npm run build:master-clock` | Build the Master Clock app |
+| `npm run dev:programs` | Start the Programs app dev server (Astro SSR) |
+| `npm run build:programs` | Build the Programs app |
 
 ---
 
@@ -58,6 +60,7 @@ From the repo root, run the dev command for the app you want, then open the URL 
 | Any standalone timer (e.g. Daily Warm-up, Tabata, EMOM) | `npm run dev:<app>` (e.g. `npm run dev:daily-warmup`) | `http://localhost:5173` (or port shown in terminal) |
 | Bio-Sync Sixty | `npm run dev:bio-sync-sixty` | `http://localhost:4321` (Astro) |
 | Master Clock | `npm run dev:master-clock` | `http://localhost:5173` (Vite; base path `/bio-sync60/master-clock/`) |
+| Programs | `npm run dev:programs` | `http://localhost:3006` |
 
 If you run multiple dev servers, each will use a different port; use the **Local** URL printed when the server starts.
 

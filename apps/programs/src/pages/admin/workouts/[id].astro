@@ -1,0 +1,13 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import WorkoutEditor from '../../../components/react/admin/views/WorkoutEditor';
+import { AppProvider } from '../../../contexts/AppContext';
+
+const { id } = Astro.params;
+---
+
+<BaseLayout title="Edit Workout | AI Fit Copilot" description="Design your workout sessions.">
+  <AppProvider client:only="react">
+    <WorkoutEditor client:only="react" workoutId={id} />
+  </AppProvider>
+</BaseLayout>

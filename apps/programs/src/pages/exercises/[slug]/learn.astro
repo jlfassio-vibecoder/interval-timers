@@ -1,0 +1,62 @@
+---
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Deep Dive Exercise Page.
+ * Renders the AI-generated HTML guide for a specific exercise.
+ * Sanitizes HTML and sets CSP to mitigate XSS from stored content.
+ */
+import { randomBytes } from 'node:crypto';
+import { getGeneratedExerciseBySlug } from '@/lib/supabase/public/generated-exercise-service';
+import { normalizeMathSymbols } from '@/lib/normalize-math-symbols';
+import { prepareDeepDiveDocument } from '@/lib/prepare-deep-dive-document';
+import { sanitizeDeepDiveHtml } from '@/lib/sanitize-deep-dive-html';
+
+export const prerender = false;
+
+const { slug } = Astro.params;
+
+if (!slug) {
+  return Astro.redirect('/exercises');
+}
+
+// Fetch exercise (allow pending exercises for preview/deep dive access)
+const exercise = await getGeneratedExerciseBySlug(slug, false);
+
+if (!exercise) {
+  return Astro.redirect('/404');
+}
+
+const { deepDiveHtmlContent } = exercise;
+
+if (deepDiveHtmlContent) {
+  const sanitized = sanitizeDeepDiveHtml(deepDiveHtmlContent);
+  const withNormalizedMath = normalizeMathSymbols(sanitized, { htmlSafe: true });
+  const baseUrl = Astro.site?.href?.replace(/\/$/, '') || new URL(Astro.request.url).origin;
+  const nonce = randomBytes(16).toString('base64');
+  const metaInput = {
+    exerciseName: exercise.exerciseName,
+    slug,
+    baseUrl,
+    imageUrl: exercise.imageUrl ?? '',
+    performanceCues: exercise.biomechanics?.performanceCues ?? [],
+    complexityLevel: exercise.complexityLevel,
+    nonce,
+    sources: exercise.sources ?? [],
+  };
+  const prepared = prepareDeepDiveDocument(withNormalizedMath, metaInput);
+  // Restrict script to trusted CDNs; allow inline JSON-LD script via nonce
+  const csp = `default-src 'self'; script-src 'self' 'nonce-${nonce}' https://cdn.tailwindcss.com https://cdn.jsdelivr.net https://unpkg.com; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: https:; font-src 'self' https:; connect-src 'self'; frame-ancestors 'self'; base-uri 'self'; form-action 'none'`;
+  return new Response(prepared, {
+    headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Content-Security-Policy': csp,
+      'X-Content-Type-Options': 'nosniff',
+    },
+  });
+}
+
+// Fallback if no content exists (shouldn't happen if we only link to it when generated)
+return Astro.redirect('/exercises');
+---

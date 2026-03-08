@@ -1,0 +1,1 @@
+ALTER TABLE public.challenge_weeks ENABLE ROW LEVEL SECURITY;

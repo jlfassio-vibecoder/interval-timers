@@ -1,0 +1,1 @@
+ALTER TABLE public.workout_logs ENABLE ROW LEVEL SECURITY;

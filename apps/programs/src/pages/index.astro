@@ -1,0 +1,129 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import HeroSection from '../components/astro/HeroSection.astro';
+import WorkoutsHeader from '../components/astro/WorkoutsHeader.astro';
+import ComplexesHeader from '../components/astro/ComplexesHeader.astro';
+import WODHeader from '../components/astro/WODHeader.astro';
+import TabataHeader from '../components/astro/TabataHeader.astro';
+import ProgramsSection from '../components/astro/ProgramsSection.astro';
+import PricingSection from '../components/astro/PricingSection.astro';
+
+// Use ?url to bypass /_image endpoint (causes 500 in production on Firebase App Hosting)
+// Oxidative Core Ignition id '3' uses fallback URL from data
+import logoTransparentUrl from '../assets/images/logo_transparent_256.png?url';
+import imgVo2Url from '../assets/images/outdoor-boot-camp-sand-bag-002.jpg?url';
+import imgLacticUrl from '../assets/images/outdoor-calisthenics-workout-002.jpg?url';
+import imgMetconUrl from '../assets/images/exercises_star_jump_001.jpg?url';
+import imgNeuralUrl from '../assets/images/outdoor-speed-and-agility-001.jpg?url';
+import imgAshenUrl from '../assets/images/mobility-and-flexibility-001.jpg?url';
+
+const optimizedWorkoutImages: Record<string, { src: string }> = {
+  '1': { src: imgVo2Url },
+  '2': { src: imgLacticUrl },
+  '4': { src: imgMetconUrl },
+  '5': { src: imgNeuralUrl },
+  '6': { src: imgAshenUrl },
+};
+
+// Complexes, WOD, Tabata: ?url imports to avoid /_image 500 in production
+import imgMobilityUrl from '../assets/images/mobility-and-flexibility-001.jpg?url';
+import imgDumbbellUrl from '../assets/images/exercises_dumbbell-goblet-squat_male_anatomy.jpg?url';
+import imgBarbellUrl from '../assets/images/gym-barbell-squat-001.jpg?url';
+import imgCalisthenics001Url from '../assets/images/outdoor-calisthenics-workout-001.jpg?url';
+import imgBootCamp001Url from '../assets/images/outdoor-boot-camp-sand-bag-001.jpg?url';
+import imgSpeedUrl from '../assets/images/outdoor-speed-and-agility-001.jpg?url';
+import imgBurpeeUrl from '../assets/images/exercises_burpee_beginner_male_sketch.jpg?url';
+import imgMountainUrl from '../assets/images/exercises_mountain-climbers_male_realistic_001.jpg?url';
+import imgStarJumpUrl from '../assets/images/exercises_star_jump_001.jpg?url';
+
+const optimizedComplexesImages: Record<string, { src: string }> = {
+  'complexes-beginner': { src: imgMobilityUrl },
+  'complexes-intermediate': { src: imgDumbbellUrl },
+  'complexes-advanced': { src: imgBarbellUrl },
+};
+
+const optimizedWODImages: Record<string, { src: string }> = {
+  'wod-beginner': { src: imgCalisthenics001Url },
+  'wod-intermediate': { src: imgBootCamp001Url },
+  'wod-advanced': { src: imgSpeedUrl },
+};
+
+const optimizedTabataImages: Record<string, { src: string }> = {
+  'tabata-beginner': { src: imgBurpeeUrl },
+  'tabata-intermediate': { src: imgMountainUrl },
+  'tabata-advanced': { src: imgStarJumpUrl },
+};
+
+// React Islands
+import AppWrapper from '../components/react/AppWrapper';
+import WorkoutCards from '../components/react/WorkoutCards';
+import ComplexesCards from '../components/react/ComplexesCards';
+import WODCards from '../components/react/WODCards';
+import TabataCards from '../components/react/TabataCards';
+---
+
+<BaseLayout preloadHeroLogo={logoTransparentUrl} preloadProgramsApi={true}>
+  <div
+    class="relative min-h-screen overflow-x-hidden text-white selection:bg-orange-light selection:text-black"
+  >
+    <AppWrapper client:load pathname={Astro.url.pathname} />
+
+    <main>
+      <HeroSection />
+
+      <section
+        id="programs"
+        aria-labelledby="programs-heading"
+        class="relative z-10 overflow-hidden border-t border-white/10 bg-black/20 py-20 backdrop-blur-sm md:py-32"
+      >
+        <ProgramsSection />
+      </section>
+
+      <section
+        id="workouts"
+        aria-labelledby="workouts-heading"
+        class="relative z-10 overflow-hidden border-t border-white/10 bg-black/20 py-16 backdrop-blur-sm md:py-24"
+      >
+        <WorkoutsHeader />
+        <div class="mx-auto max-w-[1600px] px-4 md:px-6">
+          <WorkoutCards client:visible optimizedImages={optimizedWorkoutImages} />
+        </div>
+      </section>
+
+      <section
+        id="complexes"
+        aria-labelledby="complexes-heading"
+        class="relative z-10 overflow-hidden border-t border-white/10 bg-black/20 py-16 backdrop-blur-sm md:py-24"
+      >
+        <ComplexesHeader />
+        <div class="mx-auto max-w-[1600px] px-4 md:px-6">
+          <ComplexesCards client:visible optimizedImages={optimizedComplexesImages} />
+        </div>
+      </section>
+
+      <section
+        id="wod"
+        aria-labelledby="wod-heading"
+        class="relative z-10 overflow-hidden border-t border-white/10 bg-black/20 py-16 backdrop-blur-sm md:py-24"
+      >
+        <WODHeader />
+        <div class="mx-auto max-w-[1600px] px-4 md:px-6">
+          <WODCards client:visible optimizedImages={optimizedWODImages} />
+        </div>
+      </section>
+
+      <section
+        id="tabata-workouts"
+        aria-labelledby="tabata-workouts-heading"
+        class="relative z-10 overflow-hidden border-t border-white/10 bg-black/20 py-16 backdrop-blur-sm md:py-24"
+      >
+        <TabataHeader />
+        <div class="mx-auto max-w-[1600px] px-4 md:px-6">
+          <TabataCards client:visible optimizedImages={optimizedTabataImages} />
+        </div>
+      </section>
+
+      <PricingSection />
+    </main>
+  </div>
+</BaseLayout>

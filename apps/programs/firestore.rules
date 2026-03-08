@@ -1,0 +1,170 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users collection - users can read/write their own document
+    match /users/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if request.auth != null && request.auth.uid == userId;
+
+      // User program entitlements (owned programs)
+      match /programs/{programId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+
+      // User challenge entitlements (owned challenges)
+      match /challenges/{challengeId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+
+      // Workout logs (set-level tracking)
+      match /workout_logs/{logId} {
+        allow create, read: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+    
+    // Logs collection - users can read/write their own logs
+    match /logs/{logId} {
+      allow read, write: if request.auth != null && 
+        resource.data.userId == request.auth.uid;
+    }
+    
+    // Exercises collection - authenticated users can read, admins can write
+    match /exercises/{exerciseId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+    
+    // Programs collection - authenticated users can read, admins can write
+    match /programs/{programId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+      
+      // Subcollection: weeks
+      match /weeks/{weekId} {
+        allow read: if request.auth != null;
+        allow write: if request.auth != null && 
+          exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+      }
+    }
+
+    // Challenges collection - authenticated users can read, admins can write
+    match /challenges/{challengeId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+
+      // Subcollection: weeks
+      match /weeks/{weekId} {
+        allow read: if request.auth != null;
+        allow write: if request.auth != null && 
+          exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+      }
+    }
+
+    // Workouts collection (Workout Factory) - public read when published, admin read any (including drafts), admins write
+    match /workouts/{workoutId} {
+      allow read: if resource.data.status == 'published';
+      allow read: if request.auth != null &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+      allow write: if request.auth != null &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+    
+    // Equipment Inventory - authenticated users can read, admins can write
+    match /equipment_inventory/{itemId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+    
+    // Equipment Zones - authenticated users can read, admins can write
+    match /equipment_zones/{zoneId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    // Exercise images - generated infographics; authenticated read, creator or admin write
+    match /exercise_images/{imageId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.resource.data.generated_by == request.auth.uid;
+      allow update, delete: if request.auth != null && (
+        resource.data.generated_by == request.auth.uid ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true)
+      );
+    }
+
+    // Generated exercises - full exercise data with biomechanics for detail pages
+    match /generated_exercises/{exerciseId} {
+      // Public read for approved exercises (no auth required)
+      allow read: if resource.data.status == 'approved';
+      // Authenticated read for any status (admin/creator can see pending/rejected)
+      allow read: if request.auth != null;
+      // Create: authenticated user, must be the generator
+      allow create: if request.auth != null && request.resource.data.generatedBy == request.auth.uid;
+      // Update/delete: creator or admin
+      allow update, delete: if request.auth != null && (
+        resource.data.generatedBy == request.auth.uid ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true)
+      );
+
+      // Images subcollection - gallery images for this exercise
+      match /images/{imageId} {
+        // Authenticated users can always read gallery images (no get() required)
+        allow read: if request.auth != null;
+        // Public read when parent exercise is approved
+        allow read: if get(/databases/$(database)/documents/generated_exercises/$(exerciseId)).data.status == 'approved';
+        // Create: authenticated user, must set createdBy to their uid
+        allow create: if request.auth != null && request.resource.data.createdBy == request.auth.uid;
+        // Update/delete: creator or admin
+        allow update, delete: if request.auth != null && (
+          resource.data.createdBy == request.auth.uid ||
+          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+            get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true)
+        );
+      }
+    }
+
+    // Generated WODs - one workout per level; same publish pattern as generated_exercises
+    match /generated_wods/{wodId} {
+      // Public read for approved WODs (no auth required)
+      allow read: if resource.data.status == 'approved';
+      // Authenticated read for any status (admin/creator can see pending)
+      allow read: if request.auth != null;
+      // Create: authenticated user, must set generatedBy to their uid
+      allow create: if request.auth != null && request.resource.data.generatedBy == request.auth.uid;
+      // Update/delete: creator or admin
+      allow update, delete: if request.auth != null && (
+        resource.data.generatedBy == request.auth.uid ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true)
+      );
+    }
+
+    // Warmup config (Daily Warm-Up) - public read, admin write
+    // Admin: same as Storage and server - token claims or users doc (consistent with other admin)
+    match /warmup_config/{docId} {
+      allow read: if true;
+      allow write: if request.auth != null &&
+        (
+          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+            get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true)
+          || request.auth.token.admin == true
+          || request.auth.token.isAdmin == true
+        );
+    }
+  }
+}

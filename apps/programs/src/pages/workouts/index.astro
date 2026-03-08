@@ -1,0 +1,40 @@
+---
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Public page: published workout sets (Workout Factory). Same pattern as WOD.
+ */
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import AppWrapper from '../../components/react/AppWrapper';
+import WorkoutSetsIndexContent from '../../components/react/public/WorkoutSetsIndexContent';
+import { getPublishedWorkoutSets } from '../../lib/supabase/public/workout-set-service';
+
+export const prerender = false;
+
+let publishedSets: Awaited<ReturnType<typeof getPublishedWorkoutSets>> = [];
+try {
+  publishedSets = await getPublishedWorkoutSets();
+} catch (err) {
+  if (import.meta.env.DEV || import.meta.env.PUBLIC_ENABLE_ERROR_LOGGING === 'true') {
+    console.error('Failed to load published workout sets', err);
+  }
+  publishedSets = [];
+}
+---
+
+<BaseLayout title="Workouts | AI Fitcopilot | AI-Powered Hypertrophy & Tactical Workout Programs.">
+  <div
+    class="relative min-h-screen overflow-x-hidden text-white selection:bg-orange-light selection:text-black"
+  >
+    <AppWrapper client:load pathname={Astro.url.pathname} />
+    <main>
+      <section
+        class="relative z-10 overflow-hidden border-t border-white/10 bg-black/20 py-16 backdrop-blur-sm md:py-24"
+      >
+        <WorkoutSetsIndexContent client:load publishedSets={publishedSets} />
+      </section>
+      <div id="purchase-flow-mount"></div>
+    </main>
+  </div>
+</BaseLayout>

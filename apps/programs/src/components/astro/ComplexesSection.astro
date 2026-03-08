@@ -1,0 +1,100 @@
+---
+// Complexes section: same grid and card pattern as Workouts - static HTML for SEO
+import { Image } from 'astro:assets';
+import imgBeginner from '../../assets/images/mobility-and-flexibility-001.jpg';
+import imgIntermediate from '../../assets/images/exercises_dumbbell-goblet-squat_male_anatomy.jpg';
+import imgAdvanced from '../../assets/images/gym-barbell-squat-001.jpg';
+
+const intensityScale = [
+  'bg-orange-100',
+  'bg-orange-300',
+  'bg-orange-500',
+  'bg-orange-700',
+  'bg-orange-900',
+];
+
+const cards = [
+  {
+    level: 'Beginner',
+    tagline: 'Movement quality & light load',
+    intensity: 1,
+    image: imgBeginner,
+    alt: 'Mobility and flexibility for beginner complexes',
+  },
+  {
+    level: 'Intermediate',
+    tagline: 'Chain 3–5 movements, short rest',
+    intensity: 3,
+    image: imgIntermediate,
+    alt: 'Dumbbell goblet squat for intermediate complexes',
+  },
+  {
+    level: 'Advanced',
+    tagline: 'High density, minimal rest',
+    intensity: 5,
+    image: imgAdvanced,
+    alt: 'Barbell squat for advanced complexes',
+  },
+];
+---
+
+<div class="mx-auto max-w-[1600px] px-4 md:px-6">
+  <div
+    class="relative z-10 grid grid-cols-1 border-l border-t border-white/10 bg-black/20 backdrop-blur-sm md:grid-cols-2 lg:grid-cols-3"
+  >
+    {
+      cards.map((card) => (
+        <article
+          class="group relative z-10 h-[400px] w-full overflow-hidden border-b border-white/10 bg-black md:h-[500px] md:border-r"
+          aria-label={`Complexes - ${card.level}`}
+        >
+          <div class="absolute inset-0 overflow-hidden">
+            <div class="h-full w-full transition-transform duration-500 group-hover:scale-105">
+              <Image
+                src={card.image}
+                alt={card.alt}
+                width={500}
+                height={500}
+                class="h-full w-full object-cover grayscale transition-[filter] duration-500 group-hover:grayscale-0"
+              />
+            </div>
+            <div class="group-hover:bg-orange-medium/20 absolute inset-0 bg-black/30 transition-colors duration-500" />
+          </div>
+
+          <div class="pointer-events-none absolute inset-0 flex flex-col justify-between p-6 md:p-8">
+            <div class="flex items-start justify-between">
+              <div class="flex flex-col gap-1">
+                <span class="font-mono text-[10px] uppercase tracking-widest opacity-60">
+                  Intensity
+                </span>
+                <div class="flex h-4 items-end gap-1">
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <div
+                      key={i}
+                      class={`w-2 rounded-sm transition-all duration-500 ${i <= card.intensity ? intensityScale[i - 1] : 'bg-white/10'}`}
+                      style={`height: ${(i / 5) * 100}%`}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div class="flex items-end justify-between">
+              <div>
+                <h3 class="font-heading text-2xl font-bold uppercase text-white mix-blend-difference md:text-3xl">
+                  {card.level}
+                </h3>
+                <p class="mt-2 text-sm font-medium uppercase tracking-widest text-orange-light">
+                  {card.tagline}
+                </p>
+              </div>
+              <div class="flex items-center gap-2 rounded border border-white/20 bg-black/80 px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-tighter text-white shadow-xl backdrop-blur-sm">
+                Review Workout
+              </div>
+            </div>
+          </div>
+        </article>
+      ))
+    }
+  </div>
+</div>
