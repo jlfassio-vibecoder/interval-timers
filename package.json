@@ -41,6 +41,8 @@
     "dev:bio-sync-sixty": "npm run dev -w bio-sync-sixty",
     "build:bio-sync-sixty": "npm run build -w bio-sync-sixty",
     "dev:master-clock": "npm run dev -w master-clock",
-    "build:master-clock": "npm run build -w master-clock"
+    "build:master-clock": "npm run build -w master-clock",
+    "dev:trainer-chat": "npm run dev -w trainer-chat",
+    "build:trainer-chat": "npm run build -w trainer-chat"
   }
 }
