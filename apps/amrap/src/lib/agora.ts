@@ -23,7 +23,8 @@ export async function getTokenOrFetchWithAccount(
   const envToken = getToken()
   if (envToken) return { token: envToken }
   try {
-    const url = `/api/agora-token?channel=${encodeURIComponent(channelName)}&account=${encodeURIComponent(account)}`
+    const base = typeof window !== 'undefined' ? window.location.origin : ''
+    const url = `${base}/api/agora-token?channel=${encodeURIComponent(channelName)}&account=${encodeURIComponent(account)}`
     const res = await fetch(url)
     if (!res.ok) {
       const err = (await res.json().catch(() => ({}))) as { error?: string }
@@ -38,7 +39,7 @@ export async function getTokenOrFetchWithAccount(
     const msg = e instanceof Error ? e.message : 'Token fetch failed'
     const isNetwork = msg.includes('fetch') || msg.includes('Failed') || msg.includes('Network')
     const hint = isNetwork
-      ? ' — Dev: run npm run dev:amrap:video. Prod: ensure /api/agora-token exists and VITE_AGORA_APP_ID + VITE_AGORA_APP_CERTIFICATE are set.'
+      ? ' — Dev: run npm run dev:amrap:video. Prod: ensure /api/agora-token, env vars, and AGORA_TOKEN_ALLOWED_ORIGINS includes this site.'
       : ''
     return { error: msg + hint }
   }
