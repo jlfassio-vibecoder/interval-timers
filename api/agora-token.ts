@@ -49,11 +49,23 @@ export async function OPTIONS(request: Request) {
 export async function GET(request: Request) {
   const origin = request.headers.get('Origin')
 
-  const APP_ID = process.env.VITE_AGORA_APP_ID
-  const APP_CERT = process.env.VITE_AGORA_APP_CERTIFICATE
+  const APP_ID = (process.env.VITE_AGORA_APP_ID ?? '').trim()
+  const APP_CERT = (process.env.VITE_AGORA_APP_CERTIFICATE ?? '').trim()
   if (!APP_ID || !APP_CERT) {
     return Response.json(
-      { error: 'Missing VITE_AGORA_APP_ID or VITE_AGORA_APP_CERTIFICATE' },
+      { error: 'Missing VITE_AGORA_APP_ID or VITE_AGORA_APP_CERTIFICATE in Vercel env' },
+      { status: 500, headers: corsHeaders(origin) }
+    )
+  }
+  if (APP_ID.length !== 32 || !/^[0-9a-f]{32}$/i.test(APP_ID)) {
+    return Response.json(
+      { error: 'VITE_AGORA_APP_ID must be 32 hex chars. Check Agora Console and Vercel env.' },
+      { status: 500, headers: corsHeaders(origin) }
+    )
+  }
+  if (APP_CERT.length !== 32 || !/^[0-9a-f]{32}$/i.test(APP_CERT)) {
+    return Response.json(
+      { error: 'VITE_AGORA_APP_CERTIFICATE must be 32 hex chars. No extra spaces. Check Vercel env.' },
       { status: 500, headers: corsHeaders(origin) }
     )
   }
@@ -124,6 +136,12 @@ export async function GET(request: Request) {
       EXPIRY_SEC,
       EXPIRY_SEC
     )
+    if (!token || typeof token !== 'string') {
+      return Response.json(
+        { error: 'Token generation returned empty. Verify App ID and Certificate in Agora Console.' },
+        { status: 500, headers: corsHeaders(origin) }
+      )
+    }
     return Response.json({ token }, { headers: corsHeaders(origin) })
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Token generation failed'

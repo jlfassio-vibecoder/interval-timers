@@ -173,9 +173,12 @@ export function useAgoraChannel(
         } else if (msg.includes('dynamic use static key')) {
           hint =
             ' — Enable App Certificate requires a token. Add VITE_AGORA_TOKEN or disable App Certificate for testing.'
-        } else if (msg.includes('CAN_NOT_GET_GATEWAY') && msg.includes('unknown error')) {
+        } else if (
+          (msg.includes('CAN_NOT_GET_GATEWAY') || msg.includes('invalid token')) &&
+          msg.toLowerCase().includes('authorized')
+        ) {
           hint =
-            ' — Often caused by: (1) token mismatch for channel/uid; (2) token expired; (3) network/firewall; (4) invalid App ID.'
+            ' — Token rejected: ensure VITE_AGORA_APP_ID and VITE_AGORA_APP_CERTIFICATE match in Vercel (build + runtime) and Agora Console.'
         }
         setError(msg + hint)
       }
