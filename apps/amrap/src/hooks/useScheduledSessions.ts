@@ -38,5 +38,5 @@ export function useScheduledSessions(weekStart: Date, weekEnd: Date) {
     fetchSessions();
   }, [fetchSessions]);
 
-  return { sessions, loading, error };
+  return { sessions, loading, error, refetch: fetchSessions };
 }

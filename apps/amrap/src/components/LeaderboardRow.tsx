@@ -1,3 +1,6 @@
+import { useEffect, useRef } from 'react';
+import type { ICameraVideoTrack, IRemoteVideoTrack } from 'agora-rtc-sdk-ng';
+
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60)
     .toString()
@@ -11,6 +14,7 @@ export interface LeaderboardRowProps {
   totalRounds: number;
   splits: number[];
   rank?: number;
+  videoTrack?: ICameraVideoTrack | IRemoteVideoTrack | null;
 }
 
 function RoundSplitCard({ roundIndex, timeSec }: { roundIndex: number; timeSec: number }) {
@@ -24,9 +28,40 @@ function RoundSplitCard({ roundIndex, timeSec }: { roundIndex: number; timeSec: 
   );
 }
 
-export default function LeaderboardRow({ nickname, totalRounds, splits, rank }: LeaderboardRowProps) {
+function VideoBackground({ videoTrack }: { videoTrack: ICameraVideoTrack | IRemoteVideoTrack }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!videoTrack || !containerRef.current) return;
+    videoTrack.play(containerRef.current, { fit: 'cover' });
+    return () => {
+      try {
+        videoTrack.stop();
+      } catch {
+        /* already stopped */
+      }
+    };
+  }, [videoTrack]);
+
   return (
-    <div className="rounded-2xl border border-white/10 bg-black/20 p-6 sm:p-8">
+    <div
+      ref={containerRef}
+      className="absolute inset-0 h-full w-full [&>video]:h-full [&>video]:w-full [&>video]:object-cover"
+      aria-hidden
+    />
+  );
+}
+
+export default function LeaderboardRow({ nickname, totalRounds, splits, rank, videoTrack }: LeaderboardRowProps) {
+  return (
+    <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-black/20 p-6 sm:p-8">
+      {videoTrack && (
+        <>
+          <VideoBackground videoTrack={videoTrack} />
+          <div className="pointer-events-none absolute inset-0 bg-black/40" aria-hidden />
+        </>
+      )}
+      <div className="relative z-10">
       <div className="mb-4 flex flex-wrap items-baseline gap-2">
         {rank != null && (
           <span className="rounded-lg bg-white/10 px-2 py-0.5 text-lg font-bold text-white/90">
@@ -47,6 +82,7 @@ export default function LeaderboardRow({ nickname, totalRounds, splits, rank }: 
       ) : (
         <p className="text-base text-white/50">No rounds logged yet.</p>
       )}
+      </div>
     </div>
   );
 }

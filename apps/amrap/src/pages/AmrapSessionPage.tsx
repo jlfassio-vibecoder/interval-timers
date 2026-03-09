@@ -11,7 +11,9 @@ import { useSessionState } from '@/hooks/useSessionState';
 import type { AmrapRoundRow, AmrapParticipantRow } from '@/lib/supabase';
 import type { SessionTimerState } from '@/hooks/useSessionState';
 import LeaderboardRow from '@/components/LeaderboardRow';
+import VideoTile from '@/components/VideoTile';
 import SessionMessageBoard from '@/components/SessionMessageBoard';
+import { useAgoraChannel } from '@/hooks/useAgoraChannel';
 import { getWorkoutTitleAndDuration } from '@/lib/workoutLabel';
 
 const COUNTDOWN_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
@@ -92,6 +94,10 @@ export default function AmrapSessionPage() {
   } = useAmrapSession(sessionId);
   const hostToken = sessionId ? getStoredHostToken(sessionId) : null;
   const sessionState = useSessionState(sessionId, session, isHost, hostToken);
+  const { joined, localVideoTrack, remoteUsers, error: agoraError } = useAgoraChannel(
+    sessionId ?? '',
+    participantId ?? null
+  );
 
   const {
     timeLeft,
@@ -180,6 +186,7 @@ export default function AmrapSessionPage() {
     ? rounds.filter((r) => r.participant_id === participantId)
     : [];
   const leaderboard = buildLeaderboard(participants, rounds);
+  const hostParticipant = participants.find((p) => p.role === 'host');
 
   const logRound = useCallback(async () => {
     if (!sessionId || !participantId || timerState !== 'work') return;
@@ -412,16 +419,24 @@ export default function AmrapSessionPage() {
               <p className="text-sm text-white/50">No rounds logged yet.</p>
             ) : (
               <ul className="space-y-4">
-                {leaderboard.map((row, index) => (
-                  <li key={row.participantId}>
-                    <LeaderboardRow
-                      nickname={row.nickname}
-                      totalRounds={row.totalRounds}
-                      splits={row.splits}
-                      rank={index + 1}
-                    />
-                  </li>
-                ))}
+                {leaderboard.map((row, index) => {
+                  const isSelf = row.participantId === participantId;
+                  const isHostRow = row.participantId === hostParticipant?.id;
+                  const videoUser = remoteUsers.find((u) => String(u.uid) === row.participantId);
+                  // Host video is featured below timer — omit video from host row only (host row stays for rounds/splits)
+                  const videoTrack = isHostRow ? undefined : (isSelf ? localVideoTrack : videoUser?.videoTrack);
+                  return (
+                    <li key={row.participantId}>
+                      <LeaderboardRow
+                        nickname={row.nickname}
+                        totalRounds={row.totalRounds}
+                        splits={row.splits}
+                        rank={index + 1}
+                        videoTrack={videoTrack}
+                      />
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </section>
@@ -529,6 +544,22 @@ export default function AmrapSessionPage() {
             </div>
           )}
         </div>
+
+        {/* Host livestream — below timer, during waiting/setup/work */}
+        {(timerState === 'waiting' || timerState === 'setup' || timerState === 'work') &&
+          !agoraError &&
+          joined &&
+          hostParticipant &&
+          (() => {
+            const hostRemote = remoteUsers.find((u) => String(u.uid) === hostParticipant.id);
+            const hostTrack = isHost ? localVideoTrack : hostRemote?.videoTrack;
+            if (!hostTrack) return null;
+            return (
+              <div className="mt-4 min-h-[10rem] overflow-hidden rounded-2xl border border-white/10 bg-black/30">
+                <VideoTile videoTrack={hostTrack} label="Host" />
+              </div>
+            );
+          })()}
         </div>
 
         {/* Right column: Message board + Exercises — grows on xl+ so names/reps stay on one line */}
