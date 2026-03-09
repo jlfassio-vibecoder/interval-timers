@@ -549,7 +549,6 @@ export const POST: APIRoute = async ({ request }) => {
     }
 
     // Check for required environment variable
-    // In Astro, use import.meta.env for environment variables
     // GOOGLE_PROJECT_ID is preferred, but PUBLIC_FIREBASE_PROJECT_ID can be used as fallback
     // since they should have the same value (Firebase project ID = Google Cloud project ID)
     const projectId =

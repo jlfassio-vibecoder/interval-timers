@@ -8,10 +8,10 @@
  * Actually, the simplest is to use Firebase Console directly:
  * 1. Go to Firebase Console → Firestore Database → Data
  * 2. Navigate to users collection
- * 3. Create/edit document with ID: RaJARHpHfpgzYW3Wr6EjfLj9pJc2
+ * 3. Create/edit document with ID: <YOUR_UID>
  * 4. Set fields:
- *    - uid: "RaJARHpHfpgzYW3Wr6EjfLj9pJc2"
- *    - email: "jlfassio@gmail.com"
+ *    - uid: "<YOUR_UID>"
+ *    - email: "<YOUR_EMAIL>"
  *    - isAdmin: true (boolean)
  *    - createdAt: "2026-01-25T00:00:00.000Z"
  *    - purchasedIndex: null
@@ -19,16 +19,17 @@
 
 console.log(`
 To set yourself as admin, use one of these methods:
+(Replace <YOUR_UID> and <YOUR_EMAIL> with your Firebase Auth UID and email.)
 
 METHOD 1: Firebase Console (Easiest)
 1. Go to: https://console.firebase.google.com/project/ai-fitness-guy-26523278-3e978/firestore
 2. Click "Firestore Database" → "Data"
 3. Navigate to "users" collection
 4. Click "Add document" or find existing document
-5. Document ID: RaJARHpHfpgzYW3Wr6EjfLj9pJc2
+5. Document ID: <YOUR_UID>
 6. Add fields:
-   - uid (string): RaJARHpHfpgzYW3Wr6EjfLj9pJc2
-   - email (string): jlfassio@gmail.com
+   - uid (string): <YOUR_UID>
+   - email (string): <YOUR_EMAIL>
    - isAdmin (boolean): true
    - createdAt (string): 2026-01-25T00:00:00.000Z
    - purchasedIndex (null): null
@@ -39,10 +40,10 @@ METHOD 2: Browser Console (If logged in)
 2. Run this code:
    import { db, auth } from '/src/services/firebaseService.js';
    import { doc, setDoc } from 'firebase/firestore';
-   const userRef = doc(db, 'users', 'RaJARHpHfpgzYW3Wr6EjfLj9pJc2');
+   const userRef = doc(db, 'users', '<YOUR_UID>');
    await setDoc(userRef, {
-     uid: 'RaJARHpHfpgzYW3Wr6EjfLj9pJc2',
-     email: 'jlfassio@gmail.com',
+     uid: '<YOUR_UID>',
+     email: '<YOUR_EMAIL>',
      isAdmin: true,
      createdAt: new Date().toISOString(),
      purchasedIndex: null
