@@ -152,6 +152,7 @@ export function useAgoraChannel(
         setError(null)
         const result = await getTokenOrFetchWithAccount(channelName, participantId)
         if ('error' in result) {
+          if (typeof window !== 'undefined') console.warn('[Agora] Token fetch failed:', result.error)
           setError(result.error)
           return
         }
@@ -165,6 +166,7 @@ export function useAgoraChannel(
         setJoined(true)
       } catch (e) {
         const msg = e instanceof Error ? e.message : 'Failed to join channel'
+        if (typeof window !== 'undefined') console.warn('[Agora] Join failed:', msg, e)
         let hint = ''
         if (msg.toLowerCase().includes('permission') || msg.toLowerCase().includes('denied')) {
           hint = ' — Camera or microphone access denied'

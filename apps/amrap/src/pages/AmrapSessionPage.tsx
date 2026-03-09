@@ -329,6 +329,13 @@ export default function AmrapSessionPage() {
           </div>
         </div>
 
+        {agoraError && (
+          <div className="mx-4 mb-4 rounded-xl border border-red-500/50 bg-red-600/20 p-4">
+            <p className="text-sm font-medium text-red-300">Video unavailable</p>
+            <p className="mt-1 text-xs text-red-200/90">{agoraError}</p>
+          </div>
+        )}
+
       <div className="flex flex-col gap-6 px-4 pb-4 lg:flex-row lg:items-start">
         {/* Left column: Who's Here (collapsible) + Leaderboard — grows on xl+ */}
         <div className="flex w-full shrink-0 flex-col gap-4 lg:min-w-80 lg:flex-1 lg:max-w-[26rem] xl:max-w-[28rem]">
