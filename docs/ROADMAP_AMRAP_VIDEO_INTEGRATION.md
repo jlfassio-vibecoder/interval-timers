@@ -80,8 +80,8 @@ Plan for integrating Agora video streams into the AMRAP With Friends session pag
 
 **Option B (production)**: Backend token endpoint
 
-- [ ] Add serverless/API route (e.g. Vercel serverless) that generates tokens
-- [ ] Requires auth/validation so only valid session participants can get tokens
+- [x] Add serverless/API route: `api/agora-token.ts` (Vercel) — `GET /api/agora-token?channel=:sessionId&account=:participantId`
+- [ ] Set in Vercel: `VITE_AGORA_APP_ID`, `VITE_AGORA_APP_CERTIFICATE` (same as dev)
 
 ### 1.4 Extract/Port Agora Logic
 
