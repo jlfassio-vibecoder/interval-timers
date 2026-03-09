@@ -49,6 +49,7 @@
     "build:programs": "npm run build -w programs"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.47.0",
     "agora-token": "^2.0.5"
   },
   "devDependencies": {

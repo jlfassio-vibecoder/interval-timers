@@ -12,7 +12,7 @@
 
 | Item | Status | Action |
 |------|--------|--------|
-| **Security/Logic** | ✅ Addressed | Migration `SET search_path`, `REVOKE ... FROM PUBLIC`, explicit `GRANT` to `anon`/`authenticated`. `user-published` handler wrapped in try/catch in `useAgoraChannel`. |
+| **Security/Logic** | ✅ Addressed | Migration `SET search_path`, `REVOKE ... FROM PUBLIC`, explicit `GRANT`. Token endpoint validates participant exists in `amrap_participants` before issuing token (Copilot security feedback). |
 | **Astro/Env** | ✅ N/A | AMRAP is Vite/React; only `VITE_`-prefixed vars used for client. No `import.meta.env` misuse. |
 | **Build-time safety** | ✅ Compliant | No Node APIs (`fs`, `process`) in client components. |
 | **Redundant comments** | ✅ None found | No obvious "AI slop" comments. |
@@ -41,6 +41,8 @@
 |----------|--------|
 | `apps/amrap/src/pages/AmrapSessionPage.tsx` | Host livestream IIFE uses outer `hostParticipant`; removed duplicate `participants.find((p) => p.role === 'host')`. |
 | `apps/amrap/src/hooks/useAgoraChannel.ts` | Removed unused `eslint-disable-line react-hooks/set-state-in-effect` directive. |
+| `api/agora-token.ts` | Removed dead OPTIONS branch; added participant validation (verify in `amrap_participants` before token issuance). |
+| `apps/amrap/src/lib/agora.ts` | JSDoc: "Fetch token from /api/agora-token (prod) or proxied token server (dev)". |
 
 ---
 
@@ -50,6 +52,7 @@
 |----------|--------|
 | `apps/amrap/src/hooks/useAgoraChannel.ts` | Removed unnecessary eslint-disable (rule no longer flagged). |
 | `apps/amrap/src/pages/AmrapSessionPage.tsx` | Removed redundant host participant lookup inside host livestream IIFE. |
+| `api/agora-token.ts` | Removed unreachable OPTIONS handling. |
 
 ---
 

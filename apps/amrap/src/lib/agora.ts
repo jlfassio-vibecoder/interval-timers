@@ -15,7 +15,7 @@ export function getToken(): string | null {
 
 export type TokenResult = { token: string } | { error: string }
 
-/** Fetch token from local token server (dev) using string account (participant_id). Uses env token if set. */
+/** Fetch token from /api/agora-token (prod) or proxied token server (dev). Uses env token if set. */
 export async function getTokenOrFetchWithAccount(
   channelName: string,
   account: string
