@@ -1,5 +1,4 @@
 import { useState, useMemo } from 'react';
-import { Link } from 'react-router-dom';
 import {
   startOfWeek,
   startOfMonth,
@@ -14,6 +13,7 @@ import {
 import { useScheduledSessions } from '@/hooks/useScheduledSessions';
 import type { ScheduledSession } from '@/hooks/useScheduledSessions';
 import { getWorkoutTitle, getWorkoutTitleAndDuration } from '@/lib/workoutLabel';
+import SessionEventModal from '@/components/SessionEventModal';
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
 const GRID_DAYS = 6 * 7;
@@ -39,7 +39,8 @@ export default function WeekCalendar() {
   const monthEnd = useMemo(() => endOfMonth(viewDate), [viewDate]);
   const monthEndExclusive = useMemo(() => addDays(monthEnd, 1), [monthEnd]);
 
-  const { sessions, loading, error } = useScheduledSessions(monthStart, monthEndExclusive);
+  const { sessions, loading, error, refetch } = useScheduledSessions(monthStart, monthEndExclusive);
+  const [selectedSession, setSelectedSession] = useState<ScheduledSession | null>(null);
 
   const today = new Date();
   const thisWeekStart = startOfWeek(today, { weekStartsOn: 0 });
@@ -136,10 +137,11 @@ export default function WeekCalendar() {
                 <ul className="space-y-1">
                   {daySessions.map((session) => (
                     <li key={session.id}>
-                      <Link
-                        to={`/with-friends/session/${session.id}`}
+                      <button
+                        type="button"
+                        onClick={() => setSelectedSession(session)}
                         title={getWorkoutTitleAndDuration(session.workout_list, session.duration_minutes)}
-                        className="block rounded border border-orange-500/30 bg-black/20 px-1.5 py-1 text-left text-[10px] transition-colors hover:border-orange-500/50 hover:bg-orange-500/10"
+                        className="block w-full rounded border border-orange-500/30 bg-black/20 px-1.5 py-1 text-left text-[10px] transition-colors hover:border-orange-500/50 hover:bg-orange-500/10"
                       >
                         <span className="font-medium text-orange-400">
                           {formatEventTime(session.scheduled_start_at)}
@@ -150,7 +152,7 @@ export default function WeekCalendar() {
                         <span className="mt-0.5 block truncate text-white/50">
                           {getWorkoutTitle(session.workout_list)}
                         </span>
-                      </Link>
+                      </button>
                     </li>
                   ))}
                 </ul>
@@ -163,6 +165,21 @@ export default function WeekCalendar() {
       <p className="mt-4 text-center text-xs text-white/50">
         Scheduling available for this week and next. Subscribe to schedule further out.
       </p>
+
+      {selectedSession && (
+        <SessionEventModal
+          session={selectedSession}
+          isOpen={Boolean(selectedSession)}
+          onClose={() => setSelectedSession(null)}
+          onDeleted={() => {
+            setSelectedSession(null);
+            refetch();
+          }}
+          onRescheduled={() => {
+            refetch();
+          }}
+        />
+      )}
     </section>
   );
 }

@@ -19,6 +19,7 @@
     "dev:japanese-walking": "npm run dev -w japanese-walking",
     "build:japanese-walking": "npm run build -w japanese-walking",
     "dev:amrap": "npm run dev -w amrap",
+    "dev:amrap:video": "concurrently \"npm run dev:amrap\" \"node apps/trainer-chat/server/token-server.js\"",
     "build:amrap": "npm run build -w amrap",
     "dev:aerobic": "npm run dev -w aerobic",
     "build:aerobic": "npm run build -w aerobic",
@@ -46,5 +47,8 @@
     "build:trainer-chat": "npm run build -w trainer-chat",
     "dev:programs": "npm run dev -w programs",
     "build:programs": "npm run build -w programs"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
   }
 }

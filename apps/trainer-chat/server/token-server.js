@@ -61,25 +61,45 @@ createServer((req, res) => {
   }
   const u = new URL(req.url, `http://localhost:${PORT}`)
   const channel = u.searchParams.get('channel')
+  const account = u.searchParams.get('account')
   const uid = parseInt(u.searchParams.get('uid') ?? '0', 10)
   if (!channel || channel.length === 0) {
     send(res, 400, { error: 'channel query param required' })
     return
   }
   try {
-    // agora-token uses tokenExpire as seconds from now (not absolute timestamp)
-    const token = RtcTokenBuilder.buildTokenWithUid(
-      APP_ID,
-      APP_CERT,
-      channel,
-      uid,
-      RtcRole.PUBLISHER,
-      EXPIRY_SEC
-    )
+    let token
+    if (account && account.length > 0) {
+      // buildTokenWithUserAccount uses tokenExpire/privilegeExpire as seconds from now
+      token = RtcTokenBuilder.buildTokenWithUserAccount(
+        APP_ID,
+        APP_CERT,
+        channel,
+        account,
+        RtcRole.PUBLISHER,
+        EXPIRY_SEC,
+        EXPIRY_SEC
+      )
+    } else {
+      // buildTokenWithUid uses tokenExpire, privilegeExpire as seconds from now
+      token = RtcTokenBuilder.buildTokenWithUid(
+        APP_ID,
+        APP_CERT,
+        channel,
+        uid,
+        RtcRole.PUBLISHER,
+        EXPIRY_SEC,
+        EXPIRY_SEC
+      )
+    }
     send(res, 200, { token })
   } catch (e) {
-    send(res, 500, { error: e?.message ?? 'Token generation failed' })
+    const msg = e?.message ?? 'Token generation failed'
+    console.error('[agora-token] Error:', msg)
+    send(res, 500, { error: msg })
   }
 }).listen(PORT, () => {
-  console.log(`[agora-token] http://localhost:${PORT}/token?channel=AMRAP&uid=1`)
+  console.log(`[agora-token] http://localhost:${PORT}/token`)
+  console.log(`  uid:   ?channel=AMRAP&uid=1`)
+  console.log(`  account: ?channel=SESSION_ID&account=PARTICIPANT_ID`)
 })

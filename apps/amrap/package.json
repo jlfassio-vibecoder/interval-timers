@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "concurrently \"vite\" \"node ../trainer-chat/server/token-server.js\"",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview"
@@ -15,6 +15,7 @@
     "@interval-timers/timer-ui": "*",
     "@interval-timers/types": "*",
     "@supabase/supabase-js": "^2.47.0",
+    "agora-rtc-sdk-ng": "^4.24.2",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "framer-motion": "^12.34.3",
@@ -29,6 +30,7 @@
     "tailwind-merge": "^3.5.0"
   },
   "devDependencies": {
+    "concurrently": "^9.1.0",
     "@eslint/js": "^9.39.1",
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.7",

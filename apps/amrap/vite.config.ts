@@ -6,7 +6,16 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   base: '/amrap/',
-  server: { port: 5177 },
+  server: {
+    port: 5177,
+    proxy: {
+      '/api/agora-token': {
+        target: 'http://localhost:9517',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/agora-token/, '/token'),
+      },
+    },
+  },
   envDir: path.resolve(__dirname, '../..'),
   resolve: {
     alias: {
