@@ -127,11 +127,16 @@ export function useAgoraChannel(
     clientRef.current = client
 
     client.on('user-published', async (user, mediaType) => {
-      await client.subscribe(user, mediaType)
-      if (mediaType === 'audio' && user.audioTrack) {
-        user.audioTrack.play()
+      try {
+        await client.subscribe(user, mediaType)
+        if (mediaType === 'audio' && user.audioTrack) {
+          user.audioTrack.play()
+        }
+        addRemoteUser(user.uid, user.videoTrack, user.audioTrack)
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : 'Failed to handle remote user publication'
+        setError(msg)
       }
-      addRemoteUser(user.uid, user.videoTrack, user.audioTrack)
     })
     client.on('user-unpublished', (user, mediaType) => {
       if (mediaType === 'video' || mediaType === 'audio') {

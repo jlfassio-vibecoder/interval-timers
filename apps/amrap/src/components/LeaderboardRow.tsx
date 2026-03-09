@@ -33,7 +33,7 @@ function VideoBackground({ videoTrack }: { videoTrack: ICameraVideoTrack | IRemo
 
   useEffect(() => {
     if (!videoTrack || !containerRef.current) return;
-    videoTrack.play(containerRef.current);
+    videoTrack.play(containerRef.current, { fit: 'cover' });
     return () => {
       try {
         videoTrack.stop();
@@ -46,7 +46,7 @@ function VideoBackground({ videoTrack }: { videoTrack: ICameraVideoTrack | IRemo
   return (
     <div
       ref={containerRef}
-      className="absolute inset-0 h-full w-full object-cover"
+      className="absolute inset-0 h-full w-full [&>video]:h-full [&>video]:w-full [&>video]:object-cover"
       aria-hidden
     />
   );

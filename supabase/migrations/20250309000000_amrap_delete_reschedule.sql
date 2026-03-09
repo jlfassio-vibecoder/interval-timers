@@ -7,7 +7,7 @@ CREATE OR REPLACE FUNCTION delete_session(
 RETURNS int
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = pg_catalog, public
 AS $$
 DECLARE
   v_deleted int;
@@ -27,7 +27,7 @@ CREATE OR REPLACE FUNCTION reschedule_session(
 RETURNS int
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = pg_catalog, public
 AS $$
 DECLARE
   v_updated int;
@@ -40,6 +40,8 @@ BEGIN
 END;
 $$;
 
--- Allow anon/authenticated to call these RPCs (required for Supabase schema cache)
+-- Restrict execute to anon/authenticated only (avoid PUBLIC)
+REVOKE EXECUTE ON FUNCTION delete_session(uuid, text) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION reschedule_session(uuid, text, timestamptz) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION delete_session(uuid, text) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION reschedule_session(uuid, text, timestamptz) TO anon, authenticated;

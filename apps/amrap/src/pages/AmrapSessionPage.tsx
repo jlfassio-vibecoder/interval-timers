@@ -423,7 +423,7 @@ export default function AmrapSessionPage() {
                   const isSelf = row.participantId === participantId;
                   const isHostRow = row.participantId === hostParticipant?.id;
                   const videoUser = remoteUsers.find((u) => String(u.uid) === row.participantId);
-                  // Host video is featured below timer — do not show in leaderboard
+                  // Host video is featured below timer — omit video from host row only (host row stays for rounds/splits)
                   const videoTrack = isHostRow ? undefined : (isSelf ? localVideoTrack : videoUser?.videoTrack);
                   return (
                     <li key={row.participantId}>
@@ -549,9 +549,8 @@ export default function AmrapSessionPage() {
         {(timerState === 'waiting' || timerState === 'setup' || timerState === 'work') &&
           !agoraError &&
           joined &&
+          hostParticipant &&
           (() => {
-            const hostParticipant = participants.find((p) => p.role === 'host');
-            if (!hostParticipant) return null;
             const hostRemote = remoteUsers.find((u) => String(u.uid) === hostParticipant.id);
             const hostTrack = isHost ? localVideoTrack : hostRemote?.videoTrack;
             if (!hostTrack) return null;

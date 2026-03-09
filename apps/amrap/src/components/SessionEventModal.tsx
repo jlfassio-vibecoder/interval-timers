@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { supabase } from '@/lib/supabase';
@@ -36,6 +36,21 @@ export default function SessionEventModal({
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (step === 'main') onClose();
+      else {
+        setStep('main');
+        setRescheduleValue(toDatetimeLocal(new Date(session.scheduled_start_at)));
+        setError(null);
+      }
+    };
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [isOpen, onClose, step, session.scheduled_start_at]);
 
   if (!isOpen) return null;
 

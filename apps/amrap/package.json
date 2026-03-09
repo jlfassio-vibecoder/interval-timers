@@ -4,7 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "concurrently \"vite\" \"node ../trainer-chat/server/token-server.js\"",
+    "dev": "vite",
+    "dev:video": "concurrently \"vite\" \"node ../trainer-chat/server/token-server.js\"",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview"
