@@ -1,12 +1,10 @@
-# Deprecated / non-functional workflow stub.
-#
-# GitHub Actions only runs workflows from the repository root at `.github/workflows/`.
-# Any YAML file under `apps/programs/.github/workflows/` will never be executed.
-#
-# The programs CI has been moved to the root:
-#   .github/workflows/ci-programs.yml
-#
-# That workflow runs lint, type-check, tests, security scan, and env check
-# for the programs app (scoped via `npm run ... -w programs`).
-#
-# This file is kept as documentation only and is not a valid workflow.
+# Deprecated: GitHub Actions only runs workflows from the repo root.
+# Real CI is at .github/workflows/ci-programs.yml
+name: deprecated
+on:
+  workflow_dispatch:
+jobs:
+  noop:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Deprecated - see .github/workflows/ci-programs.yml"
