@@ -1,6 +1,9 @@
 {
   "name": "interval-timers",
   "private": true,
+  "engines": {
+    "node": "20.x"
+  },
   "workspaces": [
     "apps/*",
     "apps/bio-sync-sixty/apps/*",

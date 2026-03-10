@@ -25,7 +25,7 @@ This blueprint targets:
 /
 ├── apps/
 │   ├── landing/           # Marketing + protocol discovery
-│   ├── programs/          # Account hub, auth, workouts (SSR)
+│   ├── app/               # Account hub, auth, workouts (SSR)
 │   ├── amrap/
 │   ├── tabata/
 │   ├── daily-warmup/
@@ -84,7 +84,7 @@ This blueprint targets:
 | App | Domain | Purpose |
 |-----|--------|---------|
 | Landing + timers | `example.com` | Single domain for marketing + timer paths |
-| Programs (hub) | `app.example.com` | Account, auth, programs |
+| App (hub) | `app.example.com` | Account, auth, programs |
 
 **Alternative (single domain):** If you need everything on `example.com` without subdomains, use one project that builds and serves landing + timer apps from a single output (see §7). The hub remains a separate project on a subdomain.
 
@@ -219,7 +219,7 @@ Or use Root Directory at repo root and override only `buildCommand` and `outputD
 
 **Per project in Vercel:** Project → Settings → Environment Variables.
 
-| Variable | Landing | Programs | AMRAP |
+| Variable | Landing | App | AMRAP |
 |----------|---------|----------|-------|
 | `VITE_SUPABASE_URL` | — | — | ✓ |
 | `VITE_SUPABASE_ANON_KEY` | — | — | ✓ |
