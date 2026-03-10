@@ -55,6 +55,15 @@ const WeekCalendar: FC<WeekCalendarProps> = (props) => {
   const [selectedSession, setSelectedSession] = useState<ScheduledSession | null>(null);
 
   useEffect(() => {
+    if (initialSelectedSession) {
+      const targetMonth = startOfMonth(new Date(initialSelectedSession.scheduled_start_at));
+      setViewDate((prev) =>
+        isSameDay(startOfMonth(prev), targetMonth) ? prev : targetMonth
+      );
+    }
+  }, [initialSelectedSession?.id, initialSelectedSession?.scheduled_start_at]);
+
+  useEffect(() => {
     if (!loading && initialSelectedSession && sessions.length > 0) {
       const found = sessions.find((s) => s.id === initialSelectedSession.id);
       if (found) {

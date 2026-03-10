@@ -206,6 +206,8 @@ export default function AmrapSessionPage() {
     if (error) setLogRoundError(error.message);
   }, [sessionId, participantId, timerState, totalTime, timeLeft]);
 
+  const copyToastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const copyShareLink = useCallback(async () => {
     try {
       const url = window.location.href.replace(/\?.*$/, '');
@@ -214,7 +216,14 @@ export default function AmrapSessionPage() {
     } catch {
       setCopyToast('error');
     }
-    setTimeout(() => setCopyToast(null), 2500);
+    if (copyToastTimeoutRef.current) clearTimeout(copyToastTimeoutRef.current);
+    copyToastTimeoutRef.current = setTimeout(() => setCopyToast(null), 2500);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (copyToastTimeoutRef.current) clearTimeout(copyToastTimeoutRef.current);
+    };
   }, []);
 
   const handleJoinSession = useCallback(async () => {

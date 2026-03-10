@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { supabase } from '@/lib/supabase';
@@ -40,10 +40,18 @@ export default function SessionEventModal({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copyToast, setCopyToast] = useState<'success' | 'error' | null>(null);
+  const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const showCopyToast = useCallback((type: 'success' | 'error') => {
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
     setCopyToast(type);
-    setTimeout(() => setCopyToast(null), 2500);
+    toastTimeoutRef.current = setTimeout(() => setCopyToast(null), 2500);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    };
   }, []);
 
   const copySessionId = useCallback(async () => {
