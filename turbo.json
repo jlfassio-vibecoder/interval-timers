@@ -1,0 +1,16 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"],
+      "env": ["VITE_*", "PUBLIC_*"]
+    },
+    "app#build": {
+      "dependsOn": ["^build"],
+      "outputs": [".vercel/output/**"],
+      "env": ["VITE_*", "PUBLIC_*"]
+    }
+  },
+  "globalEnv": ["NODE_ENV", "CI"]
+}

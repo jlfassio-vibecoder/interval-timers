@@ -1,5 +1,5 @@
 {
   "framework": "astro",
   "installCommand": "cd ../.. && npm ci",
-  "buildCommand": "npm run build --workspace=app"
+  "buildCommand": "turbo build"
 }
