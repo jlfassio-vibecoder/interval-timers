@@ -4,7 +4,7 @@
 # NOTE:
 #   This script does not hard-code any live configuration values.
 #   Define the variables below in your environment or in an untracked
-#   .env.local file (in the app root, apps/programs) before running this script.
+#   .env.local file (in the app root, apps/app) before running this script.
 #
 # Optionally load environment variables from a local file (not committed to VCS)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

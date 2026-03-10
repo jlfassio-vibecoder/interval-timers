@@ -45,8 +45,8 @@ Run these from the monorepo root (`interval-timers/`):
 | `npm run build:bio-sync-sixty` | Build the Bio-Sync Sixty app |
 | `npm run dev:master-clock` | Start the Master Clock app dev server (Bio-Sync60) |
 | `npm run build:master-clock` | Build the Master Clock app |
-| `npm run dev:programs` | Start the Programs app dev server (Astro SSR) |
-| `npm run build:programs` | Build the Programs app |
+| `npm run dev:app` | Start the App dev server (Astro SSR) |
+| `npm run build:app` | Build the App |
 
 ---
 
@@ -60,7 +60,7 @@ From the repo root, run the dev command for the app you want, then open the URL 
 | Any standalone timer (e.g. Daily Warm-up, Tabata, EMOM) | `npm run dev:<app>` (e.g. `npm run dev:daily-warmup`) | `http://localhost:5173` (or port shown in terminal) |
 | Bio-Sync Sixty | `npm run dev:bio-sync-sixty` | `http://localhost:4321` (Astro) |
 | Master Clock | `npm run dev:master-clock` | `http://localhost:5173` (Vite; base path `/bio-sync60/master-clock/`) |
-| Programs | `npm run dev:programs` | `http://localhost:3006` |
+| App | `npm run dev:app` | `http://localhost:3006` |
 
 If you run multiple dev servers, each will use a different port; use the **Local** URL printed when the server starts.
 
@@ -85,7 +85,7 @@ The site is a landing app at `/` plus 13 standalone timer apps, each at its own 
 
 **If standalone URLs show the landing page in production:** Ensure `vercel.json` includes `buildCommand: "npm run build:deploy"` (it overrides Vercel's auto-detected build). The project **Root Directory** must be the repo root (not `apps/landing`), so the build command and output paths resolve correctly.
 
-**Programs (central hub):** Deploy as a second Vercel project with Root Directory `apps/programs`. See [DEPLOYMENT_PROGRAMS.md](DEPLOYMENT_PROGRAMS.md). Update `vercel.json` rewrites with your Programs deployment URL.
+**App (central hub):** Deploy as a second Vercel project with Root Directory `apps/app`. See [DEPLOYMENT_APP.md](DEPLOYMENT_APP.md). Update `vercel.json` rewrites with your App deployment URL.
 
 ---
 

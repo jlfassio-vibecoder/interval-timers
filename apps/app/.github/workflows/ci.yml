@@ -1,5 +1,5 @@
 # Deprecated: GitHub Actions only runs workflows from the repo root.
-# Real CI is at .github/workflows/ci-programs.yml
+# Real CI is at .github/workflows/ci-app.yml
 name: deprecated
 on:
   workflow_dispatch:
@@ -7,4 +7,4 @@ jobs:
   noop:
     runs-on: ubuntu-latest
     steps:
-      - run: echo "Deprecated - see .github/workflows/ci-programs.yml"
+      - run: echo "Deprecated - see .github/workflows/ci-app.yml"

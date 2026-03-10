@@ -19,7 +19,7 @@
     "dev:japanese-walking": "npm run dev -w japanese-walking",
     "build:japanese-walking": "npm run build -w japanese-walking",
     "dev:amrap": "npm run dev -w amrap",
-    "dev:amrap:video": "concurrently -n amrap,programs -c blue,green \"npm run dev:video -w amrap\" \"npm run dev:programs\"",
+    "dev:amrap:video": "concurrently -n amrap,app -c blue,green \"npm run dev:video -w amrap\" \"npm run dev:app\"",
     "build:amrap": "npm run build -w amrap",
     "dev:aerobic": "npm run dev -w aerobic",
     "build:aerobic": "npm run build -w aerobic",
@@ -45,8 +45,8 @@
     "build:master-clock": "npm run build -w master-clock",
     "dev:trainer-chat": "npm run dev -w trainer-chat",
     "build:trainer-chat": "npm run build -w trainer-chat",
-    "dev:programs": "npm run dev -w programs",
-    "build:programs": "npm run build -w programs"
+    "dev:app": "npm run dev -w app",
+    "build:app": "npm run build -w app"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.47.0",
