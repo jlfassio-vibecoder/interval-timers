@@ -10,7 +10,6 @@ import PricingSection from '../components/astro/PricingSection.astro';
 
 // Use ?url to bypass /_image endpoint (causes 500 in production on Firebase App Hosting)
 // Oxidative Core Ignition id '3' uses fallback URL from data
-import logoTransparentUrl from '../assets/images/logo_transparent_256.png?url';
 import imgVo2Url from '../assets/images/outdoor-boot-camp-sand-bag-002.jpg?url';
 import imgLacticUrl from '../assets/images/outdoor-calisthenics-workout-002.jpg?url';
 import imgMetconUrl from '../assets/images/exercises_star_jump_001.jpg?url';
@@ -62,7 +61,11 @@ import WODCards from '../components/react/WODCards';
 import TabataCards from '../components/react/TabataCards';
 ---
 
-<BaseLayout preloadHeroLogo={logoTransparentUrl} preloadProgramsApi={true}>
+<BaseLayout
+  title="HIIT Workout Timer | AI Workout Generator"
+  preloadHeroLogo="/logo_transparent_500x500.png"
+  preloadProgramsApi={true}
+>
   <div
     class="relative min-h-screen overflow-x-hidden text-white selection:bg-orange-light selection:text-black"
   >

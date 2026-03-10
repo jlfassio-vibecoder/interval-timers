@@ -8,8 +8,11 @@ import { config as loadEnv } from 'dotenv';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
-// Force-load .env.local so API routes get correct env (Vite dev can fail to pass process.env to workers).
+// Force-load .env so API routes get HIIT Supabase. Load monorepo root first, then app-level.
 const rootFromFile = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
+const monorepoRoot = resolve(rootFromFile, '../..');
+loadEnv({ path: resolve(monorepoRoot, '.env') });
+loadEnv({ path: resolve(monorepoRoot, '.env.local') });
 loadEnv({ path: resolve(process.cwd(), '.env.local'), override: true });
 loadEnv({ path: resolve(rootFromFile, '.env.local'), override: true });
 
@@ -20,16 +23,20 @@ function normalizeEnvVar(v: string | undefined): string {
     return t.slice(1, -1).trim();
   return t;
 }
-// Prefer process.env so node --env-file=.env.local and dotenv in astro.config win over Vite's import.meta.env (which can inject a different value in dev).
+// Prefer process.env. Use HIIT Workout Timer Supabase (same as AMRAP); fallback to VITE_* from monorepo root.
 const supabaseUrl =
   normalizeEnvVar(process.env.PUBLIC_SUPABASE_URL) ||
-  normalizeEnvVar(import.meta.env.PUBLIC_SUPABASE_URL as string | undefined);
+  normalizeEnvVar(import.meta.env.PUBLIC_SUPABASE_URL as string | undefined) ||
+  normalizeEnvVar(process.env.VITE_SUPABASE_URL) ||
+  normalizeEnvVar(import.meta.env.VITE_SUPABASE_URL as string | undefined);
 const serviceRoleKey =
   normalizeEnvVar(process.env.SUPABASE_SERVICE_ROLE_KEY) ||
   normalizeEnvVar(import.meta.env.SUPABASE_SERVICE_ROLE_KEY as string | undefined);
 const anonKey =
   normalizeEnvVar(process.env.PUBLIC_SUPABASE_ANON_KEY) ||
-  normalizeEnvVar(import.meta.env.PUBLIC_SUPABASE_ANON_KEY as string | undefined);
+  normalizeEnvVar(import.meta.env.PUBLIC_SUPABASE_ANON_KEY as string | undefined) ||
+  normalizeEnvVar(process.env.VITE_SUPABASE_ANON_KEY) ||
+  normalizeEnvVar(import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined);
 
 /**
  * Client with service role key when available (bypasses RLS). Otherwise anon (RLS applies).

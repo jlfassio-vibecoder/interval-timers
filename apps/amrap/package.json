@@ -7,6 +7,7 @@
     "dev": "vite",
     "dev:video": "concurrently \"vite\" \"node ../trainer-chat/server/token-server.js\"",
     "build": "tsc -b && vite build",
+    "build:deploy": "npm run build",
     "lint": "eslint .",
     "preview": "vite preview"
   },

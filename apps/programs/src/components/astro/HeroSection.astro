@@ -1,7 +1,7 @@
 ---
 // Static Hero Section - Pure HTML for SEO
-// Use ?url to bypass /_image endpoint (causes 500 in production)
-import logoTransparentUrl from '../../assets/images/logo_transparent_256.png?url';
+// Use same logo as main landing (HIIT Workout Timer) for consistency
+const logoUrl = '/logo_transparent_500x500.png';
 ---
 
 <header
@@ -164,15 +164,18 @@ import logoTransparentUrl from '../../assets/images/logo_transparent_256.png?url
       <h1
         class="text-center font-heading text-[10vw] font-black leading-[0.9] tracking-tighter text-orange-light md:text-[8vw]"
       >
-        AI WORKOUT<br />
-        GENERATOR
+        HIIT WORKOUT<br />
+        TIMER
       </h1>
+      <p class="font-mono text-sm uppercase tracking-[0.2em] text-orange-light md:text-base md:tracking-[0.3em]">
+        AI WORKOUT GENERATOR
+      </p>
       <img
-        src={logoTransparentUrl}
-        alt="AI Workout Generator logo"
-        width={192}
-        height={192}
-        class="h-auto w-24 shrink-0 md:w-32"
+        src={logoUrl}
+        alt="HIIT Workout Timer logo"
+        width={500}
+        height={500}
+        class="h-auto w-32 shrink-0 md:w-40"
         loading="eager"
         decoding="async"
         fetchpriority="high"

@@ -28,18 +28,21 @@ export interface CreateFlowSchedulePickerProps {
   onChange: (value: string) => void;
   /** Minimum selectable date/time (local); e.g. new Date() to disallow past. */
   minDate?: Date;
+  /** Max weeks ahead (0 = this week only, 1 = 2 weeks, 52 = 1 year). Default 1. */
+  maxWeeksAhead?: number;
 }
 
-const MAX_WEEKS_AHEAD = 1;
+const DEFAULT_MAX_WEEKS_AHEAD = 1;
 
 export default function CreateFlowSchedulePicker({
   value,
   onChange,
   minDate,
+  maxWeeksAhead = DEFAULT_MAX_WEEKS_AHEAD,
 }: CreateFlowSchedulePickerProps) {
   const today = useMemo(() => new Date(), []);
   const thisWeekStart = useMemo(() => startOfWeek(today, { weekStartsOn: 0 }), [today]);
-  const [weekOffset, setWeekOffset] = useState(0); // 0 = this week, 1 = next week (max 1 ahead)
+  const [weekOffset, setWeekOffset] = useState(0); // 0 = this week, 1 = next week, etc.
   const weekStart = useMemo(
     () => (weekOffset === 0 ? thisWeekStart : addWeeks(thisWeekStart, weekOffset)),
     [thisWeekStart, weekOffset]
@@ -51,7 +54,7 @@ export default function CreateFlowSchedulePicker({
   const weekEnd = addDays(weekStart, 6);
   const weekRangeLabel = `${format(weekStart, 'EEE, MMM d')} – ${format(weekEnd, 'EEE, MMM d')}`;
   const isThisWeek = weekOffset === 0;
-  const isNextWeek = weekOffset === MAX_WEEKS_AHEAD;
+  const isMaxWeek = weekOffset >= maxWeeksAhead;
 
   const selectedDate = value ? fromDatetimeLocal(value) : null;
   const defaultTime = '18:00';
@@ -122,8 +125,8 @@ export default function CreateFlowSchedulePicker({
             </button>
             <button
               type="button"
-              onClick={() => setWeekOffset((o) => Math.min(MAX_WEEKS_AHEAD, o + 1))}
-              disabled={isNextWeek}
+              onClick={() => setWeekOffset((o) => Math.min(maxWeeksAhead, o + 1))}
+              disabled={isMaxWeek}
               className="rounded border border-white/20 bg-black/30 px-2 py-1 text-xs font-medium text-white/90 transition-colors hover:border-orange-500 hover:bg-orange-600/20 disabled:opacity-40 disabled:pointer-events-none"
             >
               Next week →

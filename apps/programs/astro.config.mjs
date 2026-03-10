@@ -9,7 +9,10 @@ import { fileURLToPath } from 'url';
 import { resolve } from 'path';
 
 const root = fileURLToPath(new URL('.', import.meta.url));
-// Load .env then .env.local; existing process.env values (e.g. from shell/CI/prod) take precedence
+const monorepoRoot = resolve(root, '../..');
+// Load monorepo root .env first (HIIT Workout Timer Supabase: VITE_SUPABASE_*), then app-level (override)
+loadEnv({ path: resolve(monorepoRoot, '.env') });
+loadEnv({ path: resolve(monorepoRoot, '.env.local') });
 loadEnv({ path: resolve(root, '.env') });
 loadEnv({ path: resolve(root, '.env.local') });
 const src = resolve(root, './src');

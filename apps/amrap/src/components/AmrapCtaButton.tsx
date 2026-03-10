@@ -9,6 +9,8 @@ interface AmrapCtaButtonProps {
   children: ReactNode;
   /** When set, render as Link; otherwise render as button. */
   to?: string;
+  /** When set, render as external anchor (e.g. HUD URL). */
+  href?: string;
   /** Used when rendering as button. */
   onClick?: () => void;
   className?: string;
@@ -17,11 +19,19 @@ interface AmrapCtaButtonProps {
 export default function AmrapCtaButton({
   children,
   to,
+  href,
   onClick,
   className,
 }: AmrapCtaButtonProps) {
   const classes = twMerge(BASE_CLASSES, className);
 
+  if (href != null) {
+    return (
+      <a href={href} className={classes}>
+        {children}
+      </a>
+    );
+  }
   if (to != null) {
     return (
       <Link to={to} className={classes}>

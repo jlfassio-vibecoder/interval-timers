@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import AccountLink from '@/components/AccountLink';
 import AmrapCtaButton from '@/components/AmrapCtaButton';
+import AuthModal from '@/components/AuthModal';
+import { useAmrapAuth } from '@/contexts/AmrapAuthContext';
 import { IntervalTimerLanding, IntervalTimerSetupModal } from '@interval-timers/timer-ui';
 import type { IntervalTimerPage } from '@interval-timers/timer-core';
 import { getProtocolAccent, SETUP_DURATION_SECONDS } from '@interval-timers/timer-core';
@@ -43,6 +46,9 @@ interface SimContent {
 const AMRAP_ACCENT = getProtocolAccent('amrap');
 
 const AmrapInterval: React.FC<AmrapIntervalProps> = ({ onNavigate, onNavigateToLanding }) => {
+  const { user } = useAmrapAuth();
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authModalSignUp, setAuthModalSignUp] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [isTimerOpen, setIsTimerOpen] = useState(false);
   const [isDurationSelectOpen, setIsDurationSelectOpen] = useState(false);
@@ -370,6 +376,41 @@ const AmrapInterval: React.FC<AmrapIntervalProps> = ({ onNavigate, onNavigateToL
         accentTheme={AMRAP_ACCENT}
         standalone={isStandalone}
         brandLabel="AI Fitness Guy"
+        navEnd={
+          <div className="flex items-center gap-2">
+            <AccountLink
+              className="text-xs font-bold text-white/70 transition-colors hover:text-[#ffbf00] md:text-sm"
+            >
+              Account
+            </AccountLink>
+            {!user ? (
+              <>
+                <span className="text-white/40">/</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthModalSignUp(false);
+                    setShowAuthModal(true);
+                  }}
+                  className="text-xs font-bold text-white/70 transition-colors hover:text-[#ffbf00] md:text-sm"
+                >
+                  Log in
+                </button>
+                <span className="text-white/40">/</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthModalSignUp(true);
+                    setShowAuthModal(true);
+                  }}
+                  className="text-xs font-bold text-white/70 transition-colors hover:text-[#ffbf00] md:text-sm"
+                >
+                  Create account
+                </button>
+              </>
+            ) : null}
+          </div>
+        }
       >
         {/* HERO */}
         <section className="mx-auto max-w-4xl pt-8 text-center">
@@ -389,6 +430,9 @@ const AmrapInterval: React.FC<AmrapIntervalProps> = ({ onNavigate, onNavigateToL
           <div className="inline-grid w-max max-w-full grid-cols-1 gap-4 sm:grid-cols-2">
             <AmrapCtaButton onClick={setup.open}>Launch AMRAP Timer</AmrapCtaButton>
             <AmrapCtaButton to="with-friends">AMRAP With Friends</AmrapCtaButton>
+            <AccountLink asButton className="rounded-xl bg-orange-600 px-8 py-3 font-bold text-white shadow-[0_0_20px_rgba(234,88,12,0.4)] transition-transform hover:-translate-y-1 hover:bg-orange-500">
+              My Account
+            </AccountLink>
             <AmrapCtaButton
               onClick={() =>
                 document.getElementById('simulator')?.scrollIntoView({ behavior: 'smooth' })
@@ -829,6 +873,12 @@ const AmrapInterval: React.FC<AmrapIntervalProps> = ({ onNavigate, onNavigateToL
           </div>
         </div>
       )}
+
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        defaultSignUp={authModalSignUp}
+      />
     </>
   );
 };

@@ -1,0 +1,18 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import AppWrapper from '../../components/react/AppWrapper';
+import AccountLanding from '../../components/react/AccountLanding';
+---
+
+<BaseLayout
+  title="Your Account | HIIT Workout Timer | AI Workout Generator"
+  description="Overview of your workouts and activity. Track your progress with HIIT Workout Timer."
+>
+  <div
+    class="relative min-h-screen overflow-x-hidden text-white selection:bg-orange-light selection:text-black"
+  >
+    <AppWrapper client:load pathname={Astro.url.pathname}>
+      <AccountLanding client:load />
+    </AppWrapper>
+  </div>
+</BaseLayout>

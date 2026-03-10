@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, type FC } from 'react';
 import {
   startOfWeek,
   startOfMonth,
@@ -32,8 +32,20 @@ function isInActiveRange(dayDate: Date, thisWeekStart: Date, activeEnd: Date): b
   return !isBefore(d, thisWeekStart) && isBefore(d, activeEnd);
 }
 
-export default function WeekCalendar() {
-  const [viewDate, setViewDate] = useState(() => new Date());
+export interface WeekCalendarProps {
+  initialSelectedSession?: { id: string; scheduled_start_at: string } | null;
+  onInitialSessionSelected?: () => void;
+  /** When true, schedulable range extends to 52 weeks; otherwise 2 weeks. */
+  hasFullAccess?: boolean;
+}
+
+const WeekCalendar: FC<WeekCalendarProps> = (props) => {
+  const { initialSelectedSession, onInitialSessionSelected, hasFullAccess = false } = props;
+  const [viewDate, setViewDate] = useState(() =>
+    initialSelectedSession
+      ? startOfMonth(new Date(initialSelectedSession.scheduled_start_at))
+      : new Date()
+  );
 
   const monthStart = useMemo(() => startOfMonth(viewDate), [viewDate]);
   const monthEnd = useMemo(() => endOfMonth(viewDate), [viewDate]);
@@ -42,9 +54,30 @@ export default function WeekCalendar() {
   const { sessions, loading, error, refetch } = useScheduledSessions(monthStart, monthEndExclusive);
   const [selectedSession, setSelectedSession] = useState<ScheduledSession | null>(null);
 
+  useEffect(() => {
+    if (initialSelectedSession) {
+      const targetMonth = startOfMonth(new Date(initialSelectedSession.scheduled_start_at));
+      setViewDate((prev) =>
+        isSameDay(startOfMonth(prev), targetMonth) ? prev : targetMonth
+      );
+    }
+  }, [initialSelectedSession?.id, initialSelectedSession?.scheduled_start_at]);
+
+  useEffect(() => {
+    if (!loading && initialSelectedSession && sessions.length > 0) {
+      const found = sessions.find((s) => s.id === initialSelectedSession.id);
+      if (found) {
+        queueMicrotask(() => {
+          setSelectedSession(found);
+        });
+        onInitialSessionSelected?.();
+      }
+    }
+  }, [loading, initialSelectedSession, sessions, onInitialSessionSelected]);
+
   const today = new Date();
   const thisWeekStart = startOfWeek(today, { weekStartsOn: 0 });
-  const activeEnd = addDays(thisWeekStart, 14);
+  const activeEnd = addDays(thisWeekStart, hasFullAccess ? 52 * 7 : 14);
 
   const gridStart = useMemo(
     () => startOfWeek(monthStart, { weekStartsOn: 0 }),
@@ -163,7 +196,9 @@ export default function WeekCalendar() {
       )}
 
       <p className="mt-4 text-center text-xs text-white/50">
-        Scheduling available for this week and next. Subscribe to schedule further out.
+        {hasFullAccess
+          ? 'Schedule as far out as you like.'
+          : 'Scheduling available for this week and next. Create an account to schedule further out.'}
       </p>
 
       {selectedSession && (
@@ -171,6 +206,7 @@ export default function WeekCalendar() {
           session={selectedSession}
           isOpen={Boolean(selectedSession)}
           onClose={() => setSelectedSession(null)}
+          maxWeeksAhead={hasFullAccess ? 52 : 1}
           onDeleted={() => {
             setSelectedSession(null);
             refetch();
@@ -182,4 +218,6 @@ export default function WeekCalendar() {
       )}
     </section>
   );
-}
+};
+
+export default WeekCalendar;

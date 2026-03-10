@@ -12,6 +12,7 @@ const ACTIVE_PROGRAM_STORAGE_KEY = 'ai-fit-active-program-id';
 interface AppContextType {
   user: AppUser | null;
   session: Session | null;
+  loading: boolean;
   profile: AppUser | null; // Alias for user
   trainerProfile: { uid: string; displayName: string; avatarUrl?: string } | null;
   activeProgramId: string | null;
@@ -42,6 +43,7 @@ export const useAppContext = () => {
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<AppUser | null>(null);
+  const [loading, setLoading] = useState(true);
   const [trainerProfile, setTrainerProfile] = useState<{
     uid: string;
     displayName: string;
@@ -74,18 +76,58 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [purchasedIndex, setPurchasedIndex] = useState<number | null>(null);
 
   useEffect(() => {
-    // 1. Initial Session Check
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session?.user) {
-        fetchProfile(session.user.id, session.user.email || undefined);
+    let mounted = true;
+
+    const finishInit = () => {
+      if (mounted) setLoading(false);
+    };
+
+    const run = async () => {
+      // 0. Restore session from URL hash (cross-origin handoff from AMRAP)
+      const hash = typeof window !== 'undefined' ? window.location.hash : '';
+      if (hash) {
+        const params = new URLSearchParams(hash.slice(1));
+        const accessToken = params.get('access_token');
+        const refreshToken = params.get('refresh_token');
+        if (accessToken && refreshToken) {
+          try {
+            await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken,
+            });
+            window.history.replaceState(
+              null,
+              '',
+              window.location.pathname + window.location.search
+            );
+          } catch {
+            window.history.replaceState(
+              null,
+              '',
+              window.location.pathname + window.location.search
+            );
+          }
+        }
       }
-    });
+
+      // 1. Initial Session Check
+      const { data: { session: s } } = await supabase.auth.getSession();
+      if (mounted) {
+        setSession(s);
+        if (s?.user) {
+          await fetchProfile(s.user.id, s.user.email || undefined);
+        }
+      }
+      finishInit();
+    };
+
+    run();
 
     // 2. Auth State Listener
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!mounted) return;
       setSession(session);
       if (session?.user) {
         fetchProfile(session.user.id, session.user.email || undefined);
@@ -96,7 +138,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
@@ -153,6 +198,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     } catch {
       // ignore
     }
+    // Cross-origin logout propagation: redirect to timer app logout to clear its session
+    const amrapLogout =
+      import.meta.env.PUBLIC_AMRAP_LOGOUT_URL ||
+      import.meta.env.VITE_AMRAP_LOGOUT_URL;
+    if (amrapLogout && typeof window !== 'undefined') {
+      window.location.href = amrapLogout;
+    }
   };
 
   const isTrainer = user?.role === 'trainer' || user?.role === 'admin';
@@ -163,6 +215,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       value={{
         user,
         session,
+        loading,
         profile: user, // user IS the profile now
         trainerProfile,
         activeProgramId,

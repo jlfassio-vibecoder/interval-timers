@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { supabase } from '@/lib/supabase';
@@ -18,6 +18,8 @@ export interface SessionEventModalProps {
   onClose: () => void;
   onDeleted: () => void;
   onRescheduled: () => void;
+  /** Max weeks ahead for reschedule picker (1 = 2 weeks, 52 = 1 year). */
+  maxWeeksAhead?: number;
 }
 
 export default function SessionEventModal({
@@ -26,6 +28,7 @@ export default function SessionEventModal({
   onClose,
   onDeleted,
   onRescheduled,
+  maxWeeksAhead = 1,
 }: SessionEventModalProps) {
   const navigate = useNavigate();
   const isHost = Boolean(getStoredHostToken(session.id));
@@ -36,6 +39,40 @@ export default function SessionEventModal({
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [copyToast, setCopyToast] = useState<'success' | 'error' | null>(null);
+  const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showCopyToast = useCallback((type: 'success' | 'error') => {
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    setCopyToast(type);
+    toastTimeoutRef.current = setTimeout(() => setCopyToast(null), 2500);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    };
+  }, []);
+
+  const copySessionId = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(session.id);
+      showCopyToast('success');
+    } catch {
+      showCopyToast('error');
+    }
+  }, [session.id, showCopyToast]);
+
+  const copySessionUrl = useCallback(async () => {
+    const base = import.meta.env.BASE_URL ?? '/';
+    const url = `${window.location.origin}${base}with-friends/session/${session.id}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      showCopyToast('success');
+    } catch {
+      showCopyToast('error');
+    }
+  }, [session.id, showCopyToast]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -116,12 +153,26 @@ export default function SessionEventModal({
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="session-modal-title"
-    >
+    <>
+      {copyToast && (
+        <div
+          role="status"
+          aria-live="polite"
+          className={`fixed left-1/2 top-20 z-[60] -translate-x-1/2 rounded-xl px-4 py-2.5 text-sm font-medium shadow-lg ${
+            copyToast === 'success'
+              ? 'border border-emerald-500/40 bg-emerald-900/95 text-emerald-100'
+              : 'border border-red-500/40 bg-red-900/95 text-red-100'
+          }`}
+        >
+          {copyToast === 'success' ? 'Copied!' : 'Failed to copy'}
+        </div>
+      )}
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="session-modal-title"
+      >
       <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0d0500] p-6 shadow-xl">
         <h2 id="session-modal-title" className="mb-4 text-xl font-bold text-white">
           {step === 'main' && 'Session'}
@@ -151,6 +202,20 @@ export default function SessionEventModal({
                 <>
                   <button
                     type="button"
+                    onClick={copySessionId}
+                    className="rounded-xl border border-white/20 bg-white/10 px-4 py-3 font-bold text-white transition-colors hover:bg-white/20"
+                  >
+                    Copy session ID
+                  </button>
+                  <button
+                    type="button"
+                    onClick={copySessionUrl}
+                    className="rounded-xl border border-white/20 bg-white/10 px-4 py-3 font-bold text-white transition-colors hover:bg-white/20"
+                  >
+                    Copy session URL
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => setStep('reschedule')}
                     className="rounded-xl border border-white/20 bg-white/10 px-4 py-3 font-bold text-white transition-colors hover:bg-white/20"
                   >
@@ -175,6 +240,7 @@ export default function SessionEventModal({
               value={rescheduleValue}
               onChange={setRescheduleValue}
               minDate={new Date()}
+              maxWeeksAhead={maxWeeksAhead}
             />
             {error && <p className="mt-2 text-sm text-red-400">{error}</p>}
             <div className="mt-4 flex gap-3">
@@ -236,6 +302,7 @@ export default function SessionEventModal({
           {step === 'main' ? 'Close' : 'Back'}
         </button>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

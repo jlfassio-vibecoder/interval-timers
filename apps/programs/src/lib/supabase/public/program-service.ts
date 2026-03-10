@@ -27,7 +27,7 @@ type ProgramRow = {
   trainer_id: string;
   title: string;
   description: string | null;
-  difficulty: string | null;
+  difficulty?: string | null;
   duration_weeks: number | null;
   config: {
     targetAudience?: UserDemographics;
@@ -38,18 +38,27 @@ type ProgramRow = {
   updated_at: string;
 };
 
+function parseDifficulty(
+  val: string | null | undefined,
+  fallback: UserDemographics['experienceLevel']
+): 'beginner' | 'intermediate' | 'advanced' {
+  if (
+    val === 'beginner' ||
+    val === 'intermediate' ||
+    val === 'advanced'
+  )
+    return val;
+  return fallback;
+}
+
 function rowToMetadata(row: ProgramRow): ProgramMetadata & { id: string } {
   const config = row.config ?? {};
+  const fallback = config.targetAudience?.experienceLevel ?? 'intermediate';
   return {
     id: row.id,
     title: row.title || 'Untitled Program',
     description: row.description ?? '',
-    difficulty:
-      row.difficulty === 'beginner' ||
-      row.difficulty === 'intermediate' ||
-      row.difficulty === 'advanced'
-        ? row.difficulty
-        : 'intermediate',
+    difficulty: parseDifficulty(row.difficulty, fallback),
     durationWeeks: row.duration_weeks ?? 12,
     targetAudience: config.targetAudience ?? DEFAULT_TARGET_AUDIENCE,
     equipmentProfile: config.equipmentProfile,
