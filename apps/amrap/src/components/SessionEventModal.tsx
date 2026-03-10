@@ -56,7 +56,8 @@ export default function SessionEventModal({
   }, [session.id, showCopyToast]);
 
   const copySessionUrl = useCallback(async () => {
-    const url = `${window.location.origin}/with-friends/session/${session.id}`;
+    const base = import.meta.env.BASE_URL ?? '/';
+    const url = `${window.location.origin}${base}with-friends/session/${session.id}`;
     try {
       await navigator.clipboard.writeText(url);
       showCopyToast('success');
