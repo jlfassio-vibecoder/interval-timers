@@ -42,8 +42,8 @@
 | Location | Change |
 |----------|--------|
 | `supabase/migrations/20250310000000_amrap_hud_integration.sql` | `create_session`: use `auth.uid()` instead of `p_user_id`. `join_session`: same. `persist_amrap_session_results`: revoke EXECUTE from `anon`; grant only `authenticated`, `service_role`. Added `DROP POLICY IF EXISTS` before `CREATE POLICY` for idempotency. |
-| `apps/programs/src/lib/supabase/public/program-service.ts` | Added `difficulty` to `.select()` in `getPublishedPrograms` and `getProgramPreview`. |
-| `apps/programs/src/lib/supabase/client/amrap-scheduled-sessions.ts` | Use `...T00:00:00Z` and `...T23:59:59Z` for range boundaries to avoid timezone drift with `timestamptz`. |
+| `apps/app/src/lib/supabase/public/program-service.ts` | Added `difficulty` to `.select()` in `getPublishedPrograms` and `getProgramPreview`. |
+| `apps/app/src/lib/supabase/client/amrap-scheduled-sessions.ts` | Use `...T00:00:00Z` and `...T23:59:59Z` for range boundaries to avoid timezone drift with `timestamptz`. |
 | `apps/amrap/src/components/AccountLink.tsx` | Token-in-URL handoff gated behind `import.meta.env.DEV` to avoid refresh token in prod history/JS. |
 
 ---
@@ -69,7 +69,7 @@
 ## Verification
 
 - **Lint:** `npm run lint` — pass  
-- **Builds:** `npm run build:amrap`, `npm run build:programs` — run prior to merge  
+- **Builds:** `npm run build:amrap`, `npm run build:app` — run prior to merge  
 - **Migration:** `supabase db push` — applied to remote  
 
 ---

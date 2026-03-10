@@ -18,7 +18,7 @@ Optional: `GOOGLE_LOCATION=us-central1` (or another [Vertex AI region](https://c
 
 **Apps:**
 
-- **programs** (`apps/programs`) – set in `.env` / Firebase App Hosting env.
+- **app** (`apps/app`) – set in `.env` / Firebase App Hosting env.
 - **admin-dash-astro** (`apps/admin-dash-astro`) – set in `.env` for local dev; set in Vercel (or host) env for deployed admin.
 
 ### Verify you’re on the right project
