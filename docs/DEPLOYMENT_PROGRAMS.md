@@ -2,7 +2,9 @@
 
 The Programs app is the central account hub for all interval-timer apps. For same-origin auth (unified login/logout), it must be served under the same domain as the main site.
 
-## Two-Project Setup
+## Two-Project Setup (Required)
+
+You **must** deploy the Programs app as a separate Vercel project. The main site rewrites `/account`, `/programs`, etc. to the Programs deployment URL. If the Programs project is missing or the URL is wrong, you get `404 DEPLOYMENT_NOT_FOUND` when visiting `/account` after login.
 
 1. **Main project** (landing + timers): Deploys from repo root, builds `build:deploy`, outputs `apps/landing/dist`. Serves `/`, `/amrap`, etc.
 2. **Programs project**: Deploy as a second Vercel project with Root Directory `apps/programs`.
@@ -39,3 +41,29 @@ In local dev, AMRAP (port 5177) and Programs (port 3006) are different origins. 
 ## Env for Programs Project
 
 Programs needs Supabase and other env vars. Copy from monorepo root `.env.example` or `apps/programs/.env.example`. Set in Vercel Project → Settings → Environment Variables.
+
+## Troubleshooting: 404 DEPLOYMENT_NOT_FOUND on /account
+
+**Symptom:** After login, redirect to `https://yourdomain.com/account` returns:
+
+```
+404: NOT_FOUND
+Code: DEPLOYMENT_NOT_FOUND
+```
+
+**Cause:** The main project's `vercel.json` rewrites `/account` to the Programs deployment URL. That URL either doesn't exist or is incorrect.
+
+**Fix:**
+
+1. **Create the Programs Vercel project** (if not done):
+   - Vercel Dashboard → Add New Project → Import the same Git repo
+   - Set **Root Directory** to `apps/programs`
+   - Deploy
+
+2. **Get the Programs deployment URL** from the Vercel project (e.g. `https://interval-timers-programs-<team>.vercel.app` or your custom domain)
+
+3. **Update `vercel.json`** in the repo root: replace all occurrences of `https://interval-timers-programs.vercel.app` with your actual Programs deployment URL
+
+4. **Redeploy the main project** so the new rewrites take effect
+
+5. **Verify:** Open `https://<your-programs-url>/account` directly — it should load. Then try logging in from AMRAP again.
