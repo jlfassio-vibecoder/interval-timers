@@ -33,6 +33,12 @@ const Navigation: React.FC<NavigationProps> = ({
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
   const { user, isTrainer } = useAppContext();
 
+  const handleLogoutWithConfirm = () => {
+    if (window.confirm('Are you sure you want to sign out?')) {
+      onLogout();
+    }
+  };
+
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -200,14 +206,17 @@ const Navigation: React.FC<NavigationProps> = ({
         className="flex cursor-pointer items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-white transition-colors hover:bg-white/15 hover:text-orange-light"
         data-hover="true"
       >
-        <Activity className="h-4 w-4" /> HUD
+        <Activity className="h-4 w-4" /> You
       </button>
       <button
-        onClick={onLogout}
-        className="rounded-full bg-white/10 p-2 transition-colors hover:bg-white/15 hover:text-red-500"
+        onClick={handleLogoutWithConfirm}
+        className="flex cursor-pointer items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-white transition-colors hover:bg-white/15 hover:text-red-500"
         data-hover="true"
+        aria-label="Sign out"
+        title="Sign out"
       >
         <LogOut className="h-4 w-4" />
+        <span className="text-xs font-bold uppercase md:inline">Sign out</span>
       </button>
     </div>
   ) : (
@@ -386,14 +395,17 @@ const Navigation: React.FC<NavigationProps> = ({
                       }}
                       className="rounded-full bg-white/10 px-4 py-2.5 text-base font-semibold uppercase text-orange-light transition-colors hover:bg-white/15"
                     >
-                      HUD
+                      You
                     </button>
                     <button
                       onClick={() => {
-                        onLogout();
-                        setMobileMenuOpen(false);
+                        if (window.confirm('Are you sure you want to sign out?')) {
+                          onLogout();
+                          setMobileMenuOpen(false);
+                        }
                       }}
                       className="rounded-full bg-white/10 px-4 py-2.5 text-base font-semibold uppercase text-red-500 transition-colors hover:bg-white/15"
+                      aria-label="Sign out"
                     >
                       Sign Out
                     </button>

@@ -202,6 +202,12 @@ const LandingPage: React.FC = () => {
           </a>
           <div className="flex items-center gap-2">
             <a
+              href="/account"
+              className="flex items-center gap-2 rounded-lg border border-[#ffbf00]/40 bg-[#ffbf00]/10 px-3 py-2 text-sm font-bold text-[#ffbf00] transition-colors hover:bg-[#ffbf00]/20"
+            >
+              Account
+            </a>
+            <a
               href="/bio-sync60"
               className="flex items-center gap-2 rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm font-bold transition-colors hover:bg-white/10 hover:border-white/30"
             >

@@ -28,6 +28,8 @@ interface IntervalTimerLandingProps {
   standalone?: boolean;
   /** Optional brand line shown below the "Home | Protocol" title in the header (e.g. "AI Fitness Guy"). */
   brandLabel?: string;
+  /** Optional content rendered on the right side of the nav (e.g. Create Account / Login buttons). */
+  navEnd?: ReactNode;
 }
 
 function getPrevProtocol(current: IntervalTimerPage): IntervalTimerPage | null {
@@ -51,6 +53,7 @@ const IntervalTimerLanding: React.FC<IntervalTimerLandingProps> = ({
   accentTheme = null,
   standalone = false,
   brandLabel,
+  navEnd,
 }) => {
   const prev = getPrevProtocol(currentProtocol);
   const next = getNextProtocol(currentProtocol);
@@ -109,9 +112,11 @@ const IntervalTimerLanding: React.FC<IntervalTimerLandingProps> = ({
                 </span>
               ) : null}
             </div>
-            {!standalone && (
-              <>
-                <div className="hidden flex-wrap items-center justify-end gap-1 text-xs font-bold md:flex md:gap-3">
+            {(!standalone || navEnd) && (
+              <div className="flex flex-wrap items-center justify-end gap-2 md:gap-3">
+                {!standalone && (
+                  <>
+                    <div className="hidden flex-wrap items-center gap-1 text-xs font-bold md:flex md:gap-3">
                   {INTERVAL_TIMER_PROTOCOLS.map(({ id }, index) => (
                     <React.Fragment key={id}>
                       {getProtocolHref ? (
@@ -143,9 +148,9 @@ const IntervalTimerLanding: React.FC<IntervalTimerLandingProps> = ({
                         <span className="text-white/40">/</span>
                       )}
                     </React.Fragment>
-                  ))}
-                </div>
-                <div className="flex gap-2 md:hidden">
+                    ))}
+                    </div>
+                    <div className="flex gap-2 md:hidden">
                   {prev &&
                     (getProtocolHref ? (
                       <a
@@ -182,8 +187,11 @@ const IntervalTimerLanding: React.FC<IntervalTimerLandingProps> = ({
                         {getProtocolLabel(next)} →
                       </button>
                     ))}
-                </div>
-              </>
+                    </div>
+                  </>
+                )}
+                {navEnd}
+              </div>
             )}
           </div>
         </nav>

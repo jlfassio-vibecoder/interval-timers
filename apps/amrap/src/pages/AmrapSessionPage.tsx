@@ -2,11 +2,13 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import AuthModal from '@/components/AuthModal';
 import {
   useAmrapSession,
   getStoredHostToken,
   setStoredParticipantId,
 } from '@/hooks/useAmrapSession';
+import { useAmrapAuth } from '@/contexts/AmrapAuthContext';
 import { useSessionState } from '@/hooks/useSessionState';
 import type { AmrapRoundRow, AmrapParticipantRow } from '@/lib/supabase';
 import type { SessionTimerState } from '@/hooks/useSessionState';
@@ -82,6 +84,7 @@ function buildLeaderboard(
 
 export default function AmrapSessionPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
+  const { user } = useAmrapAuth();
   const {
     session,
     participants,
@@ -121,6 +124,9 @@ export default function AmrapSessionPage() {
   const [countdownSeconds, setCountdownSeconds] = useState(0);
   const [now, setNow] = useState(() => Date.now());
   const [whosHereCollapsed, setWhosHereCollapsed] = useState(false);
+  const [copyToast, setCopyToast] = useState<'success' | 'error' | null>(null);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authModalSignUp, setAuthModalSignUp] = useState(false);
   const hasAutoStartedRef = useRef(false);
   const hasBeenBeforeScheduledRef = useRef(false);
 
@@ -200,13 +206,15 @@ export default function AmrapSessionPage() {
     if (error) setLogRoundError(error.message);
   }, [sessionId, participantId, timerState, totalTime, timeLeft]);
 
-  const copyShareLink = useCallback(() => {
+  const copyShareLink = useCallback(async () => {
     try {
       const url = window.location.href.replace(/\?.*$/, '');
-      void navigator.clipboard.writeText(url);
+      await navigator.clipboard.writeText(url);
+      setCopyToast('success');
     } catch {
-      /* clipboard may be unavailable */
+      setCopyToast('error');
     }
+    setTimeout(() => setCopyToast(null), 2500);
   }, []);
 
   const handleJoinSession = useCallback(async () => {
@@ -221,6 +229,7 @@ export default function AmrapSessionPage() {
     const { data, error } = await supabase.rpc('join_session', {
       p_session_id: sessionId,
       p_nickname: name,
+      p_user_id: user?.id ?? null,
     });
     setJoinLoading(false);
     if (error) {
@@ -231,7 +240,7 @@ export default function AmrapSessionPage() {
     setStoredParticipantId(sessionId, result.participant_id);
     await refetch();
     setJoinKey((k) => k + 1);
-  }, [sessionId, joinNickname, refetch]);
+  }, [sessionId, joinNickname, refetch, user?.id]);
 
   if (loading || !sessionId) {
     return (
@@ -301,6 +310,7 @@ export default function AmrapSessionPage() {
   const displayValue = waitingScheduleDisplay?.value ?? formatTime(timeLeft);
 
   return (
+    <>
     <div className="min-h-screen bg-[#0d0500] text-white">
       <div className="px-4 py-4">
         <div className="mb-4 flex items-center justify-between gap-2">
@@ -316,7 +326,7 @@ export default function AmrapSessionPage() {
           >
             {session ? getWorkoutTitleAndDuration(session.workout_list, session.duration_minutes) : ''}
           </span>
-          <div className="flex flex-1 justify-end">
+          <div className="flex flex-1 items-center justify-end gap-2">
             {isHost && (
               <button
                 type="button"
@@ -326,8 +336,47 @@ export default function AmrapSessionPage() {
                 Copy link
               </button>
             )}
+            {!user && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthModalSignUp(false);
+                    setShowAuthModal(true);
+                  }}
+                  className="text-sm font-bold text-white/70 hover:text-orange-400"
+                >
+                  Log in
+                </button>
+                <span className="text-white/40">/</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthModalSignUp(true);
+                    setShowAuthModal(true);
+                  }}
+                  className="text-sm font-bold text-white/70 hover:text-orange-400"
+                >
+                  Create account
+                </button>
+              </>
+            )}
           </div>
         </div>
+
+        {copyToast && (
+          <div
+            role="status"
+            aria-live="polite"
+            className={`fixed left-1/2 top-20 z-50 -translate-x-1/2 rounded-xl px-4 py-2.5 text-sm font-medium shadow-lg ${
+              copyToast === 'success'
+                ? 'border border-emerald-500/40 bg-emerald-900/95 text-emerald-100'
+                : 'border border-red-500/40 bg-red-900/95 text-red-100'
+            }`}
+          >
+            {copyToast === 'success' ? 'Link copied!' : 'Failed to copy link'}
+          </div>
+        )}
 
         {agoraError && (
           <div className="mx-4 mb-4 rounded-xl border border-red-500/50 bg-red-600/20 p-4">
@@ -612,5 +661,12 @@ export default function AmrapSessionPage() {
       </div>
       </div>
     </div>
+
+    <AuthModal
+      isOpen={showAuthModal}
+      onClose={() => setShowAuthModal(false)}
+      defaultSignUp={authModalSignUp}
+    />
+    </>
   );
 }

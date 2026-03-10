@@ -5,7 +5,10 @@ import {
   setStoredHostToken,
   setStoredParticipantId,
 } from '@/hooks/useAmrapSession';
+import { useAmrapAuth, useAmrapPermissions } from '@/contexts/AmrapAuthContext';
+import AccountLink from '@/components/AccountLink';
 import AmrapCtaButton from '@/components/AmrapCtaButton';
+import AuthModal from '@/components/AuthModal';
 import WeekCalendar from '@/components/WeekCalendar';
 import CreateFlowSchedulePicker from '@/components/CreateFlowSchedulePicker';
 import {
@@ -20,6 +23,8 @@ type Tab = 'create' | 'join' | 'schedule';
 
 export default function AmrapWithFriendsPage() {
   const navigate = useNavigate();
+  const { hasFullAccess } = useAmrapPermissions();
+  const { user } = useAmrapAuth();
   const [tab, setTab] = useState<Tab>('create');
   const [createStep, setCreateStep] = useState<CreateStep>('level');
   const [selectedLevel, setSelectedLevel] = useState<AmrapLevel | null>(null);
@@ -29,7 +34,14 @@ export default function AmrapWithFriendsPage() {
   const [createError, setCreateError] = useState<string | null>(null);
   const [joinError, setJoinError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [scheduleMode, setScheduleMode] = useState<'when_ready' | 'schedule'>('when_ready');
   const [scheduledAt, setScheduledAt] = useState('');
+  const [newlyScheduledSession, setNewlyScheduledSession] = useState<{
+    id: string;
+    scheduled_start_at: string;
+  } | null>(null);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authModalSignUp, setAuthModalSignUp] = useState(false);
 
   const handleCreateSession = useCallback(
     async (
@@ -52,6 +64,7 @@ export default function AmrapWithFriendsPage() {
         p_scheduled_start_at: scheduledDateTime
           ? new Date(scheduledDateTime).toISOString()
           : null,
+        p_user_id: user?.id ?? null,
       });
       setLoading(false);
       if (error) {
@@ -61,9 +74,17 @@ export default function AmrapWithFriendsPage() {
       const result = data as { session_id: string; host_token: string; participant_id: string };
       setStoredHostToken(result.session_id, result.host_token);
       setStoredParticipantId(result.session_id, result.participant_id);
-      navigate(`/with-friends/session/${result.session_id}?host=1`);
+      if (scheduledDateTime) {
+        setNewlyScheduledSession({
+          id: result.session_id,
+          scheduled_start_at: new Date(scheduledDateTime).toISOString(),
+        });
+        setTab('schedule');
+      } else {
+        navigate(`/with-friends/session/${result.session_id}?host=1`);
+      }
     },
-    [navigate]
+    [navigate, user?.id]
   );
 
   const handleJoinSession = useCallback(async () => {
@@ -81,6 +102,7 @@ export default function AmrapWithFriendsPage() {
     const { data, error } = await supabase.rpc('join_session', {
       p_session_id: sid,
       p_nickname: joinNickname.trim(),
+      p_user_id: user?.id ?? null,
     });
     setLoading(false);
     if (error) {
@@ -90,7 +112,7 @@ export default function AmrapWithFriendsPage() {
     const result = data as { participant_id: string };
     setStoredParticipantId(sid, result.participant_id);
     navigate(`/with-friends/session/${sid}`);
-  }, [joinSessionId, joinNickname, navigate]);
+  }, [joinSessionId, joinNickname, navigate, user?.id]);
 
   const workouts = selectedLevel ? AMRAP_WORKOUT_LIBRARY[selectedLevel] : [];
   const duration = selectedLevel ? AMRAP_LEVEL_DURATION[selectedLevel] : 15;
@@ -98,13 +120,47 @@ export default function AmrapWithFriendsPage() {
   return (
     <div className="min-h-screen bg-[#0d0500] text-white">
       <div className="mx-auto max-w-2xl px-4 py-8">
-        <Link
-          to="/"
-          className="mb-6 inline-flex items-center gap-2 text-sm font-bold text-white/70 transition-colors hover:text-orange-400"
-        >
-          <span>←</span>
-          <span>Back to AMRAP</span>
-        </Link>
+        <div className="mb-6 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <Link
+              to="/"
+              className="inline-flex items-center gap-2 text-sm font-bold text-white/70 transition-colors hover:text-orange-400"
+            >
+              <span>←</span>
+              <span>Back to AMRAP</span>
+            </Link>
+            <AccountLink className="text-sm font-bold text-white/70 transition-colors hover:text-orange-400">
+              My Account
+            </AccountLink>
+          </div>
+          {user ? (
+            <span className="text-xs text-white/50">{user.email}</span>
+          ) : (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthModalSignUp(false);
+                  setShowAuthModal(true);
+                }}
+                className="text-sm font-medium text-white/70 hover:text-orange-400"
+              >
+                Log in
+              </button>
+              <span className="text-white/40">/</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthModalSignUp(true);
+                  setShowAuthModal(true);
+                }}
+                className="text-sm font-medium text-white/70 hover:text-orange-400"
+              >
+                Create account
+              </button>
+            </div>
+          )}
+        </div>
 
         <h1 className="font-display mb-2 text-3xl font-bold text-white">
           AMRAP With Friends
@@ -209,13 +265,58 @@ export default function AmrapWithFriendsPage() {
                   >
                     ← Change level
                   </button>
-                  <div className="mb-4">
-                    <CreateFlowSchedulePicker
-                      value={scheduledAt}
-                      onChange={setScheduledAt}
-                      minDate={new Date()}
-                    />
+                  <div className="mb-4 flex gap-2 rounded-xl bg-black/30 p-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setScheduleMode('when_ready');
+                        setScheduledAt('');
+                      }}
+                      className={`flex-1 rounded-lg py-2.5 text-sm font-bold transition-colors ${
+                        scheduleMode === 'when_ready'
+                          ? 'bg-orange-600 text-white'
+                          : 'text-white/70 hover:text-white'
+                      }`}
+                    >
+                      Start when ready
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setScheduleMode('schedule')}
+                      className={`flex-1 rounded-lg py-2.5 text-sm font-bold transition-colors ${
+                        scheduleMode === 'schedule'
+                          ? 'bg-orange-600 text-white'
+                          : 'text-white/70 hover:text-white'
+                      }`}
+                    >
+                      Schedule for later
+                    </button>
                   </div>
+                  {scheduleMode === 'schedule' && (
+                    <div className="mb-4">
+                      {!hasFullAccess && (
+                        <p className="mb-3 text-sm text-white/70">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAuthModalSignUp(true);
+                              setShowAuthModal(true);
+                            }}
+                            className="font-medium text-orange-400 underline hover:text-orange-300"
+                          >
+                            Create an account
+                          </button>
+                          {' '}to schedule further out and track your sessions.
+                        </p>
+                      )}
+                      <CreateFlowSchedulePicker
+                        value={scheduledAt}
+                        onChange={setScheduledAt}
+                        minDate={new Date()}
+                        maxWeeksAhead={hasFullAccess ? 52 : 1}
+                      />
+                    </div>
+                  )}
                   <div className="grid max-h-[40vh] grid-cols-1 gap-3 overflow-y-auto md:grid-cols-2">
                     {workouts.map((option) => (
                       <button
@@ -223,7 +324,12 @@ export default function AmrapWithFriendsPage() {
                         type="button"
                         disabled={loading}
                         onClick={() =>
-                          handleCreateSession(duration, [...option.exercises], hostNickname, scheduledAt || undefined)
+                          handleCreateSession(
+                            duration,
+                            [...option.exercises],
+                            hostNickname,
+                            scheduleMode === 'schedule' ? scheduledAt || undefined : undefined
+                          )
                         }
                         className="rounded-xl border border-white/10 bg-black/20 p-4 text-left transition-all hover:border-orange-500 hover:bg-orange-600/10 disabled:opacity-50"
                       >
@@ -278,9 +384,21 @@ export default function AmrapWithFriendsPage() {
           )}
 
           {/* Schedule */}
-          {tab === 'schedule' && <WeekCalendar />}
+          {tab === 'schedule' && (
+            <WeekCalendar
+              initialSelectedSession={newlyScheduledSession}
+              onInitialSessionSelected={() => setNewlyScheduledSession(null)}
+              hasFullAccess={hasFullAccess}
+            />
+          )}
         </div>
       </div>
+
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        defaultSignUp={authModalSignUp}
+      />
     </div>
   );
 }

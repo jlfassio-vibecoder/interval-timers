@@ -1,5 +1,6 @@
 import { Routes, Route } from 'react-router-dom'
 import AmrapInterval from './components/interval-timers/AmrapInterval'
+import LogoutPage from './pages/LogoutPage'
 import ProgrammingGuide from './pages/ProgrammingGuide'
 import WorkoutExplorer from './pages/WorkoutExplorer'
 import AmrapWithFriendsPage from './pages/AmrapWithFriendsPage'
@@ -14,6 +15,7 @@ function App() {
         <Route path="workout-explorer" element={<WorkoutExplorer />} />
         <Route path="with-friends" element={<AmrapWithFriendsPage />} />
         <Route path="with-friends/session/:sessionId" element={<AmrapSessionPage />} />
+        <Route path="logout" element={<LogoutPage />} />
       </Routes>
     </div>
   )

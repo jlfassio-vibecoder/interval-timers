@@ -20,7 +20,12 @@ import UpcomingStrip from './UpcomingStrip';
 import type { UpcomingStripDay } from './UpcomingStrip';
 import WorkoutEventDrawer from './WorkoutEventDrawer';
 import WorkoutPlayer from '@/components/react/tracking/WorkoutPlayer';
+import { getAmrapScheduledSessionsForUser } from '@/lib/supabase/client/amrap-scheduled-sessions';
 import type { ProgramSchedule } from '@/types/ai-program';
+
+function getAmrapWorkoutLabel(workoutList: string[]): string {
+  return workoutList?.[0]?.trim() ?? 'AMRAP';
+}
 
 type WorkoutFromSchedule = ProgramSchedule['workouts'][number];
 
@@ -60,6 +65,12 @@ const ScheduleZone: React.FC<ScheduleZoneProps> = ({ refreshKey = 0, onViewLog }
     workoutId: string;
   } | null>(null);
   const [restDayMessage, setRestDayMessage] = useState<string | null>(null);
+  const [amrapSessions, setAmrapSessions] = useState<Array<{
+    id: string;
+    workout_list: string[];
+    duration_minutes: number;
+    scheduled_start_at: string;
+  }>>([]);
 
   const today = todayISO();
 
@@ -128,6 +139,7 @@ const ScheduleZone: React.FC<ScheduleZoneProps> = ({ refreshKey = 0, onViewLog }
       setPrograms([]);
       setMonthEvents([]);
       setStripDays([]);
+      setAmrapSessions([]);
       setLoading(false);
       return;
     }
@@ -151,6 +163,8 @@ const ScheduleZone: React.FC<ScheduleZoneProps> = ({ refreshKey = 0, onViewLog }
         if (cancelled) return;
         setMonthEvents(monthEv);
         setStripDays(strip);
+        const amrap = await getAmrapScheduledSessionsForUser(user.uid, rangeStart, rangeEnd);
+        if (!cancelled) setAmrapSessions(amrap);
       } catch (e) {
         if (import.meta.env.DEV) console.error('[ScheduleZone]', e);
         if (!cancelled) {
@@ -202,6 +216,43 @@ const ScheduleZone: React.FC<ScheduleZoneProps> = ({ refreshKey = 0, onViewLog }
             Next 7 days
           </h4>
           <UpcomingStrip days={stripDays} todayISO={today} onDayClick={handleDayClick} />
+        </div>
+      )}
+      {!loading && amrapSessions.length > 0 && (
+        <div className="mt-6">
+          <h4 className="mb-3 font-mono text-[10px] uppercase tracking-[0.4em] text-orange-light">
+            AMRAP With Friends
+          </h4>
+          <ul className="space-y-2">
+            {amrapSessions.map((s) => (
+              <li
+                key={s.id}
+                className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm"
+              >
+                <span className="font-medium text-white/90">
+                  {getAmrapWorkoutLabel(s.workout_list)}
+                </span>
+                <span className="ml-2 text-white/60">{s.duration_minutes} min</span>
+                <span className="ml-2 font-mono text-[10px] text-white/40">
+                  {new Date(s.scheduled_start_at).toLocaleString(undefined, {
+                    weekday: 'short',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: 'numeric',
+                    minute: '2-digit',
+                  })}
+                </span>
+                <a
+                  href={`/amrap/with-friends/session/${s.id}`}
+                  className="ml-2 text-orange-400 hover:underline"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Open
+                </a>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
       {restDayMessage && (

@@ -12,8 +12,16 @@ import {
   type SessionFilter,
   type SessionHistoryItem,
 } from '@/lib/supabase/client/session-history';
+import {
+  getAmrapSessionResults,
+  type AmrapSessionResult,
+} from '@/lib/supabase/client/amrap-session-results';
 
 type FilterTab = 'all' | 'this_week' | 'this_month' | 'by_program';
+
+function getAmrapWorkoutLabel(workoutList: string[]): string {
+  return workoutList?.[0]?.trim() ?? 'AMRAP';
+}
 import { fetchUserPrograms, getProgramWithSchedule } from '@/lib/supabase/client/user-programs';
 import SessionFeed from './SessionFeed';
 import SessionDetailDrawer from './SessionDetailDrawer';
@@ -60,6 +68,8 @@ const HistoryZone: React.FC = () => {
   const [sessions, setSessions] = useState<SessionHistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedSession, setSelectedSession] = useState<SessionHistoryItem | null>(null);
+  const [amrapResults, setAmrapResults] = useState<AmrapSessionResult[]>([]);
+  const [_amrapLoading, setAmrapLoading] = useState(true);
   const [workoutPlayer, setWorkoutPlayer] = useState<{
     workout: WorkoutFromSchedule;
     programId: string;
@@ -105,6 +115,19 @@ const HistoryZone: React.FC = () => {
     fetchUserPrograms(user.uid).then((list) =>
       setPrograms(list.map((p) => ({ programId: p.programId, title: p.title })))
     );
+  }, [user?.uid]);
+
+  useEffect(() => {
+    if (!user?.uid) {
+      setAmrapResults([]);
+      setAmrapLoading(false);
+      return;
+    }
+    setAmrapLoading(true);
+    getAmrapSessionResults(user.uid, 10)
+      .then(setAmrapResults)
+      .catch(() => setAmrapResults([]))
+      .finally(() => setAmrapLoading(false));
   }, [user?.uid]);
 
   const handleDoAgain = useCallback(
@@ -191,6 +214,40 @@ const HistoryZone: React.FC = () => {
       </div>
 
       <SessionFeed sessions={sessions} onSessionClick={setSelectedSession} loading={loading} />
+
+      {amrapResults.length > 0 && (
+        <div className="mt-6">
+          <h4 className="mb-2 font-mono text-xs font-medium uppercase text-white/60">
+            AMRAP With Friends
+          </h4>
+          <ul className="space-y-2">
+            {amrapResults.map((r) => (
+              <li
+                key={r.id}
+                className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm"
+              >
+                <span className="font-medium text-white/90">
+                  {getAmrapWorkoutLabel(r.workout_list)}
+                </span>
+                <span className="ml-2 text-white/60">
+                  {r.total_rounds} rounds · {r.duration_minutes} min
+                </span>
+                <span className="ml-2 font-mono text-[10px] text-white/40">
+                  {new Date(r.completed_at).toLocaleDateString()}
+                </span>
+                <a
+                  href={`/amrap/with-friends/session/${r.session_id}`}
+                  className="ml-2 text-orange-400 hover:underline"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  View session
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {selectedSession && (
         <SessionDetailDrawer

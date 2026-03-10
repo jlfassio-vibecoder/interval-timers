@@ -1,10 +1,15 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY;
+// Use HIIT Workout Timer Supabase (same as AMRAP). Prefer PUBLIC_*, fallback to VITE_* from monorepo.
+const supabaseUrl =
+  import.meta.env.PUBLIC_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey =
+  import.meta.env.PUBLIC_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 if (import.meta.env.DEV && (!supabaseUrl || !supabaseAnonKey)) {
-  console.error('Missing Supabase environment variables!');
+  console.error(
+    'Missing Supabase env. Set PUBLIC_SUPABASE_URL/ANON_KEY or VITE_SUPABASE_URL/ANON_KEY (HIIT project).'
+  );
 }
 
 if (

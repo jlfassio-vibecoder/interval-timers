@@ -85,6 +85,8 @@ The site is a landing app at `/` plus 13 standalone timer apps, each at its own 
 
 **If standalone URLs show the landing page in production:** Ensure `vercel.json` includes `buildCommand: "npm run build:deploy"` (it overrides Vercel's auto-detected build). The project **Root Directory** must be the repo root (not `apps/landing`), so the build command and output paths resolve correctly.
 
+**Programs (central hub):** Deploy as a second Vercel project with Root Directory `apps/programs`. See [DEPLOYMENT_PROGRAMS.md](DEPLOYMENT_PROGRAMS.md). Update `vercel.json` rewrites with your Programs deployment URL.
+
 ---
 
 ## Supabase (HIIT project)

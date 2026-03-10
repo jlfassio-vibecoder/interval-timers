@@ -31,9 +31,10 @@ const root = join(__dirname, '..');
 loadEnvFile(join(root, '.env'));
 loadEnvFile(join(root, '.env.local'));
 
+// Programs auth uses HIIT Workout Timer Supabase (same as AMRAP). Accept either var set.
 const REQUIRED_ENV_VARS = [
-  'PUBLIC_SUPABASE_URL',
-  'PUBLIC_SUPABASE_ANON_KEY',
+  ['PUBLIC_SUPABASE_URL', 'VITE_SUPABASE_URL'],
+  ['PUBLIC_SUPABASE_ANON_KEY', 'VITE_SUPABASE_ANON_KEY'],
 ];
 
 const OPTIONAL_ENV_VARS = [
@@ -48,20 +49,20 @@ let warnings = [];
 // In CI, allow missing env vars (build/deploy jobs set their own env from secrets)
 const isCI = process.env.CI === 'true';
 
-// Validate required variables
-REQUIRED_ENV_VARS.forEach(varName => {
-  const value = process.env[varName];
+// Validate required variables (each row is [preferred, fallback])
+REQUIRED_ENV_VARS.forEach(([preferred, fallback]) => {
+  const value = process.env[preferred] || process.env[fallback];
   if (!value || value === '' || value === 'PLACEHOLDER_API_KEY') {
     if (isCI) {
-      warnings.push(`CI: ${varName} not set (validation skipped for CI)`);
+      warnings.push(`CI: ${preferred} or ${fallback} not set (validation skipped for CI)`);
     } else {
-      errors.push(`Missing or invalid: ${varName}`);
+      errors.push(`Missing: ${preferred} or ${fallback} (HIIT Supabase)`);
     }
   }
 });
 
-// Validate PUBLIC_SUPABASE_URL format (must use .supabase.co, not .supabase.com)
-const supabaseUrl = process.env.PUBLIC_SUPABASE_URL;
+// Validate Supabase URL format (must use .supabase.co, not .supabase.com)
+const supabaseUrl = process.env.PUBLIC_SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 if (supabaseUrl && supabaseUrl.includes('.supabase.com') && !supabaseUrl.includes('.supabase.co')) {
   errors.push(
     'PUBLIC_SUPABASE_URL uses wrong domain. Use https://<project-ref>.supabase.co (not .supabase.com)'
