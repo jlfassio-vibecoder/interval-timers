@@ -41,6 +41,10 @@ export default function AccountLink({
       const url = new URL(href);
       url.hash = `access_token=${encodeURIComponent(session.access_token)}&refresh_token=${encodeURIComponent(session.refresh_token)}&type=recovery`;
       window.location.href = url.toString();
+    } else if (asButton) {
+      // Button has no default navigation; anchors follow href when handoff is skipped
+      e.preventDefault();
+      window.location.href = href;
     }
   };
 
