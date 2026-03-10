@@ -82,7 +82,7 @@ export async function getPublishedPrograms(
     const { data, error } = await supabase
       .from('programs')
       .select(
-        'id, trainer_id, title, description, duration_weeks, config, created_at, updated_at'
+        'id, trainer_id, title, description, difficulty, duration_weeks, config, created_at, updated_at'
       )
       .eq('is_public', true)
       .order('created_at', { ascending: false });
@@ -120,7 +120,7 @@ export async function getProgramPreview(programId: string): Promise<ProgramPrevi
     const { data: program, error: programError } = await supabase
       .from('programs')
       .select(
-        'id, trainer_id, title, description, duration_weeks, config, created_at, updated_at'
+        'id, trainer_id, title, description, difficulty, duration_weeks, config, created_at, updated_at'
       )
       .eq('id', programId)
       .eq('is_public', true)

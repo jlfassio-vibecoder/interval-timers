@@ -69,7 +69,7 @@ const HistoryZone: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [selectedSession, setSelectedSession] = useState<SessionHistoryItem | null>(null);
   const [amrapResults, setAmrapResults] = useState<AmrapSessionResult[]>([]);
-  const [_amrapLoading, setAmrapLoading] = useState(true);
+  const [amrapLoading, setAmrapLoading] = useState(true);
   const [workoutPlayer, setWorkoutPlayer] = useState<{
     workout: WorkoutFromSchedule;
     programId: string;
@@ -215,11 +215,14 @@ const HistoryZone: React.FC = () => {
 
       <SessionFeed sessions={sessions} onSessionClick={setSelectedSession} loading={loading} />
 
-      {amrapResults.length > 0 && (
+      {(amrapLoading || amrapResults.length > 0) && (
         <div className="mt-6">
           <h4 className="mb-2 font-mono text-xs font-medium uppercase text-white/60">
             AMRAP With Friends
           </h4>
+          {amrapLoading ? (
+            <p className="py-4 text-center text-sm text-white/50">Loading…</p>
+          ) : (
           <ul className="space-y-2">
             {amrapResults.map((r) => (
               <li
@@ -246,6 +249,7 @@ const HistoryZone: React.FC = () => {
               </li>
             ))}
           </ul>
+          )}
         </div>
       )}
 

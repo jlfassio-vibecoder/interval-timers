@@ -62,7 +62,7 @@ export default function AuthModal({
         setPassword('');
         setFullName('');
         alert('Check your email for the confirmation link!');
-        redirectAfterAuth();
+        // Do not redirect: user is not authenticated until email is confirmed
       } else {
         const { error: err } = await supabase.auth.signInWithPassword({ email, password });
         if (err) throw err;

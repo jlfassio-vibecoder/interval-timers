@@ -42,7 +42,7 @@ REVOKE ALL ON amrap_sessions FROM anon, authenticated;
 GRANT SELECT (id, duration_minutes, workout_list, state, time_left_sec, is_paused, started_at, created_at, scheduled_start_at, created_by_user_id)
   ON amrap_sessions TO anon, authenticated;
 
--- Update create_session: add optional p_user_id
+-- Update create_session: add optional p_user_id (ignored; use auth.uid() to prevent spoofing)
 DROP FUNCTION IF EXISTS create_session(int, text, jsonb, timestamptz);
 
 CREATE OR REPLACE FUNCTION create_session(
@@ -61,10 +61,14 @@ DECLARE
   v_session_id uuid;
   v_host_token text;
   v_participant_id uuid;
+  v_user_id uuid;
 BEGIN
+  -- Derive from auth.uid(); never trust client-provided p_user_id (prevents identity spoofing)
+  v_user_id := auth.uid();
+
   v_host_token := gen_random_uuid()::text;
   INSERT INTO amrap_sessions (host_token, duration_minutes, workout_list, state, time_left_sec, scheduled_start_at, created_by_user_id)
-  VALUES (v_host_token, p_duration_minutes, p_workout_list, 'waiting', 10, p_scheduled_start_at, p_user_id)
+  VALUES (v_host_token, p_duration_minutes, p_workout_list, 'waiting', 10, p_scheduled_start_at, v_user_id)
   RETURNING id INTO v_session_id;
 
   INSERT INTO amrap_participants (session_id, nickname, role, user_id)
@@ -72,7 +76,7 @@ BEGIN
     v_session_id,
     COALESCE(NULLIF(trim(p_host_nickname), ''), 'Host'),
     'host',
-    p_user_id
+    v_user_id
   )
   RETURNING id INTO v_participant_id;
 
@@ -84,7 +88,7 @@ BEGIN
 END;
 $$;
 
--- Update join_session: add optional p_user_id
+-- Update join_session: add optional p_user_id (ignored; use auth.uid() to prevent spoofing)
 DROP FUNCTION IF EXISTS join_session(uuid, text);
 
 CREATE OR REPLACE FUNCTION join_session(
@@ -101,7 +105,11 @@ DECLARE
   v_count int;
   v_participant_id uuid;
   v_session_id uuid;
+  v_user_id uuid;
 BEGIN
+  -- Derive from auth.uid(); never trust client-provided p_user_id (prevents identity spoofing)
+  v_user_id := auth.uid();
+
   IF NULLIF(trim(p_nickname), '') IS NULL THEN
     RAISE EXCEPTION 'Name or nickname is required';
   END IF;
@@ -120,7 +128,7 @@ BEGIN
   END IF;
 
   INSERT INTO amrap_participants (session_id, nickname, role, user_id)
-  VALUES (p_session_id, trim(p_nickname), 'joiner', p_user_id)
+  VALUES (p_session_id, trim(p_nickname), 'joiner', v_user_id)
   RETURNING id INTO v_participant_id;
 
   RETURN jsonb_build_object('participant_id', v_participant_id);
@@ -145,6 +153,9 @@ CREATE INDEX IF NOT EXISTS idx_amrap_session_results_completed ON shared.amrap_s
 
 GRANT SELECT, INSERT ON shared.amrap_session_results TO authenticated;
 ALTER TABLE shared.amrap_session_results ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can read own amrap_session_results" ON shared.amrap_session_results;
+DROP POLICY IF EXISTS "Users can insert own amrap_session_results" ON shared.amrap_session_results;
 
 CREATE POLICY "Users can read own amrap_session_results"
   ON shared.amrap_session_results FOR SELECT
@@ -188,8 +199,9 @@ BEGIN
 END;
 $$;
 
+-- Only trigger and service_role need EXECUTE; anon must not call directly (prevents bypass)
 REVOKE EXECUTE ON FUNCTION public.persist_amrap_session_results(uuid) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.persist_amrap_session_results(uuid) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.persist_amrap_session_results(uuid) TO authenticated, service_role;
 
 -- Trigger: persist results when session finishes
 CREATE OR REPLACE FUNCTION public.on_amrap_session_finished()

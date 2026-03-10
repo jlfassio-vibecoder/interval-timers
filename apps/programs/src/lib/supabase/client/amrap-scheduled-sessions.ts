@@ -20,8 +20,8 @@ export async function getAmrapScheduledSessionsForUser(
   rangeStart: string,
   rangeEnd: string
 ): Promise<AmrapScheduledSession[]> {
-  const startIso = `${rangeStart}T00:00:00`;
-  const endIso = `${rangeEnd}T23:59:59`;
+  const startIso = `${rangeStart}T00:00:00Z`;
+  const endIso = `${rangeEnd}T23:59:59Z`;
 
   const { data: created, error: err1 } = await supabase
     .from('amrap_sessions')

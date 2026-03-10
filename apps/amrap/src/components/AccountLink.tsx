@@ -1,8 +1,8 @@
 /**
  * Link to Account page with session handoff when crossing origins.
- * When AMRAP (e.g. localhost:5177) and Account (e.g. localhost:3006) are different
- * origins, localStorage is not shared. We pass the session via URL hash so the
- * Account page can restore it.
+ * In dev: AMRAP (localhost:5177) and Account (localhost:3006) are different origins,
+ * localStorage is not shared, so we pass the session via URL hash (DEV-only for security).
+ * In production: use same-origin deployment so session is shared; no handoff needed.
  */
 
 import React from 'react';
@@ -34,7 +34,9 @@ export default function AccountLink({
     const targetUrl = new URL(href, window.location.origin);
     const isCrossOrigin = targetUrl.origin !== window.location.origin;
 
-    if (isCrossOrigin && user && session?.access_token && session?.refresh_token) {
+    // Token-in-URL handoff only in dev: avoids refresh token in history/JS on prod
+    const allowHandoff = import.meta.env.DEV;
+    if (allowHandoff && isCrossOrigin && user && session?.access_token && session?.refresh_token) {
       e.preventDefault();
       const url = new URL(href);
       url.hash = `access_token=${encodeURIComponent(session.access_token)}&refresh_token=${encodeURIComponent(session.refresh_token)}&type=recovery`;
