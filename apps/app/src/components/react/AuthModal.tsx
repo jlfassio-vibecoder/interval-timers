@@ -7,7 +7,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { Fingerprint } from 'lucide-react';
 import { toast } from 'sonner';
-import { supabase } from '../../lib/supabase/client';
+import { supabase } from '../../lib/supabase/supabase-instance';
 
 interface AuthModalProps {
   isOpen: boolean;

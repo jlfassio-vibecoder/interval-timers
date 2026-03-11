@@ -162,9 +162,7 @@ const AccountFeed: React.FC = () => {
                       {item.durationSeconds != null && (
                         <> · {formatDuration(item.durationSeconds)}</>
                       )}
-                      {item.durationMinutes != null && (
-                        <> · {item.durationMinutes} min</>
-                      )}
+                      {item.durationMinutes != null && <> · {item.durationMinutes} min</>}
                       {item.metadata?.totalRounds != null && (
                         <> · {item.metadata.totalRounds} rounds</>
                       )}
@@ -183,7 +181,7 @@ const AccountFeed: React.FC = () => {
                 {item.link && (
                   <a
                     href={item.link}
-                    className="mt-2 inline-block text-xs font-medium text-orange-400 hover:text-orange-300"
+                    className="text-orange-400 hover:text-orange-300 mt-2 inline-block text-xs font-medium"
                   >
                     View session →
                   </a>

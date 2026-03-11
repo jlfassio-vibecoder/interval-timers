@@ -1,5 +1,4 @@
 {
   "framework": "astro",
-  "installCommand": "cd ../.. && npm ci",
   "buildCommand": "turbo build"
 }

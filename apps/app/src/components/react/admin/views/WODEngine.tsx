@@ -38,7 +38,7 @@ import LevelFilter, { type LevelFilterValue } from '@/components/react/LevelFilt
 import type { WODLevel, GeneratedWOD, Exercise } from '@/types';
 import { getAllZones, getZoneById, getAllEquipmentItems } from '@/lib/supabase/client/equipment';
 import type { Zone } from '@/lib/supabase/client/equipment';
-import { supabase } from '@/lib/supabase/client';
+import { supabase } from '@/lib/supabase/supabase-instance';
 import {
   createGeneratedWOD,
   getGeneratedWODs,

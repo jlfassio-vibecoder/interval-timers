@@ -50,7 +50,10 @@
     "dev:trainer-chat": "npm run dev -w trainer-chat",
     "build:trainer-chat": "npm run build -w trainer-chat",
     "dev:app": "npm run dev -w app",
-    "build:app": "npm run build -w app"
+    "build:app": "npm run build -w app",
+    "env:pull": "vercel env pull .env.local --yes 2>/dev/null || echo '[env:pull] Run vercel link at repo root (Main)'; (cd apps/app && vercel env pull .env.local --yes) 2>/dev/null || echo '[env:pull] Run vercel link in apps/app (App)'; (cd apps/landing && vercel env pull .env.local --yes) 2>/dev/null || echo '[env:pull] Run vercel link in apps/landing (Landing)'; (cd apps/amrap && vercel env pull .env.local --yes) 2>/dev/null || echo '[env:pull] Run vercel link in apps/amrap (AMRAP)'",
+    "env:link": "echo 'One-time setup: vercel link in each dir (select matching project): 1) root -> Main 2) apps/app -> App 3) apps/landing -> Landing 4) apps/amrap -> AMRAP'",
+    "generate:timer": "node scripts/generate-timer-app.cjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.47.0",

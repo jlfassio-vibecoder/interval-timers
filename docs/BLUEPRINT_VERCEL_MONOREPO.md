@@ -213,6 +213,8 @@ Or use Root Directory at repo root and override only `buildCommand` and `outputD
 - No cross-origin; auth and localStorage work naturally.
 - Requires merged build or proxy (see §4, §7). Avoid cross-project proxy if possible.
 
+**Implementation:** See [SECTION_9_AUTH_IMPLEMENTATION.md](./SECTION_9_AUTH_IMPLEMENTATION.md) for env vars, cookie config, and Supabase setup.
+
 ---
 
 ## 10. Environment Variables
@@ -225,8 +227,9 @@ Or use Root Directory at repo root and override only `buildCommand` and `outputD
 | `VITE_SUPABASE_ANON_KEY` | — | — | ✓ |
 | `PUBLIC_SUPABASE_URL` | — | ✓ | — |
 | `PUBLIC_SUPABASE_ANON_KEY` | — | ✓ | — |
+| `PUBLIC_AUTH_COOKIE_DOMAIN` | — | ✓ (subdomains) | ✓ (subdomains) |
 
-Use `PUBLIC_` for Astro, `VITE_` for Vite. Never commit secrets.
+Use `PUBLIC_` for Astro, `VITE_` for Vite. `PUBLIC_AUTH_COOKIE_DOMAIN` (e.g. `.example.com`) is for cross-subdomain auth; leave unset for same-origin. Never commit secrets.
 
 **Related Projects:** For runtime URLs between projects, use [Vercel Related Projects](https://vercel.com/docs/monorepos#how-to-link-projects-together-in-a-monorepo) and `@vercel/related-projects` instead of hardcoding.
 

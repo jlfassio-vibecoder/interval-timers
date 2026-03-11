@@ -1,4 +1,4 @@
-import { supabase } from '../client';
+import { supabase } from '../supabase-instance';
 import type { WorkoutBlock } from './workout-details';
 
 export interface Workout {

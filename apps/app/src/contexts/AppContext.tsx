@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import { supabase } from '@/lib/supabase/client';
+import { supabase } from '@/lib/supabase/supabase-instance';
 import { getTrainerForUser } from '@/lib/supabase/client/trainer-resolver';
 import type { Session } from '@supabase/supabase-js';
 import type { UserProfile, WorkoutLog } from '@/types';
@@ -111,7 +111,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
 
       // 1. Initial Session Check
-      const { data: { session: s } } = await supabase.auth.getSession();
+      const {
+        data: { session: s },
+      } = await supabase.auth.getSession();
       if (mounted) {
         setSession(s);
         if (s?.user) {
@@ -200,8 +202,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
     // Cross-origin logout propagation: redirect to timer app logout to clear its session
     const amrapLogout =
-      import.meta.env.PUBLIC_AMRAP_LOGOUT_URL ||
-      import.meta.env.VITE_AMRAP_LOGOUT_URL;
+      import.meta.env.PUBLIC_AMRAP_LOGOUT_URL || import.meta.env.VITE_AMRAP_LOGOUT_URL;
     if (amrapLogout && typeof window !== 'undefined') {
       window.location.href = amrapLogout;
     }

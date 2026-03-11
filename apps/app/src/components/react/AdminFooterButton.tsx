@@ -6,7 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { Settings } from 'lucide-react';
 import { adminPaths } from '@/lib/admin/config';
-import { supabase } from '@/lib/supabase/client';
+import { supabase } from '@/lib/supabase/supabase-instance';
 import { setAuthCookie } from '@/lib/auth-cookie';
 
 const AdminFooterButton: React.FC = () => {

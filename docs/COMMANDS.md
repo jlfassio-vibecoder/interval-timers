@@ -47,6 +47,32 @@ Run these from the monorepo root (`interval-timers/`):
 | `npm run build:master-clock` | Build the Master Clock app |
 | `npm run dev:app` | Start the App dev server (Astro SSR) |
 | `npm run build:app` | Build the App |
+| `npm run env:pull` | Pull env from Vercel Main, App, Landing, AMRAP into local `.env.local` files |
+| `npm run env:link` | Print one-time `vercel link` setup instructions |
+| `npm run generate:timer` | Scaffold a new timer app from template |
+
+---
+
+## New Timer Apps
+
+- **`npm run generate:timer`** – Scaffold a new timer app from `apps/.template-timer/`, wire root scripts, copy script, and vercel rewrites.
+- Prompts for workspace name, URL path, and whether to include in merged deploy.
+- Non-interactive: `node scripts/generate-timer-app.cjs --name=murph --path=murph-timer --merged`
+
+See [SECTION_12_SCAFFOLDING_RECOMMENDATION.md](SECTION_12_SCAFFOLDING_RECOMMENDATION.md) for full details.
+
+---
+
+## Environment Variables (Local Sync)
+
+- **`npm run env:pull`** – Pull env from Vercel Main, App, Landing, and AMRAP into local `.env.local` files (requires `vercel link` first).
+- **One-time setup:** Run `vercel link` in each directory, selecting the matching project:
+  - Root → Main
+  - `apps/app` → App
+  - `apps/landing` → Landing
+  - `apps/amrap` → AMRAP
+
+See [SECTION_10_ENV_IMPLEMENTATION.md](SECTION_10_ENV_IMPLEMENTATION.md) for Shared Environment Variables and full setup.
 
 ---
 

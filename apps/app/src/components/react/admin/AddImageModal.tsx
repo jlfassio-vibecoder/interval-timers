@@ -9,7 +9,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Upload, Loader2, Image as ImageIcon, Sparkles, Send, Activity } from 'lucide-react';
 import { toast } from 'sonner';
-import { supabase } from '@/lib/supabase/client';
+import { supabase } from '@/lib/supabase/supabase-instance';
 import { uploadExerciseImage } from '@/lib/supabase/client/storage';
 import {
   addExerciseImageWithShift,

@@ -3,7 +3,7 @@
  * Phase 2 data layer for uploads; Phase 3 will switch components from Firebase storage to these.
  */
 
-import { supabase } from '../client';
+import { supabase } from '../supabase-instance';
 
 const BUCKET_IMAGES = 'exercise-images';
 

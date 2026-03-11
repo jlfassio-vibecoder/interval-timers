@@ -5,7 +5,7 @@
  * Resolve today's workout from user's program and start date.
  */
 
-import { supabase } from '../client';
+import { supabase } from '../supabase-instance';
 import { getCurrentWeek } from './user-programs';
 import type { ProgramSchedule } from '@/types/ai-program';
 

@@ -65,12 +65,14 @@ const ScheduleZone: React.FC<ScheduleZoneProps> = ({ refreshKey = 0, onViewLog }
     workoutId: string;
   } | null>(null);
   const [restDayMessage, setRestDayMessage] = useState<string | null>(null);
-  const [amrapSessions, setAmrapSessions] = useState<Array<{
-    id: string;
-    workout_list: string[];
-    duration_minutes: number;
-    scheduled_start_at: string;
-  }>>([]);
+  const [amrapSessions, setAmrapSessions] = useState<
+    Array<{
+      id: string;
+      workout_list: string[];
+      duration_minutes: number;
+      scheduled_start_at: string;
+    }>
+  >([]);
 
   const today = todayISO();
 
@@ -244,7 +246,7 @@ const ScheduleZone: React.FC<ScheduleZoneProps> = ({ refreshKey = 0, onViewLog }
                 </span>
                 <a
                   href={`/amrap/with-friends/session/${s.id}`}
-                  className="ml-2 text-orange-400 hover:underline"
+                  className="text-orange-400 ml-2 hover:underline"
                   target="_blank"
                   rel="noopener noreferrer"
                 >

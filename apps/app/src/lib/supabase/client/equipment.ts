@@ -3,7 +3,7 @@
  * RLS: authenticated read, admin write.
  */
 
-import { supabase } from '../client';
+import { supabase } from '../supabase-instance';
 
 export type EquipmentCategoryCode =
   | 'free_weights'

@@ -19,7 +19,7 @@ import {
   BookOpen,
   ArrowLeft,
 } from 'lucide-react';
-import { supabase } from '@/lib/supabase/client';
+import { supabase } from '@/lib/supabase/supabase-instance';
 import { uploadExerciseImage } from '@/lib/supabase/client/storage';
 import type { Exercise } from '@/types';
 import {

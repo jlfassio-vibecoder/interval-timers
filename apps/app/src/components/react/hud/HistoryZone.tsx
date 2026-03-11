@@ -223,32 +223,32 @@ const HistoryZone: React.FC = () => {
           {amrapLoading ? (
             <p className="py-4 text-center text-sm text-white/50">Loading…</p>
           ) : (
-          <ul className="space-y-2">
-            {amrapResults.map((r) => (
-              <li
-                key={r.id}
-                className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm"
-              >
-                <span className="font-medium text-white/90">
-                  {getAmrapWorkoutLabel(r.workout_list)}
-                </span>
-                <span className="ml-2 text-white/60">
-                  {r.total_rounds} rounds · {r.duration_minutes} min
-                </span>
-                <span className="ml-2 font-mono text-[10px] text-white/40">
-                  {new Date(r.completed_at).toLocaleDateString()}
-                </span>
-                <a
-                  href={`/amrap/with-friends/session/${r.session_id}`}
-                  className="ml-2 text-orange-400 hover:underline"
-                  target="_blank"
-                  rel="noopener noreferrer"
+            <ul className="space-y-2">
+              {amrapResults.map((r) => (
+                <li
+                  key={r.id}
+                  className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm"
                 >
-                  View session
-                </a>
-              </li>
-            ))}
-          </ul>
+                  <span className="font-medium text-white/90">
+                    {getAmrapWorkoutLabel(r.workout_list)}
+                  </span>
+                  <span className="ml-2 text-white/60">
+                    {r.total_rounds} rounds · {r.duration_minutes} min
+                  </span>
+                  <span className="ml-2 font-mono text-[10px] text-white/40">
+                    {new Date(r.completed_at).toLocaleDateString()}
+                  </span>
+                  <a
+                    href={`/amrap/with-friends/session/${r.session_id}`}
+                    className="text-orange-400 ml-2 hover:underline"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    View session
+                  </a>
+                </li>
+              ))}
+            </ul>
           )}
         </div>
       )}

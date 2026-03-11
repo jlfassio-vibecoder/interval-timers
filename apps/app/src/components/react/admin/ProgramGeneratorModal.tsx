@@ -27,7 +27,7 @@ import BlueprintPreview from './BlueprintPreview';
 import ArchitectBlueprintPreview from './ArchitectBlueprintPreview';
 import ChainDebugPanel from './ChainDebugPanel';
 import { saveProgramToLibrary, updateProgram } from '@/lib/supabase/client/program-persistence';
-import { supabase } from '@/lib/supabase/client';
+import { supabase } from '@/lib/supabase/supabase-instance';
 
 /** The steps of program generation (simplified: config → generating → preview) */
 type GenerationStep = 'config' | 'blueprint' | 'architect' | 'preview';

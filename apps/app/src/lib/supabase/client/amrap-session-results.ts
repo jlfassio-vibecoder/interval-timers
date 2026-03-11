@@ -3,7 +3,7 @@
  * Reads from shared.amrap_session_results.
  */
 
-import { supabase } from '../client';
+import { supabase } from '../supabase-instance';
 
 export interface AmrapSessionResult {
   id: string;

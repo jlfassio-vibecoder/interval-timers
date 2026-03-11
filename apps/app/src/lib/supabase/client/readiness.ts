@@ -5,7 +5,7 @@
  * Readiness check-in (1-5) for Zone 3. Stored in workout_logs with workout_name='Readiness'.
  */
 
-import { supabase } from '../client';
+import { supabase } from '../supabase-instance';
 
 const READINESS_WORKOUT_NAME = 'Readiness';
 

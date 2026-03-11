@@ -5,7 +5,7 @@
  * Derive notification items client-side from existing data (no backend table).
  */
 
-import { supabase } from '@/lib/supabase/client';
+import { supabase } from '@/lib/supabase/supabase-instance';
 import { getCurrentWeek, getProgramTitle } from '@/lib/supabase/client/user-programs';
 import { getTodaysWorkoutOrRest } from '@/lib/supabase/client/schedule-resolver';
 import { getTodaysWorkoutLog, getStreakData } from '@/lib/supabase/client/progress-analytics';

@@ -8,7 +8,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('@/lib/supabase/client', () => ({ supabase: {} }));
+vi.mock('@/lib/supabase/supabase-instance', () => ({ supabase: {} }));
 
 import { getCurrentWeek } from '@/lib/supabase/client/user-programs';
 

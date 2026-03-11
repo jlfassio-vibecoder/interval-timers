@@ -16,7 +16,7 @@ import {
   fetchChallengeMetadata,
   updateChallenge,
 } from '@/lib/supabase/client/challenge-persistence';
-import { supabase } from '@/lib/supabase/client';
+import { supabase } from '@/lib/supabase/supabase-instance';
 import { getExercisesFromWorkout } from '@/lib/program-schedule-utils';
 import EditorHeader from '../EditorHeader';
 import StatusMessage from '../StatusMessage';

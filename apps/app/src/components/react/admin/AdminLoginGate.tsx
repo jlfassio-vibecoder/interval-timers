@@ -8,7 +8,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase/client';
+import { supabase } from '@/lib/supabase/supabase-instance';
 import { adminPaths } from '@/lib/admin/config';
 import { setAuthCookie } from '@/lib/auth-cookie';
 

@@ -1,5 +1,4 @@
 {
-  "installCommand": "cd ../../../.. && npm ci",
   "buildCommand": "turbo build",
   "outputDirectory": "dist"
 }

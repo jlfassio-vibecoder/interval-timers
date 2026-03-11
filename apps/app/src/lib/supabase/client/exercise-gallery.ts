@@ -2,7 +2,7 @@
  * Client-side exercise gallery (images). Replaces firebase/client/exercise-gallery.
  */
 
-import { supabase } from '../client';
+import { supabase } from '../supabase-instance';
 import { toTimestampLike } from '@/types/timestamp';
 import { updateGeneratedExercise } from './generated-exercises';
 import type {

@@ -2,7 +2,7 @@
  * Client-side generated exercises. Replaces firebase/client/generated-exercises.
  */
 
-import { supabase } from '../client';
+import { supabase } from '../supabase-instance';
 import { toTimestampLike } from '@/types/timestamp';
 import type {
   GeneratedExercise,
