@@ -1,27 +1,18 @@
 import AgoraRTC from 'agora-rtc-sdk-ng'
 
 const appId = import.meta.env.VITE_AGORA_APP_ID as string
-const token = import.meta.env.VITE_AGORA_TOKEN as string | undefined
 
 export function getAppId(): string {
   return appId ?? ''
 }
 
-/** Token for joining channel. Required when App Certificate is enabled in Agora Console. */
-export function getToken(): string | null {
-  const t = token?.trim()
-  return t && t.length > 0 ? t : null
-}
-
 export type TokenResult = { token: string } | { error: string }
 
-/** Fetch token from /api/agora-token (prod) or proxied token server (dev). Uses env token if set. */
+/** Fetch token from /api/agora-token (prod) or proxied token server (dev). Always fetches when account is provided to avoid UID 0 / UID_CONFLICT (static tokens are uid-based). */
 export async function getTokenOrFetchWithAccount(
   channelName: string,
   account: string
 ): Promise<TokenResult> {
-  const envToken = getToken()
-  if (envToken) return { token: envToken }
   try {
     const base = typeof window !== 'undefined' ? window.location.origin : ''
     const url = `${base}/api/agora-token?channel=${encodeURIComponent(channelName)}&account=${encodeURIComponent(account)}`

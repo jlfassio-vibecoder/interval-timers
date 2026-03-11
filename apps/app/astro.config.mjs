@@ -65,6 +65,20 @@ export default defineConfig({
     host: true
   },
   vite: {
+    server: {
+      // Dev: proxy /amrap and /api/agora-token (npm run dev:amrap:video)
+      proxy: {
+        '/amrap': {
+          target: 'http://localhost:5177',
+          changeOrigin: true
+        },
+        '/api/agora-token': {
+          target: 'http://localhost:9517',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/api\/agora-token/, '/token')
+        }
+      }
+    },
     resolve: {
       alias: {
         '@': src

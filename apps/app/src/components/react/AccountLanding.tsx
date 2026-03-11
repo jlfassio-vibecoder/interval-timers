@@ -12,21 +12,34 @@ import AccountFeed from './AccountFeed';
 
 const AccountLanding: React.FC = () => {
   const { user, loading } = useAppContext();
+  const [loadingTimedOut, setLoadingTimedOut] = React.useState(false);
+
+  // Safety: if loading stays true >1s (e.g. Strict Mode double-mount), show signed-out UI.
+  // Only in dev to avoid misclassifying legitimately slow auth in production.
+  React.useEffect(() => {
+    if (!loading) return;
+    if (!import.meta.env.DEV) return;
+    const t = setTimeout(() => setLoadingTimedOut(true), 1000);
+    return () => clearTimeout(t);
+  }, [loading]);
+  React.useEffect(() => {
+    if (!loading) setLoadingTimedOut(false);
+  }, [loading]);
 
   const searchParams =
     typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
   const hasSigninParam = searchParams?.get('signin') === '1';
 
   useEffect(() => {
-    if (loading) return;
+    if (loading && !loadingTimedOut) return;
     if (!user?.uid && !hasSigninParam) {
       const url = new URL(window.location.href);
       url.searchParams.set('signin', '1');
       window.location.href = url.toString();
     }
-  }, [user?.uid, loading, hasSigninParam]);
+  }, [user?.uid, loading, loadingTimedOut, hasSigninParam]);
 
-  if (loading) {
+  if (loading && !loadingTimedOut) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
         <p className="font-mono text-sm text-white/50">Loading…</p>

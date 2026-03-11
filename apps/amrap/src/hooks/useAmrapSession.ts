@@ -79,7 +79,7 @@ export function useAmrapSession(sessionId: string | undefined): AmrapSessionData
   const fetchSession = useCallback(async (id: string) => {
     const { data, error: e } = await supabase
       .from('amrap_sessions')
-      .select('id, duration_minutes, workout_list, state, time_left_sec, is_paused, started_at, created_at, scheduled_start_at')
+      .select('id, duration_minutes, workout_list, state, time_left_sec, is_paused, started_at, created_at, scheduled_start_at, show_new_workout_modal')
       .eq('id', id)
       .single();
     if (e) {

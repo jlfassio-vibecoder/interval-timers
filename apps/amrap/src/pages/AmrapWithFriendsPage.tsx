@@ -11,14 +11,8 @@ import AmrapCtaButton from '@/components/AmrapCtaButton';
 import AuthModal from '@/components/AuthModal';
 import WeekCalendar from '@/components/WeekCalendar';
 import CreateFlowSchedulePicker from '@/components/CreateFlowSchedulePicker';
-import {
-  AMRAP_WORKOUT_LIBRARY,
-  AMRAP_LEVEL_DURATION,
-  AMRAP_PROTOCOL_LABELS,
-} from '@/components/interval-timers/amrap-setup-data';
-import type { AmrapLevel } from '@/components/interval-timers/amrap-setup-data';
+import WorkoutPicker from '@/components/WorkoutPicker';
 
-type CreateStep = 'level' | 'workout';
 type Tab = 'create' | 'join' | 'schedule';
 
 export default function AmrapWithFriendsPage() {
@@ -26,8 +20,6 @@ export default function AmrapWithFriendsPage() {
   const { hasFullAccess } = useAmrapPermissions();
   const { user } = useAmrapAuth();
   const [tab, setTab] = useState<Tab>('create');
-  const [createStep, setCreateStep] = useState<CreateStep>('level');
-  const [selectedLevel, setSelectedLevel] = useState<AmrapLevel | null>(null);
   const [hostNickname, setHostNickname] = useState('');
   const [joinSessionId, setJoinSessionId] = useState('');
   const [joinNickname, setJoinNickname] = useState('');
@@ -113,9 +105,6 @@ export default function AmrapWithFriendsPage() {
     setStoredParticipantId(sid, result.participant_id);
     navigate(`/with-friends/session/${sid}`);
   }, [joinSessionId, joinNickname, navigate, user?.id]);
-
-  const workouts = selectedLevel ? AMRAP_WORKOUT_LIBRARY[selectedLevel] : [];
-  const duration = selectedLevel ? AMRAP_LEVEL_DURATION[selectedLevel] : 15;
 
   return (
     <div className="min-h-screen bg-[#0d0500] text-white">
@@ -226,122 +215,74 @@ export default function AmrapWithFriendsPage() {
                   className="w-full rounded-xl border border-white/20 bg-black/30 px-4 py-3 text-white placeholder:text-white/50 focus:border-orange-500 focus:outline-none"
                 />
               </div>
-              {createStep === 'level' && (
-                <>
-                  <p className="mb-4 text-sm text-white/70">
-                    Choose a level, then pick a workout.
-                  </p>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                    {(['beginner', 'intermediate', 'advanced'] as const).map((level) => (
+              <WorkoutPicker
+                onSelect={(workoutList, durationMinutes) =>
+                  handleCreateSession(
+                    durationMinutes,
+                    workoutList,
+                    hostNickname,
+                    scheduleMode === 'schedule' ? scheduledAt || undefined : undefined
+                  )
+                }
+                onCancel={() => {}}
+                disabled={loading}
+                extraContent={
+                  <>
+                    <div className="mb-4 flex gap-2 rounded-xl bg-black/30 p-1">
                       <button
-                        key={level}
                         type="button"
                         onClick={() => {
-                          setSelectedLevel(level);
-                          setCreateStep('workout');
+                          setScheduleMode('when_ready');
+                          setScheduledAt('');
                         }}
-                        className="rounded-xl border border-white/10 bg-black/20 p-4 text-left transition-all hover:border-orange-500 hover:bg-orange-600/10"
+                        className={`flex-1 rounded-lg py-2.5 text-sm font-bold transition-colors ${
+                          scheduleMode === 'when_ready'
+                            ? 'bg-orange-600 text-white'
+                            : 'text-white/70 hover:text-white'
+                        }`}
                       >
-                        <div className="font-bold text-white">
-                          {AMRAP_PROTOCOL_LABELS[level]}
-                        </div>
-                        <div className="mt-1 text-[10px] text-white/70">
-                          {AMRAP_PROTOCOL_LABELS[`${level}Desc` as keyof typeof AMRAP_PROTOCOL_LABELS]}
-                        </div>
+                        Start when ready
                       </button>
-                    ))}
-                  </div>
-                </>
-              )}
-              {createStep === 'workout' && selectedLevel && (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setCreateStep('level');
-                      setSelectedLevel(null);
-                    }}
-                    className="mb-4 text-sm font-medium text-white/60 hover:text-white"
-                  >
-                    ← Change level
-                  </button>
-                  <div className="mb-4 flex gap-2 rounded-xl bg-black/30 p-1">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setScheduleMode('when_ready');
-                        setScheduledAt('');
-                      }}
-                      className={`flex-1 rounded-lg py-2.5 text-sm font-bold transition-colors ${
-                        scheduleMode === 'when_ready'
-                          ? 'bg-orange-600 text-white'
-                          : 'text-white/70 hover:text-white'
-                      }`}
-                    >
-                      Start when ready
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setScheduleMode('schedule')}
-                      className={`flex-1 rounded-lg py-2.5 text-sm font-bold transition-colors ${
-                        scheduleMode === 'schedule'
-                          ? 'bg-orange-600 text-white'
-                          : 'text-white/70 hover:text-white'
-                      }`}
-                    >
-                      Schedule for later
-                    </button>
-                  </div>
-                  {scheduleMode === 'schedule' && (
-                    <div className="mb-4">
-                      {!hasFullAccess && (
-                        <p className="mb-3 text-sm text-white/70">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setAuthModalSignUp(true);
-                              setShowAuthModal(true);
-                            }}
-                            className="font-medium text-orange-400 underline hover:text-orange-300"
-                          >
-                            Create an account
-                          </button>
-                          {' '}to schedule further out and track your sessions.
-                        </p>
-                      )}
-                      <CreateFlowSchedulePicker
-                        value={scheduledAt}
-                        onChange={setScheduledAt}
-                        minDate={new Date()}
-                        maxWeeksAhead={hasFullAccess ? 52 : 1}
-                      />
-                    </div>
-                  )}
-                  <div className="grid max-h-[40vh] grid-cols-1 gap-3 overflow-y-auto md:grid-cols-2">
-                    {workouts.map((option) => (
                       <button
-                        key={option.name}
                         type="button"
-                        disabled={loading}
-                        onClick={() =>
-                          handleCreateSession(
-                            duration,
-                            [...option.exercises],
-                            hostNickname,
-                            scheduleMode === 'schedule' ? scheduledAt || undefined : undefined
-                          )
-                        }
-                        className="rounded-xl border border-white/10 bg-black/20 p-4 text-left transition-all hover:border-orange-500 hover:bg-orange-600/10 disabled:opacity-50"
+                        onClick={() => setScheduleMode('schedule')}
+                        className={`flex-1 rounded-lg py-2.5 text-sm font-bold transition-colors ${
+                          scheduleMode === 'schedule'
+                            ? 'bg-orange-600 text-white'
+                            : 'text-white/70 hover:text-white'
+                        }`}
                       >
-                        <div className="font-bold text-white">{option.name}</div>
-                        <div className="mt-1 line-clamp-2 text-[10px] text-white/70">
-                          {option.exercises.join(' → ')}
-                        </div>
+                        Schedule for later
                       </button>
-                    ))}
-                  </div>
-                </>
-              )}
+                    </div>
+                    {scheduleMode === 'schedule' && (
+                      <div className="mb-4">
+                        {!hasFullAccess && (
+                          <p className="mb-3 text-sm text-white/70">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setAuthModalSignUp(true);
+                                setShowAuthModal(true);
+                              }}
+                              className="font-medium text-orange-400 underline hover:text-orange-300"
+                            >
+                              Create an account
+                            </button>
+                            {' '}to schedule further out and track your sessions.
+                          </p>
+                        )}
+                        <CreateFlowSchedulePicker
+                          value={scheduledAt}
+                          onChange={setScheduledAt}
+                          minDate={new Date()}
+                          maxWeeksAhead={hasFullAccess ? 52 : 1}
+                        />
+                      </div>
+                    )}
+                  </>
+                }
+              />
               {createError && (
                 <p className="mt-4 text-sm text-red-400">{createError}</p>
               )}
