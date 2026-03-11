@@ -573,7 +573,8 @@ export default function AmrapSessionPage() {
               {displayLabel}
             </div>
             <div
-              className={`@container overflow-hidden min-w-0 font-bold tabular-nums ${beforeCountdownWindow ? 'text-[2.25rem] text-white/90 md:text-[2.8125rem]' : `font-mono ${timerState === 'work' ? 'text-orange-500' : 'text-white/90'}`}`}
+              className={`overflow-hidden min-w-0 font-bold tabular-nums ${beforeCountdownWindow ? 'text-[2.25rem] text-white/90 md:text-[2.8125rem]' : `font-mono ${timerState === 'work' ? 'text-orange-500' : 'text-white/90'}`}`}
+              style={!beforeCountdownWindow ? { containerType: 'inline-size' } : undefined}
             >
               {beforeCountdownWindow ? (
                 displayValue

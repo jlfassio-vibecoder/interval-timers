@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import type { ReactNode } from 'react';
 import {
   AMRAP_WORKOUT_LIBRARY,
   AMRAP_LEVEL_DURATION,
@@ -10,7 +11,7 @@ export interface WorkoutPickerProps {
   onSelect: (workoutList: string[], durationMinutes: number) => void;
   onCancel: () => void;
   /** Optional content to render between "Change level" and workout grid when in workout step (e.g. schedule picker) */
-  extraContent?: React.ReactNode;
+  extraContent?: ReactNode;
   disabled?: boolean;
 }
 
@@ -25,6 +26,12 @@ export default function WorkoutPicker({
 
   const workouts = selectedLevel ? AMRAP_WORKOUT_LIBRARY[selectedLevel] : [];
   const duration = selectedLevel ? AMRAP_LEVEL_DURATION[selectedLevel] : 15;
+
+  const handleCancel = () => {
+    setStep('level');
+    setSelectedLevel(null);
+    onCancel();
+  };
 
   if (step === 'level') {
     return (
@@ -55,7 +62,7 @@ export default function WorkoutPicker({
         </div>
         <button
           type="button"
-          onClick={onCancel}
+          onClick={handleCancel}
           className="mt-4 text-sm font-medium text-white/60 hover:text-white"
         >
           Cancel
@@ -96,7 +103,7 @@ export default function WorkoutPicker({
       </div>
       <button
         type="button"
-        onClick={onCancel}
+        onClick={handleCancel}
         className="mt-4 text-sm font-medium text-white/60 hover:text-white"
       >
         Cancel

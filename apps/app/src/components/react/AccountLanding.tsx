@@ -14,9 +14,11 @@ const AccountLanding: React.FC = () => {
   const { user, loading } = useAppContext();
   const [loadingTimedOut, setLoadingTimedOut] = React.useState(false);
 
-  // Safety: if loading stays true >1s (e.g. Strict Mode double-mount), show signed-out UI
+  // Safety: if loading stays true >1s (e.g. Strict Mode double-mount), show signed-out UI.
+  // Only in dev to avoid misclassifying legitimately slow auth in production.
   React.useEffect(() => {
     if (!loading) return;
+    if (!import.meta.env.DEV) return;
     const t = setTimeout(() => setLoadingTimedOut(true), 1000);
     return () => clearTimeout(t);
   }, [loading]);

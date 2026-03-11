@@ -34,32 +34,35 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-/** SSR-safe stub when context is unavailable (e.g. account page during server render) */
-const SSR_STUB: AppContextType = {
-  user: null,
-  session: null,
-  loading: true,
-  profile: null,
-  trainerProfile: null,
-  activeProgramId: null,
-  isTrainer: false,
-  isAdmin: false,
-  workoutLogs: [],
-  completedWorkouts: new Set(),
-  purchasedIndex: null,
-  isPaid: false,
-  setProfile: () => {},
-  setWorkoutLogs: () => {},
-  setCompletedWorkouts: () => {},
-  setPurchasedIndex: () => {},
-  setActiveProgramId: () => {},
-  handleLogout: async () => {},
-};
+/** SSR-safe stub when context is unavailable (e.g. account page during server render).
+ * Returns a fresh object per call to avoid cross-request state leakage (e.g. mutable Set). */
+function getSSRStub(): AppContextType {
+  return {
+    user: null,
+    session: null,
+    loading: true,
+    profile: null,
+    trainerProfile: null,
+    activeProgramId: null,
+    isTrainer: false,
+    isAdmin: false,
+    workoutLogs: [],
+    completedWorkouts: new Set(),
+    purchasedIndex: null,
+    isPaid: false,
+    setProfile: () => {},
+    setWorkoutLogs: () => {},
+    setCompletedWorkouts: () => {},
+    setPurchasedIndex: () => {},
+    setActiveProgramId: () => {},
+    handleLogout: async () => {},
+  };
+}
 
 export const useAppContext = () => {
   const context = useContext(AppContext);
   if (!context) {
-    if (typeof window === 'undefined') return SSR_STUB;
+    if (typeof window === 'undefined') return getSSRStub();
     throw new Error('useAppContext must be used within AppProvider');
   }
   return context;

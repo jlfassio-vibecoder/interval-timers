@@ -1,16 +1,9 @@
 import AgoraRTC from 'agora-rtc-sdk-ng'
 
 const appId = import.meta.env.VITE_AGORA_APP_ID as string
-const token = import.meta.env.VITE_AGORA_TOKEN as string | undefined
 
 export function getAppId(): string {
   return appId ?? ''
-}
-
-/** Token for joining channel. Required when App Certificate is enabled in Agora Console. */
-export function getToken(): string | null {
-  const t = token?.trim()
-  return t && t.length > 0 ? t : null
 }
 
 export type TokenResult = { token: string } | { error: string }

@@ -38,10 +38,7 @@ export default function NewWorkoutModal({
         </h2>
         {isHost ? (
           <WorkoutPicker
-            onSelect={(workoutList, durationMinutes) => {
-              onSelect(workoutList, durationMinutes);
-              onClose();
-            }}
+            onSelect={onSelect}
             onCancel={onClose}
           />
         ) : (
