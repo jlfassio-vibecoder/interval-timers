@@ -44,7 +44,7 @@ export function AmrapAuthProvider({ children }: { children: React.ReactNode }) {
         .from('profiles')
         .select('amrap_trial_ends_at, purchased_index')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
       if (!error && data) {
         setProfile({
           amrap_trial_ends_at: data.amrap_trial_ends_at ?? null,

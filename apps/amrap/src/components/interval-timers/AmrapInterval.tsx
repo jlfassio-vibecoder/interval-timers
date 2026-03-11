@@ -2,7 +2,8 @@ import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from
 import { createPortal } from 'react-dom';
 import AccountLink from '@/components/AccountLink';
 import AmrapCtaButton from '@/components/AmrapCtaButton';
-import AuthModal from '@/components/AuthModal';
+import { AuthModal } from '@interval-timers/auth-ui';
+import { supabase } from '@/lib/supabase';
 import { useAmrapAuth } from '@/contexts/AmrapAuthContext';
 import { IntervalTimerLanding, IntervalTimerSetupModal } from '@interval-timers/timer-ui';
 import type { IntervalTimerPage } from '@interval-timers/timer-core';
@@ -877,6 +878,13 @@ const AmrapInterval: React.FC<AmrapIntervalProps> = ({ onNavigate, onNavigateToL
       <AuthModal
         isOpen={showAuthModal}
         onClose={() => setShowAuthModal(false)}
+        supabase={supabase}
+        redirectBaseUrl={
+          import.meta.env.VITE_ACCOUNT_REDIRECT_URL ??
+          import.meta.env.VITE_HUD_REDIRECT_URL ??
+          '/account'
+        }
+        fromAppId="amrap"
         defaultSignUp={authModalSignUp}
       />
     </>

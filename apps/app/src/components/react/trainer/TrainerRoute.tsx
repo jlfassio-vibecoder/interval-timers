@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { LayoutDashboard, Users, BarChart3, Wrench, Home } from 'lucide-react';
 import { AppProvider, useAppContext } from '../../../contexts/AppContext';
-import AuthModal from '../AuthModal';
+import { AuthModal } from '@interval-timers/auth-ui';
+import { supabase } from '@/lib/supabase/supabase-instance';
 import TrainerDashboard from './TrainerDashboard';
 import RosterView from './views/RosterView';
 import ClientDetailView from './views/ClientDetailView';
@@ -122,7 +123,22 @@ const TrainerGuard = () => {
         >
           Authenticate
         </button>
-        <AuthModal isOpen={showAuth} onClose={() => setShowAuth(false)} />
+        <AuthModal
+          isOpen={showAuth}
+          onClose={() => setShowAuth(false)}
+          supabase={supabase}
+          redirectBaseUrl="/account"
+          fromAppId="app"
+          getRedirectUrl={async (authUser) => {
+            const { data } = await supabase
+              .from('profiles')
+              .select('role')
+              .eq('id', authUser.id)
+              .single();
+            if (data?.role === 'trainer' || data?.role === 'admin') return '/trainer';
+            return null;
+          }}
+        />
       </div>
     );
   }

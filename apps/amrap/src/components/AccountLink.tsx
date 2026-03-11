@@ -9,10 +9,22 @@ import React from 'react';
 import { useAmrapAuth } from '@/contexts/AmrapAuthContext';
 
 // Production (same-origin): use /account. Dev (cross-origin): use full URL.
-const ACCOUNT_URL =
+// Reject VITE_HUD_REDIRECT_URL when it points to HUD (?hud=1) not Account.
+const hudRedirect = import.meta.env.VITE_HUD_REDIRECT_URL;
+const hudIsWrong =
+  typeof hudRedirect === 'string' &&
+  (hudRedirect.includes('hud=1') || hudRedirect.includes('?hud='));
+const ACCOUNT_BASE =
   import.meta.env.VITE_ACCOUNT_REDIRECT_URL ??
-  import.meta.env.VITE_HUD_REDIRECT_URL ??
-  '/account';
+  (hudIsWrong ? undefined : hudRedirect) ??
+  (import.meta.env.DEV ? 'http://localhost:3006/account' : '/account');
+
+function withFromAmrap(url: string): string {
+  const sep = url.includes('?') ? '&' : '?';
+  return `${url}${sep}from=amrap`;
+}
+
+const ACCOUNT_URL = withFromAmrap(ACCOUNT_BASE);
 
 interface AccountLinkProps {
   href?: string;

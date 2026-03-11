@@ -8,7 +8,7 @@ import {
 import { useAmrapAuth, useAmrapPermissions } from '@/contexts/AmrapAuthContext';
 import AccountLink from '@/components/AccountLink';
 import AmrapCtaButton from '@/components/AmrapCtaButton';
-import AuthModal from '@/components/AuthModal';
+import { AuthModal } from '@interval-timers/auth-ui';
 import WeekCalendar from '@/components/WeekCalendar';
 import CreateFlowSchedulePicker from '@/components/CreateFlowSchedulePicker';
 import WorkoutPicker from '@/components/WorkoutPicker';
@@ -338,6 +338,13 @@ export default function AmrapWithFriendsPage() {
       <AuthModal
         isOpen={showAuthModal}
         onClose={() => setShowAuthModal(false)}
+        supabase={supabase}
+        redirectBaseUrl={
+          import.meta.env.VITE_ACCOUNT_REDIRECT_URL ??
+          import.meta.env.VITE_HUD_REDIRECT_URL ??
+          '/account'
+        }
+        fromAppId="amrap"
         defaultSignUp={authModalSignUp}
       />
     </div>

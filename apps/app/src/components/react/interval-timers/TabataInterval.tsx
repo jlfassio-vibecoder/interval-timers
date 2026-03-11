@@ -287,6 +287,30 @@ const TabataInterval: React.FC<TabataTimerProps> = ({ onNavigate }) => {
         currentProtocol="tabata"
         onNavigate={onNavigate}
         accentTheme={getProtocolAccent('tabata')}
+        navEnd={
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() =>
+                window.dispatchEvent(new CustomEvent('showAuthModal', { detail: { fromAppId: 'tabata' } }))
+              }
+              className="rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-white/10"
+            >
+              Log in
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                window.dispatchEvent(
+                  new CustomEvent('showAuthModalWithSignup', { detail: { fromAppId: 'tabata' } })
+                )
+              }
+              className="rounded-lg border-2 border-orange-500 bg-orange-600 px-3 py-2 text-sm font-bold text-white transition-colors hover:bg-orange-500"
+            >
+              Create account
+            </button>
+          </div>
+        }
       >
         {/* HERO */}
         <section className="mx-auto max-w-4xl pt-8 text-center">

@@ -25,6 +25,8 @@ interface IntervalTimerLandingProps {
   children: ReactNode;
   /** Optional accent for badges/headers (e.g. Tabata red, Mindful green). Nav and primary CTA stay #ffbf00. */
   accentTheme?: ProtocolAccentTheme | null;
+  /** Optional content rendered on the right side of the nav (e.g. Create Account / Login buttons). */
+  navEnd?: ReactNode;
 }
 
 function getPrevProtocol(current: IntervalTimerPage): IntervalTimerPage | null {
@@ -44,6 +46,7 @@ const IntervalTimerLanding: React.FC<IntervalTimerLandingProps> = ({
   onNavigate,
   children,
   accentTheme = null,
+  navEnd,
 }) => {
   const prev = getPrevProtocol(currentProtocol);
   const next = getNextProtocol(currentProtocol);
@@ -59,7 +62,8 @@ const IntervalTimerLanding: React.FC<IntervalTimerLandingProps> = ({
                 <span className="text-orange-light">| {getProtocolLabel(currentProtocol)}</span>
               </span>
             </div>
-            <div className="hidden flex-wrap items-center justify-end gap-1 text-xs font-bold md:flex md:gap-3">
+            <div className="flex flex-wrap items-center justify-end gap-2 text-xs font-bold md:gap-3">
+              <div className="hidden md:flex md:flex-wrap md:items-center md:gap-1 md:gap-x-3">
               {INTERVAL_TIMER_PROTOCOLS.map(({ id }, index) => (
                 <React.Fragment key={id}>
                   <button
@@ -78,6 +82,8 @@ const IntervalTimerLanding: React.FC<IntervalTimerLandingProps> = ({
                   )}
                 </React.Fragment>
               ))}
+              </div>
+              {navEnd}
             </div>
             <div className="flex gap-2 md:hidden">
               {prev && (
