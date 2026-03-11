@@ -110,13 +110,17 @@ function patchRootPackageJson(workspace) {
   const devKey = `dev:${workspace}`;
   const buildKey = `build:${workspace}`;
   const wsPath = `apps/${workspace}`;
-  if (pkg.scripts[devKey]) return;
+
+  // Ensure workspace is in package.json (must run before scripts early-return)
   if (!pkg.workspaces.includes(wsPath)) {
     const before = pkg.workspaces.findIndex((w) => w === 'apps/bio-sync-sixty/apps/*' || w.startsWith('packages/'));
     const insertAt = before >= 0 ? before : pkg.workspaces.length;
     pkg.workspaces.splice(insertAt, 0, wsPath);
     fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2));
   }
+
+  if (pkg.scripts[devKey]) return;
+
   const ordered = {};
   for (const k of Object.keys(pkg.scripts)) {
     if (k === 'env:pull') {
