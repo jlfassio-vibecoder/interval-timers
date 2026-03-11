@@ -10,6 +10,8 @@ const readline = require('readline');
 const REPO_ROOT = path.resolve(__dirname, '..');
 const TEMPLATE_DIR = path.join(REPO_ROOT, 'apps', '.template-timer');
 const WORKSPACE_REGEX = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+// URL path: segments of [a-z0-9][a-z0-9-]* separated by / (e.g. foo-bar, 10-20-30, bio-sync-sixty/master-clock)
+const URL_PATH_REGEX = /^[a-z0-9][a-z0-9-]*(?:\/[a-z0-9][a-z0-9-]*)*$/;
 
 function prompt(question, defaultVal = '') {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
@@ -17,7 +19,8 @@ function prompt(question, defaultVal = '') {
   return new Promise((resolve) => {
     rl.question(`${question}${def}: `, (answer) => {
       rl.close();
-      resolve(typeof answer === 'string' ? answer.trim() : '' || defaultVal);
+      const trimmed = typeof answer === 'string' ? answer.trim() : '';
+      resolve(trimmed || defaultVal);
     });
   });
 }
@@ -32,6 +35,25 @@ function parseArgs() {
     else if (a === '--no-merged') out.merged = false;
   }
   return out;
+}
+
+function normalizeAndValidateUrlPath(raw) {
+  if (raw == null || typeof raw !== 'string') return null;
+  let s = raw.trim().replace(/^\/+|\/+$/g, '');
+  if (s === '') return null;
+  if (/\.\.|[\\'"\0-\x1f]/.test(s)) {
+    console.error(
+      'URL path must not contain .., backslashes, quotes, or control characters.'
+    );
+    process.exit(1);
+  }
+  if (!URL_PATH_REGEX.test(s)) {
+    console.error(
+      'URL path must be lowercase letters, numbers, hyphens only (e.g. foo-bar or foo/bar).'
+    );
+    process.exit(1);
+  }
+  return s;
 }
 
 function toTitle(workspace) {
@@ -160,6 +182,7 @@ async function main() {
   }
 
   if (urlPath === null || urlPath === '') urlPath = name;
+  urlPath = normalizeAndValidateUrlPath(urlPath) ?? name;
   if (merged === null) {
     const m = await prompt('Include in merged deploy?', 'yes');
     merged = !m || m.toLowerCase().startsWith('y');
