@@ -9,14 +9,7 @@
     "app#build": {
       "dependsOn": ["^build"],
       "outputs": [".vercel/output/**"],
-      "env": [
-        "VITE_*",
-        "PUBLIC_*",
-        "SUPABASE_*",
-        "DATABASE_URL",
-        "GOOGLE_PROJECT_ID",
-        "VERCEL"
-      ]
+      "env": ["VITE_*", "PUBLIC_*", "VERCEL"]
     }
   },
   "globalEnv": ["NODE_ENV", "CI"]
