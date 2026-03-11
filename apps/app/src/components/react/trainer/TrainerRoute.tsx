@@ -134,7 +134,7 @@ const TrainerGuard = () => {
               .from('profiles')
               .select('role')
               .eq('id', authUser.id)
-              .single();
+              .maybeSingle();
             if (data?.role === 'trainer' || data?.role === 'admin') return '/trainer';
             return null;
           }}

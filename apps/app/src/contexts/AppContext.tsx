@@ -110,7 +110,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const finishInit = () => {
       if (!didFinish && mounted) {
         didFinish = true;
-        if (import.meta.env.DEV) console.log('[AUDIT] AppContext finishInit() - setLoading(false)');
         setLoading(false);
       }
     };
@@ -126,7 +125,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }, 5000);
 
     const run = async () => {
-      if (import.meta.env.DEV) console.log('[AUDIT] AppContext run() start');
       try {
         // 0. Restore session from URL hash (cross-origin handoff from AMRAP)
         const hash = typeof window !== 'undefined' ? window.location.hash : '';
@@ -159,12 +157,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const {
           data: { session: s },
         } = await supabase.auth.getSession();
-        if (import.meta.env.DEV) console.log('[AUDIT] AppContext after getSession:', s ? 'has session' : 'no session', s?.user?.id);
         if (mounted) {
           setSession(s);
           if (s?.user) {
             await fetchProfile(s.user.id, s.user.email || undefined);
-            if (import.meta.env.DEV) console.log('[AUDIT] AppContext after fetchProfile');
           }
         }
       } catch (err) {

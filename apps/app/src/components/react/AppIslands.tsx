@@ -441,7 +441,7 @@ const AppIslands: React.FC<AppIslandsProps> = ({ pathname: initialPathname }) =>
             .from('profiles')
             .select('role')
             .eq('id', authUser.id)
-            .single();
+            .maybeSingle();
           const isAdmin = data?.role === 'admin';
           const isTrainer = data?.role === 'trainer';
           if (

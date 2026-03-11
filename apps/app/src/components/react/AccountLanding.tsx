@@ -12,7 +12,7 @@ import { useAppContext } from '@/contexts/AppContext';
 import { APP_REGISTRY, getAppById } from '@/lib/app-registry';
 
 const AccountLanding: React.FC = () => {
-  const { user, session } = useAppContext();
+  const { user, session, loading } = useAppContext();
   const [fromAppId, setFromAppId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -20,6 +20,16 @@ const AccountLanding: React.FC = () => {
     const params = new URLSearchParams(window.location.search);
     setFromAppId(params.get('from'));
   }, []);
+
+  // Wait for auth to resolve before deciding signed-in vs signed-out; avoids flashing
+  // sign-in card to logged-in users while getSession() is still in flight.
+  if (loading) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <p className="font-mono text-sm text-white/50">Loading…</p>
+      </div>
+    );
+  }
 
   // Authorized if we have user (profile) OR session (auth). Session can be set before profile
   // fetch completes; after login redirect, profile may lag. Treat session as logged-in so we

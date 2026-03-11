@@ -16,5 +16,10 @@ CREATE TABLE IF NOT EXISTS public.user_programs (
 
 ALTER TABLE public.user_programs ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can manage own user_programs" ON public.user_programs;
 CREATE POLICY "Users can manage own user_programs" ON public.user_programs
-  FOR ALL USING (auth.uid() = user_id);
+  FOR ALL
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.user_programs TO authenticated;
