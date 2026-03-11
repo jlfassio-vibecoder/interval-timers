@@ -1,5 +1,14 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  "globalPassThroughEnv": [
+    "SUPABASE_URL",
+    "SUPABASE_ANON_KEY",
+    "SUPABASE_PUBLISHABLE_KEY",
+    "SUPABASE_SERVICE_ROLE_KEY",
+    "DATABASE_URL",
+    "SUPABASE_DB_PASSWORD",
+    "SUPABASE_ACCESS_TOKEN"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
