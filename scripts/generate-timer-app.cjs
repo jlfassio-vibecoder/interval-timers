@@ -109,7 +109,14 @@ function patchRootPackageJson(workspace) {
   const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
   const devKey = `dev:${workspace}`;
   const buildKey = `build:${workspace}`;
+  const wsPath = `apps/${workspace}`;
   if (pkg.scripts[devKey]) return;
+  if (!pkg.workspaces.includes(wsPath)) {
+    const before = pkg.workspaces.findIndex((w) => w === 'apps/bio-sync-sixty/apps/*' || w.startsWith('packages/'));
+    const insertAt = before >= 0 ? before : pkg.workspaces.length;
+    pkg.workspaces.splice(insertAt, 0, wsPath);
+    fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2));
+  }
   const ordered = {};
   for (const k of Object.keys(pkg.scripts)) {
     if (k === 'env:pull') {
