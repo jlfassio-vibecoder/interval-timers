@@ -34,9 +34,34 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+/** SSR-safe stub when context is unavailable (e.g. account page during server render) */
+const SSR_STUB: AppContextType = {
+  user: null,
+  session: null,
+  loading: true,
+  profile: null,
+  trainerProfile: null,
+  activeProgramId: null,
+  isTrainer: false,
+  isAdmin: false,
+  workoutLogs: [],
+  completedWorkouts: new Set(),
+  purchasedIndex: null,
+  isPaid: false,
+  setProfile: () => {},
+  setWorkoutLogs: () => {},
+  setCompletedWorkouts: () => {},
+  setPurchasedIndex: () => {},
+  setActiveProgramId: () => {},
+  handleLogout: async () => {},
+};
+
 export const useAppContext = () => {
   const context = useContext(AppContext);
-  if (!context) throw new Error('useAppContext must be used within AppProvider');
+  if (!context) {
+    if (typeof window === 'undefined') return SSR_STUB;
+    throw new Error('useAppContext must be used within AppProvider');
+  }
   return context;
 };
 
@@ -83,44 +108,49 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
 
     const run = async () => {
-      // 0. Restore session from URL hash (cross-origin handoff from AMRAP)
-      const hash = typeof window !== 'undefined' ? window.location.hash : '';
-      if (hash) {
-        const params = new URLSearchParams(hash.slice(1));
-        const accessToken = params.get('access_token');
-        const refreshToken = params.get('refresh_token');
-        if (accessToken && refreshToken) {
-          try {
-            await supabase.auth.setSession({
-              access_token: accessToken,
-              refresh_token: refreshToken,
-            });
-            window.history.replaceState(
-              null,
-              '',
-              window.location.pathname + window.location.search
-            );
-          } catch {
-            window.history.replaceState(
-              null,
-              '',
-              window.location.pathname + window.location.search
-            );
+      try {
+        // 0. Restore session from URL hash (cross-origin handoff from AMRAP)
+        const hash = typeof window !== 'undefined' ? window.location.hash : '';
+        if (hash) {
+          const params = new URLSearchParams(hash.slice(1));
+          const accessToken = params.get('access_token');
+          const refreshToken = params.get('refresh_token');
+          if (accessToken && refreshToken) {
+            try {
+              await supabase.auth.setSession({
+                access_token: accessToken,
+                refresh_token: refreshToken,
+              });
+              window.history.replaceState(
+                null,
+                '',
+                window.location.pathname + window.location.search
+              );
+            } catch {
+              window.history.replaceState(
+                null,
+                '',
+                window.location.pathname + window.location.search
+              );
+            }
           }
         }
-      }
 
-      // 1. Initial Session Check
-      const {
-        data: { session: s },
-      } = await supabase.auth.getSession();
-      if (mounted) {
-        setSession(s);
-        if (s?.user) {
-          await fetchProfile(s.user.id, s.user.email || undefined);
+        // 1. Initial Session Check
+        const {
+          data: { session: s },
+        } = await supabase.auth.getSession();
+        if (mounted) {
+          setSession(s);
+          if (s?.user) {
+            await fetchProfile(s.user.id, s.user.email || undefined);
+          }
         }
+      } catch (err) {
+        if (import.meta.env.DEV) console.error('[AppContext] Auth init failed:', err);
+      } finally {
+        finishInit();
       }
-      finishInit();
     };
 
     run();

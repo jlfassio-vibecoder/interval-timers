@@ -15,13 +15,11 @@ export function getToken(): string | null {
 
 export type TokenResult = { token: string } | { error: string }
 
-/** Fetch token from /api/agora-token (prod) or proxied token server (dev). Uses env token if set. */
+/** Fetch token from /api/agora-token (prod) or proxied token server (dev). Always fetches when account is provided to avoid UID 0 / UID_CONFLICT (static tokens are uid-based). */
 export async function getTokenOrFetchWithAccount(
   channelName: string,
   account: string
 ): Promise<TokenResult> {
-  const envToken = getToken()
-  if (envToken) return { token: envToken }
   try {
     const base = typeof window !== 'undefined' ? window.location.origin : ''
     const url = `${base}/api/agora-token?channel=${encodeURIComponent(channelName)}&account=${encodeURIComponent(account)}`

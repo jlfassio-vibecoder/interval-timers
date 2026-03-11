@@ -17,6 +17,7 @@ import VideoTile from '@/components/VideoTile';
 import SessionMessageBoard from '@/components/SessionMessageBoard';
 import { useAgoraChannel } from '@/hooks/useAgoraChannel';
 import { getWorkoutTitleAndDuration } from '@/lib/workoutLabel';
+import NewWorkoutModal from '@/components/NewWorkoutModal';
 
 const COUNTDOWN_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
 
@@ -187,6 +188,46 @@ export default function AmrapSessionPage() {
     startSetup();
   }, [isHost, timerState, session?.scheduled_start_at, startSetup, now]);
 
+  const handleOpenNewWorkoutModal = useCallback(async () => {
+    if (!sessionId || !hostToken || !isHost) return;
+    await supabase.rpc('set_new_workout_modal', {
+      p_session_id: sessionId,
+      p_host_token: hostToken,
+      p_open: true,
+    });
+  }, [sessionId, hostToken, isHost]);
+
+  const handleCloseNewWorkoutModal = useCallback(async () => {
+    if (!sessionId || !hostToken || !isHost) return;
+    await supabase.rpc('set_new_workout_modal', {
+      p_session_id: sessionId,
+      p_host_token: hostToken,
+      p_open: false,
+    });
+  }, [sessionId, hostToken, isHost]);
+
+  const handleNewWorkoutSelect = useCallback(
+    async (workoutList: string[], durationMinutes: number) => {
+      if (!sessionId || !hostToken || !isHost) return;
+      const { data } = await supabase.rpc('update_session_workout', {
+        p_session_id: sessionId,
+        p_host_token: hostToken,
+        p_workout_list: workoutList,
+        p_duration_minutes: durationMinutes,
+      });
+      if (data !== 1) return;
+      await supabase.rpc('set_new_workout_modal', {
+        p_session_id: sessionId,
+        p_host_token: hostToken,
+        p_open: false,
+      });
+      if (timerState === 'setup' || timerState === 'work') {
+        startSetup();
+      }
+    },
+    [sessionId, hostToken, isHost, timerState, startSetup]
+  );
+
   const workoutList = session?.workout_list ?? [];
   const myRounds = participantId
     ? rounds.filter((r) => r.participant_id === participantId)
@@ -313,10 +354,16 @@ export default function AmrapSessionPage() {
             : null
       : null;
 
-  const displayLabel = waitingScheduleDisplay?.label ?? (timerState === 'setup' ? 'Preparation' : timerState === 'finished' ? 'Complete' : 'Time Remaining');
-  const displayTitle = waitingScheduleDisplay?.title ?? timerStyle.text;
-  const displaySub = waitingScheduleDisplay?.sub ?? timerStyle.sub;
-  const displayValue = waitingScheduleDisplay?.value ?? formatTime(timeLeft);
+  // Pre-start screen (before Start clicked): Get Ready, AMRAP Duration, full workout time
+  const waitingPreStartDisplay =
+    timerState === 'waiting' && (!scheduledStartAt || scheduledTimePassed)
+      ? { label: 'AMRAP Duration', title: 'Get Ready', value: formatTime(totalTime), sub: undefined as string | undefined }
+      : null;
+
+  const displayLabel = waitingPreStartDisplay?.label ?? waitingScheduleDisplay?.label ?? (timerState === 'setup' ? 'Setup' : timerState === 'finished' ? 'Complete' : 'Time Remaining');
+  const displayTitle = waitingPreStartDisplay?.title ?? waitingScheduleDisplay?.title ?? timerStyle.text;
+  const displaySub = waitingPreStartDisplay?.sub ?? waitingScheduleDisplay?.sub ?? timerStyle.sub;
+  const displayValue = waitingPreStartDisplay?.value ?? waitingScheduleDisplay?.value ?? formatTime(timeLeft);
 
   return (
     <>
@@ -526,9 +573,26 @@ export default function AmrapSessionPage() {
               {displayLabel}
             </div>
             <div
-              className={`font-bold tabular-nums ${beforeCountdownWindow ? 'text-[2.25rem] text-white/90 md:text-[2.8125rem]' : `font-mono text-[6.75rem] md:text-[9rem] ${timerState === 'work' ? 'text-orange-500' : 'text-white/90'}`}`}
+              className={`@container overflow-hidden min-w-0 font-bold tabular-nums ${beforeCountdownWindow ? 'text-[2.25rem] text-white/90 md:text-[2.8125rem]' : `font-mono ${timerState === 'work' ? 'text-orange-500' : 'text-white/90'}`}`}
             >
-              {displayValue}
+              {beforeCountdownWindow ? (
+                displayValue
+              ) : (
+                <span
+                  style={
+                    /^\d{1,2}:\d{2}$/.test(displayValue)
+                      ? { fontSize: 'clamp(2rem, min(15cqw, 15cqh), 9rem)' }
+                      : undefined
+                  }
+                  className={
+                    /^\d{1,2}:\d{2}$/.test(displayValue)
+                      ? undefined
+                      : 'text-[clamp(1.5rem,5vmin,4rem)]'
+                  }
+                >
+                  {displayValue}
+                </span>
+              )}
             </div>
 
             {showStartButton && (
@@ -635,11 +699,22 @@ export default function AmrapSessionPage() {
             participants={participants}
           />
           {/* Exercises — same style/format, stacked under message board */}
-          {workoutList.length > 0 && (
+          {(workoutList.length > 0 || (isHost && (timerState === 'waiting' || timerState === 'setup' || timerState === 'work' || timerState === 'finished'))) && (
             <div>
-              <h3 className="mb-6 text-xl font-bold uppercase tracking-widest text-white/90 sm:text-2xl">
-                This round
-              </h3>
+              <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+                <h3 className="text-xl font-bold uppercase tracking-widest text-white/90 sm:text-2xl">
+                  This round
+                </h3>
+                {isHost && (timerState === 'waiting' || timerState === 'setup' || timerState === 'work' || timerState === 'finished') && (
+                  <button
+                    type="button"
+                    onClick={handleOpenNewWorkoutModal}
+                    className="rounded-xl border border-orange-500/50 bg-orange-600/20 px-4 py-2 text-sm font-bold text-orange-300 transition-colors hover:border-orange-500 hover:bg-orange-600/30"
+                  >
+                    New Workout
+                  </button>
+                )}
+              </div>
               <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-1 lg:gap-6">
                 {workoutList.map((ex, i) => {
                   const match = ex.trim().match(/^(\d+(?:-\d+)?|\d+m)\s+(.+)$/);
@@ -675,6 +750,13 @@ export default function AmrapSessionPage() {
       isOpen={showAuthModal}
       onClose={() => setShowAuthModal(false)}
       defaultSignUp={authModalSignUp}
+    />
+
+    <NewWorkoutModal
+      isOpen={session?.show_new_workout_modal === true}
+      onClose={handleCloseNewWorkoutModal}
+      onSelect={handleNewWorkoutSelect}
+      isHost={isHost}
     />
     </>
   );
