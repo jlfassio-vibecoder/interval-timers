@@ -143,8 +143,14 @@ function patchCopyScript(workspace, urlPath) {
   const entry = `  { src: '${workspace}', dest: '${urlPath}' },\n  `;
   const search = `  { src: 'bio-sync-sixty', dest: 'bio-sync-sixty' },`;
   if (content.includes(`src: '${workspace}'`)) return;
-  content = content.replace(search, entry + search);
-  fs.writeFileSync(copyPath, content);
+  const next = content.replace(search, entry + search);
+  if (next === content) {
+    console.error(
+      `copy-standalone-apps-to-dist.cjs: anchor "${search}" not found. Cannot add ${workspace}.`
+    );
+    process.exit(1);
+  }
+  fs.writeFileSync(copyPath, next);
 }
 
 function patchVercelJson(urlPath) {
