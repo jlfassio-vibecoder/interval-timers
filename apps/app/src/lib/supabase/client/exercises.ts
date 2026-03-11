@@ -2,7 +2,7 @@
  * Client-side admin exercises list. Replaces firebase/admin/exercises.
  */
 
-import { supabase } from '../client';
+import { supabase } from '../supabase-instance';
 
 export interface Exercise {
   id: string;

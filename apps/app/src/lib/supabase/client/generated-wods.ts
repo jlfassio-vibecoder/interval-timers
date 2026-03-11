@@ -5,7 +5,7 @@
  * Client-side service for generated_wods. Replaces firebase/client/generated-wods.
  */
 
-import { supabase } from '../client';
+import { supabase } from '../supabase-instance';
 import type {
   GeneratedWODDoc,
   CreateGeneratedWODInput,

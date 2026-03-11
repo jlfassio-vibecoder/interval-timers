@@ -15,7 +15,7 @@ import {
 } from 'react-router-dom';
 import { Home, LogOut, LayoutDashboard } from 'lucide-react';
 import { AppProvider } from '@/contexts/AppContext';
-import { supabase } from '@/lib/supabase/client';
+import { supabase } from '@/lib/supabase/supabase-instance';
 import { clearAuthCookie } from '@/lib/auth-cookie';
 import DashboardHome from './views/DashboardHome';
 import ManageUsers from './views/ManageUsers';

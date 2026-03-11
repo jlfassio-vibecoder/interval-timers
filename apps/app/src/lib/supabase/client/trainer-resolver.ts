@@ -6,7 +6,7 @@
  * Chain: user_programs (active) → programs.trainer_id → profiles.
  */
 
-import { supabase } from '../client';
+import { supabase } from '../supabase-instance';
 
 export interface TrainerProfile {
   uid: string;

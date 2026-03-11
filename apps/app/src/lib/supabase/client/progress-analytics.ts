@@ -6,7 +6,7 @@
  * Uses user_workout_logs (set-level logs from WorkoutPlayer).
  */
 
-import { supabase } from '../client';
+import { supabase } from '../supabase-instance';
 
 function todayISO(): string {
   return new Date().toISOString().slice(0, 10);

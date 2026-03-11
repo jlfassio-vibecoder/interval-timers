@@ -3,7 +3,7 @@
  * Fetches sessions where user is creator or participant.
  */
 
-import { supabase } from '../client';
+import { supabase } from '../supabase-instance';
 
 export interface AmrapScheduledSession {
   id: string;
@@ -41,8 +41,7 @@ export async function getAmrapScheduledSessionsForUser(
     .select('session_id')
     .eq('user_id', userId);
 
-  const sessionIds =
-    participantRows?.map((r) => r.session_id).filter(Boolean) ?? [];
+  const sessionIds = participantRows?.map((r) => r.session_id).filter(Boolean) ?? [];
 
   if (sessionIds.length === 0) {
     return (created ?? []).map((row) => ({
@@ -87,7 +86,6 @@ export async function getAmrapScheduledSessionsForUser(
   }
 
   return Array.from(byId.values()).sort(
-    (a, b) =>
-      new Date(a.scheduled_start_at).getTime() - new Date(b.scheduled_start_at).getTime()
+    (a, b) => new Date(a.scheduled_start_at).getTime() - new Date(b.scheduled_start_at).getTime()
   );
 }

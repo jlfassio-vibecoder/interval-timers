@@ -2,7 +2,7 @@
  * Client-side user program access and program schedule. Replaces firebase/client/user-programs.
  */
 
-import { supabase } from '../client';
+import { supabase } from '../supabase-instance';
 import type { UserProgramAccess } from '@/types/user-program';
 import type { ProgramSchedule } from '@/types/ai-program';
 

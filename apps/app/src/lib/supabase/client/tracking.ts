@@ -3,7 +3,7 @@
  * Replaces firebase/client/tracking.
  */
 
-import { supabase } from '../client';
+import { supabase } from '../supabase-instance';
 import type { WorkoutLog } from '@/types/tracking';
 
 export async function saveWorkoutLog(userId: string, log: WorkoutLog): Promise<string> {

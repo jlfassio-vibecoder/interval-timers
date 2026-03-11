@@ -5,7 +5,7 @@
  * Calendar completion: map user_workout_logs to date → completed workout keys for Schedule Zone.
  */
 
-import { supabase } from '../client';
+import { supabase } from '../supabase-instance';
 
 /**
  * Returns Map<date (ISO YYYY-MM-DD), Set<programId:weekId:workoutId>> for completed workouts

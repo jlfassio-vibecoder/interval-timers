@@ -9,7 +9,7 @@
 import React, { useState, useRef } from 'react';
 import { X, Upload, Loader2, Video } from 'lucide-react';
 import { toast } from 'sonner';
-import { supabase } from '@/lib/supabase/client';
+import { supabase } from '@/lib/supabase/supabase-instance';
 import { uploadExerciseVideo } from '@/lib/supabase/client/storage';
 import { addExerciseVideo } from '@/lib/supabase/client/generated-exercises';
 

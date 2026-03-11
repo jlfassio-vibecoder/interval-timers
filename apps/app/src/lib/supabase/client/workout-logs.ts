@@ -3,7 +3,7 @@
  * Replaces firebaseService.saveWorkoutLog / fetchWorkoutLogs.
  */
 
-import { supabase } from '../client';
+import { supabase } from '../supabase-instance';
 import type { WorkoutLog } from '@/types';
 
 export async function saveWorkoutLog(log: Omit<WorkoutLog, 'id'>): Promise<string> {

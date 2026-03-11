@@ -1,4 +1,4 @@
-import { supabase } from '../client';
+import { supabase } from '../supabase-instance';
 
 /** Shape of a program row from Supabase (select *). */
 interface ProgramRow {

@@ -5,7 +5,7 @@
  * Client-side persistence for Workout Factory. Calls admin API endpoints (Supabase-backed).
  */
 
-import { supabase } from '@/lib/supabase/client';
+import { supabase } from '@/lib/supabase/supabase-instance';
 import type {
   WorkoutSetTemplate,
   WorkoutConfig,

@@ -2,7 +2,7 @@
  * Client-side warmup config (Daily Warm-Up). Replaces firebase/client/warmup-config.
  */
 
-import { supabase } from '../client';
+import { supabase } from '../supabase-instance';
 
 export interface WarmupConfigSlot {
   order: number;

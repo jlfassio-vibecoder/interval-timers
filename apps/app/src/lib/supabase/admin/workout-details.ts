@@ -1,4 +1,4 @@
-import { supabase } from '../client';
+import { supabase } from '../supabase-instance';
 
 /** Minimal type for an exercise within a workout block (JSON structure). */
 export interface BlockExercise {

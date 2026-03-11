@@ -6,7 +6,7 @@
  * Reads from user_workout_logs (WorkoutPlayer sessions).
  */
 
-import { supabase } from '../client';
+import { supabase } from '../supabase-instance';
 import type { ExerciseLog } from '@/types/tracking';
 
 export type SessionFilter = 'all' | 'this_week' | 'this_month' | { programId: string };

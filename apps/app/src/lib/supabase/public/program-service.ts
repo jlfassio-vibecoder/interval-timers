@@ -42,12 +42,7 @@ function parseDifficulty(
   val: string | null | undefined,
   fallback: UserDemographics['experienceLevel']
 ): 'beginner' | 'intermediate' | 'advanced' {
-  if (
-    val === 'beginner' ||
-    val === 'intermediate' ||
-    val === 'advanced'
-  )
-    return val;
+  if (val === 'beginner' || val === 'intermediate' || val === 'advanced') return val;
   return fallback;
 }
 

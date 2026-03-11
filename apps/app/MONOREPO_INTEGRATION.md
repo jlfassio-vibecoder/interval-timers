@@ -82,14 +82,14 @@ This document describes how the App (Astro) fits into the Workout Generator mono
 
 ## Summary Checklist
 
-| Item         | Action                                                                                            |
-| ------------ | ------------------------------------------------------------------------------------------------- |
-| Workspace    | Already included via `apps/*`; run `npm install` at root.                                         |
-| Turbo        | No change; `dist/**` already in build outputs.                                                    |
-| Root script  | Add `dev:app` with `turbo run dev --filter=app`. |
-| Package name | Already set to `"app"` in `apps/app/package.json`. |
-| Port         | 3006; no conflict.                                                                                |
-| Env          | Use `apps/app/.env` and `.env.local` as today.                                               |
-| COMMANDS.md  | Document app, port 3006, and how to run from root and from `apps/app`.                  |
+| Item         | Action                                                                 |
+| ------------ | ---------------------------------------------------------------------- |
+| Workspace    | Already included via `apps/*`; run `npm install` at root.              |
+| Turbo        | No change; `dist/**` already in build outputs.                         |
+| Root script  | Add `dev:app` with `turbo run dev --filter=app`.                       |
+| Package name | Already set to `"app"` in `apps/app/package.json`.                     |
+| Port         | 3006; no conflict.                                                     |
+| Env          | Use `apps/app/.env` and `.env.local` as today.                         |
+| COMMANDS.md  | Document app, port 3006, and how to run from root and from `apps/app`. |
 
 After that, the Astro app is wired in: root install and root-level `npm run dev` or `npm run dev:app` will include it, and builds will be cached by Turbo with `dist/` as the build output.

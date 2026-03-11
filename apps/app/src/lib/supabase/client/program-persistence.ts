@@ -5,7 +5,7 @@
  * Program persistence: calls admin API endpoints (Supabase-backed).
  */
 
-import { supabase } from '@/lib/supabase/client';
+import { supabase } from '@/lib/supabase/supabase-instance';
 import type {
   ProgramTemplate,
   ProgramConfig,

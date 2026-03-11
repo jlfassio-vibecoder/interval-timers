@@ -19,6 +19,7 @@
     "@interval-timers/timer-sounds": "*",
     "@interval-timers/timer-ui": "*",
     "@interval-timers/types": "*",
+    "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.47.0",
     "agora-rtc-sdk-ng": "^4.24.2",
     "clsx": "^2.1.1",

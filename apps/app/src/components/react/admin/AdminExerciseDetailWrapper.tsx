@@ -8,7 +8,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { supabase } from '@/lib/supabase/client';
+import { supabase } from '@/lib/supabase/supabase-instance';
 import { uploadExerciseImage } from '@/lib/supabase/client/storage';
 import {
   getGeneratedExerciseBySlug,

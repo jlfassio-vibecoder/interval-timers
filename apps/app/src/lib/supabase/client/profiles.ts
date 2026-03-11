@@ -2,7 +2,7 @@
  * Client-side profile updates. Replaces firebaseService.updatePurchasedPass.
  */
 
-import { supabase } from '../client';
+import { supabase } from '../supabase-instance';
 
 export async function updatePurchasedPass(uid: string, index: number): Promise<void> {
   const { error } = await supabase
