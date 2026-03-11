@@ -1,7 +1,7 @@
 /**
  * Builds the redirect URL used after successful sign-in.
  * Appends ?from=<fromAppId> and optionally &returnUrl=<encoded returnUrl>
- * to the base URL, handling existing query params and trailing slashes.
+ * to the base URL, handling existing query params (? vs &).
  */
 export function buildAuthRedirectUrl(
   redirectBaseUrl: string,

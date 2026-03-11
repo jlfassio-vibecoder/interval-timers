@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { SupabaseClient, User } from '@supabase/supabase-js';
 import { buildAuthRedirectUrl } from './useAuthRedirect';
 
@@ -50,6 +50,19 @@ export default function AuthModal({
   const [showPassword, setShowPassword] = useState(false);
   const [signUpSuccess, setSignUpSuccess] = useState(false);
 
+  const clearForm = useCallback(() => {
+    setEmail('');
+    setPassword('');
+    setFullName('');
+    setError(null);
+    setSignUpSuccess(false);
+  }, []);
+
+  const handleClose = useCallback(() => {
+    clearForm();
+    onClose();
+  }, [clearForm, onClose]);
+
   useEffect(() => {
     if (isOpen) {
       setIsSignUp(defaultSignUp);
@@ -61,19 +74,16 @@ export default function AuthModal({
   useEffect(() => {
     if (!isOpen) return;
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') handleClose();
     };
     window.addEventListener('keydown', handleEscape);
     return () => window.removeEventListener('keydown', handleEscape);
-  }, [isOpen, onClose]);
+  }, [isOpen, handleClose]);
 
-  const clearForm = () => {
-    setEmail('');
-    setPassword('');
-    setFullName('');
-    setError(null);
-    setSignUpSuccess(false);
-  };
+  // Clear form when modal closes (handles parent calling onClose directly)
+  useEffect(() => {
+    if (!isOpen) clearForm();
+  }, [isOpen, clearForm]);
 
   const handleRedirect = async (user: User) => {
     if (getRedirectUrl) {
@@ -125,11 +135,6 @@ export default function AuthModal({
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleClose = () => {
-    clearForm();
-    onClose();
   };
 
   if (!isOpen) return null;
