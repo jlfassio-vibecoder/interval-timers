@@ -103,6 +103,18 @@
       "destination": "https://interval-timers-accounts.vercel.app/api/$1"
     },
     {
+      "source": "/_astro/(.*)",
+      "destination": "https://interval-timers-accounts.vercel.app/_astro/$1"
+    },
+    {
+      "source": "/site.webmanifest",
+      "destination": "https://interval-timers-accounts.vercel.app/site.webmanifest"
+    },
+    {
+      "source": "/fonts/(.*)",
+      "destination": "https://interval-timers-accounts.vercel.app/fonts/$1"
+    },
+    {
       "source": "/amrap",
       "destination": "/amrap/index.html"
     },
