@@ -57,7 +57,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultSignUp = 
         });
         if (error) throw error;
 
-        // Check role and redirect if trainer/admin
+        // Check role and redirect
         if (data.user) {
           const { data: profile } = await supabase
             .from('profiles')
@@ -67,7 +67,11 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultSignUp = 
 
           if (profile?.role === 'trainer' || profile?.role === 'admin') {
             window.location.href = '/trainer';
+            return;
           }
+          // Regular users: redirect to account so they land where they expect
+          window.location.href = '/account';
+          return;
         }
       }
       onClose();

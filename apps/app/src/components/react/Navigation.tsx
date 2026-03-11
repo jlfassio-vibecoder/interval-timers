@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Menu, X, Activity, LogOut, LogIn } from 'lucide-react';
+import { Menu, X, Activity, LogOut, LogIn, UserCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAppContext } from '../../contexts/AppContext';
 import { EXERCISE_LABELS } from '@/lib/labels/exercises';
@@ -201,6 +201,14 @@ const Navigation: React.FC<NavigationProps> = ({
           Mission Control
         </a>
       )}
+      <a
+        href="/account"
+        className="hidden items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-white transition-colors hover:bg-white/15 hover:text-orange-light md:flex"
+        aria-label="Account"
+      >
+        <UserCircle className="h-4 w-4" />
+        <span className="text-xs font-bold uppercase">Account</span>
+      </a>
       <button
         onClick={onShowHUD}
         className="flex cursor-pointer items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-white transition-colors hover:bg-white/15 hover:text-orange-light"
@@ -388,6 +396,13 @@ const Navigation: React.FC<NavigationProps> = ({
                 })}
                 {user ? (
                   <>
+                    <a
+                      href="/account"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="rounded-full bg-white/10 px-4 py-2.5 font-semibold text-white transition-colors hover:bg-white/15 hover:text-orange-light"
+                    >
+                      Account
+                    </a>
                     <button
                       onClick={() => {
                         onShowHUD();
