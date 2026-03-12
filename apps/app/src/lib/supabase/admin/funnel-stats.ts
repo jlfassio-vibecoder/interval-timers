@@ -87,11 +87,11 @@ export async function getFunnelStats(days = DEFAULT_DAYS): Promise<FunnelStats> 
   );
 
   for (const r of eventResults) {
-    if ('rows' in r) {
+    if ('rows' in r && r.rows) {
       r.rows.forEach((row) => row.user_id && (r.name === 'hub_timer_launch_1' ? distinctLaunch1 : distinctLaunch2).add(row.user_id));
       counts[r.name] = r.rows.length;
     } else {
-      counts[r.name] = r.count;
+      counts[r.name] = ('count' in r ? r.count : 0);
     }
   }
 
