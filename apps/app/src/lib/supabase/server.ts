@@ -46,6 +46,9 @@ const anonKey =
 export function getSupabaseServer() {
   if (!supabaseUrl) throw new Error('SUPABASE_URL or PUBLIC_SUPABASE_URL or VITE_SUPABASE_URL required');
   const key = serviceRoleKey || anonKey;
-  if (!key) throw new Error('SUPABASE_SERVICE_ROLE_KEY or PUBLIC_SUPABASE_ANON_KEY required');
+  if (!key)
+    throw new Error(
+      'SUPABASE_SERVICE_ROLE_KEY or SUPABASE_ANON_KEY or PUBLIC_SUPABASE_ANON_KEY or VITE_SUPABASE_ANON_KEY required'
+    );
   return createClient(supabaseUrl, key);
 }

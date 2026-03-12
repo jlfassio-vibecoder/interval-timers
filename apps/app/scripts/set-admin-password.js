@@ -3,7 +3,7 @@
 /**
  * Set password for a Supabase Auth user via Admin API (e.g. admin recovery).
  * Usage: node scripts/set-admin-password.js <email-or-user-id> "YourNewPassword"
- * Requires .env.local with PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.
+ * Requires .env.local with SUPABASE_URL (or PUBLIC_SUPABASE_URL or VITE_SUPABASE_URL) and SUPABASE_SERVICE_ROLE_KEY.
  * Prompts for confirmation before updating.
  */
 

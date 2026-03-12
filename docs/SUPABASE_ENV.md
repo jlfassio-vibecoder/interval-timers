@@ -44,6 +44,7 @@ VITE_SUPABASE_ANON_KEY=<your anon key>
 
 ## How It Works
 
-- **Vite** only exposes `VITE_*` to the client by default; `SUPABASE_URL` is not.
-- **astro.config.mjs** injects `SUPABASE_URL` and `SUPABASE_ANON_KEY` from `process.env` into the client build via `define`.
-- Any of `SUPABASE_*`, `VITE_SUPABASE_*`, or `PUBLIC_SUPABASE_*` work for URL and anon key.
+- **Vite** only exposes `VITE_*` to the client by default; `SUPABASE_URL` and `PUBLIC_*` are not.
+- **App** (Astro): `astro.config.mjs` injects env via `define` from `process.env` (dotenv).
+- **Vite apps** (amrap, tabata, daily-warmup): use `loadEnv` in `vite.config.ts` to read `.env` and inject `SUPABASE_*`, `VITE_SUPABASE_*`, or `PUBLIC_SUPABASE_*` into the client.
+- Any of `SUPABASE_*`, `VITE_SUPABASE_*`, or `PUBLIC_SUPABASE_*` work across all apps.
