@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { trackEvent } from '@interval-timers/analytics';
 import AccountLink from '@/components/AccountLink';
 import AmrapCtaButton from '@/components/AmrapCtaButton';
 import { AuthModal } from '@interval-timers/auth-ui';
@@ -62,6 +63,19 @@ const AmrapInterval: React.FC<AmrapIntervalProps> = ({ onNavigate, onNavigateToL
   const [currentWorkoutPlan, setCurrentWorkoutPlan] = useState<string[]>([]);
 
   const audioContextRef = useRef<AudioContext | null>(null);
+  const timerCompleteTrackedRef = useRef(false);
+
+  useEffect(() => {
+    if (timerState === 'finished' && !timerCompleteTrackedRef.current) {
+      timerCompleteTrackedRef.current = true;
+      trackEvent(supabase, 'timer_session_complete', {
+        source: 'amrap',
+        duration_seconds: totalTime,
+        rounds: roundsCompleted,
+      }, { appId: 'amrap' });
+    }
+    if (timerState !== 'finished') timerCompleteTrackedRef.current = false;
+  }, [timerState, totalTime, roundsCompleted]);
 
   const playSound = useCallback((type: 'start' | 'round' | 'warning' | 'finish') => {
     try {
@@ -757,6 +771,23 @@ const AmrapInterval: React.FC<AmrapIntervalProps> = ({ onNavigate, onNavigateToL
               >
                 {formatTime(timeLeft)}
               </div>
+
+              {timerState === 'finished' && (
+                <div className="mt-8 flex flex-col items-center gap-4">
+                  <p className="text-lg text-white/80">Work complete</p>
+                  <AccountLink
+                    intent="save_session"
+                    handoffPayload={{
+                      rounds: roundsCompleted,
+                      time: String(totalTime),
+                    }}
+                    asButton
+                    className="rounded-2xl bg-orange-600 px-10 py-4 text-xl font-bold text-white shadow-[0_0_40px_rgba(234,88,12,0.4)] transition-all hover:bg-orange-500"
+                  >
+                    Save to account
+                  </AccountLink>
+                </div>
+              )}
 
               {timerState === 'work' && (
                 <div className="mt-8 flex flex-col items-center">

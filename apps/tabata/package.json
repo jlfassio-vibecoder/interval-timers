@@ -13,6 +13,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@interval-timers/analytics": "*",
+    "@interval-timers/handoff": "*",
+    "@supabase/supabase-js": "^2.47.0",
     "@interval-timers/types": "*",
     "@interval-timers/timer-sounds": "*",
     "@interval-timers/timer-core": "*",

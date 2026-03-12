@@ -18,6 +18,7 @@ import { AppProvider } from '@/contexts/AppContext';
 import { supabase } from '@/lib/supabase/supabase-instance';
 import { clearAuthCookie } from '@/lib/auth-cookie';
 import DashboardHome from './views/DashboardHome';
+import FunnelView from './views/FunnelView';
 import ManageUsers from './views/ManageUsers';
 import ManagePrograms from './views/ManagePrograms';
 import ManageChallenges from './views/ManageChallenges';
@@ -144,6 +145,7 @@ const AdminDashboard: React.FC = () => {
         <Routes>
           <Route path="/" element={<AdminLayout />}>
             <Route index element={<DashboardHome />} />
+            <Route path="funnel" element={<FunnelView />} />
             <Route path="users" element={<ManageUsers />} />
             <Route path="programs/:id" element={<ProgramEditor />} />
             <Route path="programs" element={<ManagePrograms />} />

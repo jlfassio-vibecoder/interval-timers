@@ -202,7 +202,7 @@ const LandingPage: React.FC = () => {
           </a>
           <div className="flex items-center gap-2">
             <a
-              href="/account"
+              href="/account?from=landing"
               className="flex items-center gap-2 rounded-lg border border-[#ffbf00]/40 bg-[#ffbf00]/10 px-3 py-2 text-sm font-bold text-[#ffbf00] transition-colors hover:bg-[#ffbf00]/20"
             >
               Account
@@ -366,8 +366,8 @@ const LandingPage: React.FC = () => {
           <div className="font-display mb-2 text-2xl font-bold text-white">Sync-60</div>
           <p className="mb-8 text-sm text-white/50">Designed by AI Fitness Guy</p>
           <div className="flex justify-center gap-6 text-sm font-bold text-white/40">
-            <span>Privacy</span>
-            <span>Terms</span>
+            <a href="/privacy" className="hover:text-white/70">Privacy</a>
+            <a href="/terms" className="hover:text-white/70">Terms</a>
             <span>Science</span>
           </div>
         </div>

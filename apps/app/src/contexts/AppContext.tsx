@@ -22,6 +22,10 @@ interface AppContextType {
   completedWorkouts: Set<string>;
   purchasedIndex: number | null;
   isPaid: boolean;
+  /** True when trial_ends_at is in future and user is not paid */
+  isInTrial: boolean;
+  /** Remaining trial time in ms, or null if not in trial */
+  trialRemainingMs: number | null;
 
   // Actions
   setProfile: (p: AppUser | null) => void;
@@ -50,6 +54,8 @@ function getSSRStub(): AppContextType {
     completedWorkouts: new Set(),
     purchasedIndex: null,
     isPaid: false,
+    isInTrial: false,
+    trialRemainingMs: null,
     setProfile: () => {},
     setWorkoutLogs: () => {},
     setCompletedWorkouts: () => {},
@@ -222,6 +228,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         isAdmin: false,
         createdAt: new Date().toISOString(),
         purchasedIndex: null,
+        trialEndsAt: null,
       });
     };
 
@@ -245,6 +252,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           isAdmin: data.role === 'admin',
           createdAt: data.created_at || new Date().toISOString(),
           purchasedIndex: null, // Populate from subscription table later
+          trialEndsAt: data.trial_ends_at ?? null,
         });
       } else {
         // Session exists but no profile row (0 rows; e.g. RLS blocks, or trigger hasn't created it yet)
@@ -279,6 +287,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const isTrainer = user?.role === 'trainer' || user?.role === 'admin';
   const isPaid = !!user?.isAdmin || purchasedIndex !== null;
 
+  const trialEndsAt = user?.trialEndsAt ?? null;
+  const trialEndDate = trialEndsAt ? new Date(trialEndsAt) : null;
+  const now = Date.now();
+  const isInTrial =
+    !isPaid &&
+    trialEndDate != null &&
+    trialEndDate.getTime() > now;
+  const trialRemainingMs = isInTrial && trialEndDate
+    ? trialEndDate.getTime() - now
+    : null;
+
   return (
     <AppContext.Provider
       value={{
@@ -294,6 +313,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         completedWorkouts,
         purchasedIndex,
         isPaid,
+        isInTrial,
+        trialRemainingMs,
         setProfile: setUser,
         setWorkoutLogs,
         setCompletedWorkouts,

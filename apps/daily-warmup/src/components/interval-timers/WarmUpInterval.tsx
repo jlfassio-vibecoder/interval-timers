@@ -5,6 +5,9 @@
  */
 import React, { useState, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { buildAccountRedirectUrl } from '@interval-timers/handoff';
+import { trackEvent } from '@interval-timers/analytics';
+import { supabase } from '../../lib/supabase';
 import { Activity, Shield, Repeat } from 'lucide-react';
 import {
   IntervalTimerLanding,
@@ -30,7 +33,12 @@ interface FrozenWarmupSnapshot {
 const WARMUP_ACCENT = getProtocolAccent('warmup');
 
 const WarmUpInterval: React.FC<WarmUpIntervalProps> = ({ onNavigate }) => {
+  const accountBase =
+    import.meta.env.VITE_ACCOUNT_REDIRECT_URL ??
+    (import.meta.env.DEV ? 'http://localhost:3006/account' : '/account');
   const [isTimerOpen, setIsTimerOpen] = useState(false);
+  const [showPostSession, setShowPostSession] = useState(false);
+  const [postSessionTotalSeconds, setPostSessionTotalSeconds] = useState(0);
   const [frozenSnapshot, setFrozenSnapshot] = useState<FrozenWarmupSnapshot | null>(null);
   const { exercises, durationPerExercise } = useWarmupConfig();
 
@@ -55,11 +63,6 @@ const WarmUpInterval: React.FC<WarmUpIntervalProps> = ({ onNavigate }) => {
     });
     setIsTimerOpen(true);
   }, [warmupTimeline, exercises, durationPerExercise]);
-
-  const handleClose = useCallback(() => {
-    setIsTimerOpen(false);
-    setFrozenSnapshot(null);
-  }, []);
 
   return (
     <>
@@ -144,12 +147,73 @@ const WarmUpInterval: React.FC<WarmUpIntervalProps> = ({ onNavigate }) => {
         createPortal(
           <IntervalTimerOverlay
             timeline={frozenSnapshot.timeline}
-            onClose={handleClose}
+            onClose={() => {
+              if (frozenSnapshot) {
+                const totalSeconds = frozenSnapshot.timeline.reduce((s, b) => s + b.duration, 0);
+                trackEvent(supabase, 'timer_session_complete', {
+                  source: 'daily-warmup',
+                  duration_seconds: totalSeconds,
+                }, { appId: 'daily-warmup' });
+                setPostSessionTotalSeconds(totalSeconds);
+                setShowPostSession(true);
+              }
+              setIsTimerOpen(false);
+              setFrozenSnapshot(null);
+            }}
             theme={{ workBg: WARMUP_ACCENT.workBg }}
             warmupExercises={frozenSnapshot.exercises}
             warmupDurationPerExercise={frozenSnapshot.durationPerExercise}
             hideSkipWarmup
           />,
+          document.body
+        )}
+
+      {/* POST-SESSION CARD */}
+      {showPostSession &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/90 p-4">
+            <div className="animate-zoom-in w-full max-w-md rounded-2xl border border-white/10 bg-[#0d0500] p-8 shadow-2xl">
+              <h3 className="mb-2 text-xl font-bold text-white">Workout complete!</h3>
+              <p className="mb-6 text-white/70">
+                Save your session to track progress and view stats.
+              </p>
+              <div className="flex flex-col gap-3">
+                <a
+                  href={buildAccountRedirectUrl(
+                    'save_session',
+                    'daily-warmup',
+                    { time: String(postSessionTotalSeconds) },
+                    accountBase
+                  )}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    trackEvent(supabase, 'timer_save_click', {
+                      source: 'daily-warmup',
+                      intent: 'save_session',
+                      time: String(postSessionTotalSeconds),
+                    }, { appId: 'daily-warmup' });
+                    window.location.href = buildAccountRedirectUrl(
+                      'save_session',
+                      'daily-warmup',
+                      { time: String(postSessionTotalSeconds) },
+                      accountBase
+                    );
+                  }}
+                  className="rounded-xl bg-[#ffbf00] px-6 py-3 text-center font-bold text-black transition-transform hover:-translate-y-0.5 hover:bg-[#ffcc33]"
+                >
+                  Save to account
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setShowPostSession(false)}
+                  className="rounded-xl border border-white/20 px-6 py-3 font-bold text-white/80 hover:bg-white/10 hover:text-white"
+                >
+                  Done
+                </button>
+              </div>
+            </div>
+          </div>,
           document.body
         )}
     </>

@@ -15,7 +15,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@interval-timers/analytics": "*",
     "@interval-timers/auth-ui": "*",
+    "@interval-timers/handoff": "*",
     "@interval-timers/timer-core": "*",
     "@interval-timers/timer-sounds": "*",
     "@interval-timers/timer-ui": "*",

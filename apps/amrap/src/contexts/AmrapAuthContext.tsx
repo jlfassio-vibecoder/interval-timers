@@ -42,12 +42,12 @@ export function AmrapAuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('amrap_trial_ends_at, purchased_index')
+        .select('trial_ends_at, amrap_trial_ends_at, purchased_index')
         .eq('id', userId)
         .maybeSingle();
       if (!error && data) {
         setProfile({
-          amrap_trial_ends_at: data.amrap_trial_ends_at ?? null,
+          amrap_trial_ends_at: data.trial_ends_at ?? data.amrap_trial_ends_at ?? null,
           purchased_index: data.purchased_index ?? null,
         });
       } else {
