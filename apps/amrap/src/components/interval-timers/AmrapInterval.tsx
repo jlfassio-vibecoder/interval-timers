@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
-import { createPortal } from 'react-dom';
-import { trackEvent } from '@interval-timers/analytics';
+import { useNavigate } from 'react-router-dom';
 import AccountLink from '@/components/AccountLink';
 import AmrapCtaButton from '@/components/AmrapCtaButton';
 import { AuthModal } from '@interval-timers/auth-ui';
@@ -9,9 +8,13 @@ import { ACCOUNT_REDIRECT_URL } from '@/lib/account-redirect-url';
 import { useAmrapAuth } from '@/contexts/AmrapAuthContext';
 import { IntervalTimerLanding, IntervalTimerSetupModal } from '@interval-timers/timer-ui';
 import type { IntervalTimerPage } from '@interval-timers/timer-core';
-import { getProtocolAccent, SETUP_DURATION_SECONDS } from '@interval-timers/timer-core';
+import { getProtocolAccent } from '@interval-timers/timer-core';
 import { useAmrapSetup } from './useAmrapSetup';
-import { AmrapProtocolStep, AmrapWorkoutStep } from './AmrapSetupContent';
+import {
+  AmrapProtocolStep,
+  AmrapWorkoutStep,
+  AmrapBuildWorkoutStep,
+} from './AmrapSetupContent';
 import {
   BarChart,
   Bar,
@@ -31,7 +34,6 @@ interface AmrapIntervalProps {
   onNavigateToLanding?: () => void;
 }
 
-type TimerState = 'idle' | 'setup' | 'work' | 'finished';
 type MetricType = 'mental_fortitude' | 'lactate_threshold';
 type SimMode = 'pace' | 'push';
 
@@ -49,122 +51,22 @@ interface SimContent {
 const AMRAP_ACCENT = getProtocolAccent('amrap');
 
 const AmrapInterval: React.FC<AmrapIntervalProps> = ({ onNavigate, onNavigateToLanding }) => {
+  const navigate = useNavigate();
   const { user } = useAmrapAuth();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authModalSignUp, setAuthModalSignUp] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
-  const [isTimerOpen, setIsTimerOpen] = useState(false);
-  const [isDurationSelectOpen, setIsDurationSelectOpen] = useState(false);
-  const [timerState, setTimerState] = useState<TimerState>('idle');
-  const [timeLeft, setTimeLeft] = useState(0);
-  const [totalTime, setTotalTime] = useState(15 * 60);
-  const [roundsCompleted, setRoundsCompleted] = useState(0);
-  const [isPaused, setIsPaused] = useState(false);
-  const [currentWorkoutPlan, setCurrentWorkoutPlan] = useState<string[]>([]);
 
   const audioContextRef = useRef<AudioContext | null>(null);
-  const timerCompleteTrackedRef = useRef(false);
-
-  useEffect(() => {
-    if (timerState === 'finished' && !timerCompleteTrackedRef.current) {
-      timerCompleteTrackedRef.current = true;
-      trackEvent(supabase, 'timer_session_complete', {
-        source: 'amrap',
-        duration_seconds: totalTime,
-        rounds: roundsCompleted,
-      }, { appId: 'amrap' });
-    }
-    if (timerState !== 'finished') timerCompleteTrackedRef.current = false;
-  }, [timerState, totalTime, roundsCompleted]);
-
-  const playSound = useCallback((type: 'start' | 'round' | 'warning' | 'finish') => {
-    try {
-      const AudioContextCtor =
-        window.AudioContext ||
-        (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-      if (!AudioContextCtor) return;
-      if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
-        audioContextRef.current = new AudioContextCtor();
-      }
-      const ctx = audioContextRef.current;
-      if (!ctx) return;
-      if (ctx.state === 'suspended') ctx.resume();
-
-      const osc = ctx.createOscillator();
-      const gainNode = ctx.createGain();
-      osc.connect(gainNode);
-      gainNode.connect(ctx.destination);
-
-      const now = ctx.currentTime;
-
-      if (type === 'start') {
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(150, now);
-        osc.frequency.linearRampToValueAtTime(100, now + 0.5);
-        gainNode.gain.setValueAtTime(0.3, now);
-        gainNode.gain.linearRampToValueAtTime(0, now + 0.8);
-        osc.start(now);
-        osc.stop(now + 0.9);
-      } else if (type === 'round') {
-        osc.type = 'square';
-        osc.frequency.setValueAtTime(100, now);
-        osc.frequency.exponentialRampToValueAtTime(0.01, now + 0.3);
-        gainNode.gain.setValueAtTime(0.5, now);
-        gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
-        osc.start(now);
-        osc.stop(now + 0.35);
-      } else if (type === 'warning') {
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(800, now);
-        gainNode.gain.setValueAtTime(0.1, now);
-        gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
-        osc.start(now);
-        osc.stop(now + 0.15);
-      } else {
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(150, now);
-        osc.frequency.linearRampToValueAtTime(100, now + 0.5);
-        gainNode.gain.setValueAtTime(0.3, now);
-        gainNode.gain.linearRampToValueAtTime(0, now + 0.5);
-        osc.start(now);
-        osc.stop(now + 0.6);
-        const osc2 = ctx.createOscillator();
-        const gain2 = ctx.createGain();
-        osc2.connect(gain2);
-        gain2.connect(ctx.destination);
-        osc2.type = 'sawtooth';
-        osc2.frequency.setValueAtTime(150, now + 0.6);
-        osc2.frequency.linearRampToValueAtTime(100, now + 1.1);
-        gain2.gain.setValueAtTime(0.3, now + 0.6);
-        gain2.gain.linearRampToValueAtTime(0, now + 1.1);
-        osc2.start(now + 0.6);
-        osc2.stop(now + 1.2);
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  }, []);
-
-  const startTimer = useCallback((minutes: number, workoutList: string[] = []) => {
-    setTotalTime(minutes * 60);
-    setTimeLeft(SETUP_DURATION_SECONDS);
-    setIsDurationSelectOpen(false);
-    setCurrentWorkoutPlan(workoutList);
-    setIsTimerOpen(true);
-    setTimerState('setup');
-    setRoundsCompleted(0);
-    setIsPaused(false);
-    playSound('warning');
-  }, [playSound]);
+  const qtyInputRef = useRef<HTMLInputElement | null>(null);
 
   const setup = useAmrapSetup((result) => {
-    if (result.type === 'general') {
-      document.getElementById('simulator')?.scrollIntoView({ behavior: 'smooth' });
-      // Open time-cap picker so "Pick your time cap (5 / 15 / 20 min)" is honored
-      setIsDurationSelectOpen(true);
-    } else {
-      startTimer(result.durationMinutes, result.workoutList);
-    }
+    navigate('/session', {
+      state: {
+        durationMinutes: result.durationMinutes,
+        workoutList: result.workoutList,
+      },
+    });
   });
 
   const [metric, setMetric] = useState<MetricType>('mental_fortitude');
@@ -308,80 +210,21 @@ const AmrapInterval: React.FC<AmrapIntervalProps> = ({ onNavigate, onNavigateToL
     };
   }, [animateVisualizer]);
 
-  const startRealTimer = (minutes: number) => {
-    startTimer(minutes, []);
-  };
-
-  useEffect(() => {
-    if (isDurationSelectOpen) {
-      const prev = document.body.style.overflow;
-      document.body.style.overflow = 'hidden';
-      return () => {
-        document.body.style.overflow = prev;
-      };
-    }
-  }, [isDurationSelectOpen]);
-
-  const logRound = () => {
-    if (timerState === 'work') {
-      setRoundsCompleted((prev) => prev + 1);
-      playSound('round');
-    }
-  };
-
-  useEffect(() => {
-    let interval: number | undefined;
-    if (isTimerOpen && !isPaused && timerState !== 'idle' && timerState !== 'finished') {
-      interval = window.setInterval(() => {
-        if (timerState === 'setup') {
-          setTimeLeft((prev) => {
-            if (prev <= 1) {
-              setTimerState('work');
-              setTimeLeft(totalTime);
-              playSound('start');
-              return totalTime;
-            }
-            return prev - 1;
-          });
-        } else if (timerState === 'work') {
-          setTimeLeft((prev) => {
-            if (prev <= 1) {
-              setTimerState('finished');
-              playSound('finish');
-              return 0;
-            }
-            if (prev <= 11 && prev > 1) playSound('warning');
-            return prev - 1;
-          });
-        }
-      }, 1000);
-    }
-    return () => clearInterval(interval);
-  }, [isTimerOpen, isPaused, timerState, totalTime, playSound]);
-
-  const formatTime = (seconds: number) => {
-    const m = Math.floor(seconds / 60)
-      .toString()
-      .padStart(2, '0');
-    const s = (seconds % 60).toString().padStart(2, '0');
-    return `${m}:${s}`;
-  };
-
-  const getTimerStyles = () => {
-    switch (timerState) {
-      case 'setup':
-        return { bg: 'bg-stone-800', text: 'Setup', sub: 'Get into position' };
-      case 'work':
-        return { bg: 'bg-orange-600', text: 'AMRAP', sub: 'Accumulate Volume' };
-      case 'finished':
-        return { bg: 'bg-stone-900', text: 'Time Cap', sub: 'Work Complete' };
-      default:
-        return { bg: 'bg-stone-800', text: 'Ready', sub: '' };
-    }
-  };
-
-  const timerStyle = getTimerStyles();
   const isStandalone = onNavigate == null;
+
+  const inGeneralBuildFlow = setup.generalBuildStep != null;
+  const workoutTitle =
+    inGeneralBuildFlow && setup.generalBuildStep === 'duration'
+      ? 'Pick Time Cap'
+      : inGeneralBuildFlow && setup.generalBuildStep === 'builder'
+        ? 'Build Your Workout'
+        : 'Select Workout';
+  const workoutSubtitle =
+    inGeneralBuildFlow && setup.generalBuildStep === 'duration'
+      ? '5, 15, or 20 minutes'
+      : inGeneralBuildFlow && setup.generalBuildStep === 'builder'
+        ? 'Add exercises or launch blank timer'
+        : 'Choose your routine';
 
   return (
     <>
@@ -657,69 +500,14 @@ const AmrapInterval: React.FC<AmrapIntervalProps> = ({ onNavigate, onNavigateToL
       </IntervalTimerLanding>
 
       {/* SETUP MODAL */}
-      {typeof document !== 'undefined' &&
-        isDurationSelectOpen &&
-        createPortal(
-          <div className="fixed inset-0 z-[200] flex items-center justify-center overflow-hidden bg-transparent p-4">
-            <div
-              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
-              onClick={() => setIsDurationSelectOpen(false)}
-              aria-hidden
-            />
-            <div className="animate-zoom-in relative flex max-h-[calc(100vh-2rem)] w-full max-w-md shrink-0 flex-col overflow-hidden rounded-3xl border border-white/10 bg-[#0d0500] shadow-2xl">
-              <div className="shrink-0 border-b border-white/10 p-6 text-center">
-                <h3 className="font-display text-xl font-bold text-white">Select Time Cap</h3>
-              </div>
-              <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-6">
-                <button
-                  type="button"
-                  onClick={() => startRealTimer(5)}
-                  className="group w-full rounded-xl border-2 border-white/10 p-4 text-left transition-all hover:border-orange-500 hover:bg-orange-600/20"
-                >
-                  <div className="text-lg font-bold text-white">Sprint (5 Mins)</div>
-                  <div className="text-xs font-medium text-white/60">High intensity, zero rest</div>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => startRealTimer(15)}
-                  className="group w-full rounded-xl border-2 border-white/10 p-4 text-left transition-all hover:border-orange-500 hover:bg-orange-600/20"
-                >
-                  <div className="text-lg font-bold text-white">Standard (15 Mins)</div>
-                  <div className="text-xs font-medium text-white/60">
-                    Classic CrossFit time domain
-                  </div>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => startRealTimer(20)}
-                  className="group w-full rounded-xl border-2 border-white/10 p-4 text-left transition-all hover:border-orange-500 hover:bg-orange-600/20"
-                >
-                  <div className="text-lg font-bold text-white">Endurance (20 Mins)</div>
-                  <div className="text-xs font-medium text-white/60">Pacing is critical</div>
-                </button>
-              </div>
-              <div className="shrink-0 border-t border-white/10 bg-black/30 p-4 text-center">
-                <button
-                  type="button"
-                  onClick={() => setIsDurationSelectOpen(false)}
-                  className="text-sm font-bold text-white/50 hover:text-white"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>,
-          document.body
-        )}
-
       <IntervalTimerSetupModal
         isOpen={setup.isOpen}
         onClose={setup.close}
         step={setup.step}
         protocolTitle="Select Protocol"
         protocolSubtitle="General timer or structured workout"
-        workoutTitle="Select Workout"
-        workoutSubtitle="Choose your routine"
+        workoutTitle={workoutTitle}
+        workoutSubtitle={workoutSubtitle}
         onBack={setup.back}
         protocolContent={
           <AmrapProtocolStep
@@ -728,140 +516,26 @@ const AmrapInterval: React.FC<AmrapIntervalProps> = ({ onNavigate, onNavigateToL
           />
         }
         workoutContent={
-          <AmrapWorkoutStep
-            selectedLevel={setup.selectedLevel}
-            onStartWithWorkout={setup.startWithWorkout}
-          />
+          inGeneralBuildFlow ? (
+            <AmrapBuildWorkoutStep
+              buildStep={setup.generalBuildStep!}
+              selectedDuration={setup.selectedDuration}
+              customExercises={setup.customExercises}
+              onSelectDuration={setup.selectDuration}
+              onAddExercise={setup.addExercise}
+              onRemoveExercise={setup.removeExercise}
+              onLaunch={setup.launchFromBuilder}
+              onBackToDuration={setup.back}
+              qtyInputRef={qtyInputRef}
+            />
+          ) : (
+            <AmrapWorkoutStep
+              selectedLevel={setup.selectedLevel}
+              onStartWithWorkout={setup.startWithWorkout}
+            />
+          )
         }
       />
-
-      {/* CUSTOM AMRAP TIMER MODAL */}
-      {isTimerOpen && (
-        <div className="animate-zoom-in fixed inset-0 z-[200] flex h-full w-full flex-col bg-[#0d0500] duration-200">
-          <div
-            className={`flex shrink-0 items-center justify-between border-b border-white/10 p-4 text-white transition-colors duration-200 md:p-6 ${timerStyle.bg}`}
-          >
-            <div>
-              <div className="mb-1 text-[10px] font-bold uppercase tracking-widest opacity-80 md:text-xs">
-                {timerState === 'setup'
-                  ? 'Preparation'
-                  : timerState === 'finished'
-                    ? 'Complete'
-                    : 'Time Remaining'}
-              </div>
-              <h3 className="font-display text-xl font-bold leading-tight md:text-3xl">
-                {timerStyle.text}
-              </h3>
-              <p className="mt-1 text-xs opacity-90 md:text-sm">{timerStyle.sub}</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setIsTimerOpen(false)}
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-black/20 font-bold text-white hover:bg-black/40"
-              aria-label="Close timer"
-            >
-              &times;
-            </button>
-          </div>
-
-          <div className="relative flex flex-1 flex-col items-center justify-center overflow-hidden p-4">
-            <div className="relative z-10 mb-6 text-center">
-              <div
-                className={`font-mono text-8xl font-bold tabular-nums leading-none tracking-tighter drop-shadow-2xl md:text-[180px] ${timerState === 'work' ? 'text-orange-500' : 'text-white/40'}`}
-              >
-                {formatTime(timeLeft)}
-              </div>
-
-              {timerState === 'finished' && (
-                <div className="mt-8 flex flex-col items-center gap-4">
-                  <p className="text-lg text-white/80">Work complete</p>
-                  <AccountLink
-                    intent="save_session"
-                    handoffPayload={{
-                      rounds: roundsCompleted,
-                      time: String(totalTime),
-                    }}
-                    asButton
-                    className="rounded-2xl bg-orange-600 px-10 py-4 text-xl font-bold text-white shadow-[0_0_40px_rgba(234,88,12,0.4)] transition-all hover:bg-orange-500"
-                  >
-                    Save to account
-                  </AccountLink>
-                </div>
-              )}
-
-              {timerState === 'work' && (
-                <div className="mt-8 flex flex-col items-center">
-                  <div className="mb-4 text-sm font-bold uppercase tracking-widest text-white/60">
-                    Rounds Completed
-                  </div>
-                  <div className="mb-6 text-6xl font-bold text-white">{roundsCompleted}</div>
-                  {currentWorkoutPlan.length > 0 && (
-                    <div className="mb-6 max-w-md rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-left">
-                      <div className="mb-2 text-xs font-bold uppercase tracking-widest text-white/50">
-                        This round
-                      </div>
-                      <ul className="list-inside list-disc space-y-1 text-sm text-white/90">
-                        {currentWorkoutPlan.map((ex, i) => (
-                          <li key={i}>{ex}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  <button
-                    type="button"
-                    onClick={logRound}
-                    className="rounded-2xl bg-orange-600 px-12 py-6 text-xl font-bold text-white shadow-[0_0_40px_rgba(234,88,12,0.4)] transition-all hover:bg-orange-500 active:scale-95"
-                  >
-                    LOG ROUND
-                  </button>
-                </div>
-              )}
-            </div>
-
-            <div className="pointer-events-none absolute inset-0 flex items-end justify-center px-4 pb-0 opacity-20">
-              <div className="flex h-1/2 w-full max-w-3xl flex-wrap-reverse content-end justify-center gap-1">
-                {Array.from({ length: roundsCompleted }).map((_, i) => (
-                  <div key={i} className="animate-zoom-in h-8 w-12 rounded-sm bg-orange-500" />
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className="relative z-20 flex shrink-0 items-center justify-between gap-3 border-t border-white/10 bg-black p-4 md:p-8">
-            <button
-              type="button"
-              onClick={() => setIsPaused(!isPaused)}
-              className="w-1/3 rounded-xl border border-white/20 bg-white/10 px-4 py-3 font-bold text-white hover:bg-white/20 md:px-8 md:py-4"
-            >
-              {isPaused ? 'RESUME' : 'PAUSE'}
-            </button>
-            {timerState === 'setup' ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setTimerState('work');
-                  setTimeLeft(totalTime);
-                  playSound('start');
-                }}
-                className="w-1/3 rounded-xl px-4 py-3 font-bold text-white/60 hover:text-white md:px-8 md:py-4"
-              >
-                SKIP
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => {
-                  setTimerState('finished');
-                  setTimeLeft(0);
-                }}
-                className="w-1/3 rounded-xl px-4 py-3 font-bold text-white/60 hover:text-white md:px-8 md:py-4"
-              >
-                FINISH
-              </button>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* INFO MODAL */}
       {isReportOpen && (

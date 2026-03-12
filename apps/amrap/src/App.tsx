@@ -8,6 +8,7 @@ import ProgrammingGuide from './pages/ProgrammingGuide'
 import WorkoutExplorer from './pages/WorkoutExplorer'
 import AmrapWithFriendsPage from './pages/AmrapWithFriendsPage'
 import AmrapSessionPage from './pages/AmrapSessionPage'
+import SoloAmrapSessionPage from './pages/SoloAmrapSessionPage'
 
 function App() {
   useHubActivationLog(supabase, (milestone, appId) => {
@@ -23,6 +24,7 @@ function App() {
     <div className="min-h-screen bg-[#0d0500] text-white">
       <Routes>
         <Route path="/" element={<AmrapInterval />} />
+        <Route path="session" element={<SoloAmrapSessionPage />} />
         <Route path="programming-guide" element={<ProgrammingGuide />} />
         <Route path="workout-explorer" element={<WorkoutExplorer />} />
         <Route path="with-friends" element={<AmrapWithFriendsPage />} />
