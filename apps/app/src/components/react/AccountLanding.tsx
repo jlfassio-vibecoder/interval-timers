@@ -92,12 +92,14 @@ const AccountLanding: React.FC = () => {
     }
     prefillAttemptedRef.current = true;
     logHandoffSession(handoff, uid).then((result) => {
-      try {
-        sessionStorage.removeItem(HANDOFF_STORAGE_KEY);
-      } catch {
-        // ignore
+      if (result.ok) {
+        try {
+          sessionStorage.removeItem(HANDOFF_STORAGE_KEY);
+        } catch {
+          // ignore
+        }
+        setHandoff(null);
       }
-      setHandoff(null);
       setPrefillResult(result.ok ? { success: true, source: handoff.source } : { success: false });
       trackEvent(
         supabase,

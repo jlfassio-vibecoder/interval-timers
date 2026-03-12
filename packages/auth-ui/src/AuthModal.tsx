@@ -10,7 +10,7 @@ export interface AuthModalProps {
   defaultSignUp?: boolean;
   fromAppId?: string;
   returnUrl?: string;
-  /** If false, hide the Apple SSO button. Use when Apple provider is not yet configured. Default true. */
+  /** Reserved for future use. If true, show Apple SSO button. Currently Apple OAuth is not wired; default false. */
   enableAppleSignIn?: boolean;
   /** If provided and returns a string, use that instead of redirectBaseUrl + ?from=. Used for role-based redirect (e.g. trainer → /trainer). */
   getRedirectUrl?: (user: User) => string | Promise<string | null>;

@@ -62,25 +62,36 @@ export async function getFunnelStats(days = DEFAULT_DAYS): Promise<FunnelStats> 
   const distinctLaunch2 = new Set<string>();
   const bySource: FunnelStats['bySource'] = {};
 
-  for (const name of events) {
-    if (name === 'hub_timer_launch_1' || name === 'hub_timer_launch_2') {
-      const { data: rows } = await supabase
-        .from('analytics_events')
-        .select('user_id')
-        .eq('event_name', name)
-        .gte('timestamp', fromIso)
-        .lte('timestamp', toIso)
-        .not('user_id', 'is', null);
-      rows?.forEach((r) => r.user_id && (name === 'hub_timer_launch_1' ? distinctLaunch1 : distinctLaunch2).add(r.user_id));
-      counts[name] = rows?.length ?? 0;
-    } else {
+  // Parallelize event queries (each is independent). RPC for count(distinct user_id) would
+  // avoid row fetch for hub events; parallelization addresses sequential latency for now.
+  const eventResults = await Promise.all(
+    events.map(async (name) => {
+      if (name === 'hub_timer_launch_1' || name === 'hub_timer_launch_2') {
+        const { data: rows } = await supabase
+          .from('analytics_events')
+          .select('user_id')
+          .eq('event_name', name)
+          .gte('timestamp', fromIso)
+          .lte('timestamp', toIso)
+          .not('user_id', 'is', null);
+        return { name, rows: rows ?? [] };
+      }
       const { count } = await supabase
         .from('analytics_events')
         .select('id', { count: 'exact', head: true })
         .eq('event_name', name)
         .gte('timestamp', fromIso)
         .lte('timestamp', toIso);
-      counts[name] = count ?? 0;
+      return { name, count: count ?? 0 };
+    })
+  );
+
+  for (const r of eventResults) {
+    if ('rows' in r) {
+      r.rows.forEach((row) => row.user_id && (r.name === 'hub_timer_launch_1' ? distinctLaunch1 : distinctLaunch2).add(row.user_id));
+      counts[r.name] = r.rows.length;
+    } else {
+      counts[r.name] = r.count;
     }
   }
 

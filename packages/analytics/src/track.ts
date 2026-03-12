@@ -53,8 +53,10 @@ export async function trackEvent(
     return;
   }
 
-  let userId: string | null = options?.userId ?? null;
-  if (userId === undefined) {
+  let userId: string | null;
+  if (options?.userId !== undefined) {
+    userId = options.userId;
+  } else {
     try {
       const { data } = await supabase.auth.getSession();
       userId = data.session?.user?.id ?? null;

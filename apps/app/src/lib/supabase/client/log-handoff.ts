@@ -17,6 +17,23 @@ const SOURCE_TO_WORKOUT_NAME: Record<string, string> = {
   'daily-warmup': 'Daily Warm-Up',
 };
 
+/**
+ * Parse handoff.time to seconds. Supports "15m"/"15min" (minutes) and numeric seconds.
+ * Invalid input returns null (avoids storing wrong durations from malformed data).
+ */
+function parseTimeToSeconds(time: string | null | undefined): number | null {
+  if (time == null || typeof time !== 'string') return null;
+  const trimmed = time.trim();
+  if (!trimmed) return null;
+  const minMatch = trimmed.match(/^(\d+)m(in)?$/i);
+  if (minMatch) {
+    const mins = parseInt(minMatch[1]!, 10);
+    return Number.isFinite(mins) && mins >= 0 ? mins * 60 : null;
+  }
+  const secs = parseInt(trimmed, 10);
+  return Number.isFinite(secs) && secs >= 0 ? secs : null;
+}
+
 /** SHA-256 of input string, hex-encoded (for handoff_dedupe_key). */
 async function sha256Hex(input: string): Promise<string> {
   const buf = new TextEncoder().encode(input);
@@ -53,7 +70,7 @@ export async function logHandoffSession(
 
   const workoutName = SOURCE_TO_WORKOUT_NAME[handoff.source] ?? handoff.source;
   const dateIso = new Date().toISOString().slice(0, 10);
-  const durationSeconds = handoff.time != null ? parseInt(String(handoff.time), 10) : null;
+  const durationSeconds = parseTimeToSeconds(handoff.time);
   const dedupePayload = `${userId}|${handoff.intent}|${handoff.source}|${handoff.timestamp ?? now}`;
   const handoff_dedupe_key = await sha256Hex(dedupePayload);
 
