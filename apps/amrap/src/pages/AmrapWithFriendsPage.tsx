@@ -8,7 +8,8 @@ import {
 import { useAmrapAuth, useAmrapPermissions } from '@/contexts/AmrapAuthContext';
 import AccountLink from '@/components/AccountLink';
 import AmrapCtaButton from '@/components/AmrapCtaButton';
-import AuthModal from '@/components/AuthModal';
+import { AuthModal } from '@interval-timers/auth-ui';
+import { ACCOUNT_REDIRECT_URL } from '@/lib/account-redirect-url';
 import WeekCalendar from '@/components/WeekCalendar';
 import CreateFlowSchedulePicker from '@/components/CreateFlowSchedulePicker';
 import WorkoutPicker from '@/components/WorkoutPicker';
@@ -338,6 +339,8 @@ export default function AmrapWithFriendsPage() {
       <AuthModal
         isOpen={showAuthModal}
         onClose={() => setShowAuthModal(false)}
+        supabase={supabase}
+        redirectBaseUrl={ACCOUNT_REDIRECT_URL}
         defaultSignUp={authModalSignUp}
       />
     </div>

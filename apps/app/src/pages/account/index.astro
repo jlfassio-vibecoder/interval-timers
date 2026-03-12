@@ -1,7 +1,6 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import AppWrapper from '../../components/react/AppWrapper';
-import AccountLanding from '../../components/react/AccountLanding';
 ---
 
 <BaseLayout
@@ -11,8 +10,6 @@ import AccountLanding from '../../components/react/AccountLanding';
   <div
     class="relative min-h-screen overflow-x-hidden text-white selection:bg-orange-light selection:text-black"
   >
-    <AppWrapper client:load pathname={Astro.url.pathname}>
-      <AccountLanding />
-    </AppWrapper>
+    <AppWrapper client:load pathname={Astro.url.pathname} />
   </div>
 </BaseLayout>

@@ -8,6 +8,7 @@ import { createPortal } from 'react-dom';
 import { AppProvider } from '../../contexts/AppContext';
 import AppIslands from './AppIslands';
 import FluidBackground from './FluidBackground';
+import AccountLanding from './AccountLanding';
 
 const AIChat = lazy(() => import('./AIChat'));
 const PurchaseFlow = lazy(() => import('./PurchaseFlow'));
@@ -80,10 +81,12 @@ const AppWrapper: React.FC<AppWrapperProps> = ({ children, pathname }) => {
     return () => cleanup();
   }, []);
 
+  const isAccountPage = pathname === '/account';
+
   return (
     <StrictMode>
       <AppProvider>
-        {children}
+        {isAccountPage ? <AccountLanding /> : children}
         <FluidBackground />
         {shouldRenderDeferredIslands && (
           <Suspense fallback={null}>

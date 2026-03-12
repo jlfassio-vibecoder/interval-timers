@@ -10,7 +10,9 @@ import { fetchUserPrograms } from '@/lib/supabase/client/user-programs';
 import type { Artist, Program, WorkoutLog } from '@/types';
 import type { WorkoutInSet } from '@/types/ai-workout';
 import Navigation from './Navigation';
-import AuthModal from './AuthModal';
+import { AuthModal } from '@interval-timers/auth-ui';
+import { supabase } from '@/lib/supabase/supabase-instance';
+import { adminPaths } from '@/lib/admin/config';
 import type { ProgramMetadata } from '@/types/ai-program';
 import { getExerciseDetails } from '../../data/exercises';
 import type { Exercise } from '@/types';
@@ -50,6 +52,7 @@ const AppIslands: React.FC<AppIslandsProps> = ({ pathname: initialPathname }) =>
   } = useAppContext();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authModalSignupFirst, setAuthModalSignupFirst] = useState(false);
+  const [authModalFromAppId, setAuthModalFromAppId] = useState<string>('app');
   const [showHUD, setShowHUD] = useState(false);
   const [showConversionModal, setShowConversionModal] = useState(false);
   const [calendarRefreshKey, setCalendarRefreshKey] = useState(0);
@@ -196,16 +199,24 @@ const AppIslands: React.FC<AppIslandsProps> = ({ pathname: initialPathname }) =>
         console.error('[AppIslands] Error handling selectWorkout:', error);
       }
     };
-    const handleShowAuth = () => {
+    const handleShowAuth = (e?: Event) => {
       try {
+        const fromAppId =
+          (e instanceof CustomEvent ? (e as CustomEvent<{ fromAppId?: string }>).detail?.fromAppId : undefined) ??
+          'app';
+        setAuthModalFromAppId(fromAppId);
         setAuthModalSignupFirst(false);
         setShowAuthModal(true);
       } catch (error) {
         console.error('[AppIslands] Error showing auth modal:', error);
       }
     };
-    const handleShowAuthWithSignup = () => {
+    const handleShowAuthWithSignup = (e?: Event) => {
       try {
+        const fromAppId =
+          (e instanceof CustomEvent ? (e as CustomEvent<{ fromAppId?: string }>).detail?.fromAppId : undefined) ??
+          'app';
+        setAuthModalFromAppId(fromAppId);
         setAuthModalSignupFirst(true);
         setShowAuthModal(true);
       } catch (error) {
@@ -219,6 +230,13 @@ const AppIslands: React.FC<AppIslandsProps> = ({ pathname: initialPathname }) =>
         console.error('[AppIslands] Error showing programs:', error);
       }
     };
+    const handleShowHUD = () => {
+      try {
+        setShowHUD(true);
+      } catch (error) {
+        console.error('[AppIslands] Error showing HUD:', error);
+      }
+    };
 
     if (typeof window !== 'undefined') {
       try {
@@ -226,6 +244,7 @@ const AppIslands: React.FC<AppIslandsProps> = ({ pathname: initialPathname }) =>
         window.addEventListener('showAuthModal', handleShowAuth);
         window.addEventListener('showAuthModalWithSignup', handleShowAuthWithSignup);
         window.addEventListener('showPrograms', handleShowPrograms);
+        window.addEventListener('showHUD', handleShowHUD);
       } catch (error) {
         console.error('[AppIslands] Error registering event listeners:', error);
       }
@@ -238,6 +257,7 @@ const AppIslands: React.FC<AppIslandsProps> = ({ pathname: initialPathname }) =>
           window.removeEventListener('showAuthModal', handleShowAuth);
           window.removeEventListener('showAuthModalWithSignup', handleShowAuthWithSignup);
           window.removeEventListener('showPrograms', handleShowPrograms);
+          window.removeEventListener('showHUD', handleShowHUD);
         } catch (error) {
           console.error('[AppIslands] Error removing event listeners:', error);
         }
@@ -397,7 +417,11 @@ const AppIslands: React.FC<AppIslandsProps> = ({ pathname: initialPathname }) =>
     <>
       <Navigation
         onShowHUD={() => setShowHUD(true)}
-        onShowAuthModal={() => setShowAuthModal(true)}
+        onShowAuthModal={() => {
+          setAuthModalFromAppId('app');
+          setAuthModalSignupFirst(false);
+          setShowAuthModal(true);
+        }}
         onLogout={handleLogout}
         initialPathname={initialPathname}
       />
@@ -408,7 +432,28 @@ const AppIslands: React.FC<AppIslandsProps> = ({ pathname: initialPathname }) =>
           setShowAuthModal(false);
           setAuthModalSignupFirst(false);
         }}
+        supabase={supabase}
+        redirectBaseUrl="/account"
+        fromAppId={authModalFromAppId}
         defaultSignUp={authModalSignupFirst}
+        getRedirectUrl={async (authUser) => {
+          const { data } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', authUser.id)
+            .maybeSingle();
+          const isAdmin = data?.role === 'admin';
+          const isTrainer = data?.role === 'trainer';
+          if (
+            isAdmin &&
+            typeof window !== 'undefined' &&
+            window.location.pathname.includes(adminPaths.root)
+          ) {
+            return adminPaths.root;
+          }
+          if (isTrainer || isAdmin) return '/trainer';
+          return null;
+        }}
       />
 
       <Suspense fallback={null}>

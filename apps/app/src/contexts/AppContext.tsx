@@ -105,10 +105,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   useEffect(() => {
     let mounted = true;
+    let didFinish = false;
 
     const finishInit = () => {
-      if (mounted) setLoading(false);
+      if (!didFinish && mounted) {
+        didFinish = true;
+        setLoading(false);
+      }
     };
+
+    // Safety: never hang indefinitely if getSession or fetchProfile stalls.
+    // Timer calls setLoading(false) directly so loading is cleared even if finishInit's
+    // mounted check blocks (e.g. Strict Mode unmount before first run() completes).
+    const safetyTimer = setTimeout(() => {
+      if (!didFinish) {
+        didFinish = true;
+        setLoading(false);
+      }
+    }, 5000);
 
     const run = async () => {
       try {
@@ -152,6 +166,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       } catch (err) {
         if (import.meta.env.DEV) console.error('[AppContext] Auth init failed:', err);
       } finally {
+        clearTimeout(safetyTimer);
         finishInit();
       }
     };
@@ -175,6 +190,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     return () => {
       mounted = false;
+      clearTimeout(safetyTimer);
       subscription.unsubscribe();
     };
   }, []);
@@ -196,11 +212,26 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [user?.uid, activeProgramId]);
 
   const fetchProfile = async (userId: string, email?: string) => {
+    const setMinimalUser = () => {
+      setUser({
+        uid: userId,
+        email: email || null,
+        displayName: undefined,
+        role: 'client',
+        avatarUrl: undefined,
+        isAdmin: false,
+        createdAt: new Date().toISOString(),
+        purchasedIndex: null,
+      });
+    };
+
     try {
-      const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).single();
+      const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
 
       if (error) {
         console.error('Error fetching profile:', error);
+        // Fallback: session exists but profile fetch failed (406, RLS, network). Set minimal user so account page can render.
+        setMinimalUser();
         return;
       }
 
@@ -215,9 +246,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           createdAt: data.created_at || new Date().toISOString(),
           purchasedIndex: null, // Populate from subscription table later
         });
+      } else {
+        // Session exists but no profile row (0 rows; e.g. RLS blocks, or trigger hasn't created it yet)
+        setMinimalUser();
       }
     } catch (err) {
       console.error('Profile fetch failed', err);
+      setMinimalUser();
     }
   };
 

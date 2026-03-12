@@ -4,6 +4,7 @@ export default {
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
     "../../packages/timer-ui/src/**/*.{js,ts,jsx,tsx}",
+    "../../packages/auth-ui/src/**/*.{js,ts,jsx,tsx}",
   ],
   safelist: [
     // WorkoutExplorer card header backgrounds (dynamic classes)

@@ -60,7 +60,7 @@ Then:
 
 ```bash
 # Link this repo to your remote Supabase project (one-time; use your project ref from dashboard)
-supabase link --project-ref xpyhkhudltaiqdzdmwpt
+supabase link --project-ref dgxoyhkqdxarewmanbrq
 
 # Push pending migrations (e.g. supabase/migrations/*.sql)
 supabase db push
@@ -72,4 +72,4 @@ If you get "Cannot find project ref" or "not initialized", run once:
 supabase init
 ```
 
-Then run `supabase link --project-ref xpyhkhudltaiqdzdmwpt` and `supabase db push`.
+Then run `supabase link --project-ref dgxoyhkqdxarewmanbrq` and `supabase db push`.

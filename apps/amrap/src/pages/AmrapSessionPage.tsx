@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import AuthModal from '@/components/AuthModal';
+import { AuthModal } from '@interval-timers/auth-ui';
+import { ACCOUNT_REDIRECT_URL } from '@/lib/account-redirect-url';
 import {
   useAmrapSession,
   getStoredHostToken,
@@ -750,6 +751,8 @@ export default function AmrapSessionPage() {
     <AuthModal
       isOpen={showAuthModal}
       onClose={() => setShowAuthModal(false)}
+      supabase={supabase}
+      redirectBaseUrl={ACCOUNT_REDIRECT_URL}
       defaultSignUp={authModalSignUp}
     />
 
