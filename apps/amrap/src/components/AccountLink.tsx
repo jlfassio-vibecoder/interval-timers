@@ -7,24 +7,7 @@
 
 import React from 'react';
 import { useAmrapAuth } from '@/contexts/AmrapAuthContext';
-
-// Production (same-origin): use /account. Dev (cross-origin): use full URL.
-// Reject VITE_HUD_REDIRECT_URL when it points to HUD (?hud=1) not Account.
-const hudRedirect = import.meta.env.VITE_HUD_REDIRECT_URL;
-const hudIsWrong =
-  typeof hudRedirect === 'string' &&
-  (hudRedirect.includes('hud=1') || hudRedirect.includes('?hud='));
-const ACCOUNT_BASE =
-  import.meta.env.VITE_ACCOUNT_REDIRECT_URL ??
-  (hudIsWrong ? undefined : hudRedirect) ??
-  (import.meta.env.DEV ? 'http://localhost:3006/account' : '/account');
-
-function withFromAmrap(url: string): string {
-  const sep = url.includes('?') ? '&' : '?';
-  return `${url}${sep}from=amrap`;
-}
-
-const ACCOUNT_URL = withFromAmrap(ACCOUNT_BASE);
+import { ACCOUNT_REDIRECT_URL } from '@/lib/account-redirect-url';
 
 interface AccountLinkProps {
   href?: string;
@@ -35,7 +18,7 @@ interface AccountLinkProps {
 }
 
 export default function AccountLink({
-  href = ACCOUNT_URL,
+  href = ACCOUNT_REDIRECT_URL,
   className,
   children,
   asButton = false,
@@ -43,6 +26,9 @@ export default function AccountLink({
   const { user, session } = useAmrapAuth();
 
   const handleClick = (e: React.MouseEvent) => {
+    // Allow modifiers (open in new tab, etc.) to use default anchor behavior
+    if (e.ctrlKey || e.metaKey || e.shiftKey || e.button !== 0) return;
+
     const targetUrl = new URL(href, window.location.origin);
     const isCrossOrigin = targetUrl.origin !== window.location.origin;
 
@@ -50,11 +36,12 @@ export default function AccountLink({
     const allowHandoff = import.meta.env.DEV;
     if (allowHandoff && isCrossOrigin && user && session?.access_token && session?.refresh_token) {
       e.preventDefault();
-      const url = new URL(href);
+      const url = new URL(href, window.location.origin);
       url.hash = `access_token=${encodeURIComponent(session.access_token)}&refresh_token=${encodeURIComponent(session.refresh_token)}&type=recovery`;
       window.location.href = url.toString();
-    } else if (asButton) {
-      // Button has no default navigation; anchors follow href when handoff is skipped
+    } else {
+      // Both anchor and button: navigate manually so we consistently use href (which includes
+      // ?from=amrap) and avoid framework/router quirks that might strip query params.
       e.preventDefault();
       window.location.href = href;
     }

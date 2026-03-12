@@ -4,6 +4,7 @@ import AccountLink from '@/components/AccountLink';
 import AmrapCtaButton from '@/components/AmrapCtaButton';
 import { AuthModal } from '@interval-timers/auth-ui';
 import { supabase } from '@/lib/supabase';
+import { ACCOUNT_REDIRECT_URL } from '@/lib/account-redirect-url';
 import { useAmrapAuth } from '@/contexts/AmrapAuthContext';
 import { IntervalTimerLanding, IntervalTimerSetupModal } from '@interval-timers/timer-ui';
 import type { IntervalTimerPage } from '@interval-timers/timer-core';
@@ -879,12 +880,7 @@ const AmrapInterval: React.FC<AmrapIntervalProps> = ({ onNavigate, onNavigateToL
         isOpen={showAuthModal}
         onClose={() => setShowAuthModal(false)}
         supabase={supabase}
-        redirectBaseUrl={
-          import.meta.env.VITE_ACCOUNT_REDIRECT_URL ??
-          import.meta.env.VITE_HUD_REDIRECT_URL ??
-          '/account'
-        }
-        fromAppId="amrap"
+        redirectBaseUrl={ACCOUNT_REDIRECT_URL}
         defaultSignUp={authModalSignUp}
       />
     </>

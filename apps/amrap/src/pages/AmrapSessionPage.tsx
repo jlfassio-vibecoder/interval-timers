@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { AuthModal } from '@interval-timers/auth-ui';
+import { ACCOUNT_REDIRECT_URL } from '@/lib/account-redirect-url';
 import {
   useAmrapSession,
   getStoredHostToken,
@@ -751,12 +752,7 @@ export default function AmrapSessionPage() {
       isOpen={showAuthModal}
       onClose={() => setShowAuthModal(false)}
       supabase={supabase}
-      redirectBaseUrl={
-        import.meta.env.VITE_ACCOUNT_REDIRECT_URL ??
-        import.meta.env.VITE_HUD_REDIRECT_URL ??
-        '/account'
-      }
-      fromAppId="amrap"
+      redirectBaseUrl={ACCOUNT_REDIRECT_URL}
       defaultSignUp={authModalSignUp}
     />
 
