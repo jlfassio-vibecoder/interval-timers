@@ -64,20 +64,6 @@ const WarmUpInterval: React.FC<WarmUpIntervalProps> = ({ onNavigate }) => {
     setIsTimerOpen(true);
   }, [warmupTimeline, exercises, durationPerExercise]);
 
-  const handleClose = useCallback(() => {
-    if (frozenSnapshot) {
-      const totalSeconds = frozenSnapshot.timeline.reduce((s, b) => s + b.duration, 0);
-      trackEvent(supabase, 'timer_session_complete', {
-        source: 'daily-warmup',
-        duration_seconds: totalSeconds,
-      }, { appId: 'daily-warmup' });
-      setPostSessionTotalSeconds(totalSeconds);
-      setShowPostSession(true);
-    }
-    setIsTimerOpen(false);
-    setFrozenSnapshot(null);
-  }, [frozenSnapshot]);
-
   return (
     <>
       <IntervalTimerLanding
@@ -161,7 +147,19 @@ const WarmUpInterval: React.FC<WarmUpIntervalProps> = ({ onNavigate }) => {
         createPortal(
           <IntervalTimerOverlay
             timeline={frozenSnapshot.timeline}
-            onClose={handleClose}
+            onClose={() => {
+              if (frozenSnapshot) {
+                const totalSeconds = frozenSnapshot.timeline.reduce((s, b) => s + b.duration, 0);
+                trackEvent(supabase, 'timer_session_complete', {
+                  source: 'daily-warmup',
+                  duration_seconds: totalSeconds,
+                }, { appId: 'daily-warmup' });
+                setPostSessionTotalSeconds(totalSeconds);
+                setShowPostSession(true);
+              }
+              setIsTimerOpen(false);
+              setFrozenSnapshot(null);
+            }}
             theme={{ workBg: WARMUP_ACCENT.workBg }}
             warmupExercises={frozenSnapshot.exercises}
             warmupDurationPerExercise={frozenSnapshot.durationPerExercise}
