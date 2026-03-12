@@ -82,13 +82,24 @@ From the repo root, run the dev command for the app you want, then open the URL 
 
 | App | Command | Typical URL |
 |-----|---------|--------------|
-| Landing (default) | `npm run dev` or `npm run dev:landing` | `http://localhost:4321` |
+| Landing (default) | `npm run dev` or `npm run dev:landing` | `http://localhost:5180` |
 | Any standalone timer (e.g. Daily Warm-up, Tabata, EMOM) | `npm run dev:<app>` (e.g. `npm run dev:daily-warmup`) | `http://localhost:5173` (or port shown in terminal) |
 | Bio-Sync Sixty | `npm run dev:bio-sync-sixty` | `http://localhost:4321` (Astro) |
 | Master Clock | `npm run dev:master-clock` | `http://localhost:5173` (Vite; base path `/bio-sync60/master-clock/`) |
 | App | `npm run dev:app` | `http://localhost:3006` |
 
 If you run multiple dev servers, each will use a different port; use the **Local** URL printed when the server starts.
+
+### Replicating landing → account flow
+
+To test the flow where you start on the landing page and click Account:
+
+1. Run both servers: `npm run dev:landing:with-app`
+2. Open `http://localhost:5180`
+3. Click the "Account" button
+4. In dev: `http://localhost:3006/account` (direct link, avoids proxy conflicts). In production: `/account` (rewritten to app).
+
+In dev, the Account link goes directly to the app (port 3006) to avoid proxy conflicts. In production, Vercel rewrites `/account` to the app.
 
 ---
 

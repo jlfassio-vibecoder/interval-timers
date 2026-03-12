@@ -31,10 +31,10 @@ const root = join(__dirname, '..');
 loadEnvFile(join(root, '.env'));
 loadEnvFile(join(root, '.env.local'));
 
-// Programs auth uses HIIT Workout Timer Supabase (same as AMRAP). Accept either var set.
+// Programs auth uses HIIT Workout Timer Supabase (same as AMRAP). Accept any conventional name.
 const REQUIRED_ENV_VARS = [
-  ['PUBLIC_SUPABASE_URL', 'VITE_SUPABASE_URL'],
-  ['PUBLIC_SUPABASE_ANON_KEY', 'VITE_SUPABASE_ANON_KEY'],
+  ['PUBLIC_SUPABASE_URL', 'VITE_SUPABASE_URL', 'SUPABASE_URL'],
+  ['PUBLIC_SUPABASE_ANON_KEY', 'VITE_SUPABASE_ANON_KEY', 'SUPABASE_ANON_KEY'],
 ];
 
 const OPTIONAL_ENV_VARS = [
@@ -49,20 +49,23 @@ let warnings = [];
 // In CI, allow missing env vars (build/deploy jobs set their own env from secrets)
 const isCI = process.env.CI === 'true';
 
-// Validate required variables (each row is [preferred, fallback])
-REQUIRED_ENV_VARS.forEach(([preferred, fallback]) => {
-  const value = process.env[preferred] || process.env[fallback];
+// Validate required variables (each row is [preferred, fallback, ...])
+REQUIRED_ENV_VARS.forEach((names) => {
+  const value = names.reduce((acc, n) => acc || process.env[n], undefined);
   if (!value || value === '' || value === 'PLACEHOLDER_API_KEY') {
     if (isCI) {
-      warnings.push(`CI: ${preferred} or ${fallback} not set (validation skipped for CI)`);
+      warnings.push(`CI: ${names.join(' / ')} not set (validation skipped for CI)`);
     } else {
-      errors.push(`Missing: ${preferred} or ${fallback} (HIIT Supabase)`);
+      errors.push(`Missing: ${names.join(' or ')} (HIIT Supabase)`);
     }
   }
 });
 
 // Validate Supabase URL format (must use .supabase.co, not .supabase.com)
-const supabaseUrl = process.env.PUBLIC_SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+const supabaseUrl =
+  process.env.PUBLIC_SUPABASE_URL ||
+  process.env.VITE_SUPABASE_URL ||
+  process.env.SUPABASE_URL;
 if (supabaseUrl && supabaseUrl.includes('.supabase.com') && !supabaseUrl.includes('.supabase.co')) {
   errors.push(
     'PUBLIC_SUPABASE_URL uses wrong domain. Use https://<project-ref>.supabase.co (not .supabase.com)'

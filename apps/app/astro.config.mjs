@@ -65,6 +65,19 @@ export default defineConfig({
     host: true
   },
   vite: {
+    // Inject Supabase env from any name (SUPABASE_*, VITE_*, PUBLIC_*) so client bundle gets them.
+    // Vite only exposes VITE_* by default; Vercel often uses SUPABASE_URL. This ensures both work.
+    define: {
+      'import.meta.env.SUPABASE_URL': JSON.stringify(
+        process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || process.env.PUBLIC_SUPABASE_URL || ''
+      ),
+      'import.meta.env.SUPABASE_ANON_KEY': JSON.stringify(
+        process.env.SUPABASE_ANON_KEY ||
+          process.env.VITE_SUPABASE_ANON_KEY ||
+          process.env.PUBLIC_SUPABASE_ANON_KEY ||
+          ''
+      )
+    },
     server: {
       // Dev: proxy /amrap and /api/agora-token (npm run dev:amrap:video)
       proxy: {

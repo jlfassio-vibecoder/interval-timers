@@ -36,7 +36,12 @@ function standalonePathsPreviewPlugin(): Plugin {
 export default defineConfig({
   plugins: [react(), standalonePathsPreviewPlugin()],
   base: '/',
-  server: { port: 5180 },
+  server: {
+    port: 5180,
+    // In dev, /account proxy conflicts with landing's /src (both apps use it).
+    // Use direct link to app instead — see LandingPage Account href.
+    proxy: {},
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

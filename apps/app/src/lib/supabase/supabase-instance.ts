@@ -1,12 +1,24 @@
 import { createClient } from '@supabase/supabase-js';
 import { createBrowserClient } from '@supabase/ssr';
 
-// Use HIIT Workout Timer Supabase (same as AMRAP). Prefer PUBLIC_*, fallback to VITE_* from monorepo.
-const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL;
+// Use HIIT Workout Timer Supabase (same as AMRAP). Accept all conventional names:
+// SUPABASE_*, VITE_* (Vite default), PUBLIC_* (Astro). Injected via astro.config define when needed.
+// Placeholder fallbacks prevent "supabaseUrl is required" hydration crash when env is missing.
+const supabaseUrl =
+  import.meta.env.PUBLIC_SUPABASE_URL ||
+  import.meta.env.VITE_SUPABASE_URL ||
+  import.meta.env.SUPABASE_URL ||
+  'https://placeholder.supabase.co';
 const supabaseAnonKey =
-  import.meta.env.PUBLIC_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY;
+  import.meta.env.PUBLIC_SUPABASE_ANON_KEY ||
+  import.meta.env.VITE_SUPABASE_ANON_KEY ||
+  import.meta.env.SUPABASE_ANON_KEY ||
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder';
 
-if (import.meta.env.DEV && (!supabaseUrl || !supabaseAnonKey)) {
+if (
+  import.meta.env.DEV &&
+  (supabaseUrl === 'https://placeholder.supabase.co' || supabaseAnonKey.endsWith('.placeholder'))
+) {
   console.error(
     'Missing Supabase env. Set PUBLIC_SUPABASE_URL/ANON_KEY or VITE_SUPABASE_URL/ANON_KEY (HIIT project).'
   );

@@ -23,26 +23,28 @@ function normalizeEnvVar(v: string | undefined): string {
     return t.slice(1, -1).trim();
   return t;
 }
-// Prefer process.env. Use HIIT Workout Timer Supabase (same as AMRAP); fallback to VITE_* from monorepo root.
+// Prefer process.env. Accept SUPABASE_*, PUBLIC_*, VITE_* (Vercel often uses SUPABASE_URL).
 const supabaseUrl =
+  normalizeEnvVar(process.env.SUPABASE_URL) ||
   normalizeEnvVar(process.env.PUBLIC_SUPABASE_URL) ||
-  normalizeEnvVar(import.meta.env.PUBLIC_SUPABASE_URL as string | undefined) ||
   normalizeEnvVar(process.env.VITE_SUPABASE_URL) ||
+  normalizeEnvVar(import.meta.env.PUBLIC_SUPABASE_URL as string | undefined) ||
   normalizeEnvVar(import.meta.env.VITE_SUPABASE_URL as string | undefined);
 const serviceRoleKey =
   normalizeEnvVar(process.env.SUPABASE_SERVICE_ROLE_KEY) ||
   normalizeEnvVar(import.meta.env.SUPABASE_SERVICE_ROLE_KEY as string | undefined);
 const anonKey =
+  normalizeEnvVar(process.env.SUPABASE_ANON_KEY) ||
   normalizeEnvVar(process.env.PUBLIC_SUPABASE_ANON_KEY) ||
-  normalizeEnvVar(import.meta.env.PUBLIC_SUPABASE_ANON_KEY as string | undefined) ||
   normalizeEnvVar(process.env.VITE_SUPABASE_ANON_KEY) ||
+  normalizeEnvVar(import.meta.env.PUBLIC_SUPABASE_ANON_KEY as string | undefined) ||
   normalizeEnvVar(import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined);
 
 /**
  * Client with service role key when available (bypasses RLS). Otherwise anon (RLS applies).
  */
 export function getSupabaseServer() {
-  if (!supabaseUrl) throw new Error('PUBLIC_SUPABASE_URL is required');
+  if (!supabaseUrl) throw new Error('SUPABASE_URL or PUBLIC_SUPABASE_URL or VITE_SUPABASE_URL required');
   const key = serviceRoleKey || anonKey;
   if (!key) throw new Error('SUPABASE_SERVICE_ROLE_KEY or PUBLIC_SUPABASE_ANON_KEY required');
   return createClient(supabaseUrl, key);

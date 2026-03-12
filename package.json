@@ -29,6 +29,7 @@
   "scripts": {
     "dev": "npm run dev -w landing",
     "dev:landing": "npm run dev -w landing",
+    "dev:landing:with-app": "concurrently -n app,landing -c green,blue \"npm run dev:app\" \"sleep 5 && npm run dev:landing\"",
     "build": "npm run build -w landing",
     "build:landing": "npm run build -w landing",
     "lint": "npm run lint -w landing",
