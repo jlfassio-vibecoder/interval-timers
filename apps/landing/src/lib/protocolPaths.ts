@@ -20,5 +20,10 @@ export const PROTOCOL_TO_PATH: Record<IntervalTimerPage, string> = {
 };
 
 export function getPathForProtocol(p: IntervalTimerPage): string {
-  return '/' + PROTOCOL_TO_PATH[p];
+  const path = PROTOCOL_TO_PATH[p];
+  // In dev with dev:landing:with-amrap, link directly to amrap (avoids proxy conflicts)
+  if (import.meta.env.DEV && p === 'amrap') {
+    return 'http://localhost:5177/amrap/';
+  }
+  return '/' + path;
 }

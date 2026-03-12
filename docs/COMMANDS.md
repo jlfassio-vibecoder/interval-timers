@@ -90,16 +90,29 @@ From the repo root, run the dev command for the app you want, then open the URL 
 
 If you run multiple dev servers, each will use a different port; use the **Local** URL printed when the server starts.
 
-### Replicating landing → account flow
+### Replicating landing flows
 
-To test the flow where you start on the landing page and click Account:
+**Landing → Account**
 
-1. Run both servers: `npm run dev:landing:with-app`
+1. Run `npm run dev:landing:with-app`
+2. Open `http://localhost:5180`, click "Account"
+3. In dev: direct link to `http://localhost:3006/account`. In production: `/account` (rewritten to app).
+
+**Landing → AMRAP**
+
+1. Run `npm run dev:landing:with-amrap`
+2. Open `http://localhost:5180`, click AMRAP in the protocol grid
+3. In dev: direct link to `http://localhost:5177/amrap/`. In production: `/amrap` served from same origin.
+
+Direct links avoid proxy conflicts with shared paths like `/src`.
+
+**Landing → AMRAP → Account (full workflow)**
+
+1. Run `npm run dev:full-workflow`
 2. Open `http://localhost:5180`
-3. Click the "Account" button
-4. In dev: `http://localhost:3006/account` (direct link, avoids proxy conflicts). In production: `/account` (rewritten to app).
+3. Flow: Landing → click AMRAP (→ `localhost:5177/amrap/`) → click "My Account" (→ `localhost:3006/account`)
 
-In dev, the Account link goes directly to the app (port 3006) to avoid proxy conflicts. In production, Vercel rewrites `/account` to the app.
+Runs app, amrap, and landing together. Give the servers ~5 seconds to start before opening the landing page.
 
 ---
 

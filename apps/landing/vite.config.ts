@@ -38,8 +38,8 @@ export default defineConfig({
   base: '/',
   server: {
     port: 5180,
-    // In dev, /account proxy conflicts with landing's /src (both apps use it).
-    // Use direct link to app instead — see LandingPage Account href.
+    // In dev, proxy conflicts with landing's /src (both apps use it).
+    // Use direct links instead: Account → LandingPage href; AMRAP → protocolPaths.getPathForProtocol.
     proxy: {},
   },
   resolve: {
