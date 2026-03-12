@@ -31,6 +31,18 @@ const AccountLanding: React.FC = () => {
   const [prefillResult, setPrefillResult] = useState<{ success: boolean; source?: string } | null>(null);
   const prefillAttemptedRef = useRef(false);
   const oauthEventEmittedRef = useRef(false);
+  const [loadingTimedOut, setLoadingTimedOut] = useState(false);
+
+  // Escape hatch: if AppContext loading never resolves (e.g. Supabase/proxy stall in prod),
+  // stop blocking the page after 4s so users see sign-in instead of infinite Loading.
+  useEffect(() => {
+    if (!loading) {
+      setLoadingTimedOut(false);
+      return;
+    }
+    const t = setTimeout(() => setLoadingTimedOut(true), 4000);
+    return () => clearTimeout(t);
+  }, [loading]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -134,7 +146,8 @@ const AccountLanding: React.FC = () => {
 
   // Wait for auth to resolve before deciding signed-in vs signed-out; avoids flashing
   // sign-in card to logged-in users while getSession() is still in flight.
-  if (loading) {
+  // loadingTimedOut: escape hatch when loading stalls (e.g. prod proxy/Supabase).
+  if (loading && !loadingTimedOut) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
         <p className="font-mono text-sm text-white/50">Loading…</p>

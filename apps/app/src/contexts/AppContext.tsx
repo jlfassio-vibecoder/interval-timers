@@ -120,15 +120,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
     };
 
-    // Safety: never hang indefinitely if getSession or fetchProfile stalls.
-    // Timer calls setLoading(false) directly so loading is cleared even if finishInit's
-    // mounted check blocks (e.g. Strict Mode unmount before first run() completes).
+    // Safety: never hang indefinitely if getSession or fetchProfile stalls (e.g. prod proxy/Supabase).
     const safetyTimer = setTimeout(() => {
       if (!didFinish) {
         didFinish = true;
         setLoading(false);
       }
-    }, 5000);
+    }, 3000);
 
     const run = async () => {
       try {
