@@ -11,10 +11,11 @@ import { useAppContext } from '@/contexts/AppContext';
 import { getSessionHistory } from '@/lib/supabase/client/session-history';
 import type { SessionHistoryItem } from '@/lib/supabase/client/session-history';
 import { getAmrapSessionResults } from '@/lib/supabase/client/amrap-session-results';
+import { fetchHandoffLogs } from '@/lib/supabase/client/workout-logs';
 import { getProgramWithSchedule } from '@/lib/supabase/client/user-programs';
 import type { ProgramSchedule } from '@/types/ai-program';
 
-export type FeedItemType = 'program' | 'amrap';
+export type FeedItemType = 'program' | 'amrap' | 'timer';
 
 export interface FeedItem {
   id: string;
@@ -80,9 +81,10 @@ const AccountFeed: React.FC = () => {
     }
     setLoading(true);
     try {
-      const [sessionsRaw, amrapResults] = await Promise.all([
+      const [sessionsRaw, amrapResults, handoffLogs] = await Promise.all([
         getSessionHistory(user.uid, 'all', 15),
         getAmrapSessionResults(user.uid, 15),
+        fetchHandoffLogs(user.uid, 15),
       ]);
       const sessions = await resolveTitles(sessionsRaw);
 
@@ -104,7 +106,16 @@ const AccountFeed: React.FC = () => {
         metadata: { totalRounds: a.total_rounds },
       }));
 
-      const merged = [...programItems, ...amrapItems].sort(
+      const timerItems: FeedItem[] = handoffLogs.map((log) => ({
+        id: `timer-${log.id}`,
+        date: log.date,
+        title: log.workoutName,
+        type: 'timer',
+        durationSeconds: log.durationSeconds,
+        metadata: log.rounds != null ? { totalRounds: log.rounds } : undefined,
+      }));
+
+      const merged = [...programItems, ...amrapItems, ...timerItems].sort(
         (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
       );
       setItems(merged);
@@ -172,10 +183,12 @@ const AccountFeed: React.FC = () => {
                     className={`shrink-0 rounded-full px-2.5 py-0.5 font-mono text-[10px] uppercase ${
                       item.type === 'amrap'
                         ? 'bg-orange-600/30 text-orange-400'
-                        : 'bg-white/10 text-white/70'
+                        : item.type === 'timer'
+                          ? 'bg-green-600/30 text-green-400'
+                          : 'bg-white/10 text-white/70'
                     }`}
                   >
-                    {item.type === 'amrap' ? 'AMRAP' : 'Program'}
+                    {item.type === 'amrap' ? 'AMRAP' : item.type === 'timer' ? item.title : 'Program'}
                   </span>
                 </div>
                 {item.link && (

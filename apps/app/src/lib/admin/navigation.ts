@@ -18,6 +18,7 @@ import {
   LayoutList,
   ImageIcon,
   Activity,
+  TrendingUp,
 } from 'lucide-react';
 import { EXERCISE_LABELS } from '@/lib/labels/exercises';
 
@@ -29,6 +30,7 @@ export interface AdminNavItem {
 
 export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { path: '/funnel', label: 'Funnel', icon: TrendingUp },
   { path: '/users', label: 'Users', icon: Users },
   { path: '/programs', label: 'Program Factory', icon: BookOpen },
   { path: '/challenges', label: 'Challenge Factory', icon: Trophy },

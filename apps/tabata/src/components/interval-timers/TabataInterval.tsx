@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { buildAccountRedirectUrl } from '@interval-timers/handoff';
+import { trackEvent } from '@interval-timers/analytics';
+import { supabase } from '../../lib/supabase';
 import {
   IntervalTimerLanding,
   IntervalTimerOverlay,
@@ -50,8 +53,14 @@ const TABATA_ACCENT = getProtocolAccent('tabata');
 const TabataInterval: React.FC<TabataTimerProps> = ({ onNavigate }) => {
   const [isReportOpen, setIsReportOpen] = useState(false);
 
+  const accountBase =
+    import.meta.env.VITE_ACCOUNT_REDIRECT_URL ??
+    (import.meta.env.DEV ? 'http://localhost:3006/account' : '/account');
+
   // --- REAL TIMER STATE ---
   const [isTimerOpen, setIsTimerOpen] = useState(false);
+  const [showPostSession, setShowPostSession] = useState(false);
+  const [postSessionTotalSeconds, setPostSessionTotalSeconds] = useState(0);
   const [totalCycles, setTotalCycles] = useState(8);
   const [currentWorkoutPlan, setCurrentWorkoutPlan] = useState<string[]>([]);
   const [frozenWarmup, setFrozenWarmup] = useState<{
@@ -599,13 +608,64 @@ const TabataInterval: React.FC<TabataTimerProps> = ({ onNavigate }) => {
           <IntervalTimerOverlay
             timeline={tabataTimeline}
             onClose={() => {
+              const totalSeconds = tabataTimeline.reduce((s, b) => s + b.duration, 0);
+              setPostSessionTotalSeconds(totalSeconds);
               setFrozenWarmup(null);
               setIsTimerOpen(false);
+              setShowPostSession(true);
             }}
             theme={{ workBg: TABATA_ACCENT.workBg }}
             warmupExercises={frozenWarmup?.exercises}
             warmupDurationPerExercise={frozenWarmup?.durationPerExercise}
           />,
+          document.body
+        )}
+
+      {/* POST-SESSION CARD */}
+      {showPostSession &&
+        createPortal(
+          <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/90 p-4">
+            <div className="animate-zoom-in w-full max-w-md rounded-2xl border border-white/10 bg-[#0d0500] p-8 shadow-2xl">
+              <h3 className="mb-2 text-xl font-bold text-white">Workout complete!</h3>
+              <p className="mb-6 text-white/70">
+                Save your session to track progress and view stats.
+              </p>
+              <div className="flex flex-col gap-3">
+                <a
+                  href={buildAccountRedirectUrl(
+                    'save_session',
+                    'tabata',
+                    { time: String(postSessionTotalSeconds) },
+                    accountBase
+                  )}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    trackEvent(supabase, 'timer_save_click', {
+                      source: 'tabata',
+                      intent: 'save_session',
+                      time: String(postSessionTotalSeconds),
+                    }, { appId: 'tabata' });
+                    window.location.href = buildAccountRedirectUrl(
+                      'save_session',
+                      'tabata',
+                      { time: String(postSessionTotalSeconds) },
+                      accountBase
+                    );
+                  }}
+                  className="rounded-xl bg-[#ffbf00] px-6 py-3 text-center font-bold text-black transition-transform hover:-translate-y-0.5 hover:bg-[#ffcc33]"
+                >
+                  Save to account
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setShowPostSession(false)}
+                  className="rounded-xl border border-white/20 px-6 py-3 font-bold text-white/80 hover:bg-white/10 hover:text-white"
+                >
+                  Done
+                </button>
+              </div>
+            </div>
+          </div>,
           document.body
         )}
 

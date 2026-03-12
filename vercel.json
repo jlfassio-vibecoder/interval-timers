@@ -115,6 +115,22 @@
       "destination": "https://interval-timers-accounts.vercel.app/api/$1"
     },
     {
+      "source": "/privacy",
+      "destination": "https://interval-timers-accounts.vercel.app/privacy"
+    },
+    {
+      "source": "/privacy/(.*)",
+      "destination": "https://interval-timers-accounts.vercel.app/privacy/$1"
+    },
+    {
+      "source": "/terms",
+      "destination": "https://interval-timers-accounts.vercel.app/terms"
+    },
+    {
+      "source": "/terms/(.*)",
+      "destination": "https://interval-timers-accounts.vercel.app/terms/$1"
+    },
+    {
       "source": "/amrap",
       "destination": "/amrap/index.html"
     },

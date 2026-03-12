@@ -11,6 +11,7 @@ export interface AppEntry {
 }
 
 export const APP_REGISTRY: readonly AppEntry[] = [
+  { id: 'landing', name: 'Home', path: '/', description: 'Browse protocols' },
   { id: 'amrap', name: 'AMRAP', path: '/amrap/with-friends', description: 'With Friends' },
   { id: 'tabata', name: 'Tabata', path: '/tabata-timer', description: '4-min protocol' },
   { id: 'daily-warmup', name: 'Daily Warm-Up', path: '/daily-warm-up', description: 'Mobility' },

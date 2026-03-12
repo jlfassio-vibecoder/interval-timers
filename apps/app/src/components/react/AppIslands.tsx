@@ -11,6 +11,7 @@ import type { Artist, Program, WorkoutLog } from '@/types';
 import type { WorkoutInSet } from '@/types/ai-workout';
 import Navigation from './Navigation';
 import { AuthModal } from '@interval-timers/auth-ui';
+import { trackEvent } from '@interval-timers/analytics';
 import { supabase } from '@/lib/supabase/supabase-instance';
 import { adminPaths } from '@/lib/admin/config';
 import type { ProgramMetadata } from '@/types/ai-program';
@@ -436,6 +437,15 @@ const AppIslands: React.FC<AppIslandsProps> = ({ pathname: initialPathname }) =>
         redirectBaseUrl="/account"
         fromAppId={authModalFromAppId}
         defaultSignUp={authModalSignupFirst}
+        onSignupStart={() =>
+          trackEvent(supabase, 'account_signup_start', { from_app_id: authModalFromAppId }, { appId: 'app' })
+        }
+        onSignupComplete={() =>
+          trackEvent(supabase, 'account_signup_complete', { from_app_id: authModalFromAppId, method: 'email' }, { appId: 'app' })
+        }
+        onLoginComplete={() =>
+          trackEvent(supabase, 'account_login_complete', { from_app_id: authModalFromAppId, method: 'email' }, { appId: 'app' })
+        }
         getRedirectUrl={async (authUser) => {
           const { data } = await supabase
             .from('profiles')

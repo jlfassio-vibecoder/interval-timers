@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { SupabaseClient, User } from '@supabase/supabase-js';
-import { buildAuthRedirectUrl } from './useAuthRedirect';
+import { buildAuthRedirectUrl, buildOAuthRedirectUrl } from './useAuthRedirect';
 
 export interface AuthModalProps {
   isOpen: boolean;
@@ -10,8 +10,16 @@ export interface AuthModalProps {
   defaultSignUp?: boolean;
   fromAppId?: string;
   returnUrl?: string;
+  /** If false, hide the Apple SSO button. Use when Apple provider is not yet configured. Default true. */
+  enableAppleSignIn?: boolean;
   /** If provided and returns a string, use that instead of redirectBaseUrl + ?from=. Used for role-based redirect (e.g. trainer → /trainer). */
   getRedirectUrl?: (user: User) => string | Promise<string | null>;
+  /** Optional analytics callback when user opens signup flow (signup tab or Google). */
+  onSignupStart?: () => void;
+  /** Optional analytics callback when email signup succeeds ("check your email"). */
+  onSignupComplete?: () => void;
+  /** Optional analytics callback when email login succeeds and redirects. */
+  onLoginComplete?: () => void;
 }
 
 function normalizeAuthError(msg: string): string {
@@ -39,7 +47,11 @@ export default function AuthModal({
   defaultSignUp = false,
   fromAppId,
   returnUrl,
+  enableAppleSignIn: _enableAppleSignIn = false,
   getRedirectUrl,
+  onSignupStart,
+  onSignupComplete,
+  onLoginComplete,
 }: AuthModalProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -68,8 +80,9 @@ export default function AuthModal({
       setIsSignUp(defaultSignUp);
       setError(null);
       setSignUpSuccess(false);
+      if (defaultSignUp) onSignupStart?.();
     }
-  }, [isOpen, defaultSignUp]);
+  }, [isOpen, defaultSignUp, onSignupStart]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -84,6 +97,24 @@ export default function AuthModal({
   useEffect(() => {
     if (!isOpen) clearForm();
   }, [isOpen, clearForm]);
+
+  const handleGoogleSignIn = async () => {
+    if (isSignUp) onSignupStart?.();
+    const redirectTo = buildOAuthRedirectUrl(redirectBaseUrl, fromAppId);
+    await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo },
+    });
+  };
+
+  // Apple OAuth — uncomment when Apple provider is configured in Supabase
+  // const handleAppleSignIn = async () => {
+  //   const redirectTo = buildOAuthRedirectUrl(redirectBaseUrl, fromAppId);
+  //   await supabase.auth.signInWithOAuth({
+  //     provider: 'apple',
+  //     options: { redirectTo },
+  //   });
+  // };
 
   const handleRedirect = async (user: User) => {
     if (getRedirectUrl) {
@@ -118,6 +149,7 @@ export default function AuthModal({
           },
         });
         if (err) throw err;
+        onSignupComplete?.();
         setSignUpSuccess(true);
       } else {
         const { data, error: err } = await supabase.auth.signInWithPassword({
@@ -126,6 +158,7 @@ export default function AuthModal({
         });
         if (err) throw err;
         if (data.user) {
+          onLoginComplete?.();
           await handleRedirect(data.user);
         }
       }
@@ -182,6 +215,31 @@ export default function AuthModal({
             ? 'Create an account to unlock features across your apps.'
             : 'Log in to access your account and workouts.'}
         </p>
+        <div className="mb-4 space-y-2">
+          <button
+            type="button"
+            onClick={handleGoogleSignIn}
+            className="w-full rounded-xl border border-white/20 bg-white/5 px-4 py-3 font-medium text-white hover:bg-white/10 focus:border-orange-500 focus:outline-none"
+          >
+            Continue with Google
+          </button>
+          {/* Apple OAuth — uncomment when Apple provider is configured in Supabase
+          {enableAppleSignIn && (
+            <button
+              type="button"
+              onClick={handleAppleSignIn}
+              className="w-full rounded-xl border border-white/20 bg-white/5 px-4 py-3 font-medium text-white hover:bg-white/10 focus:border-orange-500 focus:outline-none"
+            >
+              Continue with Apple
+            </button>
+          )}
+          */}
+        </div>
+        <div className="mb-4 flex items-center gap-2 text-sm text-white/50">
+          <span className="flex-1 border-t border-white/20" />
+          <span>or</span>
+          <span className="flex-1 border-t border-white/20" />
+        </div>
         <form onSubmit={handleSubmit} className="space-y-3">
           {isSignUp && (
             <input
@@ -233,7 +291,11 @@ export default function AuthModal({
         </form>
         <button
           type="button"
-          onClick={() => setIsSignUp(!isSignUp)}
+          onClick={() => {
+            const next = !isSignUp;
+            if (next) onSignupStart?.();
+            setIsSignUp(next);
+          }}
           className="mt-4 w-full text-sm text-white/60 hover:text-white"
         >
           {isSignUp ? 'Already have an account? Log in' : "Don't have an account? Create one"}

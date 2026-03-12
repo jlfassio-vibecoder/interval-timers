@@ -14,6 +14,8 @@ export interface UserProfile {
   emailVerified?: boolean;
   /** Custom claims (admin, isAdmin, etc.) - from Firebase Auth */
   customClaims?: Record<string, unknown>;
+  /** Hub-wide trial end; set on sign-up to now + 7 days */
+  trialEndsAt?: string | null;
 }
 
 export interface Exercise {
@@ -48,6 +50,11 @@ export interface WorkoutLog {
   effort: number; // 1-10
   rating: number; // 1-5
   notes: string;
+  /** Handoff/timer sessions (Tabata, AMRAP, Daily Warm-Up). */
+  durationSeconds?: number;
+  calories?: number;
+  rounds?: number;
+  source?: string;
 }
 
 export interface Artist {

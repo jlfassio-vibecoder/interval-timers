@@ -9,7 +9,7 @@ const hudIsWrong =
   typeof hudRedirect === 'string' &&
   (hudRedirect.includes('hud=1') || hudRedirect.includes('?hud='));
 
-const ACCOUNT_BASE =
+const ACCOUNT_BASE_INTERNAL =
   import.meta.env.VITE_ACCOUNT_REDIRECT_URL ??
   (hudIsWrong ? undefined : hudRedirect) ??
   (import.meta.env.DEV ? 'http://localhost:3006/account' : '/account');
@@ -20,4 +20,7 @@ function withFromAmrap(url: string): string {
 }
 
 /** Account URL with ?from=amrap for entry-point card on account page */
-export const ACCOUNT_REDIRECT_URL = withFromAmrap(ACCOUNT_BASE);
+export const ACCOUNT_REDIRECT_URL = withFromAmrap(ACCOUNT_BASE_INTERNAL);
+
+/** Base URL for account page (no query); used by buildAccountRedirectUrl for handoff flows */
+export const ACCOUNT_BASE = ACCOUNT_BASE_INTERNAL;
