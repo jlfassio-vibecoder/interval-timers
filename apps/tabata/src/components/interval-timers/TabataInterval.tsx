@@ -609,6 +609,10 @@ const TabataInterval: React.FC<TabataTimerProps> = ({ onNavigate }) => {
             timeline={tabataTimeline}
             onClose={() => {
               const totalSeconds = tabataTimeline.reduce((s, b) => s + b.duration, 0);
+              trackEvent(supabase, 'timer_session_complete', {
+                source: 'tabata',
+                duration_seconds: totalSeconds,
+              }, { appId: 'tabata' });
               setPostSessionTotalSeconds(totalSeconds);
               setFrozenWarmup(null);
               setIsTimerOpen(false);
