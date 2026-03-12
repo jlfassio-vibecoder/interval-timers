@@ -36,7 +36,12 @@ function standalonePathsPreviewPlugin(): Plugin {
 export default defineConfig({
   plugins: [react(), standalonePathsPreviewPlugin()],
   base: '/',
-  server: { port: 5180 },
+  server: {
+    port: 5180,
+    // In dev, proxy conflicts with landing's /src (both apps use it).
+    // Use direct links instead: Account → LandingPage href; AMRAP → protocolPaths.getPathForProtocol.
+    proxy: {},
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

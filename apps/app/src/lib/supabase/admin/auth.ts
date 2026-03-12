@@ -5,10 +5,15 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-// HIIT Workout Timer Supabase (same as AMRAP). Fallback to VITE_* from monorepo.
-const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL;
+// HIIT Workout Timer Supabase (same as AMRAP). Accept SUPABASE_*, VITE_*, PUBLIC_* (injected via astro.config).
+const supabaseUrl =
+  import.meta.env.PUBLIC_SUPABASE_URL ||
+  import.meta.env.VITE_SUPABASE_URL ||
+  import.meta.env.SUPABASE_URL;
 const supabaseAnonKey =
-  import.meta.env.PUBLIC_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY;
+  import.meta.env.PUBLIC_SUPABASE_ANON_KEY ||
+  import.meta.env.VITE_SUPABASE_ANON_KEY ||
+  import.meta.env.SUPABASE_ANON_KEY;
 
 const COOKIE_NAME = 'sb-access-token';
 

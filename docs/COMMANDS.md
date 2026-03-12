@@ -82,13 +82,37 @@ From the repo root, run the dev command for the app you want, then open the URL 
 
 | App | Command | Typical URL |
 |-----|---------|--------------|
-| Landing (default) | `npm run dev` or `npm run dev:landing` | `http://localhost:4321` |
+| Landing (default) | `npm run dev` or `npm run dev:landing` | `http://localhost:5180` |
 | Any standalone timer (e.g. Daily Warm-up, Tabata, EMOM) | `npm run dev:<app>` (e.g. `npm run dev:daily-warmup`) | `http://localhost:5173` (or port shown in terminal) |
 | Bio-Sync Sixty | `npm run dev:bio-sync-sixty` | `http://localhost:4321` (Astro) |
 | Master Clock | `npm run dev:master-clock` | `http://localhost:5173` (Vite; base path `/bio-sync60/master-clock/`) |
 | App | `npm run dev:app` | `http://localhost:3006` |
 
 If you run multiple dev servers, each will use a different port; use the **Local** URL printed when the server starts.
+
+### Replicating landing flows
+
+**Landing → Account**
+
+1. Run `npm run dev:landing:with-app`
+2. Open `http://localhost:5180`, click "Account"
+3. In dev: direct link to `http://localhost:3006/account`. In production: `/account` (rewritten to app).
+
+**Landing → AMRAP**
+
+1. Run `npm run dev:landing:with-amrap`
+2. Open `http://localhost:5180`, click AMRAP in the protocol grid
+3. In dev: direct link to `http://localhost:5177/amrap/`. In production: `/amrap` served from same origin.
+
+Direct links avoid proxy conflicts with shared paths like `/src`.
+
+**Landing → AMRAP → Account (full workflow)**
+
+1. Run `npm run dev:full-workflow`
+2. Open `http://localhost:5180`
+3. Flow: Landing → click AMRAP (→ `localhost:5177/amrap/`) → click "My Account" (→ `localhost:3006/account`)
+
+Runs app, amrap, and landing together. Give the servers ~5 seconds to start before opening the landing page.
 
 ---
 

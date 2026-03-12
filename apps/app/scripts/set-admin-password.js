@@ -3,7 +3,7 @@
 /**
  * Set password for a Supabase Auth user via Admin API (e.g. admin recovery).
  * Usage: node scripts/set-admin-password.js <email-or-user-id> "YourNewPassword"
- * Requires .env.local with PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.
+ * Requires .env.local with SUPABASE_URL (or PUBLIC_SUPABASE_URL or VITE_SUPABASE_URL) and SUPABASE_SERVICE_ROLE_KEY.
  * Prompts for confirmation before updating.
  */
 
@@ -51,10 +51,15 @@ if (!identifier || !newPassword) {
   process.exit(1);
 }
 
-const url = process.env.PUBLIC_SUPABASE_URL;
+const url =
+  process.env.SUPABASE_URL ||
+  process.env.PUBLIC_SUPABASE_URL ||
+  process.env.VITE_SUPABASE_URL;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 if (!url || !serviceRoleKey) {
-  console.error('Missing PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in .env.local');
+  console.error(
+    'Missing SUPABASE_URL/PUBLIC_SUPABASE_URL/VITE_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in .env.local'
+  );
   process.exit(1);
 }
 

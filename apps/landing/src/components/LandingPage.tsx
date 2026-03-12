@@ -202,7 +202,16 @@ const LandingPage: React.FC = () => {
           </a>
           <div className="flex items-center gap-2">
             <a
-              href="/account?from=landing"
+              href={
+                import.meta.env.DEV
+                  ? `${
+                      (import.meta.env.VITE_APP_ORIGIN as string) ||
+                      (typeof window !== 'undefined'
+                        ? `${window.location.protocol}//${window.location.hostname}:3006`
+                        : 'http://localhost:3006')
+                    }/account?from=landing`
+                  : '/account?from=landing'
+              }
               className="flex items-center gap-2 rounded-lg border border-[#ffbf00]/40 bg-[#ffbf00]/10 px-3 py-2 text-sm font-bold text-[#ffbf00] transition-colors hover:bg-[#ffbf00]/20"
             >
               Account
