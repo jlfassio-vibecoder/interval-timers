@@ -273,6 +273,9 @@ export function getExerciseSuggestions(): string[] {
   return results.sort((a, b) => a.localeCompare(b));
 }
 
+/** Cached exercise suggestions for datalist autocomplete. Static; avoids recompute on every render. */
+export const EXERCISE_SUGGESTIONS = getExerciseSuggestions();
+
 export const AMRAP_PROTOCOL_LABELS = {
   generalAmrap: 'General AMRAP',
   generalAmrapDesc: 'Pick your time cap (5 / 15 / 20 min)',

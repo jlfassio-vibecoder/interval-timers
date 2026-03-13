@@ -7,7 +7,23 @@ export type AmrapSetupResult =
 
 export type GeneralBuildStep = 'duration' | 'builder' | null;
 
-export type CustomExercise = { qty: string; name: string };
+export type CustomExercise = { id: string; qty: string; name: string };
+
+/** Create CustomExercise with stable id for DnD. */
+export function createCustomExercise(qty: string, name: string): CustomExercise {
+  const id =
+    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `ex-${Math.random().toString(36).slice(2, 11)}`;
+  return { id, qty, name };
+}
+
+/** Parse "qty name" string to CustomExercise with stable id. */
+export function parseToCustomExercise(ex: string): CustomExercise {
+  const match = ex.trim().match(/^(\d+(?:-\d+)?m?)\s+(.+)$/);
+  if (match) return createCustomExercise(match[1], match[2].trim());
+  return createCustomExercise('', ex.trim());
+}
 
 /**
  * Manages AMRAP setup modal state and completion flow.
@@ -76,7 +92,7 @@ export function useAmrapSetup(onComplete: (result: AmrapSetupResult) => void) {
     const q = qty.trim();
     const n = name.trim();
     if (!n) return;
-    setCustomExercises((prev) => [...prev, { qty: q, name: n }]);
+    setCustomExercises((prev) => [...prev, createCustomExercise(q, n)]);
   }, []);
 
   const removeExercise = useCallback((index: number) => {
@@ -99,11 +115,7 @@ export function useAmrapSetup(onComplete: (result: AmrapSetupResult) => void) {
       if (options?.adjustDuration != null) {
         setSelectedDuration(options.adjustDuration);
       }
-      const parsed: CustomExercise[] = template.exercises.map((ex) => {
-        const match = ex.trim().match(/^(\d+(?:-\d+)?m?)\s+(.+)$/);
-        if (match) return { qty: match[1], name: match[2].trim() };
-        return { qty: '', name: ex.trim() };
-      });
+      const parsed = template.exercises.map(parseToCustomExercise);
       setCustomExercises(parsed);
     },
     []
@@ -114,7 +126,9 @@ export function useAmrapSetup(onComplete: (result: AmrapSetupResult) => void) {
     const workoutList = customExercises
       .map((e) => `${e.qty} ${e.name}`.trim())
       .filter(Boolean);
-    saveRecentCustomWorkout(selectedDuration, workoutList);
+    if (workoutList.length > 0) {
+      saveRecentCustomWorkout(selectedDuration, workoutList);
+    }
     onComplete({ type: 'workout', durationMinutes: selectedDuration, workoutList });
     setIsOpen(false);
   }, [selectedDuration, customExercises, onComplete]);
@@ -123,11 +137,7 @@ export function useAmrapSetup(onComplete: (result: AmrapSetupResult) => void) {
     (durationMinutes: number, workoutList: string[]) => {
       setSelectedDuration(durationMinutes);
       setGeneralBuildStep('builder');
-      const parsed: CustomExercise[] = workoutList.map((ex) => {
-        const match = ex.trim().match(/^(\d+(?:-\d+)?m?)\s+(.+)$/);
-        if (match) return { qty: match[1], name: match[2].trim() };
-        return { qty: '', name: ex.trim() };
-      });
+      const parsed = workoutList.map(parseToCustomExercise);
       setCustomExercises(parsed);
     },
     []

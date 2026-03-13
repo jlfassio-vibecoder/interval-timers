@@ -8,7 +8,11 @@ import {
   saveRecentCustomWorkout,
 } from '@/lib/recentCustomWorkouts';
 import type { AmrapBuildTemplate } from './amrap-setup-data';
-import type { CustomExercise } from './useAmrapSetup';
+import {
+  createCustomExercise,
+  parseToCustomExercise,
+  type CustomExercise,
+} from './useAmrapSetup';
 import { AmrapBuildWorkoutStep } from './AmrapSetupContent';
 
 export interface BuildWorkoutFlowProps {
@@ -36,7 +40,7 @@ export function BuildWorkoutFlow({
     const q = qty.trim();
     const n = name.trim();
     if (!n) return;
-    setCustomExercises((prev) => [...prev, { qty: q, name: n }]);
+    setCustomExercises((prev) => [...prev, createCustomExercise(q, n)]);
   }, []);
 
   const handleRemoveExercise = useCallback((index: number) => {
@@ -59,7 +63,9 @@ export function BuildWorkoutFlow({
     const workoutList = customExercises
       .map((e) => `${e.qty} ${e.name}`.trim())
       .filter(Boolean);
-    saveRecentCustomWorkout(selectedDuration, workoutList);
+    if (workoutList.length > 0) {
+      saveRecentCustomWorkout(selectedDuration, workoutList);
+    }
     onComplete(selectedDuration, workoutList);
   }, [selectedDuration, customExercises, onComplete]);
 
@@ -72,11 +78,7 @@ export function BuildWorkoutFlow({
       if (options?.adjustDuration != null) {
         setSelectedDuration(options.adjustDuration);
       }
-      const parsed: CustomExercise[] = template.exercises.map((ex) => {
-        const match = ex.trim().match(/^(\d+(?:-\d+)?m?)\s+(.+)$/);
-        if (match) return { qty: match[1], name: match[2].trim() };
-        return { qty: '', name: ex.trim() };
-      });
+      const parsed = template.exercises.map(parseToCustomExercise);
       setCustomExercises(parsed);
     },
     []
@@ -86,11 +88,7 @@ export function BuildWorkoutFlow({
     (durationMinutes: number, workoutList: string[]) => {
       setSelectedDuration(durationMinutes);
       setBuildStep('builder');
-      const parsed: CustomExercise[] = workoutList.map((ex) => {
-        const match = ex.trim().match(/^(\d+(?:-\d+)?m?)\s+(.+)$/);
-        if (match) return { qty: match[1], name: match[2].trim() };
-        return { qty: '', name: ex.trim() };
-      });
+      const parsed = workoutList.map(parseToCustomExercise);
       setCustomExercises(parsed);
     },
     []

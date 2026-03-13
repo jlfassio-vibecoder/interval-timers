@@ -20,7 +20,7 @@ import {
   AMRAP_LEVEL_DURATION,
   AMRAP_PROTOCOL_LABELS,
   AMRAP_BUILD_TEMPLATES,
-  getExerciseSuggestions,
+  EXERCISE_SUGGESTIONS,
   getTemplatesForDuration,
   isDurationInRange,
   getRecommendedDurationForTemplate,
@@ -137,24 +137,25 @@ function DurationStep({
   const [customMinutes, setCustomMinutes] = useState('');
   const [showOther, setShowOther] = useState(false);
 
+  const parsedCustomMinutes = Number(customMinutes);
+  const isValidCustomMinutes =
+    Number.isFinite(parsedCustomMinutes) &&
+    Number.isInteger(parsedCustomMinutes) &&
+    parsedCustomMinutes >= 1 &&
+    parsedCustomMinutes <= 60;
+
   const handleOtherSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const n = parseInt(customMinutes, 10);
-    if (Number.isFinite(n) && n >= 1 && n <= 60) {
-      onSelectDuration(n);
+    if (isValidCustomMinutes) {
+      onSelectDuration(parsedCustomMinutes);
     }
   };
 
   const templates5 = getTemplatesForDuration(5);
   const templates15 = getTemplatesForDuration(15);
   const templates20 = getTemplatesForDuration(20);
-  const customMinsNum = Number.isFinite(parseInt(customMinutes, 10))
-    ? parseInt(customMinutes, 10)
-    : null;
-  const templatesCustom =
-    customMinsNum != null && customMinsNum >= 1 && customMinsNum <= 60
-      ? getTemplatesForDuration(customMinsNum)
-      : [];
+  const customMinsNum = isValidCustomMinutes ? parsedCustomMinutes : null;
+  const templatesCustom = customMinsNum != null ? getTemplatesForDuration(customMinsNum) : [];
 
   const formatBestFor = (templates: typeof templates5) =>
     templates.length > 0
@@ -228,6 +229,7 @@ function DurationStep({
                 type="number"
                 min={1}
                 max={60}
+                step={1}
                 value={customMinutes}
                 onChange={(e) => setCustomMinutes(e.target.value)}
                 placeholder="e.g. 10"
@@ -236,13 +238,8 @@ function DurationStep({
               />
             </div>
             <button
-            type="submit"
-            disabled={
-              !customMinutes ||
-              !Number.isFinite(parseInt(customMinutes, 10)) ||
-              parseInt(customMinutes, 10) < 1 ||
-              parseInt(customMinutes, 10) > 60
-            }
+              type="submit"
+              disabled={!isValidCustomMinutes}
               className="min-h-[44px] shrink-0 rounded-lg bg-orange-600 px-4 py-2 text-sm font-bold text-white hover:bg-orange-500 disabled:opacity-50"
             >
               Set
@@ -362,20 +359,20 @@ function ExerciseSortableList({
     useSensor(KeyboardSensor)
   );
   const itemIds = useMemo(
-    () => customExercises.map((_, i) => `ex-${i}`),
-    [customExercises.length]
+    () => customExercises.map((ex) => ex.id),
+    [customExercises]
   );
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
       const { active, over } = event;
       if (!over || active.id === over.id) return;
-      const oldIndex = itemIds.indexOf(String(active.id));
-      const newIndex = itemIds.indexOf(String(over.id));
+      const oldIndex = customExercises.findIndex((ex) => ex.id === active.id);
+      const newIndex = customExercises.findIndex((ex) => ex.id === over.id);
       if (oldIndex >= 0 && newIndex >= 0 && oldIndex !== newIndex) {
         onReorder(oldIndex, newIndex);
       }
     },
-    [itemIds, onReorder]
+    [customExercises, onReorder]
   );
 
   return (
@@ -388,8 +385,8 @@ function ExerciseSortableList({
         <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
           {customExercises.map((ex, i) => (
             <SortableExerciseItem
-              key={itemIds[i]}
-              id={itemIds[i]}
+              key={ex.id}
+              id={ex.id}
               ex={ex}
               index={i}
               onRemove={() => onRemoveExercise(i)}
@@ -436,7 +433,6 @@ export function AmrapBuildWorkoutStep({
   onBackToDuration,
   qtyInputRef,
 }: AmrapBuildWorkoutStepProps) {
-  const exerciseSuggestions = getExerciseSuggestions();
   const [qty, setQty] = useState('');
   const [name, setName] = useState('');
   const [qtyError, setQtyError] = useState<string | null>(null);
@@ -470,6 +466,7 @@ export function AmrapBuildWorkoutStep({
     );
     if (isDuplicate) {
       setDuplicateWarn(`${n} already in list`);
+      return;
     }
     onAddExercise(q, n);
     setQty('');
@@ -497,9 +494,9 @@ export function AmrapBuildWorkoutStep({
         <div>
           <p className="mb-2 text-xs font-medium text-white/60">Recent</p>
           <div className="flex flex-wrap gap-2">
-            {recentWorkouts.map((r, i) => (
+            {recentWorkouts.map((r) => (
               <button
-                key={i}
+                key={r.completedAt}
                 type="button"
                 onClick={() => onLoadRecent(r.durationMinutes, r.workoutList)}
                 className="rounded-lg border border-white/20 bg-black/20 px-3 py-1.5 text-left text-sm text-white/90 transition-colors hover:border-orange-500/50 hover:bg-orange-600/20"
@@ -673,7 +670,7 @@ export function AmrapBuildWorkoutStep({
             aria-label="Exercise name"
           />
           <datalist id="exercise-suggestions">
-            {exerciseSuggestions.map((s) => (
+            {EXERCISE_SUGGESTIONS.map((s) => (
               <option key={s} value={s} />
             ))}
           </datalist>
@@ -714,7 +711,7 @@ export function AmrapBuildWorkoutStep({
         >
           {customExercises.map((ex, i) => (
             <ExerciseListItem
-              key={i}
+              key={ex.id}
               ex={ex}
               index={i}
               onRemove={() => onRemoveExercise(i)}
