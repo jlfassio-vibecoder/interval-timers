@@ -5,6 +5,7 @@ import {
   AMRAP_LEVEL_DURATION,
   AMRAP_PROTOCOL_LABELS,
 } from '@/components/interval-timers/amrap-setup-data';
+import { BuildWorkoutFlow } from '@/components/interval-timers/BuildWorkoutFlow';
 import type { AmrapLevel } from '@/components/interval-timers/amrap-setup-data';
 
 export interface WorkoutPickerProps {
@@ -21,24 +22,63 @@ export default function WorkoutPicker({
   extraContent,
   disabled = false,
 }: WorkoutPickerProps) {
-  const [step, setStep] = useState<'level' | 'workout'>('level');
+  const [step, setStep] = useState<'protocol' | 'level' | 'workout' | 'build'>('protocol');
   const [selectedLevel, setSelectedLevel] = useState<AmrapLevel | null>(null);
 
   const workouts = selectedLevel ? AMRAP_WORKOUT_LIBRARY[selectedLevel] : [];
   const duration = selectedLevel ? AMRAP_LEVEL_DURATION[selectedLevel] : 15;
 
   const handleCancel = () => {
-    setStep('level');
+    setStep('protocol');
     setSelectedLevel(null);
     onCancel();
   };
 
-  if (step === 'level') {
+  const handleBuildComplete = (durationMinutes: number, workoutList: string[]) => {
+    onSelect(workoutList, durationMinutes);
+  };
+
+  if (step === 'build') {
+    return (
+      <div>
+        <BuildWorkoutFlow
+          onComplete={handleBuildComplete}
+          onBack={() => setStep('protocol')}
+          disabled={disabled}
+        />
+        <button
+          type="button"
+          onClick={handleCancel}
+          className="mt-4 text-sm font-medium text-white/60 hover:text-white"
+        >
+          Cancel
+        </button>
+      </div>
+    );
+  }
+
+  if (step === 'protocol') {
     return (
       <div>
         <p className="mb-4 text-sm text-white/70">
-          Choose a level, then pick a workout.
+          Choose a level, or build your own workout.
         </p>
+        <button
+          type="button"
+          onClick={() => setStep('build')}
+          disabled={disabled}
+          className="mb-4 flex w-full items-center justify-between rounded-xl border border-white/10 bg-black/20 p-4 text-left transition-all hover:border-orange-500 hover:bg-orange-600/10 disabled:opacity-50 disabled:pointer-events-none"
+        >
+          <div>
+            <div className="font-bold text-white">
+              {AMRAP_PROTOCOL_LABELS.generalAmrap}
+            </div>
+            <div className="mt-1 text-[10px] text-white/70">
+              {AMRAP_PROTOCOL_LABELS.generalAmrapDesc}
+            </div>
+          </div>
+          <span className="text-2xl opacity-50">⏱️</span>
+        </button>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           {(['beginner', 'intermediate', 'advanced'] as const).map((level) => (
             <button
@@ -46,7 +86,7 @@ export default function WorkoutPicker({
               type="button"
               onClick={() => {
                 setSelectedLevel(level);
-                setStep('workout');
+                setStep('level');
               }}
               disabled={disabled}
               className="rounded-xl border border-white/10 bg-black/20 p-4 text-left transition-all hover:border-orange-500 hover:bg-orange-600/10 disabled:opacity-50 disabled:pointer-events-none"
@@ -76,7 +116,7 @@ export default function WorkoutPicker({
       <button
         type="button"
         onClick={() => {
-          setStep('level');
+          setStep('protocol');
           setSelectedLevel(null);
         }}
         disabled={disabled}

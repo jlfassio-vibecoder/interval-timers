@@ -193,6 +193,86 @@ export const AMRAP_LEVEL_DURATION: Record<AmrapLevel, number> = {
   advanced: 20,
 };
 
+export interface AmrapBuildTemplate {
+  name: string;
+  exercises: readonly string[];
+  /** Optimal duration range in minutes [min, max]. */
+  durationRange: [number, number];
+  /** Alternative range for beginners (e.g. Cindy 10–12). Optional. */
+  durationRangeBeginner?: [number, number];
+  /** Short pacing/strategy hint for UI. */
+  pacingHint: string;
+}
+
+/** Templates for Build Your Workout. Each exercise is "qty name" format. */
+export const AMRAP_BUILD_TEMPLATES: AmrapBuildTemplate[] = [
+  {
+    name: 'Cindy-style',
+    exercises: ['5 Pull-Ups or Walkouts to Push-Up', '10 Push-Ups', '15 Air Squats'],
+    durationRange: [20, 20],
+    durationRangeBeginner: [10, 12],
+    pacingHint: 'Steady 80–85%, minimal rest between stations',
+  },
+  {
+    name: 'Sprint',
+    exercises: ['10 Burpees', '15 Air Squats', '10 Push-Ups'],
+    durationRange: [5, 7],
+    pacingHint: 'Metabolic inferno — near peak capacity',
+  },
+  {
+    name: 'Minimal',
+    exercises: ['10 Burpees', '10 Air Squats'],
+    durationRange: [10, 15],
+    pacingHint: 'Quality over quantity, near-failure sets',
+  },
+];
+
+/** Check if duration is within template optimal range (primary or beginner). */
+export function isDurationInRange(
+  minutes: number,
+  template: AmrapBuildTemplate
+): boolean {
+  const [min, max] = template.durationRange;
+  if (minutes >= min && minutes <= max) return true;
+  if (template.durationRangeBeginner) {
+    const [bMin, bMax] = template.durationRangeBeginner;
+    if (minutes >= bMin && minutes <= bMax) return true;
+  }
+  return false;
+}
+
+/** Get recommended duration for template (primary range midpoint or min). */
+export function getRecommendedDurationForTemplate(
+  template: AmrapBuildTemplate
+): number {
+  const [min, max] = template.durationRange;
+  return Math.round((min + max) / 2);
+}
+
+/** Get templates whose optimal range includes the given duration. */
+export function getTemplatesForDuration(minutes: number): AmrapBuildTemplate[] {
+  return AMRAP_BUILD_TEMPLATES.filter((t) => isDurationInRange(minutes, t));
+}
+
+/** Unique exercise names from library for autocomplete. Parsed from "qty name" format. */
+export function getExerciseSuggestions(): string[] {
+  const seen = new Set<string>();
+  const results: string[] = [];
+  for (const levelWorkouts of Object.values(AMRAP_WORKOUT_LIBRARY)) {
+    for (const option of levelWorkouts) {
+      for (const ex of option.exercises) {
+        const match = ex.match(/^\d+(?:-\d+)?m?\s+(.+)$/);
+        const name = match ? match[1].trim() : ex.trim();
+        if (name && !seen.has(name.toLowerCase())) {
+          seen.add(name.toLowerCase());
+          results.push(name);
+        }
+      }
+    }
+  }
+  return results.sort((a, b) => a.localeCompare(b));
+}
+
 export const AMRAP_PROTOCOL_LABELS = {
   generalAmrap: 'General AMRAP',
   generalAmrapDesc: 'Pick your time cap (5 / 15 / 20 min)',

@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
-import type { AmrapLevel } from './amrap-setup-data';
+import { saveRecentCustomWorkout } from '@/lib/recentCustomWorkouts';
+import type { AmrapBuildTemplate, AmrapLevel } from './amrap-setup-data';
 
 export type AmrapSetupResult =
   | { type: 'workout'; durationMinutes: number; workoutList: string[] };
@@ -72,21 +73,65 @@ export function useAmrapSetup(onComplete: (result: AmrapSetupResult) => void) {
   }, []);
 
   const addExercise = useCallback((qty: string, name: string) => {
-    setCustomExercises((prev) => [...prev, { qty: qty.trim(), name: name.trim() }]);
+    const q = qty.trim();
+    const n = name.trim();
+    if (!n) return;
+    setCustomExercises((prev) => [...prev, { qty: q, name: n }]);
   }, []);
 
   const removeExercise = useCallback((index: number) => {
     setCustomExercises((prev) => prev.filter((_, i) => i !== index));
   }, []);
 
+  const reorderExercises = useCallback((fromIndex: number, toIndex: number) => {
+    setCustomExercises((prev) => {
+      if (fromIndex < 0 || fromIndex >= prev.length || toIndex < 0 || toIndex >= prev.length)
+        return prev;
+      const next = [...prev];
+      const [removed] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, removed!);
+      return next;
+    });
+  }, []);
+
+  const loadTemplate = useCallback(
+    (template: AmrapBuildTemplate, options?: { adjustDuration?: number }) => {
+      if (options?.adjustDuration != null) {
+        setSelectedDuration(options.adjustDuration);
+      }
+      const parsed: CustomExercise[] = template.exercises.map((ex) => {
+        const match = ex.trim().match(/^(\d+(?:-\d+)?m?)\s+(.+)$/);
+        if (match) return { qty: match[1], name: match[2].trim() };
+        return { qty: '', name: ex.trim() };
+      });
+      setCustomExercises(parsed);
+    },
+    []
+  );
+
   const launchFromBuilder = useCallback(() => {
     if (selectedDuration == null) return;
     const workoutList = customExercises
       .map((e) => `${e.qty} ${e.name}`.trim())
       .filter(Boolean);
+    saveRecentCustomWorkout(selectedDuration, workoutList);
     onComplete({ type: 'workout', durationMinutes: selectedDuration, workoutList });
     setIsOpen(false);
   }, [selectedDuration, customExercises, onComplete]);
+
+  const loadRecent = useCallback(
+    (durationMinutes: number, workoutList: string[]) => {
+      setSelectedDuration(durationMinutes);
+      setGeneralBuildStep('builder');
+      const parsed: CustomExercise[] = workoutList.map((ex) => {
+        const match = ex.trim().match(/^(\d+(?:-\d+)?m?)\s+(.+)$/);
+        if (match) return { qty: match[1], name: match[2].trim() };
+        return { qty: '', name: ex.trim() };
+      });
+      setCustomExercises(parsed);
+    },
+    []
+  );
 
   const startWithWorkout = useCallback(
     (durationMinutes: number, workoutList: string[]) => {
@@ -113,6 +158,9 @@ export function useAmrapSetup(onComplete: (result: AmrapSetupResult) => void) {
     selectDuration,
     addExercise,
     removeExercise,
+    reorderExercises,
+    loadTemplate,
+    loadRecent,
     launchFromBuilder,
   };
 }
