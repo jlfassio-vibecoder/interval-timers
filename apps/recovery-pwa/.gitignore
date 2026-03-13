@@ -1,0 +1,12 @@
+# Dependencies and build
+node_modules
+dist
+
+# Astro build cache and generated files
+# Per Astro's official guidance; avoids noisy diffs and merge conflicts
+.astro/
+
+# Env
+.env
+.env.local
+.env.*.local

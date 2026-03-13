@@ -9,6 +9,7 @@ import AmrapSessionShell from '@/components/amrap-session/AmrapSessionShell';
 import NewWorkoutModal from '@/components/NewWorkoutModal';
 import DailyWarmupSessionOverlay from '@/components/DailyWarmupSessionOverlay';
 import PostWorkoutRecapModal from '@/components/PostWorkoutRecapModal';
+import RecoveryQrModal from '@/components/RecoveryQrModal';
 import ViewResultsModal from '@/components/ViewResultsModal';
 
 export default function AmrapSessionPage() {
@@ -165,6 +166,7 @@ export default function AmrapSessionPage() {
         myRounds={result.myRounds}
         durationMinutes={result.durationMinutes ?? 15}
         onCopyResults={pageState.copyResults}
+        recoveryUrl={pageState.recoveryUrl}
       />
 
       <ViewResultsModal
@@ -175,6 +177,14 @@ export default function AmrapSessionPage() {
         copyToast={pageState.copyResultsToast}
         roundDurations={pageState.roundDurations}
       />
+
+      {pageState.recoveryUrl && (
+        <RecoveryQrModal
+          isOpen={pageState.showRecoveryQrModal}
+          onClose={pageState.handleCloseRecoveryQr}
+          recoveryUrl={pageState.recoveryUrl}
+        />
+      )}
     </>
   );
 }

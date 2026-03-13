@@ -1,0 +1,412 @@
+<!-- Chosen Palette: "Midnight Mobile" - Base: Deep Zinc/Black (OLED friendly). Accents: Emerald (Success), Rose (Heart Rate/Action), Amber (Warning). Text: White & Zinc-400. -->
+
+<!-- Application Structure Plan:
+    1. **Mobile-First PWA Shell**: Constrained maximum width, bottom-heavy touch targets, dark mode default to save battery and reduce glare post-workout.
+    2. **View 1: Sync & Timer**: Lands immediately from the QR code. Shows the running "Time Since Workout Ended" clock to create a sense of urgency to start the scan.
+    3. **View 2: The PPG Scanner**: A simulated "Finger over Camera" UI. Uses a red glowing overlay and a Canvas-based ECG animation to provide visual feedback that the app is "reading" their pulse.
+    4. **View 3: RPE Grid**: A 1-10 tap-grid for Rate of Perceived Exertion. Much easier to tap with sweaty hands than a slider.
+    5. **View 4: AI Synthesis Dashboard**: Presents the structured data (Elapsed Time, HR, RPE) alongside a simulated AI-generated insight based on their specific combination of metrics.
+    *Rationale*: This stepped, single-action-per-screen flow reduces cognitive load for an exhausted athlete.
+-->
+
+<!-- Visualization & Content Choices:
+    1. **Recovery Timer (Vanilla JS)**: 
+        * *Goal*: Track exact seconds between workout end and HR capture.
+    2. **PPG Scan Simulation (Canvas + CSS)**:
+        * *Goal*: Communicate the "reading" phase.
+        * *Presentation*: A glowing red box with a dynamic Canvas line graph mimicking a pulse wave.
+        * *Justification*: Required to show the UX of the camera-based HR feature without requiring complex WebRTC camera permissions in this prototype.
+    3. **RPE Grid (CSS Grid)**:
+        * *Goal*: Capture subjective difficulty.
+        * *Presentation*: Color-coded 1-10 grid (Green -> Red).
+    4. **AI Insight (Dynamic Text)**:
+        * *Goal*: Summarize fitness level.
+        * *Presentation*: Text box with dynamic variables injected.
+-->
+
+<!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AMRAP Recovery Sync</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&family=Space+Mono:wght@700&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #09090b; /* zinc-950 */
+            color: #fafafa;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .mono { font-family: 'Space Mono', monospace; }
+
+        /* Mobile App Container Constraint */
+        .app-container {
+            width: 100%;
+            max-width: 430px; /* iPhone Pro Max width */
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            background-color: #09090b;
+        }
+
+        /* View Transitions */
+        .view-section {
+            display: none;
+            flex-direction: column;
+            height: 100%;
+            padding: 1.5rem;
+            animation: fadeIn 0.4s ease forwards;
+        }
+        .view-section.active { display: flex; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Scanner Specific Styles */
+        .camera-simulation {
+            background-color: #4c0519; /* dark rose */
+            border-radius: 2rem;
+            position: relative;
+            overflow: hidden;
+            box-shadow: inset 0 0 50px rgba(225, 29, 72, 0.5);
+            border: 2px solid #e11d48;
+        }
+        
+        .camera-pulse {
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle, rgba(225,29,72,0.4) 0%, rgba(0,0,0,0) 70%);
+            animation: heartPulse 1s infinite alternate;
+        }
+
+        @keyframes heartPulse {
+            from { transform: scale(0.95); opacity: 0.6; }
+            to { transform: scale(1.1); opacity: 1; }
+        }
+
+        /* RPE Grid */
+        .rpe-btn {
+            aspect-ratio: 1;
+            border-radius: 1rem;
+            font-size: 1.5rem;
+            font-weight: 900;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.1s;
+        }
+        .rpe-btn:active { transform: scale(0.9); }
+
+        /* AI Loading Spinner (No SVG) */
+        .loader {
+            width: 48px;
+            height: 48px;
+            border: 5px solid #27272a;
+            border-bottom-color: #10b981;
+            border-radius: 50%;
+            display: inline-block;
+            box-sizing: border-box;
+            animation: rotation 1s linear infinite;
+        }
+        @keyframes rotation {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+
+        <!-- VIEW 1: Landing & Timer -->
+        <section id="view-landing" class="view-section active">
+            <header class="text-center mt-8 mb-auto">
+                <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-emerald-950 text-emerald-500 mb-4 text-2xl">🔗</div>
+                <h1 class="text-2xl font-black tracking-tight">Session Synced</h1>
+                <p class="text-zinc-400 text-sm mt-2">Ready to record recovery metrics.</p>
+            </header>
+
+            <div class="text-center my-12">
+                <p class="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-2">Time Since Workout Ended</p>
+                <div id="recovery-clock" class="text-6xl font-black mono text-emerald-400 tracking-tighter">00:00</div>
+            </div>
+
+            <div class="mt-auto pb-8 space-y-4">
+                <button onclick="app.startScan()" class="w-full py-5 bg-rose-600 text-white rounded-2xl font-black text-xl shadow-[0_0_20px_rgba(225,29,72,0.4)] active:scale-95 transition-transform">
+                    START HR SCAN
+                </button>
+                <p class="text-center text-xs text-zinc-500">Ensure camera lens is clean.</p>
+            </div>
+        </section>
+
+        <!-- VIEW 2: PPG Camera Scan -->
+        <section id="view-scan" class="view-section">
+            <header class="text-center mt-4 mb-8">
+                <h2 class="text-xl font-black">Measuring Pulse...</h2>
+                <p class="text-zinc-400 text-sm mt-1">Keep finger completely still</p>
+            </header>
+
+            <!-- Camera / Finger Simulation Area -->
+            <div class="camera-simulation flex-grow mb-8 flex flex-col items-center justify-center relative">
+                <div class="camera-pulse"></div>
+                <!-- Real canvas for fake ECG drawing -->
+                <canvas id="ecg-canvas" width="300" height="150" class="absolute z-10 w-full h-32 opacity-80"></canvas>
+                
+                <div class="z-20 text-center mt-32">
+                    <span class="text-5xl font-black mono drop-shadow-lg" id="live-bpm">--</span>
+                    <span class="text-lg font-bold text-rose-200">BPM</span>
+                </div>
+            </div>
+
+            <div class="mt-auto pb-8">
+                <div class="w-full bg-zinc-800 rounded-full h-3 mb-4 overflow-hidden">
+                    <div id="scan-progress" class="bg-rose-500 h-3 rounded-full w-0 transition-all duration-100 ease-linear"></div>
+                </div>
+                <p class="text-center text-xs text-zinc-500 uppercase tracking-widest font-bold" id="scan-status">Detecting Capillary Flow...</p>
+            </div>
+        </section>
+
+        <!-- VIEW 3: RPE Input -->
+        <section id="view-rpe" class="view-section">
+            <header class="text-center mt-8 mb-8">
+                <h2 class="text-3xl font-black">Rate Your Effort</h2>
+                <p class="text-zinc-400 text-sm mt-2">How hard was that AMRAP session?</p>
+            </header>
+
+            <div class="grid grid-cols-2 gap-4 flex-grow content-center">
+                <button onclick="app.submitRpe(1, 'Very Light')" class="bg-emerald-950 border-2 border-emerald-800 text-emerald-400 rounded-2xl p-4 font-black text-left active:scale-95 transition">
+                    <span class="text-2xl block mb-1">1-3</span>
+                    <span class="text-xs uppercase tracking-widest text-emerald-600">Very Light</span>
+                </button>
+                <button onclick="app.submitRpe(4, 'Moderate')" class="bg-lime-950 border-2 border-lime-800 text-lime-400 rounded-2xl p-4 font-black text-left active:scale-95 transition">
+                    <span class="text-2xl block mb-1">4-6</span>
+                    <span class="text-xs uppercase tracking-widest text-lime-600">Moderate</span>
+                </button>
+                <button onclick="app.submitRpe(7, 'Hard')" class="bg-amber-950 border-2 border-amber-800 text-amber-400 rounded-2xl p-4 font-black text-left active:scale-95 transition">
+                    <span class="text-2xl block mb-1">7-8</span>
+                    <span class="text-xs uppercase tracking-widest text-amber-600">Hard (Vigorous)</span>
+                </button>
+                <button onclick="app.submitRpe(9, 'Very Hard')" class="bg-orange-950 border-2 border-orange-800 text-orange-400 rounded-2xl p-4 font-black text-left active:scale-95 transition">
+                    <span class="text-2xl block mb-1">9</span>
+                    <span class="text-xs uppercase tracking-widest text-orange-600">Very Hard</span>
+                </button>
+                <button onclick="app.submitRpe(10, 'Maximal')" class="col-span-2 bg-rose-950 border-2 border-rose-800 text-rose-400 rounded-2xl p-4 font-black text-center active:scale-95 transition">
+                    <span class="text-2xl block mb-1">10</span>
+                    <span class="text-xs uppercase tracking-widest text-rose-600">Maximal (Could not continue)</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- VIEW 4: AI Loading -->
+        <section id="view-loading" class="view-section items-center justify-center">
+            <span class="loader mb-8"></span>
+            <h2 class="text-xl font-black tracking-widest uppercase">Synthesizing</h2>
+            <p class="text-zinc-500 text-sm mt-2 text-center max-w-[250px]">Running post-session data through AI performance model...</p>
+        </section>
+
+        <!-- VIEW 5: Results & AI Summary -->
+        <section id="view-results" class="view-section">
+            <header class="mt-4 mb-6 flex justify-between items-center">
+                <h2 class="text-2xl font-black">Recovery Profile</h2>
+                <div class="text-2xl">🧠</div>
+            </header>
+
+            <!-- Data Cards -->
+            <div class="grid grid-cols-2 gap-3 mb-6">
+                <div class="bg-zinc-900 p-4 rounded-2xl border border-zinc-800">
+                    <span class="text-[10px] font-bold uppercase text-zinc-500 tracking-widest">Capture Delay</span>
+                    <div class="text-xl font-black mono text-zinc-100 mt-1" id="res-delay">--:--</div>
+                </div>
+                <div class="bg-zinc-900 p-4 rounded-2xl border border-zinc-800">
+                    <span class="text-[10px] font-bold uppercase text-zinc-500 tracking-widest">Recov. HR</span>
+                    <div class="text-xl font-black mono text-rose-400 mt-1"><span id="res-hr">--</span> <span class="text-xs">BPM</span></div>
+                </div>
+                <div class="bg-zinc-900 p-4 rounded-2xl border border-zinc-800 col-span-2 flex justify-between items-center">
+                    <span class="text-[10px] font-bold uppercase text-zinc-500 tracking-widest">Reported RPE</span>
+                    <div class="text-lg font-black text-amber-400" id="res-rpe">--</div>
+                </div>
+            </div>
+
+            <!-- AI Insight Box -->
+            <div class="bg-gradient-to-br from-emerald-950 to-zinc-900 border border-emerald-900/50 p-6 rounded-3xl flex-grow overflow-y-auto mb-6">
+                <div class="flex items-center gap-2 mb-4">
+                    <span class="text-emerald-500 text-xl">✨</span>
+                    <h3 class="font-bold text-emerald-500 uppercase tracking-widest text-xs">AI Insight</h3>
+                </div>
+                <div id="ai-response-text" class="text-zinc-300 text-sm leading-relaxed">
+                    <!-- Injected via JS -->
+                </div>
+            </div>
+
+            <button onclick="app.closeApp()" class="w-full py-4 bg-zinc-800 text-white rounded-2xl font-bold hover:bg-zinc-700 transition active:scale-95">
+                Save & Return to Dashboard
+            </button>
+        </section>
+
+    </div>
+
+    <!-- Application Logic -->
+    <script>
+        const app = {
+            state: {
+                workoutEndTime: Date.now() - 84000, // Simulate the workout ended ~1.5 mins ago
+                captureDelayMs: 0,
+                finalHr: 0,
+                rpeVal: 0,
+                rpeText: '',
+                timerInterval: null
+            },
+
+            init() {
+                this.startClock();
+            },
+
+            switchView(viewId) {
+                document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+                document.getElementById(viewId).classList.add('active');
+            },
+
+            // --- Screen 1: The Running Clock ---
+            startClock() {
+                const clockEl = document.getElementById('recovery-clock');
+                this.state.timerInterval = setInterval(() => {
+                    const elapsed = Math.floor((Date.now() - this.state.workoutEndTime) / 1000);
+                    const m = Math.floor(elapsed / 60).toString().padStart(2, '0');
+                    const s = (elapsed % 60).toString().padStart(2, '0');
+                    clockEl.innerText = `${m}:${s}`;
+                }, 1000);
+            },
+
+            // --- Screen 2: Simulated PPG Scan ---
+            startScan() {
+                // Lock in the time it took them to start scanning
+                this.state.captureDelayMs = Date.now() - this.state.workoutEndTime;
+                clearInterval(this.state.timerInterval);
+
+                this.switchView('view-scan');
+                this.runFakePpgScan();
+            },
+
+            runFakePpgScan() {
+                const duration = 6000; // 6 seconds for prototype (would be 15-30s in real life)
+                const startTime = Date.now();
+                const progressEl = document.getElementById('scan-progress');
+                const statusEl = document.getElementById('scan-status');
+                const bpmEl = document.getElementById('live-bpm');
+                
+                // Canvas ECG setup
+                const canvas = document.getElementById('ecg-canvas');
+                const ctx = canvas.getContext('2d');
+                let x = 0;
+                
+                // Simulate the specific scenario's post-workout heart rate
+                let currentBpm = 82; 
+
+                const scanInterval = setInterval(() => {
+                    const elapsed = Date.now() - startTime;
+                    const percent = (elapsed / duration) * 100;
+                    progressEl.style.width = `${percent}%`;
+
+                    // Update UI text
+                    if(percent > 20) statusEl.innerText = "Analyzing Red Channel...";
+                    if(percent > 60) statusEl.innerText = "Calculating Peak Intervals...";
+
+                    // Fluctuate BPM slightly
+                    if(Math.random() > 0.5) {
+                        currentBpm += (Math.random() > 0.5 ? 1 : -1);
+                        bpmEl.innerText = currentBpm;
+                    }
+
+                    // Draw fake ECG line
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.moveTo(x, 75);
+                    x += 4;
+                    // Draw a "spike"
+                    if(x % 60 < 4) {
+                        ctx.lineTo(x + 5, 20);
+                        ctx.lineTo(x + 10, 130);
+                        ctx.lineTo(x + 15, 75);
+                        x += 15;
+                    } else {
+                        ctx.lineTo(x, 75 + (Math.random() * 10 - 5)); // Add noise
+                    }
+                    ctx.stroke();
+
+                    // Wrap canvas
+                    if(x > canvas.width) {
+                        ctx.clearRect(0, 0, canvas.width, canvas.height);
+                        x = 0;
+                    }
+
+                    // End scan
+                    if (elapsed >= duration) {
+                        clearInterval(scanInterval);
+                        this.state.finalHr = currentBpm;
+                        setTimeout(() => this.switchView('view-rpe'), 500);
+                    }
+                }, 30); // ~30fps
+            },
+
+            // --- Screen 3: RPE Input ---
+            submitRpe(val, text) {
+                this.state.rpeVal = val;
+                this.state.rpeText = text;
+                this.switchView('view-loading');
+                
+                // Simulate network/AI delay
+                setTimeout(() => this.generateAiSummary(), 2500);
+            },
+
+            // --- Screen 4 & 5: AI Synthesis ---
+            generateAiSummary() {
+                // Populate UI
+                const delaySecs = Math.floor(this.state.captureDelayMs / 1000);
+                const dm = Math.floor(delaySecs / 60).toString().padStart(2, '0');
+                const ds = (delaySecs % 60).toString().padStart(2, '0');
+                
+                document.getElementById('res-delay').innerText = `+${dm}:${ds}`;
+                document.getElementById('res-hr').innerText = this.state.finalHr;
+                document.getElementById('res-rpe').innerText = `${this.state.rpeVal}/10 (${this.state.rpeText})`;
+
+                // Generate contextual AI response based on the 51M Persona scenario
+                const aiText = `
+                    <strong class="text-emerald-400">WORK CAPACITY & DENSITY</strong><br>
+                    You maintained an incredible mechanical output today. Completing 9 rounds in 15 minutes means you moved through a full station roughly every 1 minute and 40 seconds. Sustaining 60lb single-leg split squats at this pace requires immense localized muscular endurance.<br><br>
+                    <span class="text-zinc-400">• <strong class="text-white">Population Comparison:</strong> The ability to move a 60lb external load dynamically on a single leg for 90 total reps per leg places your lower-body strength-endurance in the <strong class="text-emerald-400">Top 5% for males aged 50-55</strong>. The average 51-year-old in the general population struggles with unweighted split squats for a single set of 10.</span><br><br>
+
+                    <strong class="text-emerald-400">CARDIOVASCULAR RECOVERY</strong><br>
+                    Your heart rate recovery (HRR) is the standout metric of this session. Dropping to <strong class="text-rose-400">82 BPM within 90 seconds</strong> of a threshold-level AMRAP indicates elite parasympathetic nervous system function.<br><br>
+                    <span class="text-zinc-400">• <strong class="text-white">Population Comparison:</strong> A normal healthy HR drop is roughly 15-20 beats in the first minute. A drop of this magnitude places your cardiovascular elasticity and recovery efficiency in the <strong class="text-emerald-400">Top 1% to 2% of the general population for your age</strong>. Your heart functions like someone a decade and a half younger.</span>
+                `;
+
+                document.getElementById('ai-response-text').innerHTML = aiText;
+                this.switchView('view-results');
+            },
+
+            closeApp() {
+                alert("Data saved to main profile. You can close this window on your phone.");
+            }
+        };
+
+        // Bootstrap
+        window.onload = () => app.init();
+
+    </script>
+</body>
+</html>

@@ -17,6 +17,7 @@ import { useSessionState } from '@/hooks/useSessionState';
 import { useAgoraChannel } from '@/hooks/useAgoraChannel';
 import { getOrCreateAudioContext, playSoundWithContext } from '@/lib/amrapSounds';
 import { HUD_REDIRECT_URL } from '@/lib/account-redirect-url';
+import { buildRecoveryUrl } from '@/lib/recovery-url';
 import { saveGuestSessionResult } from '@/lib/guestSessionHistory';
 import { getWorkoutTitle } from '@/lib/workoutLabel';
 import { buildResultsText, computeVolumeLines } from '@/lib/workoutResults';
@@ -136,6 +137,11 @@ export function useSocialAmrap(
     handleOpenWarmupOverlay: () => Promise<void>;
     handleCloseWarmupOverlay: () => Promise<void>;
     handleStartWarmup: () => Promise<void>;
+    /** Recovery PWA URL for desktop-to-phone QR flow when finished */
+    recoveryUrl: string | null;
+    showRecoveryQrModal: boolean;
+    handleOpenRecoveryQr: () => void;
+    handleCloseRecoveryQr: () => void;
   };
 } {
   const { user } = useAmrapAuth();
@@ -186,6 +192,7 @@ export function useSocialAmrap(
   const copyResultsToastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showViewResultsModal, setShowViewResultsModal] = useState(false);
   const [viewResultsText, setViewResultsText] = useState('');
+  const [showRecoveryQrModal, setShowRecoveryQrModal] = useState(false);
   const [animatingIds, setAnimatingIds] = useState<Set<string>>(new Set());
   const seenParticipantIdsRef = useRef<Set<string>>(new Set());
   const [countdownSeconds, setCountdownSeconds] = useState(0);
@@ -774,6 +781,17 @@ export function useSocialAmrap(
     </>
   ) : null;
 
+  const recoveryUrl =
+    timerState === 'finished' && session && sessionId
+      ? buildRecoveryUrl(
+          sessionId,
+          session.started_at
+            ? new Date(session.started_at).getTime() +
+                session.duration_minutes * 60 * 1000
+            : now - 15000
+        )
+      : null;
+
   const finishedActionsSlot =
     timerState === 'finished' ? (
       <div className="mt-8 flex flex-col gap-3 border-t border-white/10 pt-6">
@@ -806,6 +824,15 @@ export function useSocialAmrap(
           >
             Copy results
           </button>
+          {recoveryUrl && (
+            <button
+              type="button"
+              onClick={() => setShowRecoveryQrModal(true)}
+              className="flex-1 min-w-[8rem] rounded-xl border border-white/20 bg-white/10 px-4 py-3 font-bold text-white transition-colors hover:bg-white/20"
+            >
+              Continue on phone
+            </button>
+          )}
         </div>
         {copyResultsToast && (
           <p
@@ -926,6 +953,10 @@ export function useSocialAmrap(
     handleOpenWarmupOverlay,
     handleCloseWarmupOverlay,
     handleStartWarmup,
+    recoveryUrl,
+    showRecoveryQrModal,
+    handleOpenRecoveryQr: () => setShowRecoveryQrModal(true),
+    handleCloseRecoveryQr: () => setShowRecoveryQrModal(false),
   };
 
   return {
