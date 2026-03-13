@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import AccountLink from '@/components/AccountLink';
 import AmrapCtaButton from '@/components/AmrapCtaButton';
 import { AuthModal } from '@interval-timers/auth-ui';
+import { getRecentCustomWorkouts } from '@/lib/recentCustomWorkouts';
 import { supabase } from '@/lib/supabase';
 import { ACCOUNT_REDIRECT_URL } from '@/lib/account-redirect-url';
 import { useAmrapAuth } from '@/contexts/AmrapAuthContext';
@@ -524,6 +525,12 @@ const AmrapInterval: React.FC<AmrapIntervalProps> = ({ onNavigate, onNavigateToL
               onSelectDuration={setup.selectDuration}
               onAddExercise={setup.addExercise}
               onRemoveExercise={setup.removeExercise}
+              onReorderExercises={setup.reorderExercises}
+              onLoadTemplate={setup.loadTemplate}
+              onLoadRecent={setup.loadRecent}
+              recentWorkouts={
+                setup.generalBuildStep === 'builder' ? getRecentCustomWorkouts() : []
+              }
               onLaunch={setup.launchFromBuilder}
               onBackToDuration={setup.back}
               qtyInputRef={qtyInputRef}
