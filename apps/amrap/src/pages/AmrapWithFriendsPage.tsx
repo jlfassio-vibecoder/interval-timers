@@ -183,8 +183,17 @@ export default function AmrapWithFriendsPage() {
       );
       return;
     }
-    const result = (data ?? {}) as { participant_id: string };
-    setStoredParticipantId(sid, result.participant_id);
+    const participantId =
+      data &&
+      typeof data === 'object' &&
+      typeof (data as { participant_id?: unknown }).participant_id === 'string'
+        ? ((data as { participant_id: string }).participant_id || '').trim()
+        : '';
+    if (!participantId) {
+      setJoinError('Something went wrong. Please try again.');
+      return;
+    }
+    setStoredParticipantId(sid, participantId);
     navigate(`/with-friends/session/${sid}`);
   }, [joinSessionId, joinNickname, navigate, user?.id]);
 

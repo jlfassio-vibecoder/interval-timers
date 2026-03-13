@@ -55,6 +55,8 @@ interface IntervalTimerOverlayProps {
   embedded?: boolean;
   /** Optional content to render in the sidebar below the exercise image (e.g. host video for AMRAP sessions). */
   sidebarSlot?: React.ReactNode;
+  /** When true, hide the close button (e.g. when only host can close, as in synced session warmup). */
+  hideClose?: boolean;
 }
 
 const DEFAULT_THEME: IntervalTimerOverlayTheme = { workBg: 'bg-red-600' };
@@ -72,6 +74,7 @@ const IntervalTimerOverlay: React.FC<IntervalTimerOverlayProps> = ({
   autoStart = false,
   embedded = false,
   sidebarSlot,
+  hideClose = false,
 }) => {
   const warmupList: WarmupExercise[] =
     warmupExercises ?? WARMUP_EXERCISES.map((e) => ({ name: e.name, detail: e.detail }));
@@ -96,9 +99,13 @@ const IntervalTimerOverlay: React.FC<IntervalTimerOverlayProps> = ({
   const readyPlayedThisRestRef = useRef(false);
   const prevBlockTypeRef = useRef<HIITTimelineBlock['type'] | null>(null);
 
+  // Auto-start mirrors manual START: play warmup bell when first block is warmup, then start
   useEffect(() => {
-    if (autoStart) setHasStarted(true);
-  }, [autoStart]);
+    if (!autoStart || hasStarted) return;
+    const firstBlock = timeline[0];
+    if (firstBlock?.type === 'warmup') playBell();
+    setHasStarted(true);
+  }, [autoStart, hasStarted, timeline]);
 
   // Sync volume to sound module on mount and when user changes it
   useEffect(() => {
@@ -443,14 +450,16 @@ const IntervalTimerOverlay: React.FC<IntervalTimerOverlayProps> = ({
           </h3>
           <p className="truncate text-sm opacity-90">{currentBlock.notes ?? 'Focus on form'}</p>
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="shrink-0 p-2 text-2xl leading-none"
-          aria-label="Close timer"
-        >
-          &times;
-        </button>
+        {hideClose ? null : (
+          <button
+            type="button"
+            onClick={onClose}
+            className="shrink-0 p-2 text-2xl leading-none"
+            aria-label="Close timer"
+          >
+            &times;
+          </button>
+        )}
       </div>
 
       <div className="flex min-h-0 flex-1 overflow-hidden pl-1 sm:pl-1.5">

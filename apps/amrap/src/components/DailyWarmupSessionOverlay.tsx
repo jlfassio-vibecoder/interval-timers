@@ -95,6 +95,7 @@ export default function DailyWarmupSessionOverlay({
         <IntervalTimerOverlay
           timeline={frozenConfig.timeline}
           onClose={handleClose}
+          hideClose={!isHost}
           theme={{ workBg: WARMUP_ACCENT.workBg }}
           warmupExercises={frozenConfig.exercises}
           warmupDurationPerExercise={frozenConfig.durationPerExercise}

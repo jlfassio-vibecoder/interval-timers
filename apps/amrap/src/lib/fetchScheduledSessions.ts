@@ -22,6 +22,13 @@ export async function fetchScheduledSessions(
   weekEnd: Date,
   signal?: AbortSignal
 ): Promise<{ data: ScheduledSession[]; error: string | null }> {
+  if (!url || !anonKey) {
+    return {
+      data: [],
+      error:
+        'Supabase configuration is missing. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.',
+    };
+  }
   const startISO = weekStart.toISOString();
   const endISO = weekEnd.toISOString();
   // PostgREST ignores duplicate params for the same column; use and=() to combine filters.
