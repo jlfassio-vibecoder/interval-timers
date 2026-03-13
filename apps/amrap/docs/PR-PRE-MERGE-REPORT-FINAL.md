@@ -1,79 +1,53 @@
-# Pre-Merge Report — Final PR Gatekeeper
+# Pre-Merge Report — AMRAP Solo/Social Unification PR
 
-**Date:** 2026-03-11  
-**Branch:** fixes/troubleshoot-account-url  
-**Scope:** AMRAP New Workout modal, WorkoutPicker, 18 home-based workouts, Supabase RPCs, App/Account fixes.
-
----
-
-## Phase 1: Triage & Execution
-
-### Critical Fixes & Slop Detection (Priority: High)
-
-| Item | Status | Action |
-|------|--------|--------|
-| **Security** | ✅ Verified | Migration: `SECURITY DEFINER`, `SET search_path`, host-only RPCs gated by `host_token`. No client-side secrets. |
-| **Astro/Env** | ✅ Compliant | `import.meta.env.DEV` only in client; `VITE_*` / `PUBLIC_*` only. No secret leakage. |
-| **Build-time safety** | ✅ Verified | No `fs`, `path`, `process` in client components. |
-| **Dead logic** | ✅ Fixed | Removed unused `getToken()` and `token` from `agora.ts` (env-token bypass removed; function no longer called). |
-| **TODO/FIXME** | ✅ None | No unresolved TODOs or commented-out blocks in changed files. |
-
-### Performance & Optimization (Priority: Medium)
-
-| Item | Status | Action |
-|------|--------|--------|
-| **Modal close race** | ✅ Fixed (earlier) | Parent closes modal only after successful `update_session_workout`. |
-| **SSR stub leakage** | ✅ Fixed (earlier) | `getSSRStub()` returns fresh object per call; no shared mutable Set. |
-| **Container queries** | ✅ Fixed (earlier) | Replaced `@container` (no plugin) with inline `containerType: 'inline-size'`. |
-
-### Style & Architecture (Priority: Low)
-
-| Item | Status | Action |
-|------|--------|--------|
-| **Consistency** | ✅ Kept | NewWorkoutModal, WorkoutPicker, handlers align with existing modal/picker patterns. |
-| **WorkoutPicker Cancel** | ✅ Fixed (earlier) | Cancel always resets picker state; `onCancel={() => {}}` in create flow now behaves correctly. |
-| **ReactNode import** | ✅ Fixed (earlier) | Explicit `import type { ReactNode }` instead of `React.ReactNode`. |
-| **Loading timeout** | ✅ Fixed (earlier) | 1s timeout limited to dev only; avoids prod false sign-out. |
+**Date:** 2025-03-13  
+**Scope:** `apps/amrap` (Solo session page, AmrapSessionShell, useSoloAmrap/useSocialAmrap, VideoSourcePlayer, Build Your Workout flow)
 
 ---
 
-## Fixed (This Session)
+## Fixed (Critical / Performance)
 
-| Location | Change |
-|----------|--------|
-| `apps/amrap/src/lib/agora.ts` | Removed dead `getToken()` and `token` variable (no longer used after env-token bypass removal). |
+| Issue | Resolution |
+|-------|------------|
+| **SoloAmrapSessionPage — durationMinutes validation** | Added `clampDuration()` so `state?.durationMinutes` is validated (1–120) and clamped before `useSoloAmrap`, consistent with query-param parsing. |
+| **AmrapSessionShell — Pause/Resume click handler** | Replaced `onClick={onPause ?? onResume}` with `onClick={isPaused ? onResume : onPause}` so the correct handler is called. |
+| **useSocialAmrap — onPause/onResume toggle** | `onPause` always sets `is_paused: true`; `onResume` always sets `is_paused: false`. Removed toggle logic. |
+| **useSocialAmrap — copyShareLink timeout** | Introduced `copyToastTimeoutRef`, clear previous timeout before scheduling, and cleanup on unmount to avoid updates after unmount. |
+| **useSoloAmrap — AudioContext reuse** | Replaced per-invocation `new AudioContext()` with `getOrCreateAudioContext(ref)` and cleanup on unmount to avoid context limits and leaks. |
+| **VideoSourcePlayer — MediaStream cleanup** | Stopped calling `source.getTracks().forEach(t => t.stop())` on unmount; only detach stream. Track lifecycle is owned by the session. |
+| **VideoSourcePlayer — SSR safety** | Guarded `source instanceof MediaStream` with `typeof MediaStream !== 'undefined'` for Node/SSR. |
 
 ---
 
 ## Slop Scrubbed
 
-| Location | Change |
+| Category | Action |
 |----------|--------|
-| `apps/amrap/src/lib/agora.ts` | Removed unused `getToken()` and `token` (dead code). |
-| *(Earlier)* `NewWorkoutModal` | Parent closes modal; no immediate `onClose()` on select. |
-| *(Earlier)* `WorkoutPicker` | `handleCancel` resets state; `onCancel` no-op in create flow is now meaningful. |
-| *(Earlier)* `AccountLanding` | Loading timeout dev-only. |
-| *(Earlier)* `AppContext` | Fresh SSR stub per call. |
-| *(Earlier)* `AmrapSessionPage` | `containerType` inline; no broken `@container`. |
+| **Redundant comments** | None found; existing comments (e.g. VideoSourcePlayer stream lifecycle) explain non-obvious behavior. |
+| **Dead logic** | None; `audioContextRef` in `AmrapInterval` is used for simulator telemetry (separate from useSoloAmrap). |
+| **Placeholder/TODO** | No TODO, FIXME, or commented-out blocks in changed files. |
+| **Hallucinated APIs** | All imports (agora-rtc-sdk-ng, timer-core, analytics, etc.) verified against project versions. |
 
 ---
 
 ## Ignored
 
-| Suggestion / Area | Reason |
-|-------------------|--------|
-| PR title / branch mismatch | Metadata-only; requires manual update on GitHub. |
-| Add `@tailwindcss/container-queries` | Used inline `containerType` instead; no new dependency. |
-| `process.env.NODE_ENV` in AccountLanding | Kept `import.meta.env.DEV` (Astro/Vite convention). |
+| Suggestion | Reason |
+|------------|--------|
+| workoutList validation (state payload) | Defensive normalization would duplicate the builder’s guarantees; `navigate` passes trusted data. Not requested in Copilot comments. |
+| Extra workoutList type guard for `state?.workoutList` | Same as above; current flow is safe. |
+| Style/layout nitpicks | Changes would diverge from existing patterns in the codebase. |
+| Further abstraction of playSound | Current `getOrCreateAudioContext` + `playSoundWithContext` structure is clear and matches existing usage. |
 
 ---
 
-## Verification
+## Checks Performed
 
-- **Lint:** `npm run lint -w amrap` — pre-existing failure in `WeekCalendar.tsx` (unchanged file)
-- **Build:** `npm run build -w amrap` — pass  
-- **TypeScript:** no type errors  
-- **Migration:** `SET search_path`, `REVOKE`/`GRANT` correct
+- Linter: No errors in `apps/amrap/src`
+- Build: `npm run build --workspace=amrap` (tsc + vite) runs successfully
+- Astro/Env: N/A (Vite/React app); `import.meta.env.VITE_*` used correctly
+- Node APIs: No `fs` or `process` in client components
+- No new TODO/FIXME or commented-out code introduced
 
 ---
 
@@ -81,4 +55,4 @@
 
 **READY TO MERGE**
 
-All critical and performance fixes applied; dead code removed; no new debt. Recommend updating PR title/description on GitHub to reflect scope before merge.
+All critical and performance-related Copilot suggestions have been implemented. No slop detected; comments and structure are appropriate for the architecture. No outstanding issues block merge.

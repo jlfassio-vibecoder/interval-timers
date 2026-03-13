@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react';
-import type { ICameraVideoTrack, IRemoteVideoTrack } from 'agora-rtc-sdk-ng';
+import type { AmrapVideoSource } from '@/types/amrap-session';
+import VideoSourcePlayer from '@/components/amrap-session/VideoSourcePlayer';
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60)
@@ -14,7 +14,8 @@ export interface LeaderboardRowProps {
   totalRounds: number;
   splits: number[];
   rank?: number;
-  videoTrack?: ICameraVideoTrack | IRemoteVideoTrack | null;
+  /** Agora track (live) or MediaStream (solo recording) */
+  videoTrack?: AmrapVideoSource | null;
 }
 
 function RoundSplitCard({ roundIndex, timeSec }: { roundIndex: number; timeSec: number }) {
@@ -28,36 +29,12 @@ function RoundSplitCard({ roundIndex, timeSec }: { roundIndex: number; timeSec: 
   );
 }
 
-function VideoBackground({ videoTrack }: { videoTrack: ICameraVideoTrack | IRemoteVideoTrack }) {
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!videoTrack || !containerRef.current) return;
-    videoTrack.play(containerRef.current, { fit: 'cover' });
-    return () => {
-      try {
-        videoTrack.stop();
-      } catch {
-        /* already stopped */
-      }
-    };
-  }, [videoTrack]);
-
-  return (
-    <div
-      ref={containerRef}
-      className="absolute inset-0 h-full w-full [&>video]:h-full [&>video]:w-full [&>video]:object-cover"
-      aria-hidden
-    />
-  );
-}
-
 export default function LeaderboardRow({ nickname, totalRounds, splits, rank, videoTrack }: LeaderboardRowProps) {
   return (
     <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-black/20 p-6 sm:p-8">
       {videoTrack && (
         <>
-          <VideoBackground videoTrack={videoTrack} />
+          <VideoSourcePlayer source={videoTrack} />
           <div className="pointer-events-none absolute inset-0 bg-black/40" aria-hidden />
         </>
       )}
