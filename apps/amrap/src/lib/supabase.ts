@@ -34,6 +34,11 @@ export const supabase = useCookieStorage
     })
   : createClient(url ?? '', anonKey ?? '');
 
+/** Anon-only client for public reads (e.g. schedule). Use when the main client is auth-enabled:
+ * signed-in requests run as `authenticated`, which can differ from `anon`; schedule loads for
+ * anon but not authenticated. This client never sends a session, so it always uses anon. */
+export const supabaseAnon = createClient(url ?? '', anonKey ?? '');
+
 export type AmrapSessionRow = {
   id: string;
   host_token: string;

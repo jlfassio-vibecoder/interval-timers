@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabaseAnon } from '@/lib/supabase';
 
 export interface ScheduledSession {
   id: string;
@@ -19,7 +19,7 @@ export function useScheduledSessions(weekStart: Date, weekEnd: Date) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000);
     try {
-      const { data, error: e } = await supabase
+      const { data, error: e } = await supabaseAnon
         .from('amrap_sessions')
         .select('id, duration_minutes, workout_list, scheduled_start_at')
         .not('scheduled_start_at', 'is', null)
