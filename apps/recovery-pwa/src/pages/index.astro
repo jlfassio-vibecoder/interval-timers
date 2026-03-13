@@ -1,0 +1,15 @@
+---
+import RecoveryLayout from '../layouts/RecoveryLayout.astro';
+import RecoveryEngine from '../components/RecoveryEngine';
+
+const sessionId = Astro.url.searchParams.get('sessionId') ?? null;
+const endTimeParam = Astro.url.searchParams.get('endTime');
+const endTime = endTimeParam ? parseInt(endTimeParam, 10) : 0;
+const endTimeProp = Number.isFinite(endTime) && endTime > 0 ? endTime : 0;
+---
+
+<RecoveryLayout>
+  <div class="app-container">
+    <RecoveryEngine client:load sessionId={sessionId} endTime={endTimeProp} />
+  </div>
+</RecoveryLayout>

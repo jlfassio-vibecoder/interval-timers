@@ -22,6 +22,7 @@ const copies = [
   { src: 'timmons', dest: 'timmons' },
   { src: 'emom', dest: 'emom-timer' },
   { src: 'ten-twenty-thirty', dest: '10-20-30' },
+  { src: 'recovery-pwa', dest: 'recovery' },
   { src: 'bio-sync-sixty', dest: 'bio-sync-sixty' },
   { src: 'bio-sync-sixty/apps/master-clock', dest: 'bio-sync-sixty/master-clock', workspace: 'master-clock' },
 ];
