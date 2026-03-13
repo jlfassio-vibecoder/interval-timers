@@ -154,8 +154,6 @@ export default function AmrapSessionPage() {
         isHost={pageState.isHost}
         hostVideoTrack={hostVideoTrack}
         warmupStartedAt={session?.warmup_started_at}
-        sessionId={sessionId}
-        hostToken={pageState.hostToken}
       />
     </>
   );

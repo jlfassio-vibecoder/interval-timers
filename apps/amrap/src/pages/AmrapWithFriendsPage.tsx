@@ -123,17 +123,24 @@ export default function AmrapWithFriendsPage() {
         );
         return;
       }
-      const result = (data ?? {}) as { session_id: string; host_token: string; participant_id: string };
-      setStoredHostToken(result.session_id, result.host_token);
-      setStoredParticipantId(result.session_id, result.participant_id);
+      const raw = data && typeof data === 'object' ? data as Record<string, unknown> : {};
+      const sessionId = typeof raw.session_id === 'string' ? raw.session_id.trim() : '';
+      const hostToken = typeof raw.host_token === 'string' ? raw.host_token.trim() : '';
+      const participantId = typeof raw.participant_id === 'string' ? raw.participant_id.trim() : '';
+      if (!sessionId || !hostToken || !participantId) {
+        setCreateError('Something went wrong. Please try again.');
+        return;
+      }
+      setStoredHostToken(sessionId, hostToken);
+      setStoredParticipantId(sessionId, participantId);
       if (scheduledDateTime) {
         setNewlyScheduledSession({
-          id: result.session_id,
+          id: sessionId,
           scheduled_start_at: new Date(scheduledDateTime).toISOString(),
         });
         setTab('schedule');
       } else {
-        navigate(`/with-friends/session/${result.session_id}?host=1`);
+        navigate(`/with-friends/session/${sessionId}?host=1`);
       }
     },
     [navigate, user?.id]

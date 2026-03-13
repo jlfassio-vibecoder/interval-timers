@@ -24,8 +24,6 @@ interface DailyWarmupSessionOverlayProps {
   isHost: boolean;
   hostVideoTrack?: ICameraVideoTrack | IRemoteVideoTrack | null;
   warmupStartedAt?: string | null;
-  sessionId?: string;
-  hostToken?: string | null;
 }
 
 export default function DailyWarmupSessionOverlay({
