@@ -340,7 +340,7 @@ const AmrapInterval: React.FC<AmrapIntervalProps> = ({ onNavigate, onNavigateToL
                 </div>
               </div>
               <div className="h-[300px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={200}>
                   <BarChart data={impactData}>
                     <CartesianGrid
                       strokeDasharray="3 3"
@@ -416,7 +416,7 @@ const AmrapInterval: React.FC<AmrapIntervalProps> = ({ onNavigate, onNavigateToL
             <div className="grid md:grid-cols-2">
               <div className="border-b border-white/10 p-8 md:border-b-0 md:border-r">
                 <div className="mb-6 h-[200px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={150}>
                     <LineChart data={intensityData}>
                       <YAxis domain={[0, 200]} hide />
                       <Line

@@ -1,54 +1,42 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabaseAnon } from '@/lib/supabase';
+import { fetchScheduledSessions } from '@/lib/fetchScheduledSessions';
+import type { ScheduledSession } from '@/lib/fetchScheduledSessions';
 
-export interface ScheduledSession {
-  id: string;
-  duration_minutes: number;
-  workout_list: string[];
-  scheduled_start_at: string;
-}
+export type { ScheduledSession } from '@/lib/fetchScheduledSessions';
 
 export function useScheduledSessions(weekStart: Date, weekEnd: Date) {
   const [sessions, setSessions] = useState<ScheduledSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchSessions = useCallback(async () => {
+  const fetch = useCallback(async () => {
     setLoading(true);
     setError(null);
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000);
     try {
-      const { data, error: e } = await supabaseAnon
-        .from('amrap_sessions')
-        .select('id, duration_minutes, workout_list, scheduled_start_at')
-        .not('scheduled_start_at', 'is', null)
-        .gte('scheduled_start_at', weekStart.toISOString())
-        .lt('scheduled_start_at', weekEnd.toISOString())
-        .order('scheduled_start_at', { ascending: true })
-        .abortSignal(controller.signal);
-
+      const { data, error: e } = await fetchScheduledSessions(
+        weekStart,
+        weekEnd,
+        controller.signal
+      );
       if (e) {
-        setError(
-          e.message === 'The operation was aborted.'
-            ? 'Request timed out. Check your connection and try again.'
-            : e.message
-        );
+        setError(e);
         setSessions([]);
         return;
       }
-      setSessions((data as ScheduledSession[]) ?? []);
+      setSessions(data);
     } finally {
       clearTimeout(timeoutId);
       setLoading(false);
     }
-  // Stable primitive deps so fetchSessions isn't recreated when caller passes new Date refs (avoids unnecessary re-fetch).
+  // Stable primitive deps so fetch isn't recreated when caller passes new Date refs (avoids unnecessary re-fetch).
   // eslint-disable-next-line react-hooks/exhaustive-deps -- weekStart.getTime() / weekEnd.getTime() are intentional
   }, [weekStart.getTime(), weekEnd.getTime()]);
 
   useEffect(() => {
-    fetchSessions();
-  }, [fetchSessions]);
+    fetch();
+  }, [fetch]);
 
-  return { sessions, loading, error, refetch: fetchSessions };
+  return { sessions, loading, error, refetch: fetch };
 }
