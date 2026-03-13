@@ -24,3 +24,8 @@ export const ACCOUNT_REDIRECT_URL = withFromAmrap(ACCOUNT_BASE_INTERNAL);
 
 /** Base URL for account page (no query); used by buildAccountRedirectUrl for handoff flows */
 export const ACCOUNT_BASE = ACCOUNT_BASE_INTERNAL;
+
+/** URL for HUD / View in History (fallback to account when VITE_HUD_REDIRECT_URL unset or wrong) */
+export const HUD_REDIRECT_URL =
+  (hudIsWrong ? undefined : hudRedirect) ??
+  (import.meta.env.DEV ? 'http://localhost:3006/account' : '/account');

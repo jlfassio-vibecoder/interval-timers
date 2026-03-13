@@ -8,12 +8,15 @@ import { getWorkoutTitleAndDuration } from '@/lib/workoutLabel';
 import AmrapSessionShell from '@/components/amrap-session/AmrapSessionShell';
 import NewWorkoutModal from '@/components/NewWorkoutModal';
 import DailyWarmupSessionOverlay from '@/components/DailyWarmupSessionOverlay';
+import PostWorkoutRecapModal from '@/components/PostWorkoutRecapModal';
+import ViewResultsModal from '@/components/ViewResultsModal';
 
 export default function AmrapSessionPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const result = useSocialAmrap(sessionId);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authModalSignUp, setAuthModalSignUp] = useState(false);
+  const [recapDismissed, setRecapDismissed] = useState(false);
 
   if (!sessionId) {
     return (
@@ -154,6 +157,23 @@ export default function AmrapSessionPage() {
         isHost={pageState.isHost}
         hostVideoTrack={hostVideoTrack}
         warmupStartedAt={session?.warmup_started_at}
+      />
+
+      <PostWorkoutRecapModal
+        isOpen={result.timerPhase === 'finished' && !recapDismissed}
+        onClose={() => setRecapDismissed(true)}
+        myRounds={result.myRounds}
+        durationMinutes={result.durationMinutes ?? 15}
+        onCopyResults={pageState.copyResults}
+      />
+
+      <ViewResultsModal
+        isOpen={pageState.showViewResultsModal}
+        onClose={pageState.handleCloseViewResults}
+        resultsText={pageState.viewResultsText}
+        onCopy={pageState.copyResults}
+        copyToast={pageState.copyResultsToast}
+        roundDurations={pageState.roundDurations}
       />
     </>
   );

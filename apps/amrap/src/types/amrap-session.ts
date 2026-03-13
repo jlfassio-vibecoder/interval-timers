@@ -58,10 +58,15 @@ export interface AmrapSessionEngine {
     exerciseHeader?: ReactNode;
     /** Shown below error message when engine.error is set */
     errorAction?: ReactNode;
+    /** Actions when timer is finished (e.g. Done, View in History, Copy results) */
+    finishedActions?: ReactNode;
   };
 
   /** Workout config for ExerciseList */
   workoutList: string[];
+
+  /** Duration in minutes (for finished-state summary) */
+  durationMinutes?: number;
 
   /** Loading/error states */
   loading?: boolean;

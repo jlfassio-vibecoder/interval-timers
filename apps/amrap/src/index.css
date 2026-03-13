@@ -21,3 +21,11 @@
     -moz-osx-font-smoothing: grayscale;
   }
 }
+
+@keyframes finished-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.85; }
+}
+.animate-finished-pulse-once {
+  animation: finished-pulse 0.5s ease-in-out;
+}

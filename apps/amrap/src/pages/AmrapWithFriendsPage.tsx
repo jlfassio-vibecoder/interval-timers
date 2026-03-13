@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import {
@@ -13,6 +13,11 @@ import { ACCOUNT_REDIRECT_URL } from '@/lib/account-redirect-url';
 import WeekCalendar from '@/components/WeekCalendar';
 import CreateFlowSchedulePicker from '@/components/CreateFlowSchedulePicker';
 import WorkoutPicker from '@/components/WorkoutPicker';
+import {
+  getGuestSessionResults,
+  type GuestSessionResult,
+} from '@/lib/guestSessionHistory';
+import { getWorkoutTitleAndDuration } from '@/lib/workoutLabel';
 
 type Tab = 'create' | 'join' | 'schedule';
 
@@ -72,6 +77,19 @@ export default function AmrapWithFriendsPage() {
   } | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authModalSignUp, setAuthModalSignUp] = useState(false);
+  const [guestResults, setGuestResults] = useState<GuestSessionResult[]>(() =>
+    getGuestSessionResults()
+  );
+
+  useEffect(() => {
+    setGuestResults(getGuestSessionResults());
+  }, []);
+
+  useEffect(() => {
+    const onFocus = () => setGuestResults(getGuestSessionResults());
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, []);
 
   const handleCreateSession = useCallback(
     async (
@@ -291,6 +309,47 @@ export default function AmrapWithFriendsPage() {
             Schedule
           </button>
         </div>
+
+        {!user && guestResults.length > 0 && (
+          <section className="rounded-2xl border border-white/10 bg-black/30 p-6">
+            <h2 className="mb-3 text-lg font-bold text-white">Recent sessions</h2>
+            <p className="mb-4 text-sm text-white/70">
+              Your recent workouts from this device. Create an account to save your history across
+              devices.
+            </p>
+            <ul className="mb-4 space-y-2">
+              {guestResults.map((r) => (
+                <li
+                  key={`${r.sessionId}-${r.participantId}`}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm"
+                >
+                  <span className="font-medium text-white/90">
+                    {getWorkoutTitleAndDuration(r.workoutList, r.durationMinutes)}
+                  </span>
+                  <span className="text-white/60">
+                    {r.totalRounds} rounds · {new Date(r.completedAt).toLocaleDateString()}
+                  </span>
+                  <Link
+                    to={`/with-friends/session/${r.sessionId}`}
+                    className="text-orange-400 hover:underline"
+                  >
+                    View session
+                  </Link>
+                </li>
+              ))}
+            </ul>
+            <button
+              type="button"
+              onClick={() => {
+                setAuthModalSignUp(true);
+                setShowAuthModal(true);
+              }}
+              className="rounded-xl border border-orange-500/50 bg-orange-600/20 px-4 py-2 text-sm font-bold text-orange-300 transition-colors hover:bg-orange-600/30"
+            >
+              Create an account to save your history across devices
+            </button>
+          </section>
+        )}
 
         <div className="space-y-10">
           {/* Create session */}
