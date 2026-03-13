@@ -36,8 +36,14 @@ export const supabase = useCookieStorage
 
 /** Anon-only client for public reads (e.g. schedule). Use when the main client is auth-enabled:
  * signed-in requests run as `authenticated`, which can differ from `anon`; schedule loads for
- * anon but not authenticated. This client never sends a session, so it always uses anon. */
-export const supabaseAnon = createClient(url ?? '', anonKey ?? '');
+ * anon but not authenticated. Disable auth persistence/refresh to avoid "Lock broken by another
+ * request with the 'steal' option" when both clients run (auth-js uses navigator.locks). */
+export const supabaseAnon = createClient(url ?? '', anonKey ?? '', {
+  auth: {
+    persistSession: false,
+    autoRefreshToken: false,
+  },
+});
 
 export type AmrapSessionRow = {
   id: string;
