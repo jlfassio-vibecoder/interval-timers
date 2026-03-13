@@ -312,7 +312,7 @@ export function useSocialAmrap(
         timerCompleteTimeoutRef.current = null;
       }
     };
-  }, [timerState, totalTime, participantId, rounds]);
+  }, [timerState]);
 
   // Save guest result idempotently when finished; rounds may arrive late via realtime subscription.
   // completedAt is captured once when we first enter finished state, not on each round update.
