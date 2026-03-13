@@ -39,7 +39,7 @@ export default function RecoveryEngine({ sessionId, endTime }: RecoveryEnginePro
   }, []);
 
   const handleClose = useCallback(() => {
-    alert('Data saved to main profile. You can close this window on your phone.');
+    alert('Recovery recorded. You can close this window on your phone.');
   }, []);
 
   return (

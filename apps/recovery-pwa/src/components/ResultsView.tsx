@@ -15,16 +15,46 @@ function formatDelay(ms: number): string {
   return `+${m}:${s}`;
 }
 
-function getAiInsightHtml(finalHr: number, delaySecs: number): string {
-  return `
-    <strong class="text-orange-light">WORK CAPACITY & DENSITY</strong><br>
-    You maintained an incredible mechanical output today. Completing 9 rounds in 15 minutes means you moved through a full station roughly every 1 minute and 40 seconds. Sustaining 60lb single-leg split squats at this pace requires immense localized muscular endurance.<br><br>
-    <span class="text-zinc-400">• <strong class="text-white">Population Comparison:</strong> The ability to move a 60lb external load dynamically on a single leg for 90 total reps per leg places your lower-body strength-endurance in the <strong class="text-orange-light">Top 5% for males aged 50-55</strong>. The average 51-year-old in the general population struggles with unweighted split squats for a single set of 10.</span><br><br>
-
-    <strong class="text-orange-light">CARDIOVASCULAR RECOVERY</strong><br>
-    Your heart rate recovery (HRR) is the standout metric of this session. Dropping to <strong class="text-orange-light">${finalHr} BPM within ${delaySecs} seconds</strong> of a threshold-level AMRAP indicates elite parasympathetic nervous system function.<br><br>
-    <span class="text-zinc-400">• <strong class="text-white">Population Comparison:</strong> A normal healthy HR drop is roughly 15-20 beats in the first minute. A drop of this magnitude places your cardiovascular elasticity and recovery efficiency in the <strong class="text-orange-light">Top 1% to 2% of the general population for your age</strong>. Your heart functions like someone a decade and a half younger.</span>
-  `;
+function AiInsightContent({ finalHr, delaySecs }: { finalHr: number; delaySecs: number }) {
+  return (
+    <>
+      <strong className="text-orange-light">WORK CAPACITY & DENSITY</strong>
+      <br />
+      You maintained an incredible mechanical output today. Completing 9 rounds in 15 minutes means
+      you moved through a full station roughly every 1 minute and 40 seconds. Sustaining 60lb
+      single-leg split squats at this pace requires immense localized muscular endurance.
+      <br />
+      <br />
+      <span className="text-zinc-400">
+        • <strong className="text-white">Population Comparison:</strong> The ability to move a 60lb
+        external load dynamically on a single leg for 90 total reps per leg places your lower-body
+        strength-endurance in the{' '}
+        <strong className="text-orange-light">Top 5% for males aged 50-55</strong>. The average
+        51-year-old in the general population struggles with unweighted split squats for a single set
+        of 10.
+      </span>
+      <br />
+      <br />
+      <strong className="text-orange-light">CARDIOVASCULAR RECOVERY</strong>
+      <br />
+      Your heart rate recovery (HRR) is the standout metric of this session. Dropping to{' '}
+      <strong className="text-orange-light">
+        {finalHr} BPM within {delaySecs} seconds
+      </strong>{' '}
+      of a threshold-level AMRAP indicates elite parasympathetic nervous system function.
+      <br />
+      <br />
+      <span className="text-zinc-400">
+        • <strong className="text-white">Population Comparison:</strong> A normal healthy HR drop is
+        roughly 15-20 beats in the first minute. A drop of this magnitude places your cardiovascular
+        elasticity and recovery efficiency in the{' '}
+        <strong className="text-orange-light">
+          Top 1% to 2% of the general population for your age
+        </strong>
+        . Your heart functions like someone a decade and a half younger.
+      </span>
+    </>
+  );
 }
 
 export default function ResultsView({
@@ -35,7 +65,6 @@ export default function ResultsView({
   onClose,
 }: ResultsViewProps) {
   const delaySecs = Math.floor(captureDelayMs / 1000);
-  const aiHtml = getAiInsightHtml(finalHr, delaySecs);
 
   return (
     <section className="view-section">
@@ -78,10 +107,9 @@ export default function ResultsView({
             AI Insight
           </h3>
         </div>
-        <div
-          className="text-zinc-300 text-sm leading-relaxed"
-          dangerouslySetInnerHTML={{ __html: aiHtml }}
-        />
+        <div className="text-zinc-300 text-sm leading-relaxed">
+          <AiInsightContent finalHr={finalHr} delaySecs={delaySecs} />
+        </div>
       </div>
 
       <button
@@ -89,7 +117,7 @@ export default function ResultsView({
         onClick={onClose}
         className="w-full py-4 bg-zinc-800 text-white rounded-2xl font-bold hover:bg-zinc-700 transition active:scale-95 min-h-[48px] border border-white/10"
       >
-        Save & Return to Dashboard
+        Done
       </button>
     </section>
   );

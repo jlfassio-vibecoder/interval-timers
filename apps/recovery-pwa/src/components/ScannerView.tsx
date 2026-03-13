@@ -22,7 +22,9 @@ function computeBpmFromPeaks(samples: Sample[]): number | null {
 
   const values = samples.map((s) => s.redMean);
   const times = samples.map((s) => s.timestamp);
-  const range = Math.max(...values) - Math.min(...values);
+  const minValue = Math.min(...values);
+  const maxValue = Math.max(...values);
+  const range = maxValue - minValue;
   const prominence = Math.max(range * 0.015, 1);
   const peaks: number[] = [];
 
@@ -33,7 +35,7 @@ function computeBpmFromPeaks(samples: Sample[]): number | null {
       v >= values[i - 2] &&
       v >= values[i + 1] &&
       v >= values[i + 2] &&
-      v >= Math.min(...values) + prominence
+      v >= minValue + prominence
     ) {
       peaks.push(times[i]);
     }
