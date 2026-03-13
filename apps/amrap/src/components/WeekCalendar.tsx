@@ -55,12 +55,16 @@ const WeekCalendar: FC<WeekCalendarProps> = (props) => {
   const [selectedSession, setSelectedSession] = useState<ScheduledSession | null>(null);
 
   useEffect(() => {
-    if (initialSelectedSession) {
-      const targetMonth = startOfMonth(new Date(initialSelectedSession.scheduled_start_at));
-      setViewDate((prev) =>
-        isSameDay(startOfMonth(prev), targetMonth) ? prev : targetMonth
-      );
-    }
+    if (!initialSelectedSession) return;
+    const targetMonth = startOfMonth(new Date(initialSelectedSession.scheduled_start_at));
+    const t = setTimeout(
+      () =>
+        setViewDate((prev) =>
+          isSameDay(startOfMonth(prev), targetMonth) ? prev : targetMonth
+        ),
+      0
+    );
+    return () => clearTimeout(t);
   }, [initialSelectedSession?.id, initialSelectedSession?.scheduled_start_at]);
 
   useEffect(() => {

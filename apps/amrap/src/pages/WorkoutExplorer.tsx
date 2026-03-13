@@ -157,7 +157,7 @@ export default function WorkoutExplorer() {
               </p>
               <div className="relative mt-4 flex flex-grow items-center justify-center pt-4">
                 <div className="h-[280px] w-full max-w-[320px] sm:h-[320px]">
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={200}>
                     <RadarChart data={radarData} margin={{ top: 16, right: 16, bottom: 16, left: 16 }}>
                       <PolarGrid stroke="rgba(255,255,255,0.1)" />
                       <PolarAngleAxis

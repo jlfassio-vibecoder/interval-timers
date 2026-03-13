@@ -119,6 +119,9 @@ export function useSocialAmrap(
       workoutList: string[],
       durationMinutes: number
     ) => Promise<void>;
+    handleOpenWarmupOverlay: () => Promise<void>;
+    handleCloseWarmupOverlay: () => Promise<void>;
+    handleStartWarmup: () => Promise<void>;
   };
 } {
   const { user } = useAmrapAuth();
@@ -264,6 +267,32 @@ export function useSocialAmrap(
       p_session_id: sessionId,
       p_host_token: hostToken,
       p_open: false,
+    });
+  }, [sessionId, hostToken, isHost]);
+
+  const handleOpenWarmupOverlay = useCallback(async () => {
+    if (!sessionId || !hostToken || !isHost) return;
+    await supabase.rpc('set_warmup_overlay', {
+      p_session_id: sessionId,
+      p_host_token: hostToken,
+      p_open: true,
+    });
+  }, [sessionId, hostToken, isHost]);
+
+  const handleCloseWarmupOverlay = useCallback(async () => {
+    if (!sessionId || !hostToken || !isHost) return;
+    await supabase.rpc('set_warmup_overlay', {
+      p_session_id: sessionId,
+      p_host_token: hostToken,
+      p_open: false,
+    });
+  }, [sessionId, hostToken, isHost]);
+
+  const handleStartWarmup = useCallback(async () => {
+    if (!sessionId || !hostToken || !isHost) return;
+    await supabase.rpc('start_warmup', {
+      p_session_id: sessionId,
+      p_host_token: hostToken,
     });
   }, [sessionId, hostToken, isHost]);
 
@@ -599,13 +628,22 @@ export function useSocialAmrap(
       timerState === 'work' ||
       timerState === 'finished')
       ? (
-          <button
-            type="button"
-            onClick={handleOpenNewWorkoutModal}
-            className="rounded-xl border border-orange-500/50 bg-orange-600/20 px-4 py-2 text-sm font-bold text-orange-300 transition-colors hover:border-orange-500 hover:bg-orange-600/30"
-          >
-            New Workout
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={handleOpenNewWorkoutModal}
+              className="rounded-xl border border-orange-500/50 bg-orange-600/20 px-4 py-2 text-sm font-bold text-orange-300 transition-colors hover:border-orange-500 hover:bg-orange-600/30"
+            >
+              New Workout
+            </button>
+            <button
+              type="button"
+              onClick={handleOpenWarmupOverlay}
+              className="rounded-xl border border-orange-500/50 bg-orange-600/20 px-4 py-2 text-sm font-bold text-orange-300 transition-colors hover:border-orange-500 hover:bg-orange-600/30"
+            >
+              Daily Warmup
+            </button>
+          </div>
         )
       : null;
 
@@ -653,6 +691,9 @@ export function useSocialAmrap(
     handleOpenNewWorkoutModal,
     handleCloseNewWorkoutModal,
     handleNewWorkoutSelect,
+    handleOpenWarmupOverlay,
+    handleCloseWarmupOverlay,
+    handleStartWarmup,
   };
 
   return {

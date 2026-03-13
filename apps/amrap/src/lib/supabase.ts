@@ -34,17 +34,6 @@ export const supabase = useCookieStorage
     })
   : createClient(url ?? '', anonKey ?? '');
 
-/** Anon-only client for public reads (e.g. schedule). Use when the main client is auth-enabled:
- * signed-in requests run as `authenticated`, which can differ from `anon`; schedule loads for
- * anon but not authenticated. Disable auth persistence/refresh to avoid "Lock broken by another
- * request with the 'steal' option" when both clients run (auth-js uses navigator.locks). */
-export const supabaseAnon = createClient(url ?? '', anonKey ?? '', {
-  auth: {
-    persistSession: false,
-    autoRefreshToken: false,
-  },
-});
-
 export type AmrapSessionRow = {
   id: string;
   host_token: string;
@@ -57,6 +46,8 @@ export type AmrapSessionRow = {
   created_at: string;
   scheduled_start_at: string | null;
   show_new_workout_modal?: boolean;
+  show_warmup_overlay?: boolean;
+  warmup_started_at?: string | null;
 };
 
 /** Session fields safe to expose to all clients; exclude host_token to prevent takeover. */

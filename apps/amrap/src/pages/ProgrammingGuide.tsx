@@ -249,7 +249,7 @@ export default function ProgrammingGuide() {
                   </div>
                 </div>
                 <div className="h-[350px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={200}>
                     <LineChart data={pacingData} margin={{ top: 8, right: 8, left: 8, bottom: 24 }}>
                       <XAxis
                         dataKey="min"
@@ -335,7 +335,7 @@ export default function ProgrammingGuide() {
                 Volume Breakdown by Modality
               </h3>
               <div className="h-[320px] w-full max-w-sm">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={200}>
                   <PieChart margin={{ top: 16, right: 16, bottom: 16, left: 16 }}>
                     <Pie
                       data={COMPOSITION_DATA}

@@ -34,9 +34,8 @@ export default function VideoSourcePlayer({ source, className }: VideoSourcePlay
         // Only detach; do not stop tracks. Stream lifecycle is owned by the
         // session/caller. Stopping on unmount would kill camera/recording for
         // the entire session when a single tile unmounts (e.g. list re-render).
-        const currentVideo = videoRef.current;
-        if (currentVideo && currentVideo.srcObject === source) {
-          currentVideo.srcObject = null;
+        if (video && video.srcObject === source) {
+          video.srcObject = null;
         }
       };
     }
