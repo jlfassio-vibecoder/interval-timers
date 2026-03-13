@@ -12,13 +12,23 @@ function parseWorkoutFromSearch(searchParams: URLSearchParams): string[] {
   return [];
 }
 
+const DEFAULT_DURATION = 15;
+const MIN_DURATION = 1;
+const MAX_DURATION = 120;
+
+function clampDuration(value: number | undefined | null): number {
+  if (value == null || typeof value !== 'number' || isNaN(value)) return DEFAULT_DURATION;
+  if (value >= MIN_DURATION && value <= MAX_DURATION) return Math.floor(value);
+  return DEFAULT_DURATION;
+}
+
 function parseDurationFromSearch(searchParams: URLSearchParams): number {
   const d = searchParams.get('duration');
   if (d) {
     const n = parseInt(d, 10);
-    if (!isNaN(n) && n >= 1 && n <= 120) return n;
+    if (!isNaN(n) && n >= MIN_DURATION && n <= MAX_DURATION) return n;
   }
-  return 15;
+  return DEFAULT_DURATION;
 }
 
 export default function SoloAmrapSessionPage() {
@@ -30,7 +40,9 @@ export default function SoloAmrapSessionPage() {
     | undefined;
 
   const durationMinutes =
-    state?.durationMinutes ?? parseDurationFromSearch(searchParams);
+    state?.durationMinutes != null
+      ? clampDuration(state.durationMinutes)
+      : parseDurationFromSearch(searchParams);
   const workoutList = state?.workoutList ?? parseWorkoutFromSearch(searchParams);
 
   const engine = useSoloAmrap({

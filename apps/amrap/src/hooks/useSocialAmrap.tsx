@@ -164,6 +164,7 @@ export function useSocialAmrap(
   const [joinLoading, setJoinLoading] = useState(false);
   const [whosHereCollapsed, setWhosHereCollapsed] = useState(false);
   const [copyToast, setCopyToast] = useState<'success' | 'error' | null>(null);
+  const copyToastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [animatingIds, setAnimatingIds] = useState<Set<string>>(new Set());
   const seenParticipantIdsRef = useRef<Set<string>>(new Set());
   const [countdownSeconds, setCountdownSeconds] = useState(0);
@@ -301,6 +302,10 @@ export function useSocialAmrap(
   }, [sessionId, participantId, timerState, totalTime, timeLeft]);
 
   const copyShareLink = useCallback(async () => {
+    if (copyToastTimeoutRef.current) {
+      clearTimeout(copyToastTimeoutRef.current);
+      copyToastTimeoutRef.current = null;
+    }
     try {
       const url = window.location.href.replace(/\?.*$/, '');
       await navigator.clipboard.writeText(url);
@@ -308,7 +313,19 @@ export function useSocialAmrap(
     } catch {
       setCopyToast('error');
     }
-    setTimeout(() => setCopyToast(null), 2500);
+    copyToastTimeoutRef.current = setTimeout(() => {
+      copyToastTimeoutRef.current = null;
+      setCopyToast(null);
+    }, 2500);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (copyToastTimeoutRef.current) {
+        clearTimeout(copyToastTimeoutRef.current);
+        copyToastTimeoutRef.current = null;
+      }
+    };
   }, []);
 
   const workoutList = session?.workout_list ?? [];
@@ -424,24 +441,22 @@ export function useSocialAmrap(
     onLogRound: logRound,
     onPause: isHost
       ? async () => {
-          const nextPaused = !isPaused;
           await pushState({
             state: timerState,
             time_left_sec: timeLeft,
-            is_paused: nextPaused,
+            is_paused: true,
           });
-          setIsPaused(nextPaused);
+          setIsPaused(true);
         }
       : undefined,
     onResume: isHost
       ? async () => {
-          const nextPaused = !isPaused;
           await pushState({
             state: timerState,
             time_left_sec: timeLeft,
-            is_paused: nextPaused,
+            is_paused: false,
           });
-          setIsPaused(nextPaused);
+          setIsPaused(false);
         }
       : undefined,
     onFinish: isHost ? finish : undefined,

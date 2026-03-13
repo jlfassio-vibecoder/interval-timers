@@ -33,15 +33,27 @@ export interface UseSoloAmrapInput {
   workoutList: string[];
 }
 
-const playSound = (type: 'start' | 'round' | 'warning' | 'finish') => {
-  try {
-    const AudioContextCtor =
-      window.AudioContext ||
-      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!AudioContextCtor) return;
-    const ctx = new AudioContextCtor();
-    if (ctx.state === 'suspended') ctx.resume();
+function getOrCreateAudioContext(
+  ref: { current: AudioContext | null }
+): AudioContext | null {
+  if (typeof window === 'undefined') return null;
+  const AudioContextCtor =
+    window.AudioContext ||
+    (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  if (!AudioContextCtor) return null;
+  if (!ref.current || ref.current.state === 'closed') {
+    ref.current = new AudioContextCtor();
+  }
+  const ctx = ref.current;
+  if (ctx.state === 'suspended') void ctx.resume();
+  return ctx;
+}
 
+function playSoundWithContext(
+  ctx: AudioContext,
+  type: 'start' | 'round' | 'warning' | 'finish'
+) {
+  try {
     const osc = ctx.createOscillator();
     const gainNode = ctx.createGain();
     osc.connect(gainNode);
@@ -100,6 +112,21 @@ export function useSoloAmrap(
   const [workPhaseTotalTime, setWorkPhaseTotalTime] = useState(totalTime);
 
   const timerCompleteTrackedRef = useRef(false);
+  const audioContextRef = useRef<AudioContext | null>(null);
+
+  const playSound = useCallback((type: 'start' | 'round' | 'warning' | 'finish') => {
+    const ctx = getOrCreateAudioContext(audioContextRef);
+    if (ctx) playSoundWithContext(ctx, type);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (audioContextRef.current) {
+        audioContextRef.current.close().catch(() => {});
+        audioContextRef.current = null;
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (timerPhase === 'finished' && !timerCompleteTrackedRef.current) {
@@ -126,7 +153,7 @@ export function useSoloAmrap(
     setIsPaused(false);
     setWorkPhaseTotalTime(totalTime);
     playSound('warning');
-  }, [totalTime]);
+  }, [totalTime, playSound]);
 
   const onLogRound = useCallback(() => {
     if (timerPhase === 'work') {
@@ -135,7 +162,7 @@ export function useSoloAmrap(
       setElapsedAtRounds((prev) => [...prev, elapsed]);
       playSound('round');
     }
-  }, [timerPhase, workPhaseTotalTime, timeLeft]);
+  }, [timerPhase, workPhaseTotalTime, timeLeft, playSound]);
 
   const onPause = useCallback(() => setIsPaused(true), []);
   const onResume = useCallback(() => setIsPaused(false), []);
@@ -149,7 +176,7 @@ export function useSoloAmrap(
     setTimerPhase('work');
     setTimeLeft(workPhaseTotalTime);
     playSound('start');
-  }, [workPhaseTotalTime]);
+  }, [workPhaseTotalTime, playSound]);
 
   useEffect(() => {
     if (
@@ -186,7 +213,7 @@ export function useSoloAmrap(
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [timerPhase, isPaused, workPhaseTotalTime]);
+  }, [timerPhase, isPaused, workPhaseTotalTime, playSound]);
 
   const timerStyle = getTimerStyles(timerPhase);
   const sortedElapsed = [...elapsedAtRounds].sort((a, b) => a - b);

@@ -9,7 +9,7 @@ import type { AmrapVideoSource } from '@/types/amrap-session';
 function isMediaStream(
   source: AmrapVideoSource
 ): source is MediaStream {
-  return source instanceof MediaStream;
+  return typeof MediaStream !== 'undefined' && source instanceof MediaStream;
 }
 
 export interface VideoSourcePlayerProps {
@@ -31,7 +31,13 @@ export default function VideoSourcePlayer({ source, className }: VideoSourcePlay
         video.srcObject = source;
       }
       return () => {
-        source.getTracks().forEach((t) => t.stop());
+        // Only detach; do not stop tracks. Stream lifecycle is owned by the
+        // session/caller. Stopping on unmount would kill camera/recording for
+        // the entire session when a single tile unmounts (e.g. list re-render).
+        const currentVideo = videoRef.current;
+        if (currentVideo && currentVideo.srcObject === source) {
+          currentVideo.srcObject = null;
+        }
       };
     }
 
