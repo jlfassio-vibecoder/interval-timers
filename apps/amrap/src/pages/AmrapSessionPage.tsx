@@ -7,6 +7,7 @@ import { useSocialAmrap } from '@/hooks/useSocialAmrap';
 import { getWorkoutTitleAndDuration } from '@/lib/workoutLabel';
 import AmrapSessionShell from '@/components/amrap-session/AmrapSessionShell';
 import NewWorkoutModal from '@/components/NewWorkoutModal';
+import DailyWarmupSessionOverlay from '@/components/DailyWarmupSessionOverlay';
 
 export default function AmrapSessionPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -24,6 +25,14 @@ export default function AmrapSessionPage() {
 
   const { pageState } = result;
   const session = pageState.session;
+  const hostParticipant = pageState.hostParticipant;
+  const hostVideoTrack =
+    pageState.isHost
+      ? pageState.localVideoTrack ?? null
+      : hostParticipant
+        ? pageState.remoteUsers.find((u) => String(u.uid) === hostParticipant.id)
+            ?.videoTrack ?? null
+        : null;
 
   return (
     <>
@@ -136,6 +145,17 @@ export default function AmrapSessionPage() {
         onClose={pageState.handleCloseNewWorkoutModal}
         onSelect={pageState.handleNewWorkoutSelect}
         isHost={pageState.isHost}
+      />
+
+      <DailyWarmupSessionOverlay
+        isOpen={session?.show_warmup_overlay === true}
+        onClose={pageState.handleCloseWarmupOverlay}
+        onStartWarmup={pageState.handleStartWarmup}
+        isHost={pageState.isHost}
+        hostVideoTrack={hostVideoTrack}
+        warmupStartedAt={session?.warmup_started_at}
+        sessionId={sessionId}
+        hostToken={pageState.hostToken}
       />
     </>
   );

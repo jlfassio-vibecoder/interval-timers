@@ -46,6 +46,8 @@ export type AmrapSessionRow = {
   created_at: string;
   scheduled_start_at: string | null;
   show_new_workout_modal?: boolean;
+  show_warmup_overlay?: boolean;
+  warmup_started_at?: string | null;
 };
 
 /** Session fields safe to expose to all clients; exclude host_token to prevent takeover. */

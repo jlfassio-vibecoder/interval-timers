@@ -24,11 +24,11 @@ export async function fetchScheduledSessions(
 ): Promise<{ data: ScheduledSession[]; error: string | null }> {
   const startISO = weekStart.toISOString();
   const endISO = weekEnd.toISOString();
+  // PostgREST ignores duplicate params for the same column; use and=() to combine filters.
+  const andFilter = `(scheduled_start_at.gte."${startISO}",scheduled_start_at.lt."${endISO}",scheduled_start_at.not.is.null)`;
   const params = new URLSearchParams();
   params.set('select', 'id,duration_minutes,workout_list,scheduled_start_at');
-  params.append('scheduled_start_at', `gte.${startISO}`);
-  params.append('scheduled_start_at', `lt.${endISO}`);
-  params.append('scheduled_start_at', 'not.is.null');
+  params.set('and', andFilter);
   params.set('order', 'scheduled_start_at.asc');
   const restUrl = `${url}/rest/v1/amrap_sessions?${params.toString()}`;
 

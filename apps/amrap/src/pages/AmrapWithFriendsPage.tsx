@@ -16,6 +16,43 @@ import WorkoutPicker from '@/components/WorkoutPicker';
 
 type Tab = 'create' | 'join' | 'schedule';
 
+/** Supabase auth-js lock race can abort requests; retry with short backoff. */
+const LOCK_ABORT_MSG = "Lock broken by another request with the 'steal' option";
+
+function isLockAbortError(e: unknown): boolean {
+  if (e instanceof Error) {
+    return e.name === 'AbortError' && e.message.includes(LOCK_ABORT_MSG);
+  }
+  return false;
+}
+
+function isLockAbortInResult(result: { error?: { message?: string } | null }): boolean {
+  return !!result.error?.message?.includes(LOCK_ABORT_MSG);
+}
+
+async function withLockRetry<T extends { data: unknown; error: { message?: string } | null }>(
+  fn: () => PromiseLike<T>,
+  maxAttempts = 3
+): Promise<T> {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const result = await fn();
+      if (isLockAbortInResult(result) && attempt < maxAttempts) {
+        await new Promise((r) => setTimeout(r, 100 * attempt));
+        continue;
+      }
+      return result;
+    } catch (e) {
+      if (isLockAbortError(e) && attempt < maxAttempts) {
+        await new Promise((r) => setTimeout(r, 100 * attempt));
+        continue;
+      }
+      throw e;
+    }
+  }
+  throw new Error('Retry exhausted');
+}
+
 export default function AmrapWithFriendsPage() {
   const navigate = useNavigate();
   const { hasFullAccess } = useAmrapPermissions();
@@ -50,21 +87,43 @@ export default function AmrapWithFriendsPage() {
       }
       setLoading(true);
       setCreateError(null);
-      const { data, error } = await supabase.rpc('create_session', {
-        p_duration_minutes: durationMinutes,
-        p_workout_list: workoutList,
-        p_host_nickname: name,
-        p_scheduled_start_at: scheduledDateTime
-          ? new Date(scheduledDateTime).toISOString()
-          : null,
-        p_user_id: user?.id ?? null,
-      });
-      setLoading(false);
-      if (error) {
-        setCreateError(error.message);
+      let data: unknown;
+      let error: { message?: string } | null = null;
+      try {
+        const result = await withLockRetry(() =>
+          Promise.resolve(
+            supabase.rpc('create_session', {
+              p_duration_minutes: durationMinutes,
+              p_workout_list: workoutList,
+              p_host_nickname: name,
+              p_scheduled_start_at: scheduledDateTime
+                ? new Date(scheduledDateTime).toISOString()
+                : null,
+              p_user_id: user?.id ?? null,
+            })
+          )
+        );
+        data = result.data;
+        error = result.error ?? null;
+      } catch (e) {
+        setLoading(false);
+        setCreateError(
+          isLockAbortError(e)
+            ? 'Session creation was interrupted. Please try again.'
+            : (e instanceof Error ? e.message : 'Something went wrong. Please try again.')
+        );
         return;
       }
-      const result = data as { session_id: string; host_token: string; participant_id: string };
+      setLoading(false);
+      if (error) {
+        setCreateError(
+          isLockAbortInResult({ error })
+            ? 'Session creation was interrupted. Please try again.'
+            : (error.message ?? 'Something went wrong.')
+        );
+        return;
+      }
+      const result = (data ?? {}) as { session_id: string; host_token: string; participant_id: string };
       setStoredHostToken(result.session_id, result.host_token);
       setStoredParticipantId(result.session_id, result.participant_id);
       if (scheduledDateTime) {
@@ -92,17 +151,39 @@ export default function AmrapWithFriendsPage() {
     }
     setLoading(true);
     setJoinError(null);
-    const { data, error } = await supabase.rpc('join_session', {
-      p_session_id: sid,
-      p_nickname: joinNickname.trim(),
-      p_user_id: user?.id ?? null,
-    });
-    setLoading(false);
-    if (error) {
-      setJoinError(error.message);
+    let data: unknown;
+    let error: { message: string } | null = null;
+    try {
+      const res = await withLockRetry(() =>
+        Promise.resolve(
+          supabase.rpc('join_session', {
+            p_session_id: sid,
+            p_nickname: joinNickname.trim(),
+            p_user_id: user?.id ?? null,
+          })
+        )
+      );
+      data = res.data;
+      error = res.error ?? null;
+    } catch (e) {
+      setLoading(false);
+      setJoinError(
+        isLockAbortError(e)
+          ? 'Join was interrupted. Please try again.'
+          : (e instanceof Error ? e.message : 'Something went wrong. Please try again.')
+      );
       return;
     }
-    const result = data as { participant_id: string };
+    setLoading(false);
+    if (error) {
+      setJoinError(
+        isLockAbortInResult({ error })
+          ? 'Join was interrupted. Please try again.'
+          : (error.message ?? 'Something went wrong.')
+      );
+      return;
+    }
+    const result = (data ?? {}) as { participant_id: string };
     setStoredParticipantId(sid, result.participant_id);
     navigate(`/with-friends/session/${sid}`);
   }, [joinSessionId, joinNickname, navigate, user?.id]);

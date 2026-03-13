@@ -101,17 +101,28 @@ export function useWarmupConfig(): WarmupConfig {
         durationPerExercise?: number;
       };
       const slots = data.slots ?? [];
-      if (slots.length > 0) {
+      // Use full protocol when API returns empty or partial config (e.g. one-side-only); ensures 14-min both-sides in production.
+      const useFullProtocol = slots.length === 0 || slots.length < WARMUP_EXERCISES.length;
+      if (!useFullProtocol && slots.length > 0) {
         setExercises(
           slots.map((s) => {
             const mistakeCorrections = getWarmupMistakesCorrections(s.name);
             const subtitle = getWarmupSubtitle(s.name);
+            // API may omit imageUrl/instructions; enrich from static timer-core so production matches local.
+            const imageUrl =
+              s.imageUrl ? resolveImageUrl(s.imageUrl) : (() => {
+                const raw = getWarmupImageUrl(s.name);
+                return raw ? resolveImageUrl(raw) : undefined;
+              })();
+            const instructionSteps =
+              Array.isArray(s.instructions) && s.instructions.length > 0
+                ? s.instructions.map((body, i) => ({ title: `Step ${i + 1}`, body }))
+                : getWarmupInstructions(s.name);
             return {
               name: s.name,
               detail: s.detail,
-              ...(s.imageUrl && { imageUrl: resolveImageUrl(s.imageUrl) }),
-              ...(Array.isArray(s.instructions) &&
-                s.instructions.length > 0 && { instructions: s.instructions }),
+              ...(imageUrl && { imageUrl }),
+              ...(instructionSteps && instructionSteps.length > 0 && { instructionSteps }),
               ...(mistakeCorrections &&
                 mistakeCorrections.length > 0 && { mistakeCorrections }),
               ...(subtitle && { subtitle }),

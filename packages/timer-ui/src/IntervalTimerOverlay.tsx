@@ -49,6 +49,12 @@ interface IntervalTimerOverlayProps {
   roundsTotal?: number;
   /** Optional per-block instructions shown in the sidebar when current block name matches (e.g. Warm-Up Walk script). */
   customBlockInstructions?: Array<{ blockName: string; steps: InstructionStep[]; title?: string }>;
+  /** When true, start the timer immediately on mount (e.g. for synced session warmup). */
+  autoStart?: boolean;
+  /** When true, use absolute positioning to fill parent instead of fixed viewport (e.g. when embedded in a layout). */
+  embedded?: boolean;
+  /** Optional content to render in the sidebar below the exercise image (e.g. host video for AMRAP sessions). */
+  sidebarSlot?: React.ReactNode;
 }
 
 const DEFAULT_THEME: IntervalTimerOverlayTheme = { workBg: 'bg-red-600' };
@@ -63,6 +69,9 @@ const IntervalTimerOverlay: React.FC<IntervalTimerOverlayProps> = ({
   roundsCurrent: roundsCurrentProp,
   roundsTotal: roundsTotalProp,
   customBlockInstructions,
+  autoStart = false,
+  embedded = false,
+  sidebarSlot,
 }) => {
   const warmupList: WarmupExercise[] =
     warmupExercises ?? WARMUP_EXERCISES.map((e) => ({ name: e.name, detail: e.detail }));
@@ -86,6 +95,10 @@ const IntervalTimerOverlay: React.FC<IntervalTimerOverlayProps> = ({
   });
   const readyPlayedThisRestRef = useRef(false);
   const prevBlockTypeRef = useRef<HIITTimelineBlock['type'] | null>(null);
+
+  useEffect(() => {
+    if (autoStart) setHasStarted(true);
+  }, [autoStart]);
 
   // Sync volume to sound module on mount and when user changes it
   useEffect(() => {
@@ -414,8 +427,12 @@ const IntervalTimerOverlay: React.FC<IntervalTimerOverlayProps> = ({
     </div>
   );
 
+  const containerClass = embedded
+    ? 'absolute inset-0 z-0 flex h-full w-full flex-col overflow-hidden bg-[#0d0500]'
+    : 'fixed inset-0 z-[200] flex h-full w-full flex-col overflow-hidden bg-[#0d0500]';
+
   return (
-    <div className="fixed inset-0 z-[200] flex h-full w-full flex-col overflow-hidden bg-[#0d0500]">
+    <div className={containerClass}>
       <div
         className={`flex items-center justify-between gap-4 p-1 text-white transition-colors duration-300 sm:p-1.5 ${headerBg}`}
       >
@@ -437,7 +454,7 @@ const IntervalTimerOverlay: React.FC<IntervalTimerOverlayProps> = ({
       </div>
 
       <div className="flex min-h-0 flex-1 overflow-hidden pl-1 sm:pl-1.5">
-        <aside className="hidden md:flex md:w-[20.84rem] md:min-h-0 md:flex-col md:shrink-0 md:p-4 md:gap-4 border-2 border-white/30 rounded-lg">
+        <aside className={`hidden md:flex md:min-h-0 md:flex-col md:shrink-0 md:p-4 md:gap-4 border-2 border-white/30 rounded-lg ${sidebarSlot ? 'md:w-[24rem]' : 'md:w-[20.84rem]'}`}>
           {renderControls('timer-volume')}
           <div className="min-h-0 flex-1 overflow-y-auto">
             {currentBlock.type === 'warmup' &&
@@ -454,8 +471,13 @@ const IntervalTimerOverlay: React.FC<IntervalTimerOverlayProps> = ({
                 const imageUrl = exercise?.imageUrl;
                 return (
                   <div className="mt-1 flex flex-col gap-1">
+                    {sidebarSlot ? (
+                      <div className="w-full shrink-0">
+                        {sidebarSlot}
+                      </div>
+                    ) : null}
                     {imageUrl && !imageError ? (
-                      <div className="w-full overflow-hidden rounded-lg border border-white/20 aspect-video shrink-0">
+                      <div className={`w-full overflow-hidden rounded-lg border border-white/20 aspect-video shrink-0 ${sidebarSlot ? 'mt-2' : ''}`}>
                         <img
                           src={imageUrl}
                           alt=""
