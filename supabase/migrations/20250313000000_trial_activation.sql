@@ -44,6 +44,9 @@ CREATE TRIGGER set_amrap_trial_on_profile_insert
   EXECUTE FUNCTION public.set_amrap_trial_on_profile_insert();
 
 -- RPC: log hub timer activation (first and second within 48h)
+-- DROP first: if function already exists with different return type (e.g. text), CREATE OR REPLACE fails
+DROP FUNCTION IF EXISTS public.log_hub_timer_activation(text);
+
 CREATE OR REPLACE FUNCTION public.log_hub_timer_activation(p_app_id text)
 RETURNS void
 LANGUAGE plpgsql
