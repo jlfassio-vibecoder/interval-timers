@@ -118,13 +118,15 @@ export default function AmrapSessionShell({ engine }: AmrapSessionShellProps) {
             timerPhase !== 'finished' &&
             (onPause || onResume) && (
               <div className="mt-8 flex gap-3 border-t border-white/10 pt-6">
-                <button
-                  type="button"
-                  onClick={isPaused ? onResume : onPause}
-                  className="flex-1 rounded-xl border border-white/20 bg-white/10 py-3 font-bold text-white hover:bg-white/20"
-                >
-                  {isPaused ? 'RESUME' : 'PAUSE'}
-                </button>
+                {(isPaused ? onResume : onPause) && (
+                  <button
+                    type="button"
+                    onClick={isPaused ? onResume : onPause}
+                    className="flex-1 rounded-xl border border-white/20 bg-white/10 py-3 font-bold text-white hover:bg-white/20"
+                  >
+                    {isPaused ? 'RESUME' : 'PAUSE'}
+                  </button>
+                )}
                 {timerPhase === 'setup' && onSkipSetup && (
                   <button
                     type="button"
