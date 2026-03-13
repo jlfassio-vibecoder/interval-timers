@@ -21,6 +21,8 @@ export interface SessionMessageBoardProps {
   sessionId: string | undefined;
   participantId: string | null;
   participants: AmrapParticipantRow[];
+  /** When true, show session-ended banner and disable sending */
+  isFinished?: boolean;
   className?: string;
 }
 
@@ -28,6 +30,7 @@ export default function SessionMessageBoard({
   sessionId,
   participantId,
   participants,
+  isFinished = false,
   className = '',
 }: SessionMessageBoardProps) {
   const [input, setInput] = useState('');
@@ -56,7 +59,13 @@ export default function SessionMessageBoard({
     >
       <h3 className="mb-3 text-lg font-bold text-white">Message board</h3>
 
-      {participantId && !hasUserPosted && (
+      {isFinished && (
+        <p className="mb-3 rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-white/80">
+          Session ended — view final leaderboard above.
+        </p>
+      )}
+
+      {participantId && !hasUserPosted && !isFinished && (
         <p className="mb-2 text-sm font-medium text-orange-400">Say hi to the group!</p>
       )}
 
@@ -89,13 +98,13 @@ export default function SessionMessageBoard({
             onChange={(e) => setInput(e.target.value.slice(0, 500))}
             onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
             placeholder={participantId ? 'Say hi…' : 'Join to message'}
-            disabled={!participantId}
+            disabled={!participantId || isFinished}
             className="min-w-0 flex-1 rounded-lg border border-white/20 bg-black/30 px-3 py-2 text-sm text-white placeholder:text-white/50 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500 disabled:opacity-50"
           />
           <button
             type="button"
             onClick={() => handleSubmit()}
-            disabled={!participantId || !input.trim()}
+            disabled={!participantId || !input.trim() || isFinished}
             className="shrink-0 rounded-lg bg-orange-600 px-4 py-2 text-sm font-bold text-white hover:bg-orange-500 disabled:opacity-50 disabled:hover:bg-orange-600"
           >
             Send

@@ -51,7 +51,9 @@ export default function AmrapTimerDisplay({
   const isTimeValue = /^\d{1,2}:\d{2}$/.test(displayValue);
 
   return (
-    <div className={`rounded-2xl border border-white/10 ${bg} p-6 transition-colors`}>
+    <div
+      className={`rounded-2xl border border-white/10 ${bg} p-6 transition-colors duration-300`}
+    >
       <div className="flex items-baseline justify-between gap-4">
         <h2 className="font-display text-2xl font-bold">{displayTitle}</h2>
         {displaySub ? (

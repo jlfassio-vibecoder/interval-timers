@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronDown, ChevronUp } from 'lucide-react';
+import { trackEvent } from '@interval-timers/analytics';
 import { supabase } from '@/lib/supabase';
 import {
   useAmrapSession,
@@ -14,6 +15,11 @@ import {
 import { useAmrapAuth } from '@/contexts/AmrapAuthContext';
 import { useSessionState } from '@/hooks/useSessionState';
 import { useAgoraChannel } from '@/hooks/useAgoraChannel';
+import { getOrCreateAudioContext, playSoundWithContext } from '@/lib/amrapSounds';
+import { HUD_REDIRECT_URL } from '@/lib/account-redirect-url';
+import { saveGuestSessionResult } from '@/lib/guestSessionHistory';
+import { getWorkoutTitle } from '@/lib/workoutLabel';
+import { buildResultsText, computeVolumeLines } from '@/lib/workoutResults';
 import type { AmrapRoundRow, AmrapParticipantRow } from '@/lib/supabase';
 import type { SessionTimerState } from '@/hooks/useSessionState';
 import type {
@@ -25,6 +31,7 @@ import SessionMessageBoard from '@/components/SessionMessageBoard';
 import VideoTile from '@/components/VideoTile';
 
 const COUNTDOWN_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
+const TIMER_COMPLETE_ROUNDS_GRACE_MS = 1500; // allow late round rows from realtime before analytics
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60)
@@ -107,6 +114,13 @@ export function useSocialAmrap(
     setWhosHereCollapsed: (v: boolean | ((prev: boolean) => boolean)) => void;
     copyToast: 'success' | 'error' | null;
     copyShareLink: () => Promise<void>;
+    copyResults: () => Promise<void>;
+    showViewResultsModal: boolean;
+    viewResultsText: string;
+    handleOpenViewResults: () => void;
+    handleCloseViewResults: () => void;
+    copyResultsToast: 'success' | 'error' | null;
+    roundDurations: number[];
     user: ReturnType<typeof useAmrapAuth>['user'];
     agoraError: string | null;
     joined: boolean;
@@ -168,12 +182,30 @@ export function useSocialAmrap(
   const [whosHereCollapsed, setWhosHereCollapsed] = useState(false);
   const [copyToast, setCopyToast] = useState<'success' | 'error' | null>(null);
   const copyToastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [copyResultsToast, setCopyResultsToast] = useState<'success' | 'error' | null>(null);
+  const copyResultsToastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [showViewResultsModal, setShowViewResultsModal] = useState(false);
+  const [viewResultsText, setViewResultsText] = useState('');
   const [animatingIds, setAnimatingIds] = useState<Set<string>>(new Set());
   const seenParticipantIdsRef = useRef<Set<string>>(new Set());
   const [countdownSeconds, setCountdownSeconds] = useState(0);
   const [now, setNow] = useState(() => Date.now());
   const hasAutoStartedRef = useRef(false);
   const hasBeenBeforeScheduledRef = useRef(false);
+  const finishSoundPlayedRef = useRef(false);
+  const guestCompletedAtRef = useRef<string | null>(null);
+  const timerCompleteTrackedRef = useRef(false);
+  const timerCompleteTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const roundsRef = useRef(rounds);
+  const totalTimeRef = useRef(totalTime);
+  const participantIdRef = useRef(participantId);
+  const audioContextRef = useRef<AudioContext | null>(null);
+
+  useEffect(() => {
+    roundsRef.current = rounds;
+    totalTimeRef.current = totalTime;
+    participantIdRef.current = participantId;
+  }, [rounds, totalTime, participantId]);
 
   useEffect(() => {
     const currentIds = new Set(participants.map((p) => p.id));
@@ -227,6 +259,83 @@ export function useSocialAmrap(
     hasAutoStartedRef.current = true;
     startSetup();
   }, [isHost, timerState, session?.scheduled_start_at, startSetup, now]);
+
+  useEffect(() => {
+    return () => {
+      if (audioContextRef.current) {
+        audioContextRef.current.close().catch(() => {});
+        audioContextRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (timerState === 'finished' && !finishSoundPlayedRef.current) {
+      finishSoundPlayedRef.current = true;
+      const ctx = getOrCreateAudioContext(audioContextRef);
+      if (ctx) playSoundWithContext(ctx, 'finish');
+    }
+    if (timerState !== 'finished') finishSoundPlayedRef.current = false;
+  }, [timerState]);
+
+  useEffect(() => {
+    if (timerState !== 'finished') {
+      timerCompleteTrackedRef.current = false;
+      if (timerCompleteTimeoutRef.current) {
+        clearTimeout(timerCompleteTimeoutRef.current);
+        timerCompleteTimeoutRef.current = null;
+      }
+      return;
+    }
+    if (timerCompleteTrackedRef.current) return;
+    timerCompleteTrackedRef.current = true;
+    timerCompleteTimeoutRef.current = setTimeout(() => {
+      timerCompleteTimeoutRef.current = null;
+      const pid = participantIdRef.current;
+      const r = roundsRef.current;
+      const t = totalTimeRef.current;
+      const roundsCount = pid ? r.filter((x) => x.participant_id === pid).length : 0;
+      trackEvent(
+        supabase,
+        'timer_session_complete',
+        {
+          source: 'amrap_friends',
+          duration_seconds: t,
+          rounds: roundsCount,
+        },
+        { appId: 'amrap' }
+      );
+    }, TIMER_COMPLETE_ROUNDS_GRACE_MS);
+    return () => {
+      if (timerCompleteTimeoutRef.current) {
+        clearTimeout(timerCompleteTimeoutRef.current);
+        timerCompleteTimeoutRef.current = null;
+      }
+    };
+  }, [timerState]);
+
+  // Save guest result idempotently when finished; rounds may arrive late via realtime subscription.
+  // completedAt is captured once when we first enter finished state, not on each round update.
+  useEffect(() => {
+    if (timerState !== 'finished') {
+      guestCompletedAtRef.current = null;
+      return;
+    }
+    if (!user && sessionId && participantId) {
+      if (!guestCompletedAtRef.current) {
+        guestCompletedAtRef.current = new Date().toISOString();
+      }
+      const totalRounds = rounds.filter((r) => r.participant_id === participantId).length;
+      saveGuestSessionResult(
+        sessionId,
+        participantId,
+        totalRounds,
+        session?.workout_list ?? [],
+        session?.duration_minutes ?? 15,
+        guestCompletedAtRef.current
+      );
+    }
+  }, [timerState, user, sessionId, participantId, rounds, session?.workout_list, session?.duration_minutes]);
 
   const handleJoinSession = useCallback(async () => {
     const name = joinNickname.trim();
@@ -348,11 +457,67 @@ export function useSocialAmrap(
     }, 2500);
   }, []);
 
+  const getResultsText = useCallback(
+    (opts?: { forCopy?: boolean }) => {
+      const duration = session?.duration_minutes ?? 15;
+      const myRoundsData = participantId
+        ? rounds
+            .filter((r) => r.participant_id === participantId)
+            .sort((a, b) => a.round_index - b.round_index)
+        : [];
+      const myRoundsCount = myRoundsData.length;
+      const splits = myRoundsData.map((r) => r.elapsed_sec_at_round);
+      const workoutList = session?.workout_list ?? [];
+      const sessionUrl = window.location.href.replace(/\?.*$/, '');
+      const workoutTitle = getWorkoutTitle(workoutList);
+      const volumeLines = computeVolumeLines(workoutList, myRoundsCount);
+      const compact =
+        opts?.forCopy === true && volumeLines.length > 6;
+      return buildResultsText(workoutList, myRoundsCount, duration, sessionUrl, {
+        workoutTitle,
+        compact,
+        splits,
+      });
+    },
+    [session?.duration_minutes, session?.workout_list, participantId, rounds]
+  );
+
+  const copyResults = useCallback(async () => {
+    if (copyResultsToastTimeoutRef.current) {
+      clearTimeout(copyResultsToastTimeoutRef.current);
+      copyResultsToastTimeoutRef.current = null;
+    }
+    const text = getResultsText({ forCopy: true });
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopyResultsToast('success');
+    } catch {
+      setCopyResultsToast('error');
+    }
+    copyResultsToastTimeoutRef.current = setTimeout(() => {
+      copyResultsToastTimeoutRef.current = null;
+      setCopyResultsToast(null);
+    }, 2500);
+  }, [getResultsText]);
+
+  const handleOpenViewResults = useCallback(() => {
+    setViewResultsText(getResultsText({ forCopy: false }));
+    setShowViewResultsModal(true);
+  }, [getResultsText]);
+
+  const handleCloseViewResults = useCallback(() => {
+    setShowViewResultsModal(false);
+  }, []);
+
   useEffect(() => {
     return () => {
       if (copyToastTimeoutRef.current) {
         clearTimeout(copyToastTimeoutRef.current);
         copyToastTimeoutRef.current = null;
+      }
+      if (copyResultsToastTimeoutRef.current) {
+        clearTimeout(copyResultsToastTimeoutRef.current);
+        copyResultsToastTimeoutRef.current = null;
       }
     };
   }, []);
@@ -361,6 +526,15 @@ export function useSocialAmrap(
   const myRounds = participantId
     ? rounds.filter((r) => r.participant_id === participantId)
     : [];
+  const myRoundsData = participantId
+    ? rounds
+        .filter((r) => r.participant_id === participantId)
+        .sort((a, b) => a.round_index - b.round_index)
+    : [];
+  const elapsed = myRoundsData.map((r) => r.elapsed_sec_at_round);
+  const roundDurations = elapsed.map((e, i) =>
+    i === 0 ? e : e - (elapsed[i - 1] ?? 0)
+  );
   const leaderboard = buildLeaderboard(participants, rounds);
   const hostParticipant = participants.find((p) => p.role === 'host');
 
@@ -502,6 +676,7 @@ export function useSocialAmrap(
     sessionMode: 'live',
 
     workoutList,
+    durationMinutes: session?.duration_minutes,
 
     loading: loading,
     error: error ?? null,
@@ -594,14 +769,63 @@ export function useSocialAmrap(
         sessionId={sessionId}
         participantId={participantId}
         participants={participants}
+        isFinished={timerState === 'finished'}
       />
     </>
   ) : null;
 
+  const finishedActionsSlot =
+    timerState === 'finished' ? (
+      <div className="mt-8 flex flex-col gap-3 border-t border-white/10 pt-6">
+        <div className="flex flex-wrap gap-3">
+          <Link
+            to="/with-friends"
+            className="flex-1 min-w-[8rem] rounded-xl border-2 border-orange-500 bg-orange-600 px-4 py-3 text-center font-bold text-white transition-colors hover:bg-orange-500"
+          >
+            Done
+          </Link>
+          <a
+            href={HUD_REDIRECT_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex-1 min-w-[8rem] rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-center font-bold text-white transition-colors hover:bg-white/20"
+          >
+            View in History
+          </a>
+          <button
+            type="button"
+            onClick={handleOpenViewResults}
+            className="flex-1 min-w-[8rem] rounded-xl border border-white/20 bg-white/10 px-4 py-3 font-bold text-white transition-colors hover:bg-white/20"
+          >
+            View results
+          </button>
+          <button
+            type="button"
+            onClick={copyResults}
+            className="flex-1 min-w-[8rem] rounded-xl border border-white/20 bg-white/10 px-4 py-3 font-bold text-white transition-colors hover:bg-white/20"
+          >
+            Copy results
+          </button>
+        </div>
+        {copyResultsToast && (
+          <p
+            role="status"
+            aria-live="polite"
+            className={`text-sm font-medium ${
+              copyResultsToast === 'success' ? 'text-emerald-400' : 'text-red-400'
+            }`}
+          >
+            {copyResultsToast === 'success' ? 'Copied to clipboard!' : 'Failed to copy'}
+          </p>
+        )}
+      </div>
+    ) : null;
+
   const hostLivestreamSlot =
     (timerState === 'waiting' ||
       timerState === 'setup' ||
-      timerState === 'work') &&
+      timerState === 'work' ||
+      timerState === 'finished') &&
     !agoraError &&
     joined &&
     hostParticipant
@@ -664,6 +888,7 @@ export function useSocialAmrap(
       rightColumn: rightColumnSlot ?? undefined,
       exerciseHeader: exerciseHeaderSlot ?? undefined,
       errorAction: errorActionSlot,
+      finishedActions: finishedActionsSlot ?? undefined,
     },
   };
 
@@ -682,6 +907,13 @@ export function useSocialAmrap(
     setWhosHereCollapsed,
     copyToast,
     copyShareLink,
+    copyResults,
+    showViewResultsModal,
+    viewResultsText,
+    handleOpenViewResults,
+    handleCloseViewResults,
+    copyResultsToast,
+    roundDurations,
     user,
     agoraError,
     joined,

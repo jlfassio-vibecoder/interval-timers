@@ -111,7 +111,14 @@ export default function AmrapSessionShell({ engine }: AmrapSessionShellProps) {
             onLogRound={onLogRound}
           />
           {timerPhase === 'finished' && (
-            <div className="mt-6 text-lg text-white/80">Work complete</div>
+            <>
+              <div className="mt-6 text-lg text-white/80 animate-finished-pulse-once">
+                {engine.myRounds > 0
+                  ? `You completed ${engine.myRounds} round${engine.myRounds === 1 ? '' : 's'} in ${engine.durationMinutes ?? 15} min`
+                  : 'Work complete'}
+              </div>
+              {slots?.finishedActions}
+            </>
           )}
           {engine.isHost &&
             timerPhase !== 'waiting' &&
