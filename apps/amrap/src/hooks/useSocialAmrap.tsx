@@ -193,6 +193,7 @@ export function useSocialAmrap(
   const hasAutoStartedRef = useRef(false);
   const hasBeenBeforeScheduledRef = useRef(false);
   const finishSoundPlayedRef = useRef(false);
+  const guestCompletedAtRef = useRef<string | null>(null);
   const timerCompleteTrackedRef = useRef(false);
   const timerCompleteTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const roundsRef = useRef(rounds);
@@ -314,13 +315,16 @@ export function useSocialAmrap(
   }, [timerState, totalTime, participantId, rounds]);
 
   // Save guest result idempotently when finished; rounds may arrive late via realtime subscription.
+  // completedAt is captured once when we first enter finished state, not on each round update.
   useEffect(() => {
-    if (
-      timerState === 'finished' &&
-      !user &&
-      sessionId &&
-      participantId
-    ) {
+    if (timerState !== 'finished') {
+      guestCompletedAtRef.current = null;
+      return;
+    }
+    if (!user && sessionId && participantId) {
+      if (!guestCompletedAtRef.current) {
+        guestCompletedAtRef.current = new Date().toISOString();
+      }
       const totalRounds = rounds.filter((r) => r.participant_id === participantId).length;
       saveGuestSessionResult(
         sessionId,
@@ -328,7 +332,7 @@ export function useSocialAmrap(
         totalRounds,
         session?.workout_list ?? [],
         session?.duration_minutes ?? 15,
-        new Date().toISOString()
+        guestCompletedAtRef.current
       );
     }
   }, [timerState, user, sessionId, participantId, rounds, session?.workout_list, session?.duration_minutes]);
