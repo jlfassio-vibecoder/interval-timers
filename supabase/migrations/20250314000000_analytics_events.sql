@@ -26,12 +26,14 @@ CREATE INDEX IF NOT EXISTS idx_analytics_events_session_timestamp
 -- RLS: allow INSERT for anon and authenticated; SELECT only via service role
 ALTER TABLE public.analytics_events ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS analytics_events_insert_anon ON public.analytics_events;
 CREATE POLICY analytics_events_insert_anon
   ON public.analytics_events
   FOR INSERT
   TO anon
   WITH CHECK (true);
 
+DROP POLICY IF EXISTS analytics_events_insert_authenticated ON public.analytics_events;
 CREATE POLICY analytics_events_insert_authenticated
   ON public.analytics_events
   FOR INSERT
