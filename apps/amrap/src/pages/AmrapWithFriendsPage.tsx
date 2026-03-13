@@ -82,10 +82,6 @@ export default function AmrapWithFriendsPage() {
   );
 
   useEffect(() => {
-    setGuestResults(getGuestSessionResults());
-  }, []);
-
-  useEffect(() => {
     const onFocus = () => setGuestResults(getGuestSessionResults());
     window.addEventListener('focus', onFocus);
     return () => window.removeEventListener('focus', onFocus);

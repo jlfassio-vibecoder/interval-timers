@@ -1,6 +1,6 @@
 /**
- * Guest (anonymous) AMRAP session results stored in sessionStorage.
- * Surfaces in "Recent sessions" on the With Friends page; cleared when user clears site data.
+ * Guest (anonymous) AMRAP session results stored in localStorage.
+ * Surfaces in "Recent sessions" on the With Friends page; persists across tab closes until user clears site data.
  */
 
 const STORAGE_KEY = 'amrap_guest_session_results';
@@ -17,7 +17,7 @@ export interface GuestSessionResult {
 
 function getStored(): GuestSessionResult[] {
   try {
-    const raw = sessionStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw) as unknown;
     if (!Array.isArray(parsed)) return [];
@@ -39,9 +39,9 @@ function getStored(): GuestSessionResult[] {
 
 function setStored(results: GuestSessionResult[]): void {
   try {
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(results.slice(0, MAX_ENTRIES)));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(results.slice(0, MAX_ENTRIES)));
   } catch {
-    /* sessionStorage unavailable or full */
+    /* localStorage unavailable or full */
   }
 }
 

@@ -31,6 +31,7 @@ import SessionMessageBoard from '@/components/SessionMessageBoard';
 import VideoTile from '@/components/VideoTile';
 
 const COUNTDOWN_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
+const TIMER_COMPLETE_ROUNDS_GRACE_MS = 1500; // allow late round rows from realtime before analytics
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60)
@@ -193,8 +194,17 @@ export function useSocialAmrap(
   const hasBeenBeforeScheduledRef = useRef(false);
   const finishSoundPlayedRef = useRef(false);
   const timerCompleteTrackedRef = useRef(false);
-  const guestResultSavedRef = useRef(false);
+  const timerCompleteTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const roundsRef = useRef(rounds);
+  const totalTimeRef = useRef(totalTime);
+  const participantIdRef = useRef(participantId);
   const audioContextRef = useRef<AudioContext | null>(null);
+
+  useEffect(() => {
+    roundsRef.current = rounds;
+    totalTimeRef.current = totalTime;
+    participantIdRef.current = participantId;
+  }, [rounds, totalTime, participantId]);
 
   useEffect(() => {
     const currentIds = new Set(participants.map((p) => p.id));
@@ -268,34 +278,49 @@ export function useSocialAmrap(
   }, [timerState]);
 
   useEffect(() => {
-    if (timerState === 'finished' && !timerCompleteTrackedRef.current) {
-      timerCompleteTrackedRef.current = true;
-      const roundsCount = participantId
-        ? rounds.filter((r) => r.participant_id === participantId).length
-        : 0;
+    if (timerState !== 'finished') {
+      timerCompleteTrackedRef.current = false;
+      if (timerCompleteTimeoutRef.current) {
+        clearTimeout(timerCompleteTimeoutRef.current);
+        timerCompleteTimeoutRef.current = null;
+      }
+      return;
+    }
+    if (timerCompleteTrackedRef.current) return;
+    timerCompleteTrackedRef.current = true;
+    timerCompleteTimeoutRef.current = setTimeout(() => {
+      timerCompleteTimeoutRef.current = null;
+      const pid = participantIdRef.current;
+      const r = roundsRef.current;
+      const t = totalTimeRef.current;
+      const roundsCount = pid ? r.filter((x) => x.participant_id === pid).length : 0;
       trackEvent(
         supabase,
         'timer_session_complete',
         {
           source: 'amrap_friends',
-          duration_seconds: totalTime,
+          duration_seconds: t,
           rounds: roundsCount,
         },
         { appId: 'amrap' }
       );
-    }
-    if (timerState !== 'finished') timerCompleteTrackedRef.current = false;
+    }, TIMER_COMPLETE_ROUNDS_GRACE_MS);
+    return () => {
+      if (timerCompleteTimeoutRef.current) {
+        clearTimeout(timerCompleteTimeoutRef.current);
+        timerCompleteTimeoutRef.current = null;
+      }
+    };
   }, [timerState, totalTime, participantId, rounds]);
 
+  // Save guest result idempotently when finished; rounds may arrive late via realtime subscription.
   useEffect(() => {
     if (
       timerState === 'finished' &&
       !user &&
       sessionId &&
-      participantId &&
-      !guestResultSavedRef.current
+      participantId
     ) {
-      guestResultSavedRef.current = true;
       const totalRounds = rounds.filter((r) => r.participant_id === participantId).length;
       saveGuestSessionResult(
         sessionId,
@@ -306,7 +331,6 @@ export function useSocialAmrap(
         new Date().toISOString()
       );
     }
-    if (timerState !== 'finished') guestResultSavedRef.current = false;
   }, [timerState, user, sessionId, participantId, rounds, session?.workout_list, session?.duration_minutes]);
 
   const handleJoinSession = useCallback(async () => {
@@ -440,7 +464,7 @@ export function useSocialAmrap(
       const myRoundsCount = myRoundsData.length;
       const splits = myRoundsData.map((r) => r.elapsed_sec_at_round);
       const workoutList = session?.workout_list ?? [];
-      const sessionUrl = window.location.href;
+      const sessionUrl = window.location.href.replace(/\?.*$/, '');
       const workoutTitle = getWorkoutTitle(workoutList);
       const volumeLines = computeVolumeLines(workoutList, myRoundsCount);
       const compact =

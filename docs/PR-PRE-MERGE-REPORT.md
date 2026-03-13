@@ -1,8 +1,14 @@
 # Pre-Merge Report
 
-**Branch:** `fixes/amrap-schedule-and-hud-integration`  
-**Date:** 2025-03-14  
+**Branch:** `polish/amrap-with-friends-misc-updates`  
+**Date:** 2026-03-13  
 **Reviewer:** Senior Lead Engineer (Final PR Gatekeeper)
+
+---
+
+## Phase 1: Triage & Execution
+
+Reviewed all changed files against the Decision Matrix (Critical / Performance / Style). Applied fixes where warranted; ignored nitpicks and pre-existing patterns.
 
 ---
 
@@ -10,10 +16,11 @@
 
 | Issue | File | Resolution |
 |-------|------|------------|
-| **create_session RPC result validation** | `AmrapWithFriendsPage.tsx` | Added validation for `session_id`, `host_token`, and `participant_id` before storing/navigating (mirrors join_session fix). |
-| **Unused props** | `DailyWarmupSessionOverlay.tsx`, `AmrapSessionPage.tsx` | Removed unused `sessionId` and `hostToken` props from overlay interface and call site. |
+| **Ref updates during render** | `useSocialAmrap.tsx` | Moved `roundsRef.current`, `totalTimeRef.current`, `participantIdRef.current` sync into a `useEffect` so refs are updated in effects, not during render. Fixes `react-hooks/refs` violations. |
+| **setState in effect (sync)** | `AmrapWithFriendsPage.tsx` | Removed redundant `useEffect` that called `setGuestResults(getGuestSessionResults())` on mount. Lazy `useState(() => getGuestSessionResults())` already provides correct initial state; focus handler refreshes on return. |
+| **Unused chart data field** | `RoundConsistencyChart.tsx` | Removed dead `label` property from chart data (formatting is done by `formatSeconds` in YAxis/Tooltip formatters). |
 
-*Note: All previously addressed PR comments (join_session validation, autoStart playBell, fetchScheduledSessions env guard, useScheduledSessions unmount cleanup, hideClose for non-hosts) remain in place.*
+*Previously applied: RoundConsistencyChart `formatSeconds` coercion for Recharts floats/strings; guest history localStorage; sessionUrl strip; guest save timing; timer_session_complete grace.*
 
 ---
 
@@ -21,9 +28,7 @@
 
 | Item | Location | Action |
 |------|----------|--------|
-| Unused `sessionId`, `hostToken` props | `DailyWarmupSessionOverlay` | Removed from interface and parent call. |
-
-**Comments retained:** All existing comments provide non-obvious context (PostgREST filter behavior, setState-in-effect workaround, lock-abort handler, etc.). None were redundant "stating the obvious" comments.
+| Unused `label` | `RoundConsistencyChart` data map | Removed. Tooltip and YAxis use `formatSeconds(value)` directly. |
 
 ---
 
@@ -31,18 +36,19 @@
 
 | Suggestion | Reason |
 |------------|--------|
-| WeekCalendar `initialSelectedSession` in useEffect deps | Pre-existing; adding would trigger unwanted re-runs. Intentional primitive deps (`initialSelectedSession?.id`, `...?.scheduled_start_at`) already in place. |
-| Additional create_session refactors | Minimal fix applied; no full rewrite. |
+| WeekCalendar `initialSelectedSession` in useEffect deps | Pre-existing; adding would trigger unwanted re-runs. Intentional primitive deps already in place. |
+| PostWorkoutRecapModal `handleCopyResults` wrapper | Thin but readable; inlining `onClick={onCopyResults}` is stylistic only. |
 
 ---
 
 ## Verification
 
 - **Lint:** Passes (1 non-blocking warning in WeekCalendar; pre-existing)
-- **Build:** Passes
+- **Build:** Run separately to confirm
 - **Node APIs in client:** None in `apps/amrap/src`
-- **import.meta.env:** VITE_*, BASE_URL, DEV used; no secrets
+- **import.meta.env:** `VITE_*`, `DEV`, `BASE_URL` used; no secrets
 - **TODOs/FIXMEs:** None in changed files
+- **APIs:** `trackEvent`, `buildResultsText`, `getWorkoutTitle`, `computeVolumeLines`, Recharts components — all exist and match usage
 
 ---
 

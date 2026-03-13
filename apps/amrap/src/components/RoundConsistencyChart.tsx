@@ -14,9 +14,11 @@ import {
   YAxis,
 } from 'recharts';
 
-function formatSeconds(sec: number): string {
-  const m = Math.floor(sec / 60);
-  const s = sec % 60;
+function formatSeconds(secInput: number | string | undefined): string {
+  const totalSeconds = Math.round(Number(secInput));
+  if (!Number.isFinite(totalSeconds) || totalSeconds < 0) return '—';
+  const m = Math.floor(totalSeconds / 60);
+  const s = totalSeconds % 60;
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
@@ -39,7 +41,6 @@ export default function RoundConsistencyChart({
   const data = roundDurations.map((seconds, i) => ({
     round: i + 1,
     seconds,
-    label: formatSeconds(seconds),
   }));
 
   const average =
@@ -70,7 +71,7 @@ export default function RoundConsistencyChart({
               tick={{ fontSize: 11, fill: 'rgba(255,255,255,0.7)' }}
               axisLine={false}
               tickLine={false}
-              tickFormatter={(v) => `${Math.floor(v / 60)}:${(v % 60).toString().padStart(2, '0')}`}
+              tickFormatter={(v) => formatSeconds(v)}
             />
             <Tooltip
               cursor={{ fill: 'rgba(255,255,255,0.05)' }}
@@ -80,7 +81,7 @@ export default function RoundConsistencyChart({
                 border: '1px solid rgba(255,255,255,0.1)',
                 color: 'rgba(255,255,255,0.9)',
               }}
-              formatter={(value: number | undefined) => [value != null ? formatSeconds(value) : '—', 'Duration']}
+              formatter={(value: number | string | undefined) => [formatSeconds(value), 'Duration']}
               labelFormatter={(label) => `Round ${label}`}
             />
             <ReferenceLine
