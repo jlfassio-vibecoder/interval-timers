@@ -1,6 +1,6 @@
 import { useState, useCallback, type FormEvent } from 'react';
 
-// 220 - 18 (min age) = 202; +3% margin for measurement error
+// Fixed upper bound for 18+ audience: 220 - 18 = 202, +3% margin. No age input in recovery flow.
 const MAX_BPM = Math.round(202 * 1.03);
 
 export interface ManualBpmViewProps {

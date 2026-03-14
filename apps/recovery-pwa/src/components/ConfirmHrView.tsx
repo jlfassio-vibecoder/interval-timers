@@ -1,10 +1,11 @@
 export interface ConfirmHrViewProps {
   heartRate: number;
   onConfirm: () => void;
-  onEdit: () => void;
+  onRescan: () => void;
+  onEditManually: () => void;
 }
 
-export default function ConfirmHrView({ heartRate, onConfirm, onEdit }: ConfirmHrViewProps) {
+export default function ConfirmHrView({ heartRate, onConfirm, onRescan, onEditManually }: ConfirmHrViewProps) {
   return (
     <section className="view-section">
       <header className="text-center mt-4 mb-8">
@@ -33,10 +34,17 @@ export default function ConfirmHrView({ heartRate, onConfirm, onEdit }: ConfirmH
           </button>
           <button
             type="button"
-            onClick={onEdit}
+            onClick={onRescan}
             className="py-2 text-zinc-400 hover:text-orange-light text-sm font-semibold"
           >
-            Edit — record again
+            Rescan heart rate
+          </button>
+          <button
+            type="button"
+            onClick={onEditManually}
+            className="py-2 text-zinc-400 hover:text-orange-light text-sm font-semibold"
+          >
+            Edit manually
           </button>
         </div>
       </div>

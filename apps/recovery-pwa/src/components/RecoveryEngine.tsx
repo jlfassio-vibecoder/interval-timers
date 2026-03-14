@@ -37,8 +37,12 @@ export default function RecoveryEngine({ sessionId, endTime }: RecoveryEnginePro
     setCurrentView('rpe');
   }, []);
 
-  const handleEditHr = useCallback(() => {
+  const handleRescanHr = useCallback(() => {
     setCurrentView('scan');
+  }, []);
+
+  const handleEditManually = useCallback(() => {
+    setCurrentView('manualBpm');
   }, []);
 
   const handleRpeSubmit = useCallback((val: number, text: string) => {
@@ -75,7 +79,8 @@ export default function RecoveryEngine({ sessionId, endTime }: RecoveryEnginePro
         <ConfirmHrView
           heartRate={finalHr}
           onConfirm={handleConfirmHr}
-          onEdit={handleEditHr}
+          onRescan={handleRescanHr}
+          onEditManually={handleEditManually}
         />
       )}
       {currentView === 'rpe' && (
