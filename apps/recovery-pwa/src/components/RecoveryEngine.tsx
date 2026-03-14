@@ -1,11 +1,12 @@
 import { useState, useCallback } from 'react';
 import TimerView from './TimerView';
 import ScannerView from './ScannerView';
+import ManualBpmView from './ManualBpmView';
 import RpeView from './RpeView';
 import LoadingView from './LoadingView';
 import ResultsView from './ResultsView';
 
-export type RecoveryView = 'landing' | 'scan' | 'rpe' | 'loading' | 'results';
+export type RecoveryView = 'landing' | 'scan' | 'manualBpm' | 'rpe' | 'loading' | 'results';
 
 export interface RecoveryEngineProps {
   sessionId: string | null;
@@ -42,13 +43,24 @@ export default function RecoveryEngine({ sessionId, endTime }: RecoveryEnginePro
     alert('Recovery recorded. You can close this window on your phone.');
   }, []);
 
+  const handleManualEntry = useCallback(() => {
+    setCurrentView('manualBpm');
+  }, []);
+
+  const handleManualBpmSubmit = useCallback((hr: number) => {
+    handleScanComplete(hr);
+  }, [handleScanComplete]);
+
   return (
     <>
       {currentView === 'landing' && (
         <TimerView endTime={effectiveEndTime} onStartScan={handleStartScan} />
       )}
       {currentView === 'scan' && (
-        <ScannerView onComplete={handleScanComplete} />
+        <ScannerView onComplete={handleScanComplete} onManualEntry={handleManualEntry} />
+      )}
+      {currentView === 'manualBpm' && (
+        <ManualBpmView onSubmit={handleManualBpmSubmit} onBack={() => setCurrentView('scan')} />
       )}
       {currentView === 'rpe' && (
         <RpeView onSubmit={handleRpeSubmit} />

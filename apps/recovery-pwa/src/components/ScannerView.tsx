@@ -1,9 +1,25 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
+import {
+  computeBpmFromPeaks,
+  resolveBpm,
+  areReadingsConsistent,
+  median,
+  computeSignalQualityIndex,
+  type Sample,
+} from '../lib/ppg';
 
 const TICK_MS = 33; // ~30 fps
 const STABLE_DURATION_MS = 4000;
 const BPM_TOLERANCE = 5;
+
+function isIOSDevice(): boolean {
+  return typeof navigator !== 'undefined' && (
+    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+  );
+}
 const BPM_CHECK_INTERVAL_MS = 500;
+const MAX_SQI_SAMPLES = 150; // limit SQI to last N samples; computed on BPM cadence to reduce per-frame CPU
 const SIGNAL_LOSS_RESET_MS = 1000;
 const CONSISTENCY_WINDOW_COUNT = 4;
 const MAX_SCAN_MS = 60000;
@@ -11,106 +27,18 @@ const MAX_SAMPLES = Math.ceil((10000 / TICK_MS) * 1.2); // ~10s rolling window
 const CANVAS_WIDTH = 300;
 const CANVAS_HEIGHT = 150;
 const SAMPLE_REGION_SIZE = 80;
-const MIN_BPM = 40;
-const MAX_BPM = 120;
-const MIN_INTERVAL_MS = 60000 / MAX_BPM; // 500ms - rejects half-intervals (dicrotic), max 120 BPM
-const MAX_INTERVAL_MS = 60000 / MIN_BPM; // 1500ms for 40 BPM
+const LOW_LIGHT_THRESHOLD = 80;
 
 type ScannerState = 'requesting' | 'ready' | 'scanning' | 'error';
 
-interface Sample {
-  timestamp: number;
-  redMean: number;
-  greenMean: number;
-}
-
-function computeBpmFromPeaks(samples: Sample[], useGreen: boolean): number | null {
-  if (samples.length < 30) return null;
-
-  const values = samples.map((s) => (useGreen ? s.greenMean : s.redMean));
-  const times = samples.map((s) => s.timestamp);
-  const minValue = Math.min(...values);
-  const maxValue = Math.max(...values);
-  const range = maxValue - minValue;
-  if (range < 0.5) return null;
-  const prominence = Math.max(range * 0.025, 1.5);
-  const peaks: number[] = [];
-
-  for (let i = 2; i < values.length - 2; i++) {
-    const v = values[i];
-    if (
-      v >= values[i - 1] &&
-      v >= values[i - 2] &&
-      v >= values[i + 1] &&
-      v >= values[i + 2] &&
-      v >= minValue + prominence
-    ) {
-      peaks.push(times[i]);
-    }
-  }
-
-  if (peaks.length < 3) return null;
-
-  const intervals: number[] = [];
-  for (let i = 1; i < peaks.length; i++) {
-    const interval = peaks[i] - peaks[i - 1];
-    if (interval >= MIN_INTERVAL_MS && interval <= MAX_INTERVAL_MS) {
-      intervals.push(interval);
-    }
-  }
-
-  if (intervals.length < 2) return null;
-
-  const sorted = [...intervals].sort((a, b) => a - b);
-  const q1 = sorted[Math.floor(sorted.length * 0.25)]!;
-  const q3 = sorted[Math.floor(sorted.length * 0.75)]!;
-  const iqr = q3 - q1;
-  let filtered = intervals.filter(
-    (x) => x >= q1 - 1.5 * iqr && x <= q3 + 1.5 * iqr
-  );
-  if (filtered.length < 2) return null;
-
-  const med = median(filtered);
-  filtered = filtered.filter(
-    (x) => x >= med * 0.65 && x <= med * 1.5
-  );
-  if (filtered.length < 2) return null;
-
-  const intervalEstimate = median(filtered);
-  const bpm = Math.round(60000 / intervalEstimate);
-  if (bpm >= MIN_BPM && bpm <= MAX_BPM) return bpm;
-  return null;
-}
-
-function median(arr: number[]): number {
-  if (arr.length === 0) return 0;
-  const sorted = [...arr].sort((a, b) => a - b);
-  const mid = Math.floor(sorted.length / 2);
-  return sorted.length % 2 ? sorted[mid]! : (sorted[mid - 1]! + sorted[mid]!) / 2;
-}
-
-function resolveBpm(green: number | null, red: number | null): number | null {
-  if (green === null && red === null) return null;
-  if (green === null) return red;
-  if (red === null) return green;
-  const [lo, hi] = green <= red ? [green, red] : [red, green];
-  if (hi >= lo * 1.7 && hi <= lo * 2.3) return lo;
-  return green;
-}
-
-function areReadingsConsistent(readings: { bpm: number }[], tolerance: number): boolean {
-  if (readings.length < CONSISTENCY_WINDOW_COUNT) return false;
-  const last = readings.slice(-CONSISTENCY_WINDOW_COUNT);
-  const values = last.map((r) => r.bpm);
-  const med = median(values);
-  return values.every((v) => Math.abs(v - med) <= tolerance);
-}
-
 export interface ScannerViewProps {
   onComplete: (finalHr: number) => void;
+  onManualEntry?: () => void;
+  stableDurationMs?: number;
+  bpmTolerance?: number;
 }
 
-export default function ScannerView({ onComplete }: ScannerViewProps) {
+export default function ScannerView({ onComplete, onManualEntry, stableDurationMs = STABLE_DURATION_MS, bpmTolerance = BPM_TOLERANCE }: ScannerViewProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -119,6 +47,7 @@ export default function ScannerView({ onComplete }: ScannerViewProps) {
   const recentBpmReadingsRef = useRef<{ bpm: number; timestamp: number }[]>([]);
   const stableStartTimeRef = useRef<number | null>(null);
   const lastBpmCheckRef = useRef<number>(0);
+  const lastSqiCheckRef = useRef<number>(0);
   const lastNonNullBpmTimeRef = useRef<number>(0);
   const lastNullBpmTimeRef = useRef<number | null>(null);
 
@@ -132,6 +61,7 @@ export default function ScannerView({ onComplete }: ScannerViewProps) {
   const [frameCount, setFrameCount] = useState(0);
   const [cameraActive, setCameraActive] = useState(false);
   const [showMaxTimeoutHint, setShowMaxTimeoutHint] = useState(false);
+  const [signalQuality, setSignalQuality] = useState(0);
 
   const stopStream = useCallback(() => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
@@ -144,6 +74,7 @@ export default function ScannerView({ onComplete }: ScannerViewProps) {
     recentBpmReadingsRef.current = [];
     stableStartTimeRef.current = null;
     lastBpmCheckRef.current = 0;
+    lastSqiCheckRef.current = 0;
     lastNullBpmTimeRef.current = null;
     setProgress(0);
     setStatus('Detecting pulse...');
@@ -151,6 +82,7 @@ export default function ScannerView({ onComplete }: ScannerViewProps) {
     setSignalStrength('none');
     setFrameCount(0);
     setShowMaxTimeoutHint(false);
+    setSignalQuality(0);
   }, []);
 
   const retry = useCallback(() => {
@@ -165,6 +97,7 @@ export default function ScannerView({ onComplete }: ScannerViewProps) {
     setFrameCount(0);
     setCameraActive(false);
     setShowMaxTimeoutHint(false);
+    setSignalQuality(0);
     samplesRef.current = [];
     recentBpmReadingsRef.current = [];
     stableStartTimeRef.current = null;
@@ -216,7 +149,7 @@ export default function ScannerView({ onComplete }: ScannerViewProps) {
           const track = stream.getVideoTracks()[0];
           if (track && 'applyConstraints' in track) {
             const caps = track.getCapabilities?.() ?? {};
-            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+            const isIOS = isIOSDevice();
             const advanced: MediaTrackConstraintSet[] = [{ torch: true }];
             if (isIOS && 'zoom' in caps) {
               advanced[0].zoom = 0.5;
@@ -236,7 +169,9 @@ export default function ScannerView({ onComplete }: ScannerViewProps) {
         if (cancelled) return;
         setState('error');
         if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-          setErrorMessage('Camera access required. Allow access and try again.');
+          setErrorMessage(isIOSDevice()
+            ? 'Camera access required. If using "Add to Home Screen", try opening in Safari instead.'
+            : 'Camera access required. Allow access and try again.');
         } else if (err.name === 'NotFoundError') {
           setErrorMessage('No camera found.');
         } else {
@@ -258,11 +193,13 @@ export default function ScannerView({ onComplete }: ScannerViewProps) {
       setStatus('Detecting pulse...');
       setSignalStrength('none');
       setFrameCount(0);
+      setSignalQuality(0);
       setShowMaxTimeoutHint(false);
       samplesRef.current = [];
       recentBpmReadingsRef.current = [];
       stableStartTimeRef.current = null;
       lastBpmCheckRef.current = 0;
+      lastSqiCheckRef.current = 0;
       lastNullBpmTimeRef.current = null;
     }, 1500);
 
@@ -341,6 +278,11 @@ export default function ScannerView({ onComplete }: ScannerViewProps) {
           const r = Math.max(...vals) - Math.min(...vals);
           setSignalStrength(r >= 1.5 ? 'good' : r >= 0.5 ? 'weak' : 'none');
         }
+        if (now - lastSqiCheckRef.current >= BPM_CHECK_INTERVAL_MS) {
+          lastSqiCheckRef.current = now;
+          const sqiSamples = samplesRef.current.slice(-MAX_SQI_SAMPLES);
+          setSignalQuality(computeSignalQualityIndex(sqiSamples));
+        }
 
         const greenBpm = computeBpmFromPeaks(samplesRef.current, true);
         const redBpm = computeBpmFromPeaks(samplesRef.current, false);
@@ -357,12 +299,12 @@ export default function ScannerView({ onComplete }: ScannerViewProps) {
             readings.push({ bpm: liveBpm, timestamp: now });
             if (readings.length > 10) readings.shift();
 
-            if (areReadingsConsistent(readings, BPM_TOLERANCE)) {
+            if (areReadingsConsistent(readings, bpmTolerance, CONSISTENCY_WINDOW_COUNT)) {
               const stableStart = stableStartTimeRef.current ?? now;
               stableStartTimeRef.current = stableStart;
               const stableElapsed = now - stableStart;
-              setProgress(Math.min(100, (stableElapsed / STABLE_DURATION_MS) * 100));
-              if (stableElapsed >= STABLE_DURATION_MS) {
+              setProgress(Math.min(100, (stableElapsed / stableDurationMs) * 100));
+              if (stableElapsed >= stableDurationMs) {
                 const lastReadings = readings.slice(-CONSISTENCY_WINDOW_COUNT);
                 const medianBpm = Math.round(median(lastReadings.map((r) => r.bpm)));
                 cancelAnimationFrame(animationRef.current);
@@ -385,7 +327,11 @@ export default function ScannerView({ onComplete }: ScannerViewProps) {
             stableStartTimeRef.current = null;
             recentBpmReadingsRef.current = [];
             setProgress(0);
-            setStatus('Adjust finger - cover lens fully');
+            const meanIntensity = (redMean + greenMean) / 2;
+            const isLowLight = samplesRef.current.length >= 45 && meanIntensity < LOW_LIGHT_THRESHOLD;
+            setStatus(isLowLight
+              ? 'Improve lighting or cover lens fully with your finger'
+              : 'Adjust finger - cover lens fully');
           }
         }
 
@@ -402,7 +348,7 @@ export default function ScannerView({ onComplete }: ScannerViewProps) {
 
       if (stableStartTimeRef.current !== null && recentBpmReadingsRef.current.length >= CONSISTENCY_WINDOW_COUNT) {
         const stableElapsed = now - stableStartTimeRef.current;
-        setProgress(Math.min(100, (stableElapsed / STABLE_DURATION_MS) * 100));
+        setProgress(Math.min(100, (stableElapsed / stableDurationMs) * 100));
         const secs = (stableElapsed / 1000).toFixed(1);
         setStatus(stableElapsed > 2500 ? `Almost there... ${secs}s` : `Hold steady... ${secs}s`);
       }
@@ -428,7 +374,7 @@ export default function ScannerView({ onComplete }: ScannerViewProps) {
     return () => {
       cancelAnimationFrame(animationRef.current);
     };
-  }, [state, onComplete, stopStream]);
+  }, [state, onComplete, stopStream, stableDurationMs, bpmTolerance]);
 
   useEffect(() => {
     return () => stopStream();
@@ -441,7 +387,7 @@ export default function ScannerView({ onComplete }: ScannerViewProps) {
           <h2 className="text-xl font-black">Scan Failed</h2>
           <p className="text-zinc-400 text-sm mt-1">{errorMessage}</p>
         </header>
-        <div className="flex-grow flex items-center justify-center">
+        <div className="flex-grow flex flex-col items-center gap-4">
           <button
             type="button"
             onClick={retry}
@@ -449,6 +395,15 @@ export default function ScannerView({ onComplete }: ScannerViewProps) {
           >
             Try Again
           </button>
+          {onManualEntry && (
+            <button
+              type="button"
+              onClick={onManualEntry}
+              className="text-sm text-zinc-400 hover:text-orange-light underline"
+            >
+              Can&apos;t use camera? Enter manually
+            </button>
+          )}
         </div>
       </section>
     );
@@ -531,6 +486,11 @@ export default function ScannerView({ onComplete }: ScannerViewProps) {
             {frameCount > 0 && (
               <span className="text-[10px] text-zinc-500 font-mono tabular-nums">
                 {frameCount} frames
+                {signalQuality > 0 && (
+                  <span className="ml-1">
+                    · {signalQuality < 0.3 ? 'Poor' : signalQuality < 0.6 ? 'Weak' : 'Good'}
+                  </span>
+                )}
               </span>
             )}
           </div>
@@ -542,7 +502,11 @@ export default function ScannerView({ onComplete }: ScannerViewProps) {
           className="absolute z-10 w-full max-w-[300px] h-32 opacity-90"
           aria-hidden="true"
         />
-        <div className="z-20 text-center mt-32 flex flex-col items-center">
+        <div
+          className="z-20 text-center mt-32 flex flex-col items-center"
+          aria-live="polite"
+          aria-label={bpm !== null ? `${bpm} beats per minute` : 'Waiting for heart rate'}
+        >
           <span className="text-5xl font-black font-mono drop-shadow-lg">
             {bpm ?? '--'}
           </span>
@@ -557,21 +521,39 @@ export default function ScannerView({ onComplete }: ScannerViewProps) {
             style={{ width: `${progress}%` }}
           />
         </div>
-        <p className="text-center text-xs text-zinc-500 uppercase tracking-widest font-bold">
+        <p
+          className="text-center text-xs text-zinc-500 uppercase tracking-widest font-bold"
+          aria-live="polite"
+          aria-atomic="true"
+        >
           {status}
+        </p>
+        <p className="text-center text-[10px] text-zinc-600 mt-2">
+          For fitness tracking only. Not a medical device.
         </p>
         {showMaxTimeoutHint && state === 'scanning' && (
           <div className="mt-4 flex flex-col items-center gap-3">
             <p className="text-amber-400/90 text-sm text-center">
               Having trouble? Try adjusting your finger position.
             </p>
-            <button
-              type="button"
-              onClick={resetScan}
-              className="py-2 px-6 bg-zinc-700 hover:bg-zinc-600 text-white rounded-xl text-sm font-semibold active:scale-95 transition-all"
-            >
-              Reset
-            </button>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <button
+                type="button"
+                onClick={resetScan}
+                className="py-2 px-6 bg-zinc-700 hover:bg-zinc-600 text-white rounded-xl text-sm font-semibold active:scale-95 transition-all"
+              >
+                Reset
+              </button>
+              {onManualEntry && (
+                <button
+                  type="button"
+                  onClick={onManualEntry}
+                  className="py-2 px-6 text-zinc-400 hover:text-orange-light text-sm font-semibold underline"
+                >
+                  Enter manually
+                </button>
+              )}
+            </div>
           </div>
         )}
       </div>
