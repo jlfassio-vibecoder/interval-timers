@@ -6,8 +6,8 @@
  * Used by AppIslands, ActiveProgramView, ProgramSalesView, ProgramBlueprintEditor, etc.
  */
 
-import type { Exercise, ExtendedBiomechanics, GeneratedExerciseInput } from './types';
-import { parseBiomechanicalPoints, FULL_BIOMECHANICS_CARD_LENGTH } from './parse-biomechanics';
+import type { Exercise, ExtendedBiomechanics, GeneratedExerciseInput } from './types.js';
+import { parseBiomechanicalPoints, FULL_BIOMECHANICS_CARD_LENGTH } from './parse-biomechanics.js';
 
 /** Irregular plurals → singular for exercise-relevant terms. Checked before suffix rules. */
 const IRREGULAR_SINGULAR: Record<string, string> = {
@@ -143,7 +143,7 @@ export function buildApprovedExerciseMaps(
       } else {
         instructions = userInstructions
           .split(/\r?\n+/)
-          .map((s) => s.trim())
+          .map((s: string) => s.trim())
           .filter(Boolean);
       }
       extended = genEx.biomechanics
