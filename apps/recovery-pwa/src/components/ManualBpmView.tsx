@@ -1,5 +1,8 @@
 import { useState, useCallback, type FormEvent } from 'react';
 
+// Fixed upper bound for 18+ audience: 220 - 18 = 202, +3% margin. No age input in recovery flow.
+const MAX_BPM = Math.round(202 * 1.03);
+
 export interface ManualBpmViewProps {
   onSubmit: (hr: number) => void;
   onBack: () => void;
@@ -13,8 +16,8 @@ export default function ManualBpmView({ onSubmit, onBack }: ManualBpmViewProps) 
     (e: FormEvent) => {
       e.preventDefault();
       const num = Number(bpm);
-      if (!Number.isInteger(num) || num < 40 || num > 200) {
-        setError('Enter a value between 40 and 200');
+      if (!Number.isInteger(num) || num < 40 || num > MAX_BPM) {
+        setError(`Enter a value between 40 and ${MAX_BPM}`);
         return;
       }
       setError('');
@@ -28,7 +31,7 @@ export default function ManualBpmView({ onSubmit, onBack }: ManualBpmViewProps) 
       <header className="text-center mt-4 mb-8">
         <h2 className="text-xl font-black">Enter Heart Rate</h2>
         <p className="text-zinc-400 text-sm mt-1">
-          Enter your resting heart rate in BPM (40–200)
+          Enter your resting heart rate in BPM (40–{MAX_BPM})
         </p>
       </header>
       <form onSubmit={handleSubmit} className="flex-grow flex flex-col items-center gap-6 mt-8">
@@ -37,7 +40,7 @@ export default function ManualBpmView({ onSubmit, onBack }: ManualBpmViewProps) 
             type="number"
             inputMode="numeric"
             min={40}
-            max={200}
+            max={MAX_BPM}
             step={1}
             value={bpm}
             onChange={(e) => {
