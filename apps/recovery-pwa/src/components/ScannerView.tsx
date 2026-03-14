@@ -1,7 +1,13 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 
-const SCAN_DURATION_MS = 15000;
 const TICK_MS = 33; // ~30 fps
+const STABLE_DURATION_MS = 4000;
+const BPM_TOLERANCE = 5;
+const BPM_CHECK_INTERVAL_MS = 500;
+const SIGNAL_LOSS_RESET_MS = 1000;
+const CONSISTENCY_WINDOW_COUNT = 4;
+const MAX_SCAN_MS = 60000;
+const MAX_SAMPLES = Math.ceil((10000 / TICK_MS) * 1.2); // ~10s rolling window
 const CANVAS_WIDTH = 300;
 const CANVAS_HEIGHT = 150;
 const SAMPLE_REGION_SIZE = 80;
@@ -62,6 +68,21 @@ function computeBpmFromPeaks(samples: Sample[], useGreen: boolean): number | nul
   return null;
 }
 
+function median(arr: number[]): number {
+  if (arr.length === 0) return 0;
+  const sorted = [...arr].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[mid]! : (sorted[mid - 1]! + sorted[mid]!) / 2;
+}
+
+function areReadingsConsistent(readings: { bpm: number }[], tolerance: number): boolean {
+  if (readings.length < CONSISTENCY_WINDOW_COUNT) return false;
+  const last = readings.slice(-CONSISTENCY_WINDOW_COUNT);
+  const values = last.map((r) => r.bpm);
+  const med = median(values);
+  return values.every((v) => Math.abs(v - med) <= tolerance);
+}
+
 export interface ScannerViewProps {
   onComplete: (finalHr: number) => void;
 }
@@ -72,6 +93,11 @@ export default function ScannerView({ onComplete }: ScannerViewProps) {
   const streamRef = useRef<MediaStream | null>(null);
   const animationRef = useRef<number>(0);
   const samplesRef = useRef<Sample[]>([]);
+  const recentBpmReadingsRef = useRef<{ bpm: number; timestamp: number }[]>([]);
+  const stableStartTimeRef = useRef<number | null>(null);
+  const lastBpmCheckRef = useRef<number>(0);
+  const lastNonNullBpmTimeRef = useRef<number>(0);
+  const lastNullBpmTimeRef = useRef<number | null>(null);
 
   const [state, setState] = useState<ScannerState>('requesting');
   const [torchSupported, setTorchSupported] = useState(true);
@@ -82,11 +108,26 @@ export default function ScannerView({ onComplete }: ScannerViewProps) {
   const [signalStrength, setSignalStrength] = useState<'none' | 'weak' | 'good'>('none');
   const [frameCount, setFrameCount] = useState(0);
   const [cameraActive, setCameraActive] = useState(false);
+  const [showMaxTimeoutHint, setShowMaxTimeoutHint] = useState(false);
 
   const stopStream = useCallback(() => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
     setCameraActive(false);
+  }, []);
+
+  const resetScan = useCallback(() => {
+    samplesRef.current = [];
+    recentBpmReadingsRef.current = [];
+    stableStartTimeRef.current = null;
+    lastBpmCheckRef.current = 0;
+    lastNullBpmTimeRef.current = null;
+    setProgress(0);
+    setStatus('Detecting pulse...');
+    setBpm(null);
+    setSignalStrength('none');
+    setFrameCount(0);
+    setShowMaxTimeoutHint(false);
   }, []);
 
   const retry = useCallback(() => {
@@ -100,7 +141,10 @@ export default function ScannerView({ onComplete }: ScannerViewProps) {
     setSignalStrength('none');
     setFrameCount(0);
     setCameraActive(false);
+    setShowMaxTimeoutHint(false);
     samplesRef.current = [];
+    recentBpmReadingsRef.current = [];
+    stableStartTimeRef.current = null;
   }, [stopStream]);
 
   useEffect(() => {
@@ -191,7 +235,12 @@ export default function ScannerView({ onComplete }: ScannerViewProps) {
       setStatus('Detecting pulse...');
       setSignalStrength('none');
       setFrameCount(0);
+      setShowMaxTimeoutHint(false);
       samplesRef.current = [];
+      recentBpmReadingsRef.current = [];
+      stableStartTimeRef.current = null;
+      lastBpmCheckRef.current = 0;
+      lastNullBpmTimeRef.current = null;
     }, 1500);
 
     return () => clearTimeout(timeoutId);
@@ -211,7 +260,6 @@ export default function ScannerView({ onComplete }: ScannerViewProps) {
     let lastTick = startTime;
     let waveX = 0;
     const wavePoints: { x: number; y: number }[] = [];
-    const maxSamples = Math.ceil((SCAN_DURATION_MS / TICK_MS) * 1.2);
     const sampleCanvas = document.createElement('canvas');
     sampleCanvas.width = SAMPLE_REGION_SIZE;
     sampleCanvas.height = SAMPLE_REGION_SIZE;
@@ -222,28 +270,9 @@ export default function ScannerView({ onComplete }: ScannerViewProps) {
       const now = Date.now();
       const elapsed = now - startTime;
 
-      if (elapsed >= SCAN_DURATION_MS) {
-        cancelAnimationFrame(animationRef.current);
-        const samples = samplesRef.current;
-        const computedBpm = computeBpmFromPeaks(samples, true) ?? computeBpmFromPeaks(samples, false);
-        if (computedBpm !== null) {
-          onComplete(computedBpm);
-        } else {
-          setState('error');
-          const msg = samples.length < 10
-            ? 'Camera frames not received. Ensure you\'re using the rear camera and refresh the page.'
-            : 'Low signal. Keep finger still, cover lens fully, and try again.';
-          setErrorMessage(msg);
-        }
-        stopStream();
-        return;
+      if (elapsed >= MAX_SCAN_MS) {
+        setShowMaxTimeoutHint(true);
       }
-
-      const percent = Math.min(100, (elapsed / SCAN_DURATION_MS) * 100);
-      setProgress(percent);
-
-      if (percent > 20) setStatus('Analyzing red channel...');
-      if (percent > 60) setStatus('Calculating BPM...');
 
       if (now - lastTick >= TICK_MS && video.videoWidth > 0) {
         lastTick = now;
@@ -278,7 +307,7 @@ export default function ScannerView({ onComplete }: ScannerViewProps) {
         const greenMean = count > 0 ? greenSum / count : 0;
 
         samplesRef.current.push({ timestamp: now, redMean, greenMean });
-        if (samplesRef.current.length > maxSamples) {
+        if (samplesRef.current.length > MAX_SAMPLES) {
           samplesRef.current.shift();
         }
 
@@ -291,7 +320,49 @@ export default function ScannerView({ onComplete }: ScannerViewProps) {
         }
 
         const liveBpm = computeBpmFromPeaks(samplesRef.current, true) ?? computeBpmFromPeaks(samplesRef.current, false);
-        if (liveBpm !== null) setBpm(liveBpm);
+
+        if (liveBpm !== null) {
+          setBpm(liveBpm);
+          lastNonNullBpmTimeRef.current = now;
+          lastNullBpmTimeRef.current = null;
+
+          if (now - lastBpmCheckRef.current >= BPM_CHECK_INTERVAL_MS) {
+            lastBpmCheckRef.current = now;
+            const readings = recentBpmReadingsRef.current;
+            readings.push({ bpm: liveBpm, timestamp: now });
+            if (readings.length > 10) readings.shift();
+
+            if (areReadingsConsistent(readings, BPM_TOLERANCE)) {
+              const stableStart = stableStartTimeRef.current ?? now;
+              stableStartTimeRef.current = stableStart;
+              const stableElapsed = now - stableStart;
+              setProgress(Math.min(100, (stableElapsed / STABLE_DURATION_MS) * 100));
+              if (stableElapsed >= STABLE_DURATION_MS) {
+                const lastReadings = readings.slice(-CONSISTENCY_WINDOW_COUNT);
+                const medianBpm = Math.round(median(lastReadings.map((r) => r.bpm)));
+                cancelAnimationFrame(animationRef.current);
+                onComplete(medianBpm);
+                stopStream();
+                return;
+              }
+              const secs = (stableElapsed / 1000).toFixed(1);
+              setStatus(stableElapsed > 2500 ? `Almost there... ${secs}s` : `Hold steady... ${secs}s`);
+            } else {
+              stableStartTimeRef.current = null;
+              setProgress(0);
+              setStatus('Hold steady - don\'t move');
+            }
+          }
+        } else {
+          if (lastNullBpmTimeRef.current === null) lastNullBpmTimeRef.current = now;
+          const nullDuration = now - lastNullBpmTimeRef.current;
+          if (nullDuration >= SIGNAL_LOSS_RESET_MS) {
+            stableStartTimeRef.current = null;
+            recentBpmReadingsRef.current = [];
+            setProgress(0);
+            setStatus('Adjust finger - cover lens fully');
+          }
+        }
 
         const displayMean = (redMean + greenMean) / 2;
         const normY = 75 - (displayMean - 100) * 0.3;
@@ -302,6 +373,13 @@ export default function ScannerView({ onComplete }: ScannerViewProps) {
           wavePoints.forEach((p) => (p.x -= 3));
           waveX = CANVAS_WIDTH;
         }
+      }
+
+      if (stableStartTimeRef.current !== null && recentBpmReadingsRef.current.length >= CONSISTENCY_WINDOW_COUNT) {
+        const stableElapsed = now - stableStartTimeRef.current;
+        setProgress(Math.min(100, (stableElapsed / STABLE_DURATION_MS) * 100));
+        const secs = (stableElapsed / 1000).toFixed(1);
+        setStatus(stableElapsed > 2500 ? `Almost there... ${secs}s` : `Hold steady... ${secs}s`);
       }
 
       ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
@@ -457,6 +535,20 @@ export default function ScannerView({ onComplete }: ScannerViewProps) {
         <p className="text-center text-xs text-zinc-500 uppercase tracking-widest font-bold">
           {status}
         </p>
+        {showMaxTimeoutHint && state === 'scanning' && (
+          <div className="mt-4 flex flex-col items-center gap-3">
+            <p className="text-amber-400/90 text-sm text-center">
+              Having trouble? Try adjusting your finger position.
+            </p>
+            <button
+              type="button"
+              onClick={resetScan}
+              className="py-2 px-6 bg-zinc-700 hover:bg-zinc-600 text-white rounded-xl text-sm font-semibold active:scale-95 transition-all"
+            >
+              Reset
+            </button>
+          </div>
+        )}
       </div>
     </section>
   );
