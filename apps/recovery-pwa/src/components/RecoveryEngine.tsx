@@ -2,11 +2,12 @@ import { useState, useCallback } from 'react';
 import TimerView from './TimerView';
 import ScannerView from './ScannerView';
 import ManualBpmView from './ManualBpmView';
+import ConfirmHrView from './ConfirmHrView';
 import RpeView from './RpeView';
 import LoadingView from './LoadingView';
 import ResultsView from './ResultsView';
 
-export type RecoveryView = 'landing' | 'scan' | 'manualBpm' | 'rpe' | 'loading' | 'results';
+export type RecoveryView = 'landing' | 'scan' | 'manualBpm' | 'confirmHr' | 'rpe' | 'loading' | 'results';
 
 export interface RecoveryEngineProps {
   sessionId: string | null;
@@ -29,7 +30,15 @@ export default function RecoveryEngine({ sessionId, endTime }: RecoveryEnginePro
 
   const handleScanComplete = useCallback((hr: number) => {
     setFinalHr(hr);
-    setTimeout(() => setCurrentView('rpe'), 500);
+    setTimeout(() => setCurrentView('confirmHr'), 500);
+  }, []);
+
+  const handleConfirmHr = useCallback(() => {
+    setCurrentView('rpe');
+  }, []);
+
+  const handleEditHr = useCallback(() => {
+    setCurrentView('scan');
   }, []);
 
   const handleRpeSubmit = useCallback((val: number, text: string) => {
@@ -61,6 +70,13 @@ export default function RecoveryEngine({ sessionId, endTime }: RecoveryEnginePro
       )}
       {currentView === 'manualBpm' && (
         <ManualBpmView onSubmit={handleManualBpmSubmit} onBack={() => setCurrentView('scan')} />
+      )}
+      {currentView === 'confirmHr' && (
+        <ConfirmHrView
+          heartRate={finalHr}
+          onConfirm={handleConfirmHr}
+          onEdit={handleEditHr}
+        />
       )}
       {currentView === 'rpe' && (
         <RpeView onSubmit={handleRpeSubmit} />

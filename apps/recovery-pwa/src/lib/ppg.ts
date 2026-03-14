@@ -18,7 +18,7 @@ const DEFAULT_OPTIONS: Required<PpgOptions> = {
   prominenceMin: 1.0,
   minRange: 0.5,
   minBpm: 40,
-  maxBpm: 200,
+  maxBpm: 120, // conservative for PPG; rejects dicrotic peaks and noise; manual entry allows up to 200
   windowCount: 4,
 };
 
