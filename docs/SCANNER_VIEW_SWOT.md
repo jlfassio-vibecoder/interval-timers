@@ -35,7 +35,7 @@
 | **No calibration** | No skin-tone or ambient-light calibration; literature shows demographic and lighting affect PPG accuracy. |
 | **Large component** | ~430 lines with mixed concerns (camera, PPG algorithm, UI, lifecycle); harder to test and maintain. |
 | **Constants are global** | BPM tolerance, stable duration, etc. not configurable via props. |
-| **No offline/fallback** | Requires camera; no manual BPM entry if camera fails or user prefers it. |
+| **Limited offline/fallback** | ScannerView still requires camera input; manual BPM entry is available only via a separate `ManualBpmView` when camera use is not possible or preferred. |
 
 ---
 
