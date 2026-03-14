@@ -7,13 +7,13 @@
  */
 
 import type { APIRoute } from 'astro';
-import { verifyAdminRequest } from '@/lib/supabase/admin/auth';
+import { verifyTrainerOrAdminRequest } from '@/lib/supabase/admin/auth';
 
 const JSON_HEADERS = { 'Content-Type': 'application/json' };
 
 export const GET: APIRoute = async ({ request, cookies }) => {
   try {
-    await verifyAdminRequest(request, cookies);
+    await verifyTrainerOrAdminRequest(request, cookies);
     const hasKey = !!(process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.trim() !== '');
     return new Response(JSON.stringify({ ok: true, hasKey }), {
       status: 200,

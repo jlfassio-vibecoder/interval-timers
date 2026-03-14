@@ -1,32 +1,22 @@
 /**
- * Proxy to load a reference image from a URL (e.g. Firebase Storage) and return base64.
- * Avoids CORS when the client fetches from localhost/production to Firebase Storage.
+ * Proxy to load a reference image from a URL (e.g. Supabase Storage) and return base64.
+ * Avoids CORS when the client fetches from localhost/production to storage.
  */
 
 import type { APIRoute } from 'astro';
 
-/** Project Firebase Storage bucket (host or path segment). */
-const ALLOWED_BUCKET = 'ai-fitness-guy-26523278-3e978.firebasestorage.app';
-const FIREBASE_STORAGE_API_HOST = 'firebasestorage.googleapis.com';
-
 /**
- * Allow only HTTPS URLs that point to this project's Firebase Storage bucket.
- * Supports both:
- * - Direct bucket host: https://<bucket>/
- * - API host with bucket in path: https://firebasestorage.googleapis.com/v0/b/<bucket>/o/...
+ * Allow HTTPS URLs from the project's Supabase storage (same project as admin).
+ * Supabase storage public URLs: https://<project>.supabase.co/storage/v1/object/public/...
  */
 function isAllowedUrl(urlString: string): boolean {
   try {
     const url = new URL(urlString);
     if (url.protocol !== 'https:') return false;
-
-    if (url.hostname === ALLOWED_BUCKET) return true;
-    if (url.hostname === FIREBASE_STORAGE_API_HOST) {
-      const path = url.pathname;
-      const bucketSegment = `/v0/b/${ALLOWED_BUCKET}/`;
-      return path.startsWith(bucketSegment) || path === `/v0/b/${ALLOWED_BUCKET}`;
-    }
-    return false;
+    const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL;
+    if (!supabaseUrl) return false;
+    const allowed = new URL(supabaseUrl);
+    return url.hostname === allowed.hostname;
   } catch {
     return false;
   }
@@ -36,22 +26,26 @@ export const GET: APIRoute = async ({ request }) => {
   const url = new URL(request.url);
   const imageUrl = url.searchParams.get('url');
 
-  if (!imageUrl || !imageUrl.trim()) {
+  const trimmed = (imageUrl ?? '').trim();
+  if (!trimmed) {
     return new Response(JSON.stringify({ error: 'url is required' }), {
       status: 400,
       headers: { 'Content-Type': 'application/json' },
     });
   }
 
-  if (!isAllowedUrl(imageUrl)) {
-    return new Response(JSON.stringify({ error: 'URL must be from project Firebase Storage' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' },
-    });
+  if (!isAllowedUrl(trimmed)) {
+    return new Response(
+      JSON.stringify({ error: 'URL must be from project Supabase storage' }),
+      {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
   }
 
   try {
-    const response = await fetch(imageUrl);
+    const response = await fetch(trimmed);
     if (!response.ok) {
       return new Response(JSON.stringify({ error: 'Failed to load image' }), {
         status: 400,
@@ -77,7 +71,6 @@ export const GET: APIRoute = async ({ request }) => {
       headers: { 'Content-Type': 'application/json' },
     });
   } catch {
-    // Log fixed string only; do not log error details to avoid leaking request URLs or paths in server logs.
     console.error('[load-reference-image] Failed to fetch image');
     return new Response(JSON.stringify({ error: 'Failed to fetch image' }), {
       status: 500,

@@ -194,7 +194,7 @@ const ExerciseDetailModal: React.FC<ExerciseDetailModalProps> = ({
             exit={{ scale: 0.95, y: 20 }}
             transition={reduceMotion ? { duration: 0 } : undefined}
             onClick={(e) => e.stopPropagation()}
-            className="border-orange-light/30 relative flex h-[90vh] max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-[2.5rem] border bg-bg-dark shadow-[0_0_100px_rgba(255,191,0,0.1)] md:flex-row"
+            className="border-[#ffbf00]/30 relative flex h-[90vh] max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-[2.5rem] border bg-bg-dark shadow-[0_0_100px_rgba(255,191,0,0.1)] md:flex-row"
           >
             <button
               type="button"
@@ -230,7 +230,7 @@ const ExerciseDetailModal: React.FC<ExerciseDetailModalProps> = ({
               </div>
 
               <div className="pointer-events-none absolute bottom-6 left-6 z-20">
-                <div className="mb-2 rounded bg-orange-light px-3 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-black">
+                <div className="mb-2 rounded bg-[#ffbf00] px-3 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-black">
                   Tactical Recon
                 </div>
                 <h2
@@ -244,7 +244,7 @@ const ExerciseDetailModal: React.FC<ExerciseDetailModalProps> = ({
 
             {/* Instructions — min-h-0 lets flex child shrink so overflow-y-auto scrolls; no justify-center so content starts at top */}
             <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-8 md:p-12">
-              <div className="mb-8 flex shrink-0 items-center gap-3 text-orange-light">
+              <div className="mb-8 flex shrink-0 items-center gap-3 text-[#ffbf00]">
                 <Zap className="h-5 w-5 shrink-0 animate-pulse" aria-hidden />
                 <h3 className="m-0 font-mono text-[10px] uppercase tracking-[0.4em]">
                   Deployment Steps
@@ -265,7 +265,7 @@ const ExerciseDetailModal: React.FC<ExerciseDetailModalProps> = ({
                       }
                       className="group flex items-start gap-6"
                     >
-                      <span className="font-mono text-lg font-bold text-orange-light opacity-40 transition-opacity group-hover:opacity-100">
+                      <span className="font-mono text-lg font-bold text-[#ffbf00] opacity-40 transition-opacity group-hover:opacity-100">
                         {(i + 1)
                           .toString()
                           .padStart(exercise.instructions.length.toString().length, '0')}
@@ -330,7 +330,7 @@ const ExerciseDetailModal: React.FC<ExerciseDetailModalProps> = ({
                   exit={{ scale: 0.95, y: 20 }}
                   transition={reduceMotion ? { duration: 0 } : undefined}
                   onClick={(e) => e.stopPropagation()}
-                  className="border-orange-light/30 relative flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border bg-bg-dark shadow-[0_0_60px_rgba(255,191,0,0.1)]"
+                  className="border-[#ffbf00]/30 relative flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border bg-bg-dark shadow-[0_0_60px_rgba(255,191,0,0.1)]"
                 >
                   <button
                     type="button"
@@ -361,7 +361,7 @@ const ExerciseDetailModal: React.FC<ExerciseDetailModalProps> = ({
                         <>
                           {extendedBiomechanics.biomechanicalChain && (
                             <section>
-                              <h4 className="mb-2 font-mono text-[10px] font-bold uppercase tracking-widest text-orange-light">
+                              <h4 className="mb-2 font-mono text-[10px] font-bold uppercase tracking-widest text-[#ffbf00]">
                                 Biomechanical Chain
                               </h4>
                               <div
@@ -376,7 +376,7 @@ const ExerciseDetailModal: React.FC<ExerciseDetailModalProps> = ({
                           )}
                           {extendedBiomechanics.pivotPoints && (
                             <section>
-                              <h4 className="mb-2 font-mono text-[10px] font-bold uppercase tracking-widest text-orange-light">
+                              <h4 className="mb-2 font-mono text-[10px] font-bold uppercase tracking-widest text-[#ffbf00]">
                                 Pivot Points
                               </h4>
                               <div
@@ -389,7 +389,7 @@ const ExerciseDetailModal: React.FC<ExerciseDetailModalProps> = ({
                           )}
                           {extendedBiomechanics.stabilizationNeeds && (
                             <section>
-                              <h4 className="mb-2 font-mono text-[10px] font-bold uppercase tracking-widest text-orange-light">
+                              <h4 className="mb-2 font-mono text-[10px] font-bold uppercase tracking-widest text-[#ffbf00]">
                                 Stabilization Needs
                               </h4>
                               <div
@@ -405,7 +405,7 @@ const ExerciseDetailModal: React.FC<ExerciseDetailModalProps> = ({
                           {extendedBiomechanics.commonMistakes &&
                             extendedBiomechanics.commonMistakes.length > 0 && (
                               <section>
-                                <h4 className="mb-2 font-mono text-[10px] font-bold uppercase tracking-widest text-orange-light">
+                                <h4 className="mb-2 font-mono text-[10px] font-bold uppercase tracking-widest text-[#ffbf00]">
                                   Common Mistakes
                                 </h4>
                                 <ul className="space-y-4">
@@ -415,7 +415,7 @@ const ExerciseDetailModal: React.FC<ExerciseDetailModalProps> = ({
                                     );
                                     return items.map((item, idx) => (
                                       <li key={idx} className="flex items-start gap-6">
-                                        <span className="font-mono text-lg font-bold text-orange-light opacity-80">
+                                        <span className="font-mono text-lg font-bold text-[#ffbf00] opacity-80">
                                           {(idx + 1)
                                             .toString()
                                             .padStart(items.length.toString().length, '0')}

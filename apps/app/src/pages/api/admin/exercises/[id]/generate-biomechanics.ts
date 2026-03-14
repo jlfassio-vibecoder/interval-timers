@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { verifyAdminRequest } from '@/lib/supabase/admin/auth';
+import { verifyTrainerOrAdminRequest } from '@/lib/supabase/admin/auth';
 import { getGeneratedExerciseById } from '@/lib/supabase/admin/generated-exercises-server';
 import { generateBiomechanicsForExercise, type BiomechanicsFocus } from '@/lib/gemini-server';
 
@@ -20,7 +20,7 @@ export const POST: APIRoute = async ({ request, params, cookies }) => {
   }
 
   try {
-    await verifyAdminRequest(request, cookies);
+    await verifyTrainerOrAdminRequest(request, cookies);
 
     let body: { focus?: string };
     try {

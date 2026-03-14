@@ -113,7 +113,7 @@ const ExerciseReferenceImagePicker: React.FC<ExerciseReferenceImagePickerProps> 
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Search exercises by name or level..."
-          className="focus:border-orange-light/50 focus:ring-orange-light/20 w-full rounded-lg border border-white/10 bg-black/20 py-2 pl-10 pr-4 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2"
+          className="focus:border-[#ffbf00]/50 focus:ring-[#ffbf00]/20 w-full rounded-lg border border-white/10 bg-black/20 py-2 pl-10 pr-4 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2"
         />
       </div>
 
@@ -123,7 +123,7 @@ const ExerciseReferenceImagePicker: React.FC<ExerciseReferenceImagePickerProps> 
           Loading exercises...
         </div>
       ) : error ? (
-        <p className="text-xs text-amber-400">{error}</p>
+        <p className="text-xs text-[#ffbf00]">{error}</p>
       ) : filteredExercises.length === 0 ? (
         <p className="text-xs text-white/50">
           {searchQuery ? 'No exercises match your search.' : 'No exercises available.'}
@@ -140,7 +140,7 @@ const ExerciseReferenceImagePicker: React.FC<ExerciseReferenceImagePickerProps> 
                   onClick={() => setSelectedExercise(exercise)}
                   className={`flex items-center gap-2 rounded-lg border p-2 text-left transition-colors ${
                     isSelected
-                      ? 'border-orange-light/50 bg-orange-light/20'
+                      ? 'border-[#ffbf00]/50 bg-[#ffbf00]/20'
                       : 'border-white/10 hover:border-white/30'
                   }`}
                 >
@@ -192,7 +192,7 @@ const ExerciseReferenceImagePicker: React.FC<ExerciseReferenceImagePickerProps> 
                     type="button"
                     onClick={() => loadReferenceFromUrl(item.imageUrl)}
                     disabled={loadingReference}
-                    className="hover:border-orange-light/30 hover:bg-orange-light/20 rounded border border-white/10 bg-black/20 px-2 py-0.5 text-xs font-medium text-white transition-colors disabled:opacity-50"
+                    className="hover:border-[#ffbf00]/30 hover:bg-[#ffbf00]/20 rounded border border-white/10 bg-black/20 px-2 py-0.5 text-xs font-medium text-white transition-colors disabled:opacity-50"
                   >
                     Use as reference
                   </button>

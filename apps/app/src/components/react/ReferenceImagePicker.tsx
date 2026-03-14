@@ -45,7 +45,6 @@ const ReferenceImagePicker: React.FC<ReferenceImagePickerProps> = ({
         Use a saved image to maintain subject consistency across exercises
       </p>
 
-      {/* 1. Use last generated */}
       {recentGeneratedDataUrl && (
         <div className="mb-3">
           <p className="mb-2 text-xs font-medium text-white/70">Use last generated</p>
@@ -59,7 +58,7 @@ const ReferenceImagePicker: React.FC<ReferenceImagePickerProps> = ({
               type="button"
               onClick={() => setReferenceFromDataUrl(recentGeneratedDataUrl)}
               disabled={loadingReference}
-              className="hover:border-orange-light/30 hover:bg-orange-light/20 rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm font-medium text-white transition-colors disabled:opacity-50"
+              className="hover:border-[#ffbf00]/30 hover:bg-[#ffbf00]/20 rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm font-medium text-white transition-colors disabled:opacity-50"
             >
               Use as reference
             </button>
@@ -67,7 +66,6 @@ const ReferenceImagePicker: React.FC<ReferenceImagePickerProps> = ({
         </div>
       )}
 
-      {/* 2. From exercise library (search, select, pick primary or gallery) */}
       <div className="mb-3">
         <ExerciseReferenceImagePicker
           loadReferenceFromUrl={loadReferenceFromUrl}
@@ -75,7 +73,6 @@ const ReferenceImagePicker: React.FC<ReferenceImagePickerProps> = ({
         />
       </div>
 
-      {/* 3. Or paste URL */}
       <div>
         <p className="mb-2 text-xs text-white/50">Or paste image URL:</p>
         <div className="flex gap-2">
@@ -83,14 +80,14 @@ const ReferenceImagePicker: React.FC<ReferenceImagePickerProps> = ({
             type="text"
             value={referenceImageUrl}
             onChange={(e) => setReferenceImageUrl(e.target.value)}
-            placeholder="https://firebasestorage.googleapis.com/..."
-            className="focus:border-orange-light/50 focus:ring-orange-light/20 flex-1 rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2"
+            placeholder="https://...supabase.co/storage/..."
+            className="focus:border-[#ffbf00]/50 focus:ring-[#ffbf00]/20 flex-1 rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2"
           />
           <button
             type="button"
             onClick={loadReferenceImage}
             disabled={loadingReference || !referenceImageUrl.trim()}
-            className="hover:border-orange-light/30 hover:bg-orange-light/20 rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-sm font-medium text-white transition-colors disabled:opacity-50"
+            className="hover:border-[#ffbf00]/30 hover:bg-[#ffbf00]/20 rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-sm font-medium text-white transition-colors disabled:opacity-50"
           >
             {loadingReference ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Load'}
           </button>
@@ -99,7 +96,6 @@ const ReferenceImagePicker: React.FC<ReferenceImagePickerProps> = ({
 
       {referenceError && <p className="mt-2 text-xs text-red-400">{referenceError}</p>}
 
-      {/* 4. Loaded preview + Clear */}
       {referenceImageData && (
         <div className="mt-3 flex items-start gap-3">
           <img
@@ -108,7 +104,7 @@ const ReferenceImagePicker: React.FC<ReferenceImagePickerProps> = ({
             className="h-20 w-20 rounded-lg border border-white/20 object-cover"
           />
           <div className="flex flex-col gap-1">
-            <span className="flex items-center gap-1 text-xs text-orange-light">
+            <span className="flex items-center gap-1 text-xs text-[#ffbf00]">
               <ImageIcon className="h-3 w-3" />
               Reference loaded
             </span>

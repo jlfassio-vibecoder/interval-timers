@@ -97,7 +97,6 @@ export function buildExportMetadata(params: {
       bodySide,
       ...(bodySideStart && { bodySideStart }),
       ...(bodySideEnd && { bodySideEnd }),
-      // Only include context when non-empty; omit to keep export minimal for reproducibility
       ...(formCuesToEmphasize && { formCuesToEmphasize }),
       ...(misrenderingsToAvoid && { misrenderingsToAvoid }),
       ...(domainContext && { domainContext }),

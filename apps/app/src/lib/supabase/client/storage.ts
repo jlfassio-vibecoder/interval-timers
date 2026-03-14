@@ -1,9 +1,8 @@
 /**
  * Client-side Supabase Storage upload helpers.
- * Phase 2 data layer for uploads; Phase 3 will switch components from Firebase storage to these.
  */
 
-import { supabase } from '../supabase-instance';
+import { supabase } from '../client';
 
 const BUCKET_IMAGES = 'exercise-images';
 

@@ -1,8 +1,8 @@
 /**
- * Client-side generated exercises. Replaces firebase/client/generated-exercises.
+ * Client-side generated exercises for ExerciseMapPickerModal, approved-exercise-maps, and Visualization Lab.
  */
 
-import { supabase } from '../supabase-instance';
+import { supabase } from '../client';
 import { toTimestampLike } from '@/types/timestamp';
 import type {
   GeneratedExercise,
@@ -11,7 +11,8 @@ import type {
   ExerciseVideo,
   ParsedBiomechanics,
 } from '@/types/generated-exercise';
-import { normalizeExerciseName } from '@/lib/approved-exercise-maps';
+import type { ExerciseConfig } from '@/features/TutorialLab/types/tutorial';
+import { normalizeExerciseName } from '@interval-timers/exercise-mapping';
 
 function toDate(v: string | null | undefined): Date {
   if (!v) return new Date();
@@ -50,6 +51,7 @@ interface GeneratedExerciseRow {
   video_url: string | null;
   video_storage_path: string | null;
   videos: unknown[] | null;
+  tutorial_config: Record<string, unknown> | null;
 }
 
 function mapRowToExercise(row: GeneratedExerciseRow): GeneratedExercise {
@@ -84,6 +86,7 @@ function mapRowToExercise(row: GeneratedExerciseRow): GeneratedExercise {
     videoUrl: row.video_url ?? undefined,
     videoStoragePath: row.video_storage_path ?? undefined,
     videos: (row.videos ?? []) as GeneratedExercise['videos'],
+    tutorialConfig: (row.tutorial_config ?? undefined) as ExerciseConfig | undefined,
   };
 }
 
@@ -97,7 +100,7 @@ export async function getGeneratedExercises(
   if (statusFilter) q = q.eq('status', statusFilter);
   const { data, error } = await q;
   if (error) throw error;
-  return (data ?? []).map(mapRowToExercise);
+  return (data ?? []).map((row) => mapRowToExercise(row as GeneratedExerciseRow));
 }
 
 export async function getGeneratedExerciseById(id: string): Promise<GeneratedExercise | null> {
@@ -145,6 +148,8 @@ function toPayload(input: Partial<CreateGeneratedExerciseInput>): Record<string,
   if (input.videoStoragePath != null) row.video_storage_path = input.videoStoragePath;
   if (input.videos != null) row.videos = input.videos;
   if (input.deepDiveHtmlContent != null) row.deep_dive_html_content = input.deepDiveHtmlContent;
+  if (input.userFriendlyInstructions != null) row.user_friendly_instructions = input.userFriendlyInstructions;
+  if (input.tutorialConfig != null) row.tutorial_config = input.tutorialConfig as unknown as Record<string, unknown>;
   return row;
 }
 
@@ -175,6 +180,8 @@ export async function updateGeneratedExercise(
   if (updates.storagePath != null) row.storage_path = updates.storagePath;
   if (updates.rejectedBy != null) row.rejected_by = updates.rejectedBy;
   if (updates.rejectionReason != null) row.rejection_reason = updates.rejectionReason;
+  if (updates.userFriendlyInstructions != null) row.user_friendly_instructions = updates.userFriendlyInstructions;
+  if (updates.tutorialConfig != null) row.tutorial_config = updates.tutorialConfig as unknown as Record<string, unknown>;
   const { error } = await supabase.from('generated_exercises').update(row).eq('id', id);
   if (error) throw error;
 }

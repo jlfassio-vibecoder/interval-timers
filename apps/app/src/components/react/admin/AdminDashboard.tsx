@@ -61,7 +61,7 @@ const AdminLayout: React.FC = () => {
                   className={({ isActive: navActive }) =>
                     `flex items-center gap-3 rounded-lg px-4 py-3 transition-colors ${
                       navActive || active
-                        ? 'bg-orange-light/20 text-orange-light'
+                        ? 'bg-[#ffbf00]/20 text-[#ffbf00]'
                         : 'text-white/70 hover:bg-white/5 hover:text-white'
                     }`
                   }

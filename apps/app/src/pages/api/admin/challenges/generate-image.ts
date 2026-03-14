@@ -7,7 +7,7 @@
  */
 
 import type { APIRoute } from 'astro';
-import { verifyAdminRequest } from '@/lib/supabase/admin/auth';
+import { verifyTrainerOrAdminRequest } from '@/lib/supabase/admin/auth';
 import { fetchChallengeMetadata } from '@/lib/supabase/admin/challenges';
 import { generateInfographicImage } from '@/lib/gemini-server';
 
@@ -37,7 +37,7 @@ function buildPrompt(title: string, theme: string | undefined, slot: Slot): stri
 
 export const POST: APIRoute = async ({ request, cookies }) => {
   try {
-    await verifyAdminRequest(request, cookies);
+    await verifyTrainerOrAdminRequest(request, cookies);
 
     let body: { challengeId?: string; slot?: string; promptOverride?: string };
     try {

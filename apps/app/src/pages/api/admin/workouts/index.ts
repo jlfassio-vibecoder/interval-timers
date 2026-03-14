@@ -4,13 +4,13 @@
  */
 
 import type { APIRoute } from 'astro';
-import { verifyAdminRequest } from '@/lib/supabase/admin/auth';
+import { verifyTrainerOrAdminRequest } from '@/lib/supabase/admin/auth';
 import { fetchWorkoutLibrary, createWorkoutSet } from '@/lib/supabase/admin/workout-sets';
 import type { WorkoutSetTemplate, WorkoutConfig, WorkoutChainMetadata } from '@/types/ai-workout';
 
 export const GET: APIRoute = async ({ request, cookies }) => {
   try {
-    await verifyAdminRequest(request, cookies);
+    await verifyTrainerOrAdminRequest(request, cookies);
     const workouts = await fetchWorkoutLibrary();
     return new Response(JSON.stringify(workouts), {
       status: 200,
@@ -38,7 +38,7 @@ export const GET: APIRoute = async ({ request, cookies }) => {
 
 export const POST: APIRoute = async ({ request, cookies }) => {
   try {
-    const adminInfo = await verifyAdminRequest(request, cookies);
+    const adminInfo = await verifyTrainerOrAdminRequest(request, cookies);
 
     let body: {
       workoutSet: WorkoutSetTemplate;

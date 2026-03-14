@@ -4,7 +4,7 @@
  */
 
 import type { APIRoute } from 'astro';
-import { verifyAdminRequest } from '@/lib/supabase/admin/auth';
+import { verifyTrainerOrAdminRequest } from '@/lib/supabase/admin/auth';
 import {
   fetchWorkoutDocument,
   updateWorkoutSet,
@@ -14,7 +14,7 @@ import type { WorkoutSetTemplate, WorkoutConfig } from '@/types/ai-workout';
 
 export const GET: APIRoute = async ({ request, params, cookies }) => {
   try {
-    await verifyAdminRequest(request, cookies);
+    await verifyTrainerOrAdminRequest(request, cookies);
 
     const workoutId = params.workoutId;
     if (!workoutId) {
@@ -56,7 +56,7 @@ export const GET: APIRoute = async ({ request, params, cookies }) => {
 
 export const PATCH: APIRoute = async ({ request, params, cookies }) => {
   try {
-    await verifyAdminRequest(request, cookies);
+    await verifyTrainerOrAdminRequest(request, cookies);
 
     const workoutId = params.workoutId;
     if (!workoutId) {
@@ -117,7 +117,7 @@ export const PATCH: APIRoute = async ({ request, params, cookies }) => {
 
 export const DELETE: APIRoute = async ({ request, params, cookies }) => {
   try {
-    await verifyAdminRequest(request, cookies);
+    await verifyTrainerOrAdminRequest(request, cookies);
 
     const workoutId = params.workoutId;
     if (!workoutId) {

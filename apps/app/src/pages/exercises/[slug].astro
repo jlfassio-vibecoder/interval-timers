@@ -63,7 +63,7 @@ const pageDescription = exercise
 
 <BaseLayout title={pageTitle} description={pageDescription}>
   <div
-    class="relative min-h-screen overflow-x-hidden text-white selection:bg-orange-light selection:text-black"
+    class="relative min-h-screen overflow-x-hidden text-white selection:bg-[#ffbf00] selection:text-black"
   >
     <StandaloneNav client:load pathname={Astro.url.pathname} />
     {
@@ -77,7 +77,7 @@ const pageDescription = exercise
           </p>
           <a
             href="/"
-            class="inline-flex items-center gap-2 rounded-lg bg-orange-light px-5 py-3 font-bold uppercase tracking-wider text-black transition hover:bg-white"
+            class="inline-flex items-center gap-2 rounded-lg bg-[#ffbf00] px-5 py-3 font-bold uppercase tracking-wider text-black transition hover:bg-[#ffbf00]/90"
           >
             Go Home
           </a>
@@ -124,7 +124,7 @@ const pageDescription = exercise
               {exercise.deepDiveHtmlContent && (
                 <a
                   href={`/exercises/${exercise.slug}/learn`}
-                  class="inline-flex items-center gap-2 rounded-full bg-orange-light px-4 py-2 text-sm font-bold uppercase tracking-wider text-black shadow-lg shadow-[#ffbf00]/20 transition hover:bg-white hover:shadow-[#ffbf00]/40"
+                  class="inline-flex items-center gap-2 rounded-full bg-[#ffbf00] px-4 py-2 text-sm font-bold uppercase tracking-wider text-black shadow-lg shadow-[#ffbf00]/20 transition hover:bg-[#ffbf00]/90 hover:shadow-[#ffbf00]/40"
                 >
                   Science & Mastery
                   <svg

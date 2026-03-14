@@ -141,7 +141,7 @@ const ExercisePreviewModal: React.FC<ExercisePreviewModalProps> = ({
                         );
                         return items.map((mistake, i) => (
                           <li key={i} className="flex items-start gap-3 text-sm text-white/70">
-                            <span className="font-mono text-xs font-bold text-amber-400 opacity-80">
+                            <span className="font-mono text-xs font-bold text-[#ffbf00] opacity-80">
                               {(i + 1).toString().padStart(items.length.toString().length, '0')}
                             </span>
                             <span>{mistake}</span>

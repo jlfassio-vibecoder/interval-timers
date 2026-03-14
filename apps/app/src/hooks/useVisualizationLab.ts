@@ -3,11 +3,13 @@
  * SPDX-License-Identifier: Apache-2.0
  *
  * Shared hook for Visualization Lab: form state, reference image, and generation logic.
+ * Implemented using useContentGenerationLab with exercise-specific options.
  * Used by ExerciseImageGenerator (tab) and ExerciseVisualizationLabModal.
  */
 
 import React, { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase/supabase-instance';
+import { useContentGenerationLab } from '@interval-timers/content-generation-lab';
+import { supabase } from '@/lib/supabase/client';
 import type { BiomechanicalPoints, ResearchOnlyResult } from '@/lib/visualization-lab/types';
 
 export interface InitialExerciseForLab {
@@ -83,16 +85,59 @@ export interface UseVisualizationLabReturn {
   user: { id: string; email?: string } | null;
 }
 
+function buildRequestBody(
+  form: {
+    exerciseTopic: string;
+    complexityLevel: string;
+    visualStyle: string;
+    outputMode: 'single' | 'sequence';
+    demographics: string;
+    movementPhase: string;
+    bodySide: string;
+    bodySideStart: string;
+    bodySideEnd: string;
+    formCuesToEmphasize: string;
+    misrenderingsToAvoid: string;
+    domainContext: string;
+  },
+  referenceImageData: string | null,
+  researchOnly: boolean
+): Record<string, unknown> {
+  return {
+    exerciseTopic: form.exerciseTopic,
+    complexityLevel: form.complexityLevel,
+    visualStyle: form.visualStyle,
+    outputMode: form.outputMode,
+    demographics: form.demographics || undefined,
+    movementPhase: form.movementPhase || undefined,
+    ...(form.outputMode === 'sequence'
+      ? {
+          bodySideStart: form.bodySideStart || undefined,
+          bodySideEnd: form.bodySideEnd || undefined,
+        }
+      : { bodySide: form.bodySide || undefined }),
+    formCuesToEmphasize: form.formCuesToEmphasize.trim() || undefined,
+    misrenderingsToAvoid: form.misrenderingsToAvoid.trim() || undefined,
+    domainContext: form.domainContext.trim() || undefined,
+    referenceImage: referenceImageData || undefined,
+    researchOnly,
+  };
+}
+
 export function useVisualizationLab(
   options: UseVisualizationLabOptions = {}
 ): UseVisualizationLabReturn {
   const { initialTopic = '', topicKey, initialExercise } = options;
 
-  const [exerciseTopic, setExerciseTopic] = useState(initialExercise?.exerciseName ?? initialTopic);
+  const [exerciseTopic, setExerciseTopic] = useState(
+    initialExercise?.exerciseName ?? initialTopic
+  );
   const [complexityLevel, setComplexityLevel] = useState(
     initialExercise?.complexityLevel ?? 'intermediate'
   );
-  const [visualStyle, setVisualStyle] = useState(initialExercise?.visualStyle ?? 'photorealistic');
+  const [visualStyle, setVisualStyle] = useState(
+    initialExercise?.visualStyle ?? 'photorealistic'
+  );
   const [outputMode, setOutputMode] = useState<'single' | 'sequence'>('single');
   const [demographics, setDemographics] = useState('');
   const [movementPhase, setMovementPhase] = useState('');
@@ -102,31 +147,90 @@ export function useVisualizationLab(
   const [formCuesToEmphasize, setFormCuesToEmphasize] = useState('');
   const [misrenderingsToAvoid, setMisrenderingsToAvoid] = useState('');
   const [domainContext, setDomainContext] = useState('');
-  const [referenceImageUrl, setReferenceImageUrl] = useState('');
-  const [referenceImageData, setReferenceImageData] = useState<string | null>(null);
-  const [loadingReference, setLoadingReference] = useState(false);
-  const [referenceError, setReferenceError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<BiomechanicalPoints | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [user, setUser] = useState<{ id: string; email?: string } | null>(null);
   const [reviewPromptsBeforeGenerate, setReviewPromptsBeforeGenerate] = useState(false);
-  const [researchResult, setResearchResult] = useState<ResearchOnlyResult | null>(null);
-  const [promptStep, setPromptStep] = useState<'idle' | 'research' | 'review' | 'generating'>(
-    'idle'
-  );
+  const [user, setUser] = useState<{ id: string; email?: string } | null>(null);
+
+  const formState = {
+    exerciseTopic,
+    complexityLevel,
+    visualStyle,
+    outputMode,
+    demographics,
+    movementPhase,
+    bodySide,
+    bodySideStart,
+    bodySideEnd,
+    formCuesToEmphasize,
+    misrenderingsToAvoid,
+    domainContext,
+  };
+
+  const { generation: rawGeneration, reference } = useContentGenerationLab<
+    BiomechanicalPoints,
+    ResearchOnlyResult
+  >({
+    apiEndpoint: '/api/generate-exercise-image',
+    useReference: true,
+    proxyPath: '/api/load-reference-image',
+    buildBody: (ref) =>
+      buildRequestBody(formState, ref?.referenceImageData ?? null, false),
+    parseResponse: (data) => data as BiomechanicalPoints,
+    twoPhase: {
+      supportsPromptReview: true,
+      buildResearchBody: (ref) =>
+        buildRequestBody(formState, ref?.referenceImageData ?? null, true),
+      parseResearchResponse: (data) => data as ResearchOnlyResult,
+      buildGenerateBody: (researchResult, prompts, ref) => {
+        const body: Record<string, unknown> = {
+          exerciseTopic: formState.exerciseTopic,
+          outputMode: formState.outputMode,
+          generateFromPrompts: true,
+          biomechanicalPoints: researchResult.biomechanicalPoints,
+          searchResults: researchResult.searchResults ?? [],
+          referenceImage: ref?.referenceImageData ?? undefined,
+        };
+        if (formState.outputMode === 'sequence' && prompts.imagePrompts) {
+          body.imagePrompts = prompts.imagePrompts;
+        } else {
+          body.imagePrompt =
+            prompts.imagePrompt ?? researchResult.imagePrompt;
+        }
+        return body;
+      },
+    },
+    reviewPromptsBeforeGenerate,
+  });
+
+  const generation = rawGeneration as {
+    loading: boolean;
+    result: BiomechanicalPoints | null;
+    error: string | null;
+    submit: () => Promise<void>;
+    clearResult: () => void;
+    researchResult: ResearchOnlyResult | null;
+    promptStep: 'idle' | 'research' | 'review' | 'generating';
+    submitFromPrompts: (prompts: {
+      imagePrompt?: string;
+      imagePrompts?: string[];
+    }) => Promise<void>;
+    cancelPromptReview: () => void;
+  };
 
   useEffect(() => {
     let mounted = true;
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (mounted)
-        setUser(session?.user ? { id: session.user.id, email: session.user.email } : null);
+        setUser(
+          session?.user ? { id: session.user.id, email: session.user.email } : null
+        );
     });
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       if (mounted)
-        setUser(session?.user ? { id: session.user.id, email: session.user.email } : null);
+        setUser(
+          session?.user ? { id: session.user.id, email: session.user.email } : null
+        );
     });
     return () => {
       mounted = false;
@@ -134,214 +238,43 @@ export function useVisualizationLab(
     };
   }, []);
 
-  // Reset form when topic/slug context changes. Runs when topicKey goes undefined too (e.g. navigate
-  // from /exercise-image-gen?slug=foo back to /exercise-image-gen) so the form is not stuck on the previous exercise.
+  const clearResultRef = React.useRef(generation.clearResult);
+  const cancelPromptReviewRef = React.useRef(generation.cancelPromptReview);
+  clearResultRef.current = generation.clearResult;
+  cancelPromptReviewRef.current = generation.cancelPromptReview;
+
   useEffect(() => {
-    const topic = initialExercise?.exerciseName ?? initialTopic;
-    setExerciseTopic(topic);
-    if (initialExercise) {
-      setComplexityLevel(initialExercise.complexityLevel ?? 'intermediate');
-      setVisualStyle(initialExercise.visualStyle ?? 'photorealistic');
+    if (topicKey !== undefined) {
+      setExerciseTopic(initialTopic);
+      if (initialExercise) {
+        setComplexityLevel(initialExercise.complexityLevel ?? 'intermediate');
+        setVisualStyle(initialExercise.visualStyle ?? 'photorealistic');
+      }
+      clearResultRef.current();
+      reference?.clearReferenceImage();
+      setFormCuesToEmphasize('');
+      setMisrenderingsToAvoid('');
+      setDomainContext('');
+      setMovementPhase('');
+      setBodySide('');
+      setBodySideStart('');
+      setBodySideEnd('');
     }
-    setResult(null);
-    setError(null);
-    setResearchResult(null);
-    setPromptStep('idle');
-    setReferenceImageData(null);
-    setReferenceImageUrl('');
-    setReferenceError(null);
-    // Reset exercise-specific context; keep complexityLevel, visualStyle, demographics as user preferences
-    setFormCuesToEmphasize('');
-    setMisrenderingsToAvoid('');
-    setDomainContext('');
-    setMovementPhase('');
-    setBodySide('');
-    setBodySideStart('');
-    setBodySideEnd('');
   }, [topicKey, initialTopic, initialExercise]);
 
   useEffect(() => {
-    // Changing output mode invalidates any previously researched prompts (single vs sequence mismatch).
-    setResearchResult(null);
-    setPromptStep('idle');
     if (outputMode === 'sequence') {
       setBodySide('');
     } else {
       setBodySideStart('');
       setBodySideEnd('');
     }
+    cancelPromptReviewRef.current?.();
   }, [outputMode]);
-
-  const loadReferenceImage = async () => {
-    if (!referenceImageUrl.trim()) {
-      setReferenceImageData(null);
-      setReferenceError(null);
-      return;
-    }
-    setLoadingReference(true);
-    setReferenceError(null);
-    try {
-      const proxyUrl = `/api/load-reference-image?url=${encodeURIComponent(referenceImageUrl.trim())}`;
-      const response = await fetch(proxyUrl);
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to load image');
-      }
-      if (data.base64) {
-        setReferenceImageData(data.base64);
-      } else {
-        throw new Error('Invalid response from server');
-      }
-    } catch (err) {
-      setReferenceError(err instanceof Error ? err.message : 'Failed to load reference image');
-      setReferenceImageData(null);
-    } finally {
-      setLoadingReference(false);
-    }
-  };
-
-  const clearReferenceImage = () => {
-    setReferenceImageUrl('');
-    setReferenceImageData(null);
-    setReferenceError(null);
-  };
-
-  const loadReferenceFromUrl = async (url: string) => {
-    if (!url.trim()) return;
-    setLoadingReference(true);
-    setReferenceError(null);
-    try {
-      const proxyUrl = `/api/load-reference-image?url=${encodeURIComponent(url.trim())}`;
-      const response = await fetch(proxyUrl);
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to load image');
-      }
-      if (data.base64) {
-        setReferenceImageData(data.base64);
-        setReferenceImageUrl(url.trim());
-      } else {
-        throw new Error('Invalid response from server');
-      }
-    } catch (err) {
-      setReferenceError(err instanceof Error ? err.message : 'Failed to load reference image');
-      setReferenceImageData(null);
-    } finally {
-      setLoadingReference(false);
-    }
-  };
-
-  const setReferenceFromDataUrl = (dataUrl: string) => {
-    setReferenceImageData(dataUrl);
-    setReferenceImageUrl('');
-    setReferenceError(null);
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setError(null);
-    setResult(null);
-    if (reviewPromptsBeforeGenerate) {
-      setPromptStep('research');
-    }
-    try {
-      const response = await fetch('/api/generate-exercise-image', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          exerciseTopic,
-          complexityLevel,
-          visualStyle,
-          outputMode,
-          demographics,
-          movementPhase: movementPhase || undefined,
-          ...(outputMode === 'sequence'
-            ? {
-                bodySideStart: bodySideStart || undefined,
-                bodySideEnd: bodySideEnd || undefined,
-              }
-            : { bodySide: bodySide || undefined }),
-          formCuesToEmphasize: formCuesToEmphasize.trim() || undefined,
-          misrenderingsToAvoid: misrenderingsToAvoid.trim() || undefined,
-          domainContext: domainContext.trim() || undefined,
-          referenceImage: referenceImageData || undefined,
-          researchOnly: reviewPromptsBeforeGenerate,
-        }),
-      });
-      if (!response.ok) {
-        const errData = (await response.json().catch(() => ({}))) as { error?: string };
-        console.error('generate-exercise-image error', response.status, errData.error ?? errData);
-        throw new Error(errData.error || 'Failed to generate image');
-      }
-      const data = await response.json();
-      if (reviewPromptsBeforeGenerate) {
-        setResearchResult(data);
-        setPromptStep('review');
-      } else {
-        setResult(data);
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An unknown error occurred');
-      setPromptStep('idle');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleGenerateFromPrompts = async (prompts: {
-    imagePrompt?: string;
-    imagePrompts?: string[];
-  }) => {
-    if (!researchResult) return;
-    setLoading(true);
-    setError(null);
-    setPromptStep('generating');
-    try {
-      const body: Record<string, unknown> = {
-        exerciseTopic,
-        outputMode,
-        generateFromPrompts: true,
-        biomechanicalPoints: researchResult.biomechanicalPoints,
-        searchResults: researchResult.searchResults ?? [],
-        referenceImage: referenceImageData || undefined,
-      };
-      if (outputMode === 'sequence' && prompts.imagePrompts) {
-        body.imagePrompts = prompts.imagePrompts;
-      } else {
-        body.imagePrompt = prompts.imagePrompt ?? researchResult.imagePrompt;
-      }
-      const response = await fetch('/api/generate-exercise-image', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-      if (!response.ok) {
-        const errData = (await response.json().catch(() => ({}))) as { error?: string };
-        throw new Error(errData.error || 'Failed to generate image');
-      }
-      const data = await response.json();
-      setResult(data);
-      setResearchResult(null);
-      setPromptStep('idle');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Image generation failed');
-      setPromptStep('review');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const cancelPromptReview = () => {
-    setResearchResult(null);
-    setPromptStep('idle');
-  };
-
-  const clearResult = () => {
-    setResult(null);
-    setError(null);
-    setResearchResult(null);
-    setPromptStep('idle');
+    await generation.submit();
   };
 
   return {
@@ -372,28 +305,28 @@ export function useVisualizationLab(
       setDomainContext,
     },
     reference: {
-      referenceImageUrl,
-      setReferenceImageUrl,
-      referenceImageData,
-      loadingReference,
-      referenceError,
-      loadReferenceImage,
-      loadReferenceFromUrl,
-      setReferenceFromDataUrl,
-      clearReferenceImage,
+      referenceImageUrl: reference!.referenceImageUrl,
+      setReferenceImageUrl: reference!.setReferenceImageUrl,
+      referenceImageData: reference!.referenceImageData,
+      loadingReference: reference!.loadingReference,
+      referenceError: reference!.referenceError,
+      loadReferenceImage: reference!.loadReferenceImage,
+      loadReferenceFromUrl: reference!.loadReferenceFromUrl,
+      setReferenceFromDataUrl: reference!.setReferenceFromDataUrl,
+      clearReferenceImage: reference!.clearReferenceImage,
     },
     generation: {
-      loading,
-      result,
-      error,
+      loading: generation.loading,
+      result: generation.result,
+      error: generation.error,
       handleSubmit,
-      clearResult,
+      clearResult: generation.clearResult,
       reviewPromptsBeforeGenerate,
       setReviewPromptsBeforeGenerate,
-      researchResult,
-      promptStep,
-      handleGenerateFromPrompts,
-      cancelPromptReview,
+      researchResult: generation.researchResult ?? null,
+      promptStep: generation.promptStep ?? 'idle',
+      handleGenerateFromPrompts: generation.submitFromPrompts,
+      cancelPromptReview: generation.cancelPromptReview ?? (() => {}),
     },
     user,
   };

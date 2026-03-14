@@ -111,7 +111,7 @@ const ExerciseBlockCard: React.FC<ExerciseBlockCardProps> = ({
                   onChange={(e) => onExerciseQueryChange(e.target.value)}
                   placeholder="e.g. bench press"
                   title="Map to approved exercise"
-                  className="focus:border-orange-light/50 w-full min-w-0 rounded border-b border-transparent border-white/10 bg-transparent px-1 py-0.5 text-sm text-white/80 transition-colors placeholder:text-white/40 focus:bg-black/20 focus:outline-none"
+                  className="focus:border-[#ffbf00]/50 w-full min-w-0 rounded border-b border-transparent border-white/10 bg-transparent px-1 py-0.5 text-sm text-white/80 transition-colors placeholder:text-white/40 focus:bg-black/20 focus:outline-none"
                 />
               </div>
             )}
@@ -163,7 +163,7 @@ const ExerciseBlockCard: React.FC<ExerciseBlockCardProps> = ({
               <button
                 type="button"
                 onClick={onViewMapped}
-                className="shrink-0 rounded border border-amber-500/50 bg-amber-500/10 p-1.5 text-amber-400 transition-colors hover:bg-amber-500/20"
+                className="shrink-0 rounded border border-[#ffbf00]/50 bg-[#ffbf00]/10 p-1.5 text-[#ffbf00] transition-colors hover:bg-[#ffbf00]/20"
                 title="View mapped exercise"
                 aria-label="View mapped exercise"
               >

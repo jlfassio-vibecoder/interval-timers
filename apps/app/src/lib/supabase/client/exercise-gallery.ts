@@ -2,7 +2,7 @@
  * Client-side exercise gallery (images). Replaces firebase/client/exercise-gallery.
  */
 
-import { supabase } from '../supabase-instance';
+import { supabase } from '../client';
 import { toTimestampLike } from '@/types/timestamp';
 import { updateGeneratedExercise } from './generated-exercises';
 import type {
@@ -212,7 +212,8 @@ export async function promoteToPrimary(
   const galleryImage = await getExerciseImageById(exerciseId, galleryImageId);
   if (!galleryImage) throw new Error(`Gallery image with ID ${galleryImageId} not found`);
 
-  await supabase.from('exercise_images').insert({
+  // Demote current primary to secondary in gallery; fail fast so we don't delete/update on insert failure.
+  const { error: insertError } = await supabase.from('exercise_images').insert({
     exercise_id: exerciseId,
     role: 'secondary',
     image_url: currentPrimaryImageUrl,
@@ -220,6 +221,7 @@ export async function promoteToPrimary(
     created_by: performedBy ?? 'system',
     position: 0,
   });
+  if (insertError) throw insertError;
 
   await deleteExerciseImage(exerciseId, galleryImageId);
 

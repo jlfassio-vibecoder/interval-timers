@@ -16,12 +16,12 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({ exerciseName, index, onClic
     <button
       type="button"
       onClick={onClick}
-      className="hover:border-orange-light/30 group flex w-full cursor-pointer items-center gap-4 rounded-2xl border border-white/5 bg-white/5 p-5 text-left text-sm text-white/80 transition-all"
+      className="hover:border-[#ffbf00]/30 group flex w-full cursor-pointer items-center gap-4 rounded-2xl border border-white/5 bg-white/5 p-5 text-left text-sm text-white/80 transition-all"
     >
       <span className="font-mono text-[10px] text-white/20">
         {(index + 1).toString().padStart(2, '0')}
       </span>
-      <span className="font-bold uppercase tracking-widest transition-colors group-hover:text-orange-light">
+      <span className="font-bold uppercase tracking-widest transition-colors group-hover:text-[#ffbf00]">
         {exerciseName}
       </span>
     </button>

@@ -7,7 +7,7 @@
  */
 
 import type { APIRoute } from 'astro';
-import { verifyAdminRequest } from '@/lib/supabase/admin/auth';
+import { verifyTrainerOrAdminRequest } from '@/lib/supabase/admin/auth';
 import {
   fetchChallengeImages,
   updateChallengeHeroImage,
@@ -43,7 +43,7 @@ function dataUrlToBuffer(dataUrl: string): { buffer: Buffer; contentType: string
 
 export const POST: APIRoute = async ({ request, params, cookies }) => {
   try {
-    await verifyAdminRequest(request, cookies);
+    await verifyTrainerOrAdminRequest(request, cookies);
 
     const challengeId = params.challengeId;
     if (!challengeId) {
@@ -121,7 +121,7 @@ export const POST: APIRoute = async ({ request, params, cookies }) => {
 
 export const DELETE: APIRoute = async ({ request, params, cookies }) => {
   try {
-    await verifyAdminRequest(request, cookies);
+    await verifyTrainerOrAdminRequest(request, cookies);
 
     const challengeId = params.challengeId;
     if (!challengeId) {

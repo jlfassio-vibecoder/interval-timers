@@ -4,12 +4,12 @@
  */
 
 import type { APIRoute } from 'astro';
-import { verifyAdminRequest } from '@/lib/supabase/admin/auth';
+import { verifyTrainerOrAdminRequest } from '@/lib/supabase/admin/auth';
 import { getDashboardStats } from '@/lib/supabase/admin/statistics';
 
 export const GET: APIRoute = async ({ request, cookies }) => {
   try {
-    await verifyAdminRequest(request, cookies);
+    await verifyTrainerOrAdminRequest(request, cookies);
     const stats = await getDashboardStats();
 
     return new Response(JSON.stringify(stats), {

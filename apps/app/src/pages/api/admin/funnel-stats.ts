@@ -6,12 +6,12 @@
  */
 
 import type { APIRoute } from 'astro';
-import { verifyAdminRequest } from '@/lib/supabase/admin/auth';
+import { verifyTrainerOrAdminRequest } from '@/lib/supabase/admin/auth';
 import { getFunnelStats } from '@/lib/supabase/admin/funnel-stats';
 
 export const GET: APIRoute = async ({ request, cookies, url }) => {
   try {
-    await verifyAdminRequest(request, cookies);
+    await verifyTrainerOrAdminRequest(request, cookies);
     const days = Math.min(90, Math.max(1, parseInt(url.searchParams.get('days') ?? '30', 10) || 30));
     const stats = await getFunnelStats(days);
 

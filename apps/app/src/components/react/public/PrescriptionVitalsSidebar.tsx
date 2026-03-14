@@ -201,7 +201,7 @@ const PrescriptionVitalsSidebar: React.FC<PrescriptionVitalsSidebarProps> = ({
             <button
               type="button"
               onClick={onDisclaimerAcknowledge}
-              className="w-full rounded-lg bg-orange-light px-6 py-3 font-mono text-sm font-bold uppercase tracking-wider text-black transition hover:bg-white"
+              className="w-full rounded-lg bg-[#ffbf00] px-6 py-3 font-mono text-sm font-bold uppercase tracking-wider text-black transition hover:bg-[#ffbf00]/90"
             >
               I understand
             </button>
@@ -224,7 +224,7 @@ const PrescriptionVitalsSidebar: React.FC<PrescriptionVitalsSidebarProps> = ({
               onClick={() => onZoneChange('')}
               className={`rounded-lg border px-3 py-2 text-sm font-medium transition ${
                 !selectedZone
-                  ? 'border-orange-light/50 bg-orange-light/20 text-orange-light'
+                  ? 'border-[#ffbf00]/50 bg-[#ffbf00]/20 text-[#ffbf00]'
                   : 'border-white/10 bg-white/5 text-white/80 hover:border-white/20'
               }`}
             >
@@ -237,7 +237,7 @@ const PrescriptionVitalsSidebar: React.FC<PrescriptionVitalsSidebarProps> = ({
                 onClick={() => onZoneChange(z.id)}
                 className={`rounded-lg border px-3 py-2 text-sm font-medium transition ${
                   selectedZone === z.id
-                    ? 'border-orange-light/50 bg-orange-light/20 text-orange-light'
+                    ? 'border-[#ffbf00]/50 bg-[#ffbf00]/20 text-[#ffbf00]'
                     : 'border-white/10 bg-white/5 text-white/80 hover:border-white/20'
                 }`}
               >
@@ -259,9 +259,9 @@ const PrescriptionVitalsSidebar: React.FC<PrescriptionVitalsSidebarProps> = ({
                 max={6}
                 value={daysPerWeek}
                 onChange={(e) => onDaysPerWeekChange(Number(e.target.value))}
-                className="h-2 w-full appearance-none rounded-full bg-white/10 accent-orange-light"
+                className="h-2 w-full appearance-none rounded-full bg-white/10 accent-[#ffbf00]"
               />
-              <span className="w-8 font-mono text-sm font-bold text-orange-light">
+              <span className="w-8 font-mono text-sm font-bold text-[#ffbf00]">
                 {daysPerWeek}
               </span>
             </div>
@@ -281,7 +281,7 @@ const PrescriptionVitalsSidebar: React.FC<PrescriptionVitalsSidebarProps> = ({
                   onClick={() => onToggleWeek(weeks)}
                   className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
                     selectedWeeks.includes(weeks)
-                      ? 'border-orange-light/50 bg-orange-light/20 text-orange-light'
+                      ? 'border-[#ffbf00]/50 bg-[#ffbf00]/20 text-[#ffbf00]'
                       : 'border-white/10 bg-white/5 text-white/70 hover:border-white/20'
                   }`}
                 >
@@ -304,7 +304,7 @@ const PrescriptionVitalsSidebar: React.FC<PrescriptionVitalsSidebarProps> = ({
                 onClick={() => onExperienceChange(opt.value)}
                 className={`rounded-lg border px-3 py-2 text-sm font-medium transition ${
                   selectedExperience === opt.value
-                    ? 'border-orange-light/50 bg-orange-light/20 text-orange-light'
+                    ? 'border-[#ffbf00]/50 bg-[#ffbf00]/20 text-[#ffbf00]'
                     : 'border-white/10 bg-white/5 text-white/80 hover:border-white/20'
                 }`}
               >
@@ -328,7 +328,7 @@ const PrescriptionVitalsSidebar: React.FC<PrescriptionVitalsSidebarProps> = ({
                     onClick={() => onBlockChange(opt.value)}
                     className={`rounded-lg border px-3 py-2 text-sm font-medium transition ${
                       selectedBlock === opt.value
-                        ? 'border-orange-light/50 bg-orange-light/20 text-orange-light'
+                        ? 'border-[#ffbf00]/50 bg-[#ffbf00]/20 text-[#ffbf00]'
                         : 'border-white/10 bg-white/5 text-white/80 hover:border-white/20'
                     }`}
                   >
@@ -350,7 +350,7 @@ const PrescriptionVitalsSidebar: React.FC<PrescriptionVitalsSidebarProps> = ({
                       onClick={() => onMainWorkoutTypeChange(opt.value)}
                       className={`rounded-lg border px-3 py-2 text-sm font-medium transition ${
                         selectedMainWorkoutType === opt.value
-                          ? 'border-orange-light/50 bg-orange-light/20 text-orange-light'
+                          ? 'border-[#ffbf00]/50 bg-[#ffbf00]/20 text-[#ffbf00]'
                           : 'border-white/10 bg-white/5 text-white/80 hover:border-white/20'
                       }`}
                     >
@@ -435,7 +435,7 @@ const PrescriptionVitalsSidebar: React.FC<PrescriptionVitalsSidebarProps> = ({
                     onClick={() => onToggleGoal(g.id)}
                     className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
                       goals.includes(g.id)
-                        ? 'border-orange-light/50 bg-orange-light/20 text-orange-light'
+                        ? 'border-[#ffbf00]/50 bg-[#ffbf00]/20 text-[#ffbf00]'
                         : 'border-white/10 bg-white/5 text-white/70 hover:border-white/20'
                     }`}
                   >
