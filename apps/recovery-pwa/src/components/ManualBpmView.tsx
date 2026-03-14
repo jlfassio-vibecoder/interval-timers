@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, type FormEvent } from 'react';
 
 export interface ManualBpmViewProps {
   onSubmit: (hr: number) => void;
@@ -10,10 +10,10 @@ export default function ManualBpmView({ onSubmit, onBack }: ManualBpmViewProps) 
   const [error, setError] = useState('');
 
   const handleSubmit = useCallback(
-    (e: React.FormEvent) => {
+    (e: FormEvent) => {
       e.preventDefault();
-      const num = parseInt(bpm, 10);
-      if (Number.isNaN(num) || num < 40 || num > 200) {
+      const num = Number(bpm);
+      if (!Number.isInteger(num) || num < 40 || num > 200) {
         setError('Enter a value between 40 and 200');
         return;
       }
@@ -38,6 +38,7 @@ export default function ManualBpmView({ onSubmit, onBack }: ManualBpmViewProps) 
             inputMode="numeric"
             min={40}
             max={200}
+            step={1}
             value={bpm}
             onChange={(e) => {
               setBpm(e.target.value);

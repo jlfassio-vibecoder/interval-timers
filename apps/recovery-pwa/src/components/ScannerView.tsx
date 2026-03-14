@@ -11,7 +11,15 @@ import {
 const TICK_MS = 33; // ~30 fps
 const STABLE_DURATION_MS = 4000;
 const BPM_TOLERANCE = 5;
+
+function isIOSDevice(): boolean {
+  return typeof navigator !== 'undefined' && (
+    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+  );
+}
 const BPM_CHECK_INTERVAL_MS = 500;
+const MAX_SQI_SAMPLES = 150; // limit SQI to last N samples; computed on BPM cadence to reduce per-frame CPU
 const SIGNAL_LOSS_RESET_MS = 1000;
 const CONSISTENCY_WINDOW_COUNT = 4;
 const MAX_SCAN_MS = 60000;
@@ -39,6 +47,7 @@ export default function ScannerView({ onComplete, onManualEntry, stableDurationM
   const recentBpmReadingsRef = useRef<{ bpm: number; timestamp: number }[]>([]);
   const stableStartTimeRef = useRef<number | null>(null);
   const lastBpmCheckRef = useRef<number>(0);
+  const lastSqiCheckRef = useRef<number>(0);
   const lastNonNullBpmTimeRef = useRef<number>(0);
   const lastNullBpmTimeRef = useRef<number | null>(null);
 
@@ -65,6 +74,7 @@ export default function ScannerView({ onComplete, onManualEntry, stableDurationM
     recentBpmReadingsRef.current = [];
     stableStartTimeRef.current = null;
     lastBpmCheckRef.current = 0;
+    lastSqiCheckRef.current = 0;
     lastNullBpmTimeRef.current = null;
     setProgress(0);
     setStatus('Detecting pulse...');
@@ -139,7 +149,7 @@ export default function ScannerView({ onComplete, onManualEntry, stableDurationM
           const track = stream.getVideoTracks()[0];
           if (track && 'applyConstraints' in track) {
             const caps = track.getCapabilities?.() ?? {};
-            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+            const isIOS = isIOSDevice();
             const advanced: MediaTrackConstraintSet[] = [{ torch: true }];
             if (isIOS && 'zoom' in caps) {
               advanced[0].zoom = 0.5;
@@ -159,8 +169,7 @@ export default function ScannerView({ onComplete, onManualEntry, stableDurationM
         if (cancelled) return;
         setState('error');
         if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-          const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-          setErrorMessage(isIOS
+          setErrorMessage(isIOSDevice()
             ? 'Camera access required. If using "Add to Home Screen", try opening in Safari instead.'
             : 'Camera access required. Allow access and try again.');
         } else if (err.name === 'NotFoundError') {
@@ -190,6 +199,7 @@ export default function ScannerView({ onComplete, onManualEntry, stableDurationM
       recentBpmReadingsRef.current = [];
       stableStartTimeRef.current = null;
       lastBpmCheckRef.current = 0;
+      lastSqiCheckRef.current = 0;
       lastNullBpmTimeRef.current = null;
     }, 1500);
 
@@ -268,8 +278,11 @@ export default function ScannerView({ onComplete, onManualEntry, stableDurationM
           const r = Math.max(...vals) - Math.min(...vals);
           setSignalStrength(r >= 1.5 ? 'good' : r >= 0.5 ? 'weak' : 'none');
         }
-        const sqi = computeSignalQualityIndex(samplesRef.current);
-        setSignalQuality(sqi);
+        if (now - lastSqiCheckRef.current >= BPM_CHECK_INTERVAL_MS) {
+          lastSqiCheckRef.current = now;
+          const sqiSamples = samplesRef.current.slice(-MAX_SQI_SAMPLES);
+          setSignalQuality(computeSignalQualityIndex(sqiSamples));
+        }
 
         const greenBpm = computeBpmFromPeaks(samplesRef.current, true);
         const redBpm = computeBpmFromPeaks(samplesRef.current, false);
