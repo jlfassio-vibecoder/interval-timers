@@ -81,13 +81,16 @@ export default function ScannerView({ onComplete }: ScannerViewProps) {
   const [bpm, setBpm] = useState<number | null>(null);
   const [signalStrength, setSignalStrength] = useState<'none' | 'weak' | 'good'>('none');
   const [frameCount, setFrameCount] = useState(0);
+  const [cameraActive, setCameraActive] = useState(false);
 
   const stopStream = useCallback(() => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
+    setCameraActive(false);
   }, []);
 
   const retry = useCallback(() => {
+    stopStream();
     setState('requesting');
     setErrorMessage('');
     setTorchSupported(true);
@@ -96,8 +99,9 @@ export default function ScannerView({ onComplete }: ScannerViewProps) {
     setBpm(null);
     setSignalStrength('none');
     setFrameCount(0);
+    setCameraActive(false);
     samplesRef.current = [];
-  }, []);
+  }, [stopStream]);
 
   useEffect(() => {
     if (state !== 'requesting') return;
@@ -132,6 +136,7 @@ export default function ScannerView({ onComplete }: ScannerViewProps) {
         }
         streamRef.current = stream;
         video.srcObject = stream;
+        setCameraActive(true);
 
         video.onloadedmetadata = () => {
           video.play().catch((e) => {
@@ -174,7 +179,6 @@ export default function ScannerView({ onComplete }: ScannerViewProps) {
 
     return () => {
       cancelled = true;
-      stopStream();
     };
   }, [state, stopStream]);
 
@@ -358,6 +362,12 @@ export default function ScannerView({ onComplete }: ScannerViewProps) {
               ? 'Place finger over rear camera. Hold still.'
               : 'Keep finger completely still'}
         </p>
+        {cameraActive && (
+          <div className="inline-flex items-center gap-1.5 mt-3 px-3 py-1.5 rounded-full bg-emerald-500/20 border border-emerald-500/30">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-xs font-semibold text-emerald-400 uppercase tracking-wider">Camera on</span>
+          </div>
+        )}
         {!torchSupported && state !== 'requesting' && (
           <p className="text-amber-400/90 text-xs mt-2 max-w-[280px] mx-auto">
             On iPhone: Swipe down, tap flashlight to turn it on, then place finger over rear camera.
