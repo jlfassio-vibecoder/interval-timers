@@ -21,9 +21,9 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ videoUrl }) => {
 
   return (
     <div className="group/video border-[#ffbf00]/30 relative aspect-video w-full shrink-0 overflow-hidden rounded-2xl border bg-black shadow-2xl">
-      <div className="border-orange-light/20 absolute left-4 top-4 z-20 flex items-center gap-2 rounded border bg-black/60 px-3 py-1 backdrop-blur-md">
+      <div className="absolute left-4 top-4 z-20 flex items-center gap-2 rounded border border-[#ffbf00]/20 bg-black/60 px-3 py-1 backdrop-blur-md">
         <div className="h-2 w-2 animate-pulse rounded-full bg-red-500 shadow-[0_0_8px_red]" />
-        <span className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-orange-light">
+        <span className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-[#ffbf00]">
           Neural Feed
         </span>
       </div>

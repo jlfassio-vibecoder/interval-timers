@@ -68,7 +68,7 @@ const AdminLoginGate: React.FC = () => {
       return;
     }
 
-    const role = profile?.role?.trim().toLowerCase();
+    const role = (profile?.role ?? '').toString().trim().toLowerCase();
     if (role === 'admin' || role === 'trainer') {
       setAuthCookie(session);
       window.location.href = adminPaths.root;
