@@ -26,50 +26,28 @@ interface Sample {
   greenMean: number;
 }
 
-function detrend(values: number[], windowMs: number, times: number[]): number[] {
-  if (values.length < 3) return values;
-  const result: number[] = [];
-  const halfWindow = windowMs / 2;
-  for (let i = 0; i < values.length; i++) {
-    const t = times[i]!;
-    let sum = 0;
-    let count = 0;
-    for (let j = 0; j < values.length; j++) {
-      const dt = Math.abs(times[j]! - t);
-      if (dt <= halfWindow) {
-        sum += values[j]!;
-        count++;
-      }
-    }
-    result.push(values[i]! - (count > 0 ? sum / count : 0));
-  }
-  return result;
-}
-
 function computeBpmFromPeaks(samples: Sample[], useGreen: boolean): number | null {
   if (samples.length < 30) return null;
 
-  const rawValues = samples.map((s) => (useGreen ? s.greenMean : s.redMean));
+  const values = samples.map((s) => (useGreen ? s.greenMean : s.redMean));
   const times = samples.map((s) => s.timestamp);
-  const values = detrend(rawValues, 1000, times);
-
   const minValue = Math.min(...values);
   const maxValue = Math.max(...values);
   const range = maxValue - minValue;
-  if (range < 0.3) return null;
-  const prominence = Math.max(range * 0.01, 0.4);
+  if (range < 0.5) return null;
+  const prominence = Math.max(range * 0.015, 1);
   const peaks: number[] = [];
 
   for (let i = 2; i < values.length - 2; i++) {
     const v = values[i];
     if (
-      v >= values[i - 1]! &&
-      v >= values[i - 2]! &&
-      v >= values[i + 1]! &&
-      v >= values[i + 2]! &&
+      v >= values[i - 1] &&
+      v >= values[i - 2] &&
+      v >= values[i + 1] &&
+      v >= values[i + 2] &&
       v >= minValue + prominence
     ) {
-      peaks.push(times[i]!);
+      peaks.push(times[i]);
     }
   }
 
@@ -77,7 +55,7 @@ function computeBpmFromPeaks(samples: Sample[], useGreen: boolean): number | nul
 
   const intervals: number[] = [];
   for (let i = 1; i < peaks.length; i++) {
-    const interval = peaks[i]! - peaks[i - 1]!;
+    const interval = peaks[i] - peaks[i - 1];
     if (interval >= MIN_INTERVAL_MS && interval <= MAX_INTERVAL_MS) {
       intervals.push(interval);
     }
@@ -85,83 +63,17 @@ function computeBpmFromPeaks(samples: Sample[], useGreen: boolean): number | nul
 
   if (intervals.length < 2) return null;
 
-  const sorted = [...intervals].sort((a, b) => a - b);
-  const q1 = sorted[Math.floor(sorted.length * 0.25)]!;
-  const q3 = sorted[Math.floor(sorted.length * 0.75)]!;
-  const iqr = q3 - q1;
-  const filtered = intervals.filter((x) => x >= q1 - 1.5 * iqr && x <= q3 + 1.5 * iqr);
-  if (filtered.length < 2) return null;
-
-  const avgInterval = filtered.reduce((a, b) => a + b, 0) / filtered.length;
+  const avgInterval =
+    intervals.reduce((a, b) => a + b, 0) / intervals.length;
   const bpm = Math.round(60000 / avgInterval);
   if (bpm >= MIN_BPM && bpm <= MAX_BPM) return bpm;
   return null;
 }
 
-function computeBpmFromFft(samples: Sample[], useGreen: boolean): number | null {
-  if (samples.length < 180) return null; // ~6s at 30fps
-  const values = samples.map((s) => (useGreen ? s.greenMean : s.redMean));
-  const n = 512;
-  const fs = 1000 / TICK_MS;
-
-  const input = new Float32Array(n);
-  const last = Math.min(samples.length, n);
-  for (let i = 0; i < last; i++) {
-    input[i] = values[values.length - 1 - i] ?? 0;
-  }
-
-  let maxPower = 0;
-  let maxFreq = 0;
-  const minBin = Math.max(1, Math.floor((MIN_BPM / 60) * n / fs));
-  const maxBin = Math.min(n / 2 - 1, Math.ceil((MAX_BPM / 60) * n / fs));
-  for (let k = minBin; k <= maxBin; k++) {
-    let sumRe = 0;
-    let sumIm = 0;
-    for (let t = 0; t < n; t++) {
-      const angle = (2 * Math.PI * k * t) / n;
-      sumRe += input[t]! * Math.cos(angle);
-      sumIm += input[t]! * Math.sin(angle);
-    }
-    const power = (sumRe * sumRe + sumIm * sumIm) / (n * n);
-    if (power > maxPower) {
-      maxPower = power;
-      maxFreq = (k * fs) / n;
-    }
-  }
-  if (maxFreq < 0.5) return null;
-  const bpm = Math.round(maxFreq * 60);
-  if (bpm >= MIN_BPM && bpm <= MAX_BPM) return bpm;
-  return null;
-}
-
 function computeFinalBpm(samples: Sample[]): number | null {
-  const peakGreen = computeBpmFromPeaks(samples, true);
-  const peakRed = computeBpmFromPeaks(samples, false);
-  const fftGreen = computeBpmFromFft(samples, true);
-  const fftRed = computeBpmFromFft(samples, false);
-
-  const candidates: number[] = [];
-  if (peakGreen !== null) candidates.push(peakGreen);
-  if (peakRed !== null) candidates.push(peakRed);
-  if (fftGreen !== null) candidates.push(fftGreen);
-  if (fftRed !== null) candidates.push(fftRed);
-
-  if (candidates.length === 0) return null;
-  if (candidates.length === 1) return candidates[0]!;
-
-  const sorted = [...candidates].sort((a, b) => a - b);
-  const spread = sorted[sorted.length - 1]! - sorted[0]!;
-  if (spread <= 4) {
-    return Math.round(candidates.reduce((a, b) => a + b, 0) / candidates.length);
-  }
-  const peakAvg = [peakGreen, peakRed].filter((x): x is number => x !== null);
-  const fftAvg = [fftGreen, fftRed].filter((x): x is number => x !== null);
-  if (peakAvg.length > 0 && fftAvg.length > 0) {
-    const p = peakAvg.reduce((a, b) => a + b, 0) / peakAvg.length;
-    const f = fftAvg.reduce((a, b) => a + b, 0) / fftAvg.length;
-    if (Math.abs(p - f) <= 3) return Math.round((p + f) / 2);
-  }
-  return peakGreen ?? peakRed ?? fftGreen ?? fftRed;
+  const greenBpm = computeBpmFromPeaks(samples, true);
+  const redBpm = computeBpmFromPeaks(samples, false);
+  return greenBpm ?? redBpm;
 }
 
 function median(arr: number[]): number {
