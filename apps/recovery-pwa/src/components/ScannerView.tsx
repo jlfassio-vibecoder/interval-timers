@@ -14,8 +14,8 @@ const CANVAS_WIDTH = 300;
 const CANVAS_HEIGHT = 150;
 const SAMPLE_REGION_SIZE = 80;
 const MIN_BPM = 40;
-const MAX_BPM = 200;
-const MIN_INTERVAL_MS = 60000 / MAX_BPM; // 300ms for 200 BPM
+const MAX_BPM = 180;
+const MIN_INTERVAL_MS = 500; // Reject dicrotic notch - systolic-to-dicrotic is ~250-400ms
 const MAX_INTERVAL_MS = 60000 / MIN_BPM; // 1500ms for 40 BPM
 
 type ScannerState = 'requesting' | 'ready' | 'scanning' | 'error';
@@ -35,7 +35,7 @@ function computeBpmFromPeaks(samples: Sample[], useGreen: boolean): number | nul
   const maxValue = Math.max(...values);
   const range = maxValue - minValue;
   if (range < 0.5) return null;
-  const prominence = Math.max(range * 0.015, 1);
+  const prominence = Math.max(range * 0.025, 1.5);
   const peaks: number[] = [];
 
   for (let i = 2; i < values.length - 2; i++) {
@@ -63,8 +63,19 @@ function computeBpmFromPeaks(samples: Sample[], useGreen: boolean): number | nul
 
   if (intervals.length < 2) return null;
 
+  const sorted = [...intervals].sort((a, b) => a - b);
+  const q1 = sorted[Math.floor(sorted.length * 0.25)]!;
+  const q3 = sorted[Math.floor(sorted.length * 0.75)]!;
+  const iqr = q3 - q1;
+  let filtered = intervals.filter(
+    (x) => x >= q1 - 1.5 * iqr && x <= q3 + 1.5 * iqr
+  );
+  const med = median(filtered);
+  filtered = filtered.filter((x) => x >= med * 0.65);
+  if (filtered.length < 2) return null;
+
   const avgInterval =
-    intervals.reduce((a, b) => a + b, 0) / intervals.length;
+    filtered.reduce((a, b) => a + b, 0) / filtered.length;
   const bpm = Math.round(60000 / avgInterval);
   if (bpm >= MIN_BPM && bpm <= MAX_BPM) return bpm;
   return null;
