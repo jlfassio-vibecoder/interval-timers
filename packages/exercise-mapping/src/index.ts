@@ -10,5 +10,5 @@ export {
   normalizeExerciseName,
   buildApprovedExerciseMaps,
   type ApprovedExerciseMaps,
-} from './approved-maps.js';
-export type { Exercise, ExtendedBiomechanics, GeneratedExerciseInput } from './types.js';
+} from './approved-maps';
+export type { Exercise, ExtendedBiomechanics, GeneratedExerciseInput } from './types';

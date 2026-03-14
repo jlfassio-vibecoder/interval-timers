@@ -354,7 +354,7 @@ export async function searchExercisesForCommonMistakes(
     let rank = 999;
     if (exNorm === queryNorm) rank = 0;
     else if (queryNorm.includes(exNorm) || exNorm.includes(queryNorm)) rank = 1;
-    else if (queryWords.length > 0 && queryWords.every((w) => exNorm.includes(w))) rank = 2;
+    else if (queryWords.length > 0 && queryWords.every((w: string) => exNorm.includes(w))) rank = 2;
     if (rank < 999)
       resultMap.set(c.id, {
         candidate: {
