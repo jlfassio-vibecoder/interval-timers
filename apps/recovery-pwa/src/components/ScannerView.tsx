@@ -12,8 +12,8 @@ const CANVAS_WIDTH = 300;
 const CANVAS_HEIGHT = 150;
 const SAMPLE_REGION_SIZE = 80;
 const MIN_BPM = 40;
-const MAX_BPM = 150;
-const MIN_INTERVAL_MS = 60000 / MAX_BPM; // 400ms - rejects dicrotic notch (~250-350ms), max 150 BPM
+const MAX_BPM = 120;
+const MIN_INTERVAL_MS = 60000 / MAX_BPM; // 500ms - rejects half-intervals (dicrotic), max 120 BPM
 const MAX_INTERVAL_MS = 60000 / MIN_BPM; // 1500ms for 40 BPM
 
 type ScannerState = 'requesting' | 'ready' | 'scanning' | 'error';
@@ -76,9 +76,8 @@ function computeBpmFromPeaks(samples: Sample[], useGreen: boolean): number | nul
   );
   if (filtered.length < 2) return null;
 
-  const avgInterval =
-    filtered.reduce((a, b) => a + b, 0) / filtered.length;
-  const bpm = Math.round(60000 / avgInterval);
+  const intervalEstimate = median(filtered);
+  const bpm = Math.round(60000 / intervalEstimate);
   if (bpm >= MIN_BPM && bpm <= MAX_BPM) return bpm;
   return null;
 }
@@ -88,6 +87,15 @@ function median(arr: number[]): number {
   const sorted = [...arr].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
   return sorted.length % 2 ? sorted[mid]! : (sorted[mid - 1]! + sorted[mid]!) / 2;
+}
+
+function resolveBpm(green: number | null, red: number | null): number | null {
+  if (green === null && red === null) return null;
+  if (green === null) return red;
+  if (red === null) return green;
+  const [lo, hi] = green <= red ? [green, red] : [red, green];
+  if (hi >= lo * 1.7 && hi <= lo * 2.3) return lo;
+  return green;
 }
 
 function areReadingsConsistent(readings: { bpm: number }[], tolerance: number): boolean {
@@ -334,7 +342,9 @@ export default function ScannerView({ onComplete }: ScannerViewProps) {
           setSignalStrength(r >= 1.5 ? 'good' : r >= 0.5 ? 'weak' : 'none');
         }
 
-        const liveBpm = computeBpmFromPeaks(samplesRef.current, true) ?? computeBpmFromPeaks(samplesRef.current, false);
+        const greenBpm = computeBpmFromPeaks(samplesRef.current, true);
+        const redBpm = computeBpmFromPeaks(samplesRef.current, false);
+        const liveBpm = resolveBpm(greenBpm, redBpm);
 
         if (liveBpm !== null) {
           setBpm(liveBpm);
