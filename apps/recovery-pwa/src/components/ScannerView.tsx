@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 
 const TICK_MS = 33; // ~30 fps
-const STABLE_DURATION_MS = 4000;
-const BPM_TOLERANCE = 5;
-const BPM_CHECK_INTERVAL_MS = 500;
-const SIGNAL_LOSS_RESET_MS = 1000;
-const CONSISTENCY_WINDOW_COUNT = 4;
-const MAX_SCAN_MS = 60000;
-const MAX_SAMPLES = Math.ceil((10000 / TICK_MS) * 1.2); // ~10s rolling window
+const BASELINE_DURATION_MS = 10000; // 10s to establish baseline
+const MEASUREMENT_DURATION_MS = 10000; // 10s countdown for accurate reading
+const BASELINE_STABLE_MS = 6000; // Need 6s of stable BPM to proceed to measurement
+const BPM_TOLERANCE = 4;
+const BPM_CHECK_INTERVAL_MS = 400;
+const SIGNAL_LOSS_RESET_MS = 800; // Reset measurement if pulse lost for 800ms
+const CONSISTENCY_WINDOW_COUNT = 5;
+const MAX_SCAN_MS = 90000; // 90s total (baseline + retries)
+const MAX_SAMPLES = Math.ceil((12000 / TICK_MS) * 1.2); // ~12s rolling window
 const CANVAS_WIDTH = 300;
 const CANVAS_HEIGHT = 150;
 const SAMPLE_REGION_SIZE = 80;
@@ -24,28 +26,50 @@ interface Sample {
   greenMean: number;
 }
 
+function detrend(values: number[], windowMs: number, times: number[]): number[] {
+  if (values.length < 3) return values;
+  const result: number[] = [];
+  const halfWindow = windowMs / 2;
+  for (let i = 0; i < values.length; i++) {
+    const t = times[i]!;
+    let sum = 0;
+    let count = 0;
+    for (let j = 0; j < values.length; j++) {
+      const dt = Math.abs(times[j]! - t);
+      if (dt <= halfWindow) {
+        sum += values[j]!;
+        count++;
+      }
+    }
+    result.push(values[i]! - (count > 0 ? sum / count : 0));
+  }
+  return result;
+}
+
 function computeBpmFromPeaks(samples: Sample[], useGreen: boolean): number | null {
   if (samples.length < 30) return null;
 
-  const values = samples.map((s) => (useGreen ? s.greenMean : s.redMean));
+  const rawValues = samples.map((s) => (useGreen ? s.greenMean : s.redMean));
   const times = samples.map((s) => s.timestamp);
+  const values = detrend(rawValues, 1000, times);
+
   const minValue = Math.min(...values);
   const maxValue = Math.max(...values);
   const range = maxValue - minValue;
-  if (range < 0.5) return null;
-  const prominence = Math.max(range * 0.008, 0.5);
+  if (range < 0.3) return null;
+  const prominence = Math.max(range * 0.01, 0.4);
   const peaks: number[] = [];
 
   for (let i = 2; i < values.length - 2; i++) {
     const v = values[i];
     if (
-      v >= values[i - 1] &&
-      v >= values[i - 2] &&
-      v >= values[i + 1] &&
-      v >= values[i + 2] &&
+      v >= values[i - 1]! &&
+      v >= values[i - 2]! &&
+      v >= values[i + 1]! &&
+      v >= values[i + 2]! &&
       v >= minValue + prominence
     ) {
-      peaks.push(times[i]);
+      peaks.push(times[i]!);
     }
   }
 
@@ -53,7 +77,7 @@ function computeBpmFromPeaks(samples: Sample[], useGreen: boolean): number | nul
 
   const intervals: number[] = [];
   for (let i = 1; i < peaks.length; i++) {
-    const interval = peaks[i] - peaks[i - 1];
+    const interval = peaks[i]! - peaks[i - 1]!;
     if (interval >= MIN_INTERVAL_MS && interval <= MAX_INTERVAL_MS) {
       intervals.push(interval);
     }
@@ -61,11 +85,83 @@ function computeBpmFromPeaks(samples: Sample[], useGreen: boolean): number | nul
 
   if (intervals.length < 2) return null;
 
-  const avgInterval =
-    intervals.reduce((a, b) => a + b, 0) / intervals.length;
+  const sorted = [...intervals].sort((a, b) => a - b);
+  const q1 = sorted[Math.floor(sorted.length * 0.25)]!;
+  const q3 = sorted[Math.floor(sorted.length * 0.75)]!;
+  const iqr = q3 - q1;
+  const filtered = intervals.filter((x) => x >= q1 - 1.5 * iqr && x <= q3 + 1.5 * iqr);
+  if (filtered.length < 2) return null;
+
+  const avgInterval = filtered.reduce((a, b) => a + b, 0) / filtered.length;
   const bpm = Math.round(60000 / avgInterval);
   if (bpm >= MIN_BPM && bpm <= MAX_BPM) return bpm;
   return null;
+}
+
+function computeBpmFromFft(samples: Sample[], useGreen: boolean): number | null {
+  if (samples.length < 180) return null; // ~6s at 30fps
+  const values = samples.map((s) => (useGreen ? s.greenMean : s.redMean));
+  const n = 512;
+  const fs = 1000 / TICK_MS;
+
+  const input = new Float32Array(n);
+  const last = Math.min(samples.length, n);
+  for (let i = 0; i < last; i++) {
+    input[i] = values[values.length - 1 - i] ?? 0;
+  }
+
+  let maxPower = 0;
+  let maxFreq = 0;
+  const minBin = Math.max(1, Math.floor((MIN_BPM / 60) * n / fs));
+  const maxBin = Math.min(n / 2 - 1, Math.ceil((MAX_BPM / 60) * n / fs));
+  for (let k = minBin; k <= maxBin; k++) {
+    let sumRe = 0;
+    let sumIm = 0;
+    for (let t = 0; t < n; t++) {
+      const angle = (2 * Math.PI * k * t) / n;
+      sumRe += input[t]! * Math.cos(angle);
+      sumIm += input[t]! * Math.sin(angle);
+    }
+    const power = (sumRe * sumRe + sumIm * sumIm) / (n * n);
+    if (power > maxPower) {
+      maxPower = power;
+      maxFreq = (k * fs) / n;
+    }
+  }
+  if (maxFreq < 0.5) return null;
+  const bpm = Math.round(maxFreq * 60);
+  if (bpm >= MIN_BPM && bpm <= MAX_BPM) return bpm;
+  return null;
+}
+
+function computeFinalBpm(samples: Sample[]): number | null {
+  const peakGreen = computeBpmFromPeaks(samples, true);
+  const peakRed = computeBpmFromPeaks(samples, false);
+  const fftGreen = computeBpmFromFft(samples, true);
+  const fftRed = computeBpmFromFft(samples, false);
+
+  const candidates: number[] = [];
+  if (peakGreen !== null) candidates.push(peakGreen);
+  if (peakRed !== null) candidates.push(peakRed);
+  if (fftGreen !== null) candidates.push(fftGreen);
+  if (fftRed !== null) candidates.push(fftRed);
+
+  if (candidates.length === 0) return null;
+  if (candidates.length === 1) return candidates[0]!;
+
+  const sorted = [...candidates].sort((a, b) => a - b);
+  const spread = sorted[sorted.length - 1]! - sorted[0]!;
+  if (spread <= 4) {
+    return Math.round(candidates.reduce((a, b) => a + b, 0) / candidates.length);
+  }
+  const peakAvg = [peakGreen, peakRed].filter((x): x is number => x !== null);
+  const fftAvg = [fftGreen, fftRed].filter((x): x is number => x !== null);
+  if (peakAvg.length > 0 && fftAvg.length > 0) {
+    const p = peakAvg.reduce((a, b) => a + b, 0) / peakAvg.length;
+    const f = fftAvg.reduce((a, b) => a + b, 0) / fftAvg.length;
+    if (Math.abs(p - f) <= 3) return Math.round((p + f) / 2);
+  }
+  return peakGreen ?? peakRed ?? fftGreen ?? fftRed;
 }
 
 function median(arr: number[]): number {
@@ -98,6 +194,8 @@ export default function ScannerView({ onComplete }: ScannerViewProps) {
   const lastBpmCheckRef = useRef<number>(0);
   const lastNonNullBpmTimeRef = useRef<number>(0);
   const lastNullBpmTimeRef = useRef<number | null>(null);
+  const scanPhaseRef = useRef<'baseline' | 'measurement'>('baseline');
+  const measurementStartTimeRef = useRef<number | null>(null);
 
   const [state, setState] = useState<ScannerState>('requesting');
   const [torchSupported, setTorchSupported] = useState(true);
@@ -109,6 +207,8 @@ export default function ScannerView({ onComplete }: ScannerViewProps) {
   const [frameCount, setFrameCount] = useState(0);
   const [cameraActive, setCameraActive] = useState(false);
   const [showMaxTimeoutHint, setShowMaxTimeoutHint] = useState(false);
+  const [scanPhase, setScanPhase] = useState<'baseline' | 'measurement'>('baseline');
+  const [measurementCountdown, setMeasurementCountdown] = useState<number | null>(null);
 
   const stopStream = useCallback(() => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
@@ -122,12 +222,16 @@ export default function ScannerView({ onComplete }: ScannerViewProps) {
     stableStartTimeRef.current = null;
     lastBpmCheckRef.current = 0;
     lastNullBpmTimeRef.current = null;
+    scanPhaseRef.current = 'baseline';
+    measurementStartTimeRef.current = null;
     setProgress(0);
-    setStatus('Detecting pulse...');
+    setStatus('Establishing baseline...');
     setBpm(null);
     setSignalStrength('none');
     setFrameCount(0);
     setShowMaxTimeoutHint(false);
+    setScanPhase('baseline');
+    setMeasurementCountdown(null);
   }, []);
 
   const retry = useCallback(() => {
@@ -145,6 +249,8 @@ export default function ScannerView({ onComplete }: ScannerViewProps) {
     samplesRef.current = [];
     recentBpmReadingsRef.current = [];
     stableStartTimeRef.current = null;
+    scanPhaseRef.current = 'baseline';
+    measurementStartTimeRef.current = null;
   }, [stopStream]);
 
   useEffect(() => {
@@ -232,15 +338,19 @@ export default function ScannerView({ onComplete }: ScannerViewProps) {
     const timeoutId = setTimeout(() => {
       setState('scanning');
       setProgress(0);
-      setStatus('Detecting pulse...');
+      setStatus('Establishing baseline...');
       setSignalStrength('none');
       setFrameCount(0);
       setShowMaxTimeoutHint(false);
+      setScanPhase('baseline');
+      setMeasurementCountdown(null);
       samplesRef.current = [];
       recentBpmReadingsRef.current = [];
       stableStartTimeRef.current = null;
       lastBpmCheckRef.current = 0;
       lastNullBpmTimeRef.current = null;
+      scanPhaseRef.current = 'baseline';
+      measurementStartTimeRef.current = null;
     }, 1500);
 
     return () => clearTimeout(timeoutId);
@@ -307,7 +417,7 @@ export default function ScannerView({ onComplete }: ScannerViewProps) {
         const greenMean = count > 0 ? greenSum / count : 0;
 
         samplesRef.current.push({ timestamp: now, redMean, greenMean });
-        if (samplesRef.current.length > MAX_SAMPLES) {
+        if (scanPhaseRef.current !== 'measurement' && samplesRef.current.length > MAX_SAMPLES) {
           samplesRef.current.shift();
         }
 
@@ -321,46 +431,91 @@ export default function ScannerView({ onComplete }: ScannerViewProps) {
 
         const liveBpm = computeBpmFromPeaks(samplesRef.current, true) ?? computeBpmFromPeaks(samplesRef.current, false);
 
-        if (liveBpm !== null) {
-          setBpm(liveBpm);
-          lastNonNullBpmTimeRef.current = now;
-          lastNullBpmTimeRef.current = null;
+        if (scanPhaseRef.current === 'baseline') {
+          if (liveBpm !== null) {
+            setBpm(liveBpm);
+            lastNonNullBpmTimeRef.current = now;
+            lastNullBpmTimeRef.current = null;
 
-          if (now - lastBpmCheckRef.current >= BPM_CHECK_INTERVAL_MS) {
-            lastBpmCheckRef.current = now;
-            const readings = recentBpmReadingsRef.current;
-            readings.push({ bpm: liveBpm, timestamp: now });
-            if (readings.length > 10) readings.shift();
+            if (now - lastBpmCheckRef.current >= BPM_CHECK_INTERVAL_MS) {
+              lastBpmCheckRef.current = now;
+              const readings = recentBpmReadingsRef.current;
+              readings.push({ bpm: liveBpm, timestamp: now });
+              if (readings.length > 12) readings.shift();
 
-            if (areReadingsConsistent(readings, BPM_TOLERANCE)) {
-              const stableStart = stableStartTimeRef.current ?? now;
-              stableStartTimeRef.current = stableStart;
-              const stableElapsed = now - stableStart;
-              setProgress(Math.min(100, (stableElapsed / STABLE_DURATION_MS) * 100));
-              if (stableElapsed >= STABLE_DURATION_MS) {
-                const lastReadings = readings.slice(-CONSISTENCY_WINDOW_COUNT);
-                const medianBpm = Math.round(median(lastReadings.map((r) => r.bpm)));
-                cancelAnimationFrame(animationRef.current);
-                onComplete(medianBpm);
-                stopStream();
-                return;
+              if (areReadingsConsistent(readings, BPM_TOLERANCE)) {
+                const stableStart = stableStartTimeRef.current ?? now;
+                stableStartTimeRef.current = stableStart;
+                const stableElapsed = now - stableStart;
+                setProgress(Math.min(100, (stableElapsed / BASELINE_STABLE_MS) * 100));
+                if (stableElapsed >= BASELINE_STABLE_MS) {
+                  scanPhaseRef.current = 'measurement';
+                  measurementStartTimeRef.current = now;
+                  samplesRef.current = [];
+                  setScanPhase('measurement');
+                  setProgress(0);
+                  setMeasurementCountdown(10);
+                  setStatus('Measuring... 10');
+                } else {
+                  const secs = (stableElapsed / 1000).toFixed(1);
+                  setStatus(`Baseline... ${secs}s`);
+                }
+              } else {
+                stableStartTimeRef.current = null;
+                setProgress(0);
+                setStatus('Hold steady - don\'t move');
               }
-              const secs = (stableElapsed / 1000).toFixed(1);
-              setStatus(stableElapsed > 2500 ? `Almost there... ${secs}s` : `Hold steady... ${secs}s`);
-            } else {
+            }
+          } else {
+            if (lastNullBpmTimeRef.current === null) lastNullBpmTimeRef.current = now;
+            const nullDuration = now - lastNullBpmTimeRef.current;
+            if (nullDuration >= SIGNAL_LOSS_RESET_MS) {
               stableStartTimeRef.current = null;
+              recentBpmReadingsRef.current = [];
               setProgress(0);
-              setStatus('Hold steady - don\'t move');
+              setStatus('Adjust finger - cover lens fully');
             }
           }
         } else {
-          if (lastNullBpmTimeRef.current === null) lastNullBpmTimeRef.current = now;
-          const nullDuration = now - lastNullBpmTimeRef.current;
-          if (nullDuration >= SIGNAL_LOSS_RESET_MS) {
-            stableStartTimeRef.current = null;
-            recentBpmReadingsRef.current = [];
-            setProgress(0);
-            setStatus('Adjust finger - cover lens fully');
+          const measStart = measurementStartTimeRef.current ?? now;
+          const measElapsed = now - measStart;
+
+          if (liveBpm !== null) {
+            setBpm(liveBpm);
+            lastNonNullBpmTimeRef.current = now;
+            lastNullBpmTimeRef.current = null;
+
+            const remaining = Math.ceil((MEASUREMENT_DURATION_MS - measElapsed) / 1000);
+            setMeasurementCountdown(Math.max(0, remaining));
+            setProgress(Math.min(100, (measElapsed / MEASUREMENT_DURATION_MS) * 100));
+            setStatus(remaining > 0 ? `Measuring... ${remaining}` : 'Calculating...');
+
+            if (measElapsed >= MEASUREMENT_DURATION_MS) {
+              const finalBpm = computeFinalBpm(samplesRef.current);
+              cancelAnimationFrame(animationRef.current);
+              if (finalBpm !== null) {
+                onComplete(finalBpm);
+              } else {
+                setState('error');
+                setErrorMessage('Low signal. Keep finger still, cover lens fully, and try again.');
+              }
+              stopStream();
+              return;
+            }
+          } else {
+            if (lastNullBpmTimeRef.current === null) lastNullBpmTimeRef.current = now;
+            const nullDuration = now - lastNullBpmTimeRef.current;
+            if (nullDuration >= SIGNAL_LOSS_RESET_MS) {
+              scanPhaseRef.current = 'baseline';
+              measurementStartTimeRef.current = null;
+              stableStartTimeRef.current = null;
+              recentBpmReadingsRef.current = [];
+              samplesRef.current = [];
+              setScanPhase('baseline');
+              setMeasurementCountdown(null);
+              setProgress(0);
+              setStatus('Pulse lost - hold steady');
+            }
           }
         }
 
@@ -375,11 +530,18 @@ export default function ScannerView({ onComplete }: ScannerViewProps) {
         }
       }
 
-      if (stableStartTimeRef.current !== null && recentBpmReadingsRef.current.length >= CONSISTENCY_WINDOW_COUNT) {
+      if (scanPhaseRef.current === 'baseline' && stableStartTimeRef.current !== null && recentBpmReadingsRef.current.length >= CONSISTENCY_WINDOW_COUNT) {
         const stableElapsed = now - stableStartTimeRef.current;
-        setProgress(Math.min(100, (stableElapsed / STABLE_DURATION_MS) * 100));
+        setProgress(Math.min(100, (stableElapsed / BASELINE_STABLE_MS) * 100));
         const secs = (stableElapsed / 1000).toFixed(1);
-        setStatus(stableElapsed > 2500 ? `Almost there... ${secs}s` : `Hold steady... ${secs}s`);
+        setStatus(`Baseline... ${secs}s`);
+      }
+      if (scanPhaseRef.current === 'measurement' && measurementStartTimeRef.current !== null) {
+        const measElapsed = now - measurementStartTimeRef.current;
+        const remaining = Math.ceil((MEASUREMENT_DURATION_MS - measElapsed) / 1000);
+        setMeasurementCountdown(Math.max(0, remaining));
+        setProgress(Math.min(100, (measElapsed / MEASUREMENT_DURATION_MS) * 100));
+        setStatus(remaining > 0 ? `Measuring... ${remaining}` : 'Calculating...');
       }
 
       ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
@@ -518,10 +680,22 @@ export default function ScannerView({ onComplete }: ScannerViewProps) {
           aria-hidden="true"
         />
         <div className="z-20 text-center mt-32 flex flex-col items-center">
-          <span className="text-5xl font-black font-mono drop-shadow-lg">
-            {bpm ?? '--'}
-          </span>
-          <span className="text-lg font-bold text-orange-light ml-1">BPM</span>
+          {measurementCountdown !== null && measurementCountdown > 0 ? (
+            <>
+              <span className="text-6xl font-black font-mono drop-shadow-lg text-orange-light tabular-nums">
+                {measurementCountdown}
+              </span>
+              <span className="text-lg font-bold text-orange-light/80 mt-1">seconds</span>
+              <span className="text-2xl font-mono text-zinc-400 mt-2">{bpm ?? '--'} BPM</span>
+            </>
+          ) : (
+            <>
+              <span className="text-5xl font-black font-mono drop-shadow-lg">
+                {bpm ?? '--'}
+              </span>
+              <span className="text-lg font-bold text-orange-light ml-1">BPM</span>
+            </>
+          )}
         </div>
       </div>
 
