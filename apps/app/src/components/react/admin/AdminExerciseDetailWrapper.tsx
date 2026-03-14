@@ -834,9 +834,9 @@ const AdminExerciseDetailWrapper: React.FC<AdminExerciseDetailWrapperProps> = ({
             type="button"
             onClick={handleSaveBlocks}
             disabled={isSavingBlocks}
-className="inline-flex items-center gap-2 rounded-lg bg-[#ffbf00] px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-[#ffbf00]/90 disabled:opacity-50"
-              >
-                {isSavingBlocks ? (
+            className="inline-flex items-center gap-2 rounded-lg bg-[#ffbf00] px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-[#ffbf00]/90 disabled:opacity-50"
+          >
+            {isSavingBlocks ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <Save className="h-4 w-4" />

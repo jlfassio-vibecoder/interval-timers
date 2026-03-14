@@ -2,7 +2,7 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  *
- * @workout-generator/exercise-mapping
+ * @interval-timers/exercise-mapping
  * Shared logic for exercise resolution and canonical slug lookup.
  */
 

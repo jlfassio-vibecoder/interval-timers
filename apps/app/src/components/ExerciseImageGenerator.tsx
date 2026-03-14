@@ -1074,100 +1074,100 @@ export default function ExerciseImageGenerator() {
               Loading templates...
             </div>
           ) : (
-          <div className="flex flex-wrap items-center gap-3">
-            {showTemplateNameInput ? (
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={templateNameInput}
-                  onChange={(e) => setTemplateNameInput(e.target.value)}
-                  placeholder="Template name"
-                  className="focus:border-[#ffbf00]/50 rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleSaveTemplate();
-                    if (e.key === 'Escape') {
+            <div className="flex flex-wrap items-center gap-3">
+              {showTemplateNameInput ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={templateNameInput}
+                    onChange={(e) => setTemplateNameInput(e.target.value)}
+                    placeholder="Template name"
+                    className="focus:border-[#ffbf00]/50 rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleSaveTemplate();
+                      if (e.key === 'Escape') {
+                        setShowTemplateNameInput(false);
+                        setTemplateNameInput('');
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleSaveTemplate}
+                    disabled={!templateNameInput.trim() || !exerciseTopic.trim()}
+                    className="bg-[#ffbf00]/20 hover:bg-[#ffbf00]/30 rounded-lg border border-white/10 px-3 py-2 text-sm font-medium text-white transition-colors disabled:opacity-50"
+                  >
+                    Save
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
                       setShowTemplateNameInput(false);
                       setTemplateNameInput('');
-                    }
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={handleSaveTemplate}
-                  disabled={!templateNameInput.trim() || !exerciseTopic.trim()}
-                  className="bg-[#ffbf00]/20 hover:bg-[#ffbf00]/30 rounded-lg border border-white/10 px-3 py-2 text-sm font-medium text-white transition-colors disabled:opacity-50"
-                >
-                  Save
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowTemplateNameInput(false);
-                    setTemplateNameInput('');
-                  }}
-                  className="rounded-lg p-2 text-white/60 transition-colors hover:text-white"
-                  aria-label="Cancel"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setShowTemplateNameInput(true)}
-                disabled={!exerciseTopic.trim()}
-                className="hover:border-[#ffbf00]/30 hover:bg-[#ffbf00]/20 inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm font-medium text-white transition-colors disabled:opacity-50"
-              >
-                <FileDown className="h-4 w-4" />
-                Save as template
-              </button>
-            )}
-            {templates.length > 0 && (
-              <>
-                <div className="flex items-center gap-2">
-                  <label htmlFor="load-template" className="sr-only">
-                    Load template
-                  </label>
-                  <select
-                    id="load-template"
-                    value=""
-                    onChange={(e) => {
-                      const id = e.target.value;
-                      if (!id) return;
-                      const t = templates.find((x) => x.id === id);
-                      if (t) applyTemplate(t);
                     }}
-                    className="focus:border-[#ffbf00]/50 rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-white focus:outline-none"
+                    className="rounded-lg p-2 text-white/60 transition-colors hover:text-white"
+                    aria-label="Cancel"
                   >
-                    <option value="">Load template...</option>
-                    {templates.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.name}
-                      </option>
-                    ))}
-                  </select>
+                    <X className="h-4 w-4" />
+                  </button>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  {templates.map((t) => (
-                    <span
-                      key={t.id}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-black/20 px-2 py-1 text-xs"
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowTemplateNameInput(true)}
+                  disabled={!exerciseTopic.trim()}
+                  className="hover:border-[#ffbf00]/30 hover:bg-[#ffbf00]/20 inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm font-medium text-white transition-colors disabled:opacity-50"
+                >
+                  <FileDown className="h-4 w-4" />
+                  Save as template
+                </button>
+              )}
+              {templates.length > 0 && (
+                <>
+                  <div className="flex items-center gap-2">
+                    <label htmlFor="load-template" className="sr-only">
+                      Load template
+                    </label>
+                    <select
+                      id="load-template"
+                      value=""
+                      onChange={(e) => {
+                        const id = e.target.value;
+                        if (!id) return;
+                        const t = templates.find((x) => x.id === id);
+                        if (t) applyTemplate(t);
+                      }}
+                      className="focus:border-[#ffbf00]/50 rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-white focus:outline-none"
                     >
-                      {t.name}
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteTemplate(t.id)}
-                        className="rounded p-0.5 text-white/60 transition-colors hover:bg-red-500/20 hover:text-red-300"
-                        aria-label={`Delete template ${t.name}`}
+                      <option value="">Load template...</option>
+                      {templates.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {templates.map((t) => (
+                      <span
+                        key={t.id}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-black/20 px-2 py-1 text-xs"
                       >
-                        <Trash2 className="h-3 w-3" />
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
+                        {t.name}
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteTemplate(t.id)}
+                          className="rounded p-0.5 text-white/60 transition-colors hover:bg-red-500/20 hover:text-red-300"
+                          aria-label={`Delete template ${t.name}`}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
           )}
         </div>
 

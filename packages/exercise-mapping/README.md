@@ -1,6 +1,6 @@
-# @workout-generator/exercise-mapping
+# @interval-timers/exercise-mapping
 
-Shared logic for exercise resolution and canonical slug lookup. Used by `programs` and `admin-dash-astro`.
+Shared logic for exercise resolution and canonical slug lookup. Used by `app`.
 
 ## Public API
 

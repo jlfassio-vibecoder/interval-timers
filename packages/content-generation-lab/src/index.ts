@@ -5,7 +5,7 @@
  * @interval-timers/content-generation-lab
  *
  * Reusable hooks for AI content generation flows (exercise images, insights, etc.).
- * Extracted from Visualization Lab for use across admin-dash-astro and programs.
+ * Extracted from Visualization Lab for use across app.
  */
 
 export { useReferenceImage } from './useReferenceImage';
