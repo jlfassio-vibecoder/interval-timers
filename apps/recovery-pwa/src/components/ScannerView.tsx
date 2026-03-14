@@ -15,17 +15,19 @@ type ScannerState = 'requesting' | 'ready' | 'scanning' | 'error';
 interface Sample {
   timestamp: number;
   redMean: number;
+  greenMean: number;
 }
 
-function computeBpmFromPeaks(samples: Sample[]): number | null {
+function computeBpmFromPeaks(samples: Sample[], useGreen: boolean): number | null {
   if (samples.length < 30) return null;
 
-  const values = samples.map((s) => s.redMean);
+  const values = samples.map((s) => (useGreen ? s.greenMean : s.redMean));
   const times = samples.map((s) => s.timestamp);
   const minValue = Math.min(...values);
   const maxValue = Math.max(...values);
   const range = maxValue - minValue;
-  const prominence = Math.max(range * 0.015, 1);
+  if (range < 0.5) return null;
+  const prominence = Math.max(range * 0.008, 0.5);
   const peaks: number[] = [];
 
   for (let i = 2; i < values.length - 2; i++) {
@@ -114,9 +116,9 @@ export default function ScannerView({ onComplete }: ScannerViewProps) {
     navigator.mediaDevices
       .getUserMedia({
         video: {
-          facingMode: 'environment',
-          width: { ideal: 640 },
-          height: { ideal: 480 },
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 640, min: 320 },
+          height: { ideal: 480, min: 240 },
         },
       })
       .then((stream) => {
@@ -128,7 +130,9 @@ export default function ScannerView({ onComplete }: ScannerViewProps) {
         video.srcObject = stream;
 
         video.onloadedmetadata = () => {
-          video.play().catch(() => {});
+          video.play().catch((e) => {
+            if (!cancelled) console.warn('Video play failed:', e);
+          });
         };
 
         video.onplaying = async () => {
@@ -142,6 +146,14 @@ export default function ScannerView({ onComplete }: ScannerViewProps) {
               setTorchSupported(true);
             } catch {
               setTorchSupported(false);
+            }
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+            if (isIOS && track.getCapabilities && 'zoom' in track.getCapabilities()) {
+              try {
+                await track.applyConstraints({ advanced: [{ zoom: 0.5 } as MediaTrackConstraintSet] });
+              } catch {
+                /* zoom constraint not applicable, continue */
+              }
             }
           }
           setState('ready');
@@ -207,12 +219,15 @@ export default function ScannerView({ onComplete }: ScannerViewProps) {
       if (elapsed >= SCAN_DURATION_MS) {
         cancelAnimationFrame(animationRef.current);
         const samples = samplesRef.current;
-        const computedBpm = computeBpmFromPeaks(samples);
+        const computedBpm = computeBpmFromPeaks(samples, true) ?? computeBpmFromPeaks(samples, false);
         if (computedBpm !== null) {
           onComplete(computedBpm);
         } else {
           setState('error');
-          setErrorMessage('Low signal. Keep finger still, cover lens fully, and try again.');
+          const msg = samples.length < 10
+            ? 'Camera frames not received. Ensure you\'re using the rear camera and refresh the page.'
+            : 'Low signal. Keep finger still, cover lens fully, and try again.';
+          setErrorMessage(msg);
         }
         stopStream();
         return;
@@ -245,23 +260,27 @@ export default function ScannerView({ onComplete }: ScannerViewProps) {
         );
         const imageData = sampleCtx.getImageData(0, 0, SAMPLE_REGION_SIZE, SAMPLE_REGION_SIZE);
         const data = imageData.data;
-        let sum = 0;
+        let redSum = 0;
+        let greenSum = 0;
         let count = 0;
         for (let i = 0; i < data.length; i += 4) {
-          sum += data[i];
+          redSum += data[i];
+          greenSum += data[i + 1];
           count++;
         }
-        const redMean = count > 0 ? sum / count : 0;
+        const redMean = count > 0 ? redSum / count : 0;
+        const greenMean = count > 0 ? greenSum / count : 0;
 
-        samplesRef.current.push({ timestamp: now, redMean });
+        samplesRef.current.push({ timestamp: now, redMean, greenMean });
         if (samplesRef.current.length > maxSamples) {
           samplesRef.current.shift();
         }
 
-        const liveBpm = computeBpmFromPeaks(samplesRef.current);
+        const liveBpm = computeBpmFromPeaks(samplesRef.current, true) ?? computeBpmFromPeaks(samplesRef.current, false);
         if (liveBpm !== null) setBpm(liveBpm);
 
-        const normY = 75 - (redMean - 100) * 0.3;
+        const displayMean = (redMean + greenMean) / 2;
+        const normY = 75 - (displayMean - 100) * 0.3;
         wavePoints.push({ x: waveX, y: Math.max(10, Math.min(140, normY)) });
         waveX += 3;
         if (waveX > CANVAS_WIDTH) {
@@ -341,8 +360,11 @@ export default function ScannerView({ onComplete }: ScannerViewProps) {
           ref={videoRef}
           playsInline
           muted
-          className="absolute inset-0 w-full h-full object-cover opacity-0"
-          style={{ width: 1, height: 1 }}
+          autoPlay
+          width={320}
+          height={240}
+          className="absolute inset-0 w-full h-full object-cover opacity-0 pointer-events-none"
+          style={{ minWidth: 320, minHeight: 240 }}
           aria-hidden
         />
         <div className="camera-pulse" aria-hidden="true" />
