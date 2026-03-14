@@ -9,6 +9,8 @@ import ResultsView from './ResultsView';
 
 export type RecoveryView = 'landing' | 'scan' | 'manualBpm' | 'confirmHr' | 'rpe' | 'loading' | 'results';
 
+const CAPTURE_BUFFER_MS = 5000; // 5s buffer for decision-making/entry lag
+
 export interface RecoveryEngineProps {
   sessionId: string | null;
   endTime: number;
@@ -24,9 +26,8 @@ export default function RecoveryEngine({ sessionId, endTime }: RecoveryEnginePro
   const effectiveEndTime = endTime > 0 ? endTime : Date.now() - 15000;
 
   const handleStartScan = useCallback(() => {
-    setCaptureDelayMs(Date.now() - effectiveEndTime);
     setCurrentView('scan');
-  }, [effectiveEndTime]);
+  }, []);
 
   const handleScanComplete = useCallback((hr: number) => {
     setFinalHr(hr);
@@ -34,8 +35,10 @@ export default function RecoveryEngine({ sessionId, endTime }: RecoveryEnginePro
   }, []);
 
   const handleConfirmHr = useCallback(() => {
+    const rawDelay = Date.now() - effectiveEndTime;
+    setCaptureDelayMs(Math.max(0, rawDelay - CAPTURE_BUFFER_MS));
     setCurrentView('rpe');
-  }, []);
+  }, [effectiveEndTime]);
 
   const handleRescanHr = useCallback(() => {
     setCurrentView('scan');
