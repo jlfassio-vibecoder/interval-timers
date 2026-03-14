@@ -79,6 +79,8 @@ export default function ScannerView({ onComplete }: ScannerViewProps) {
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState('Requesting camera...');
   const [bpm, setBpm] = useState<number | null>(null);
+  const [signalStrength, setSignalStrength] = useState<'none' | 'weak' | 'good'>('none');
+  const [frameCount, setFrameCount] = useState(0);
 
   const stopStream = useCallback(() => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
@@ -92,6 +94,8 @@ export default function ScannerView({ onComplete }: ScannerViewProps) {
     setProgress(0);
     setStatus('Requesting camera...');
     setBpm(null);
+    setSignalStrength('none');
+    setFrameCount(0);
     samplesRef.current = [];
   }, []);
 
@@ -139,21 +143,17 @@ export default function ScannerView({ onComplete }: ScannerViewProps) {
           if (cancelled) return;
           const track = stream.getVideoTracks()[0];
           if (track && 'applyConstraints' in track) {
+            const caps = track.getCapabilities?.() ?? {};
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+            const advanced: MediaTrackConstraintSet[] = [{ torch: true }];
+            if (isIOS && 'zoom' in caps) {
+              advanced[0].zoom = 0.5;
+            }
             try {
-              await track.applyConstraints({
-                advanced: [{ torch: true } as MediaTrackConstraintSet],
-              });
+              await track.applyConstraints({ advanced });
               setTorchSupported(true);
             } catch {
               setTorchSupported(false);
-            }
-            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-            if (isIOS && track.getCapabilities && 'zoom' in track.getCapabilities()) {
-              try {
-                await track.applyConstraints({ advanced: [{ zoom: 0.5 } as MediaTrackConstraintSet] });
-              } catch {
-                /* zoom constraint not applicable, continue */
-              }
             }
           }
           setState('ready');
@@ -185,6 +185,8 @@ export default function ScannerView({ onComplete }: ScannerViewProps) {
       setState('scanning');
       setProgress(0);
       setStatus('Detecting pulse...');
+      setSignalStrength('none');
+      setFrameCount(0);
       samplesRef.current = [];
     }, 1500);
 
@@ -276,6 +278,14 @@ export default function ScannerView({ onComplete }: ScannerViewProps) {
           samplesRef.current.shift();
         }
 
+        setFrameCount(samplesRef.current.length);
+        const recent = samplesRef.current.slice(-60);
+        if (recent.length >= 15) {
+          const vals = recent.map((s) => (s.redMean + s.greenMean) / 2);
+          const r = Math.max(...vals) - Math.min(...vals);
+          setSignalStrength(r >= 1.5 ? 'good' : r >= 0.5 ? 'weak' : 'none');
+        }
+
         const liveBpm = computeBpmFromPeaks(samplesRef.current, true) ?? computeBpmFromPeaks(samplesRef.current, false);
         if (liveBpm !== null) setBpm(liveBpm);
 
@@ -355,7 +365,7 @@ export default function ScannerView({ onComplete }: ScannerViewProps) {
         )}
       </header>
 
-      <div className="camera-simulation flex-grow mb-8 flex flex-col items-center justify-center relative min-h-[280px]">
+      <div className="camera-simulation flex-grow mb-8 flex flex-col items-center justify-center relative min-h-[280px] overflow-hidden rounded-2xl">
         <video
           ref={videoRef}
           playsInline
@@ -363,19 +373,63 @@ export default function ScannerView({ onComplete }: ScannerViewProps) {
           autoPlay
           width={320}
           height={240}
-          className="absolute inset-0 w-full h-full object-cover opacity-0 pointer-events-none"
+          className={`absolute inset-0 w-full h-full object-cover pointer-events-none transition-opacity duration-300 ${
+            state === 'scanning' || state === 'ready' ? 'opacity-100' : 'opacity-0'
+          }`}
           style={{ minWidth: 320, minHeight: 240 }}
           aria-hidden
         />
-        <div className="camera-pulse" aria-hidden="true" />
+        <div
+          className={`absolute inset-0 pointer-events-none transition-opacity duration-300 ${
+            state === 'scanning' || state === 'ready' ? 'opacity-0' : 'opacity-100'
+          }`}
+          aria-hidden="true"
+        >
+          <div className="camera-pulse" />
+        </div>
+        {state === 'scanning' && (
+          <div className="absolute top-3 left-3 right-3 z-30 flex items-center justify-between gap-2">
+            <div
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold uppercase tracking-wider ${
+                signalStrength === 'good'
+                  ? 'bg-emerald-500/20 text-emerald-400'
+                  : signalStrength === 'weak'
+                    ? 'bg-amber-500/20 text-amber-400'
+                    : 'bg-zinc-600/40 text-zinc-400'
+              }`}
+            >
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  signalStrength === 'good'
+                    ? 'bg-emerald-400 animate-pulse'
+                    : signalStrength === 'weak'
+                      ? 'bg-amber-400'
+                      : 'bg-zinc-500'
+                }`}
+              />
+              {signalStrength === 'good'
+                ? 'Tracking'
+                : signalStrength === 'weak'
+                  ? 'Adjust finger'
+                  : frameCount > 0
+                    ? 'Finding signal...'
+                    : 'Align lens'}
+            </div>
+            {frameCount > 0 && (
+              <span className="text-[10px] text-zinc-500 font-mono tabular-nums">
+                {frameCount} frames
+              </span>
+            )}
+          </div>
+        )}
         <canvas
           ref={canvasRef}
           width={CANVAS_WIDTH}
           height={CANVAS_HEIGHT}
-          className="absolute z-10 w-full max-w-[300px] h-32 opacity-80"
+          className="absolute z-10 w-full max-w-[300px] h-32 opacity-90"
           aria-hidden="true"
         />
-        <div className="z-20 text-center mt-32">
+        <div className="z-20 text-center mt-32 flex flex-col items-center">
           <span className="text-5xl font-black font-mono drop-shadow-lg">
             {bpm ?? '--'}
           </span>
