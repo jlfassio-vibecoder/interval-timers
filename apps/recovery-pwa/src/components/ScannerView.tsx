@@ -12,8 +12,8 @@ const CANVAS_WIDTH = 300;
 const CANVAS_HEIGHT = 150;
 const SAMPLE_REGION_SIZE = 80;
 const MIN_BPM = 40;
-const MAX_BPM = 180;
-const MIN_INTERVAL_MS = 500; // Reject dicrotic notch (systolic-to-dicrotic ~250-400ms)
+const MAX_BPM = 150;
+const MIN_INTERVAL_MS = 60000 / MAX_BPM; // 400ms - rejects dicrotic notch (~250-350ms), max 150 BPM
 const MAX_INTERVAL_MS = 60000 / MIN_BPM; // 1500ms for 40 BPM
 
 type ScannerState = 'requesting' | 'ready' | 'scanning' | 'error';
@@ -71,7 +71,9 @@ function computeBpmFromPeaks(samples: Sample[], useGreen: boolean): number | nul
   if (filtered.length < 2) return null;
 
   const med = median(filtered);
-  filtered = filtered.filter((x) => x >= med * 0.65);
+  filtered = filtered.filter(
+    (x) => x >= med * 0.65 && x <= med * 1.5
+  );
   if (filtered.length < 2) return null;
 
   const avgInterval =
