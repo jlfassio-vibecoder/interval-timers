@@ -75,6 +75,10 @@
       "destination": "https://interval-timers-accounts.vercel.app/admin/"
     },
     {
+      "source": "/admin/_astro/(.*)",
+      "destination": "https://interval-timers-accounts.vercel.app/_astro/$1"
+    },
+    {
       "source": "/admin/(.*)",
       "destination": "https://interval-timers-accounts.vercel.app/admin/$1"
     },
