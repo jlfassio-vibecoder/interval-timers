@@ -8,7 +8,7 @@
 |----------|---------|-------|
 | `SUPABASE_URL` or `VITE_SUPABASE_URL` or `PUBLIC_SUPABASE_URL` | Supabase project URL | Client + server |
 | `SUPABASE_ANON_KEY` or `VITE_SUPABASE_ANON_KEY` or `PUBLIC_SUPABASE_ANON_KEY` | Anon (public) key | Client + server |
-| `SUPABASE_SERVICE_ROLE_KEY` | Service role key (server-only) | Server / API routes |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service role key (server-only) | Server / API routes; **required for admin users list** (bypasses RLS). Use the **service_role** secret from Dashboard → API, not the anon key. |
 
 ## Vercel Setup (Production)
 
