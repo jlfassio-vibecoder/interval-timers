@@ -250,7 +250,7 @@ const ExercisePrescriptionEngine: React.FC<ExercisePrescriptionEngineProps> = ({
             <button
               type="button"
               onClick={() => setFiltersOpen(true)}
-              className="border-[#ffbf00]/50 bg-[#ffbf00]/20 hover:bg-[#ffbf00]/30 inline-flex items-center gap-2 rounded-full border px-6 py-3 font-mono text-xs font-bold uppercase tracking-widest text-[#ffbf00] transition-all"
+              className="inline-flex items-center gap-2 rounded-full border border-[#ffbf00]/50 bg-[#ffbf00]/20 px-6 py-3 font-mono text-xs font-bold uppercase tracking-widest text-[#ffbf00] transition-all hover:bg-[#ffbf00]/30"
             >
               <SlidersHorizontal className="h-4 w-4" />
               Filters
@@ -330,7 +330,7 @@ const ExercisePrescriptionEngine: React.FC<ExercisePrescriptionEngineProps> = ({
               {alternatives.map((exercise) => (
                 <article
                   key={exercise.id}
-                  className="hover:border-[#ffbf00]/30 flex flex-col rounded-3xl border border-white/10 bg-black/20 p-[2px] shadow-2xl backdrop-blur-sm transition hover:bg-black/30"
+                  className="flex flex-col rounded-3xl border border-white/10 bg-black/20 p-[2px] shadow-2xl backdrop-blur-sm transition hover:border-[#ffbf00]/30 hover:bg-black/30"
                 >
                   <GridCard
                     headerImage={exercise.imageUrl || DEFAULT_PROGRAM_IMAGE}
@@ -367,8 +367,8 @@ const ExercisePrescriptionEngine: React.FC<ExercisePrescriptionEngineProps> = ({
           ) : (
             <>
               {topMatch && (
-                <div className="border-[#ffbf00]/30 rounded-xl border bg-black/20 p-4">
-                  <article className="border-[#ffbf00]/40 bg-[#ffbf00]/10 flex flex-col rounded-3xl border p-[2px] shadow-2xl backdrop-blur-sm">
+                <div className="rounded-xl border border-[#ffbf00]/30 bg-black/20 p-4">
+                  <article className="flex flex-col rounded-3xl border border-[#ffbf00]/40 bg-[#ffbf00]/10 p-[2px] shadow-2xl backdrop-blur-sm">
                     <GridCard
                       headerImage={topMatch.imageUrl || DEFAULT_PROGRAM_IMAGE}
                       headerImageAlt={topMatch.exerciseName}
@@ -420,7 +420,7 @@ const ExercisePrescriptionEngine: React.FC<ExercisePrescriptionEngineProps> = ({
                         key={exercise.id}
                         className={`flex flex-col rounded-3xl border p-[2px] shadow-2xl backdrop-blur-sm transition ${
                           exercise.matchScore >= 50
-                            ? 'hover:border-[#ffbf00]/30 border-white/10 bg-black/20 hover:bg-black/30'
+                            ? 'border-white/10 bg-black/20 hover:border-[#ffbf00]/30 hover:bg-black/30'
                             : 'border-white/5 bg-black/10 opacity-75'
                         } ${exercise.matchScore < 30 ? 'grayscale' : ''}`}
                       >

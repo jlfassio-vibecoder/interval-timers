@@ -64,8 +64,7 @@ function detectKineticChainType(biomechanicalChain: string): string {
   const lower = biomechanicalChain.toLowerCase();
   if (lower.includes('closed-kinetic') || lower.includes('closed kinetic'))
     return 'CLOSED-KINETIC CHAIN';
-  if (lower.includes('open-kinetic') || lower.includes('open kinetic'))
-    return 'OPEN-KINETIC CHAIN';
+  if (lower.includes('open-kinetic') || lower.includes('open kinetic')) return 'OPEN-KINETIC CHAIN';
   if (lower.includes('unilateral')) return 'UNILATERAL';
   if (lower.includes('bilateral')) return 'BILATERAL';
   if (lower.includes('compound')) return 'COMPOUND MOVEMENT';

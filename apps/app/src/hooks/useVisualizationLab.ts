@@ -129,15 +129,11 @@ export function useVisualizationLab(
 ): UseVisualizationLabReturn {
   const { initialTopic = '', topicKey, initialExercise } = options;
 
-  const [exerciseTopic, setExerciseTopic] = useState(
-    initialExercise?.exerciseName ?? initialTopic
-  );
+  const [exerciseTopic, setExerciseTopic] = useState(initialExercise?.exerciseName ?? initialTopic);
   const [complexityLevel, setComplexityLevel] = useState(
     initialExercise?.complexityLevel ?? 'intermediate'
   );
-  const [visualStyle, setVisualStyle] = useState(
-    initialExercise?.visualStyle ?? 'photorealistic'
-  );
+  const [visualStyle, setVisualStyle] = useState(initialExercise?.visualStyle ?? 'photorealistic');
   const [outputMode, setOutputMode] = useState<'single' | 'sequence'>('single');
   const [demographics, setDemographics] = useState('');
   const [movementPhase, setMovementPhase] = useState('');
@@ -172,8 +168,7 @@ export function useVisualizationLab(
     apiEndpoint: '/api/generate-exercise-image',
     useReference: true,
     proxyPath: '/api/load-reference-image',
-    buildBody: (ref) =>
-      buildRequestBody(formState, ref?.referenceImageData ?? null, false),
+    buildBody: (ref) => buildRequestBody(formState, ref?.referenceImageData ?? null, false),
     parseResponse: (data) => data as BiomechanicalPoints,
     twoPhase: {
       supportsPromptReview: true,
@@ -192,8 +187,7 @@ export function useVisualizationLab(
         if (formState.outputMode === 'sequence' && prompts.imagePrompts) {
           body.imagePrompts = prompts.imagePrompts;
         } else {
-          body.imagePrompt =
-            prompts.imagePrompt ?? researchResult.imagePrompt;
+          body.imagePrompt = prompts.imagePrompt ?? researchResult.imagePrompt;
         }
         return body;
       },
@@ -220,17 +214,13 @@ export function useVisualizationLab(
     let mounted = true;
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (mounted)
-        setUser(
-          session?.user ? { id: session.user.id, email: session.user.email } : null
-        );
+        setUser(session?.user ? { id: session.user.id, email: session.user.email } : null);
     });
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       if (mounted)
-        setUser(
-          session?.user ? { id: session.user.id, email: session.user.email } : null
-        );
+        setUser(session?.user ? { id: session.user.id, email: session.user.email } : null);
     });
     return () => {
       mounted = false;

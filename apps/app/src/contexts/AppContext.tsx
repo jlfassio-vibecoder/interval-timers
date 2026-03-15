@@ -231,7 +231,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
 
     try {
-      const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle();
 
       if (error) {
         console.error('Error fetching profile:', error);
@@ -288,13 +292,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const trialEndsAt = user?.trialEndsAt ?? null;
   const trialEndDate = trialEndsAt ? new Date(trialEndsAt) : null;
   const now = Date.now();
-  const isInTrial =
-    !isPaid &&
-    trialEndDate != null &&
-    trialEndDate.getTime() > now;
-  const trialRemainingMs = isInTrial && trialEndDate
-    ? trialEndDate.getTime() - now
-    : null;
+  const isInTrial = !isPaid && trialEndDate != null && trialEndDate.getTime() > now;
+  const trialRemainingMs = isInTrial && trialEndDate ? trialEndDate.getTime() - now : null;
 
   return (
     <AppContext.Provider

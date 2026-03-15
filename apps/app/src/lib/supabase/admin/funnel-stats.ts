@@ -88,10 +88,14 @@ export async function getFunnelStats(days = DEFAULT_DAYS): Promise<FunnelStats> 
 
   for (const r of eventResults) {
     if ('rows' in r && r.rows) {
-      r.rows.forEach((row) => row.user_id && (r.name === 'hub_timer_launch_1' ? distinctLaunch1 : distinctLaunch2).add(row.user_id));
+      r.rows.forEach(
+        (row) =>
+          row.user_id &&
+          (r.name === 'hub_timer_launch_1' ? distinctLaunch1 : distinctLaunch2).add(row.user_id)
+      );
       counts[r.name] = r.rows.length;
     } else {
-      counts[r.name] = ('count' in r ? r.count : 0);
+      counts[r.name] = 'count' in r ? r.count : 0;
     }
   }
 
@@ -99,7 +103,12 @@ export async function getFunnelStats(days = DEFAULT_DAYS): Promise<FunnelStats> 
   const { data: handoffRows } = await supabase
     .from('analytics_events')
     .select('event_name, properties')
-    .in('event_name', ['timer_save_click', 'account_land_handoff', 'account_session_prefill_success', 'account_session_prefill_fail'])
+    .in('event_name', [
+      'timer_save_click',
+      'account_land_handoff',
+      'account_session_prefill_success',
+      'account_session_prefill_fail',
+    ])
     .gte('timestamp', fromIso)
     .lte('timestamp', toIso);
 
@@ -115,7 +124,8 @@ export async function getFunnelStats(days = DEFAULT_DAYS): Promise<FunnelStats> 
     }
     if (row.event_name === 'timer_save_click') bySource[source].timer_save_click++;
     else if (row.event_name === 'account_land_handoff') bySource[source].account_land_handoff++;
-    else if (row.event_name === 'account_session_prefill_success') bySource[source].prefill_success++;
+    else if (row.event_name === 'account_session_prefill_success')
+      bySource[source].prefill_success++;
     else if (row.event_name === 'account_session_prefill_fail') bySource[source].prefill_fail++;
   }
 

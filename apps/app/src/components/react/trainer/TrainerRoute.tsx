@@ -9,6 +9,7 @@ import RosterView from './views/RosterView';
 import ClientDetailView from './views/ClientDetailView';
 import IntelView from './views/IntelView';
 import FluidBackground from '../FluidBackground';
+import PageViewTracker from '@/components/react/PageViewTracker';
 import { adminPaths } from '@/lib/admin/config';
 
 const TRAINER_NAV = [
@@ -26,6 +27,7 @@ const TrainerLayout: React.FC = () => {
   const location = useLocation();
   return (
     <div className="flex min-h-screen bg-black text-white">
+      <PageViewTracker pathname={location.pathname} supabase={supabase} appId="app" />
       <aside className="w-56 border-r border-white/10 bg-black/40 backdrop-blur-sm">
         <div className="flex h-full min-h-screen flex-col">
           <div className="border-b border-white/10 p-5">

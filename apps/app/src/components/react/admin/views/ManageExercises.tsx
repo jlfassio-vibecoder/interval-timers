@@ -271,7 +271,7 @@ const ManageExercises: React.FC = () => {
         </div>
         <Link
           to="/exercise-image-gen"
-          className="hover:bg-[#ffbf00]/90 flex items-center gap-2 rounded-lg bg-[#ffbf00] px-4 py-2 font-medium text-black transition-colors"
+          className="flex items-center gap-2 rounded-lg bg-[#ffbf00] px-4 py-2 font-medium text-black transition-colors hover:bg-[#ffbf00]/90"
         >
           <Image className="h-5 w-5" />
           <span>{EXERCISE_LABELS.visualizationLab}</span>
@@ -362,7 +362,7 @@ const ManageExercises: React.FC = () => {
                       >
                         <Link to={`/exercises/${item.slug}`} className="block">
                           <div className="mb-2 flex items-center gap-2">
-                            <span className="bg-[#ffbf00]/20 rounded-full px-2 py-0.5 text-xs font-medium text-[#ffbf00]">
+                            <span className="rounded-full bg-[#ffbf00]/20 px-2 py-0.5 text-xs font-medium text-[#ffbf00]">
                               From Visualization Lab
                             </span>
                             <span
@@ -501,7 +501,7 @@ const ManageExercises: React.FC = () => {
           <div className="flex justify-end">
             <button
               onClick={() => setShowForm(!showForm)}
-              className="hover:bg-[#ffbf00]/90 flex items-center gap-2 rounded-lg bg-[#ffbf00] px-4 py-2 font-medium text-black transition-colors"
+              className="flex items-center gap-2 rounded-lg bg-[#ffbf00] px-4 py-2 font-medium text-black transition-colors hover:bg-[#ffbf00]/90"
             >
               <Plus className="h-5 w-5" />
               <span>Add Exercise</span>
@@ -537,7 +537,7 @@ const ManageExercises: React.FC = () => {
                     type="text"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="focus:border-[#ffbf00]/50 focus:ring-[#ffbf00]/20 w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-white placeholder:text-white/40 focus:outline-none focus:ring-2"
+                    className="w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-white placeholder:text-white/40 focus:border-[#ffbf00]/50 focus:outline-none focus:ring-2 focus:ring-[#ffbf00]/20"
                     placeholder="e.g. Squat"
                     required
                   />
@@ -553,7 +553,7 @@ const ManageExercises: React.FC = () => {
                         category: e.target.value as 'strength' | 'cardio' | 'mobility',
                       })
                     }
-                    className="focus:border-[#ffbf00]/50 focus:ring-[#ffbf00]/20 w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-white focus:outline-none focus:ring-2"
+                    className="w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-white focus:border-[#ffbf00]/50 focus:outline-none focus:ring-2 focus:ring-[#ffbf00]/20"
                     required
                   >
                     <option value="strength">Strength</option>
@@ -570,7 +570,7 @@ const ManageExercises: React.FC = () => {
                     type="text"
                     value={formData.muscleGroups}
                     onChange={(e) => setFormData({ ...formData, muscleGroups: e.target.value })}
-                    className="focus:border-[#ffbf00]/50 focus:ring-[#ffbf00]/20 w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-white placeholder:text-white/40 focus:outline-none focus:ring-2"
+                    className="w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-white placeholder:text-white/40 focus:border-[#ffbf00]/50 focus:outline-none focus:ring-2 focus:ring-[#ffbf00]/20"
                     placeholder="e.g. quads, glutes"
                     required
                   />
@@ -584,7 +584,7 @@ const ManageExercises: React.FC = () => {
                     type="url"
                     value={formData.videoUrl}
                     onChange={(e) => setFormData({ ...formData, videoUrl: e.target.value })}
-                    className="focus:border-[#ffbf00]/50 focus:ring-[#ffbf00]/20 w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-white placeholder:text-white/40 focus:outline-none focus:ring-2"
+                    className="w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-white placeholder:text-white/40 focus:border-[#ffbf00]/50 focus:outline-none focus:ring-2 focus:ring-[#ffbf00]/20"
                     placeholder="https://..."
                   />
                 </div>
@@ -597,7 +597,7 @@ const ManageExercises: React.FC = () => {
                     type="text"
                     value={formData.defaultEquipment}
                     onChange={(e) => setFormData({ ...formData, defaultEquipment: e.target.value })}
-                    className="focus:border-[#ffbf00]/50 focus:ring-[#ffbf00]/20 w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-white placeholder:text-white/40 focus:outline-none focus:ring-2"
+                    className="w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-white placeholder:text-white/40 focus:border-[#ffbf00]/50 focus:outline-none focus:ring-2 focus:ring-[#ffbf00]/20"
                     placeholder="e.g. dumbbells, bench"
                   />
                 </div>
@@ -605,7 +605,7 @@ const ManageExercises: React.FC = () => {
                 <div className="flex gap-3 pt-2">
                   <button
                     type="submit"
-                    className="hover:bg-[#ffbf00]/90 rounded-lg bg-[#ffbf00] px-6 py-2 font-medium text-black transition-colors"
+                    className="rounded-lg bg-[#ffbf00] px-6 py-2 font-medium text-black transition-colors hover:bg-[#ffbf00]/90"
                   >
                     Create Exercise
                   </button>
@@ -760,7 +760,7 @@ const ManageExercises: React.FC = () => {
             {/* Generate New Button */}
             <Link
               to="/exercise-image-gen"
-              className="hover:bg-[#ffbf00]/90 flex items-center gap-2 rounded-lg bg-[#ffbf00] px-4 py-2 font-medium text-black transition-colors"
+              className="flex items-center gap-2 rounded-lg bg-[#ffbf00] px-4 py-2 font-medium text-black transition-colors hover:bg-[#ffbf00]/90"
             >
               <Sparkles className="h-5 w-5" />
               <span>Generate New Exercise</span>

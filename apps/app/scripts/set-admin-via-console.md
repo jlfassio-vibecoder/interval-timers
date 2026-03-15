@@ -5,6 +5,7 @@ Admin routes use **Supabase** `profiles.role`. Both `admin` and `trainer` roles 
 ## Supabase (Recommended for this project)
 
 **If your user has no profile row** (e.g. signed up before the trigger existed), run this first in SQL Editor:
+
 ```sql
 -- Backfill: create profiles for auth.users who don't have one
 INSERT INTO public.profiles (id, email, full_name, avatar_url, role)
@@ -23,6 +24,7 @@ ON CONFLICT (id) DO NOTHING;
 4. Save.
 
 Or run in **SQL Editor**:
+
 ```sql
 UPDATE public.profiles SET role = 'admin' WHERE id = '<YOUR_USER_UUID>';
 -- Get your UUID from Supabase Auth → Users

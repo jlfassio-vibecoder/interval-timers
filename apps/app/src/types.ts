@@ -16,6 +16,12 @@ export interface UserProfile {
   customClaims?: Record<string, unknown>;
   /** Hub-wide trial end; set on sign-up to now + 7 days */
   trialEndsAt?: string | null;
+  /** Last sign-in timestamp (ISO); from Auth or profiles.last_sign_in_at */
+  lastSignInAt?: string | null;
+  /** Count of explicit sign-in visits */
+  signInVisitCount?: number;
+  /** Count of resumed-activity visits */
+  activityVisitCount?: number;
 }
 
 export interface Exercise {
