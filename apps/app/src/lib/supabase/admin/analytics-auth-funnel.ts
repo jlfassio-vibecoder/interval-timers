@@ -170,6 +170,7 @@ export async function getAuthFunnelStats(days: number): Promise<AuthFunnelStats>
     }
   }
 
+  // First key event per user for TTFKA; limit 10k may undercount if key events exceed that globally.
   const { data: firstKeyEvents } = await supabase
     .from('analytics_events')
     .select('user_id, timestamp')

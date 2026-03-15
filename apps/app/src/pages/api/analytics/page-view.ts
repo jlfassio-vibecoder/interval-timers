@@ -26,6 +26,11 @@ export const POST: APIRoute = async ({ request }) => {
     if (!path) {
       return new Response(null, { status: 400 });
     }
+    // Cap path length to prevent abuse (e.g. huge payloads).
+    const MAX_PATH_LENGTH = 2048;
+    if (path.length > MAX_PATH_LENGTH) {
+      return new Response(null, { status: 400 });
+    }
 
     const userAgent = request.headers.get('user-agent') ?? null;
     const ipCountry =

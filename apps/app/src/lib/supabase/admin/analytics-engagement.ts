@@ -42,8 +42,9 @@ export async function getEngagementStats(days: number): Promise<EngagementStats>
 
   const sevenDaysAgo = new Date(toDate.getTime() - 7 * 24 * 60 * 60 * 1000);
   const thirtyDaysAgo = new Date(toDate.getTime() - 30 * 24 * 60 * 60 * 1000);
-  const from7 = sevenDaysAgo.toISOString();
-  const from30 = thirtyDaysAgo.toISOString();
+  // Use date-only strings so WAU/MAU cutoff compares consistently with dauByDayMap keys (YYYY-MM-DD).
+  const from7 = dateKey(sevenDaysAgo);
+  const from30 = dateKey(thirtyDaysAgo);
 
   // Distinct user_id per day from analytics_events and web_events (union per date)
   const dauByDayMap = new Map<string, Set<string>>();

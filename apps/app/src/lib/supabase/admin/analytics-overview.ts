@@ -34,7 +34,8 @@ export async function getAnalyticsOverview(days: number): Promise<AnalyticsOverv
     .select('user_id')
     .gte('timestamp', fromIso)
     .lte('timestamp', toIso)
-    .not('user_id', 'is', null);
+    .not('user_id', 'is', null)
+    .limit(50000);
 
   if (userError) throw userError;
 

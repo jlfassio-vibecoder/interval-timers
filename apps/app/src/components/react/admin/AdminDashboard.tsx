@@ -43,6 +43,7 @@ const AdminLayout: React.FC = () => {
 
   return (
     <div className="flex h-screen bg-bg-dark text-white">
+      {/* Passing shared client for admin route page-view tracking (client-rendered). */}
       <PageViewTracker pathname={location.pathname} supabase={supabase} appId="app" />
       {/* Sidebar */}
       <aside className="w-64 border-r border-white/10 bg-black/20 backdrop-blur-sm">

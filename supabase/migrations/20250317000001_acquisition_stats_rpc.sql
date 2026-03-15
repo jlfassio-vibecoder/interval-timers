@@ -14,6 +14,7 @@ DECLARE
 BEGIN
   from_ts := to_ts - (p_days * interval '1 day');
 
+  -- events CTE is bounded by params (from_ts/to_ts); admin calls with p_days (e.g. 30).
   WITH params AS (SELECT from_ts AS f, to_ts AS t),
   events AS (
     SELECT
