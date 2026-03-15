@@ -362,7 +362,7 @@ const GeneratedExerciseDetail: React.FC<GeneratedExerciseDetailProps> = ({
               </div>
             ) : (
               <div className="flex items-center gap-3">
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10/20 px-3 py-1 text-xs font-medium text-white/60">
+                <span className="bg-white/10/20 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium text-white/60">
                   Not Generated
                 </span>
                 {onGenerateDeepDive && (

@@ -108,21 +108,32 @@ const AdminLoginGate: React.FC = () => {
                 <strong>No profile found</strong> for your account.
               </p>
               <p className="text-amber-200/90">
-                Your user ID: <code className="break-all rounded bg-black/20 px-1 font-mono text-xs">{user.id}</code>
+                Your user ID:{' '}
+                <code className="break-all rounded bg-black/20 px-1 font-mono text-xs">
+                  {user.id}
+                </code>
               </p>
               <p className="text-amber-200/90">
                 App is connected to:{' '}
                 <code className="break-all rounded bg-black/20 px-1 font-mono text-xs">
-                  {(import.meta.env.PUBLIC_SUPABASE_URL ||
+                  {import.meta.env.PUBLIC_SUPABASE_URL ||
                     import.meta.env.VITE_SUPABASE_URL ||
                     import.meta.env.SUPABASE_URL ||
-                    '') || '(not set)'}
+                    '' ||
+                    '(not set)'}
                 </code>
               </p>
-              <p className="text-amber-200/80 text-xs">
-                Run the SQL below in the <strong>same</strong> Supabase project. If the URL above is <code className="rounded bg-black/20 px-1">http://127.0.0.1:54321</code>, you must run SQL in your <strong>local</strong> project (e.g. <code className="rounded bg-black/20 px-1">npx supabase db execute</code> or local Studio at :54323), not the hosted dashboard.
+              <p className="text-xs text-amber-200/80">
+                Run the SQL below in the <strong>same</strong> Supabase project. If the URL above is{' '}
+                <code className="rounded bg-black/20 px-1">http://127.0.0.1:54321</code>, you must
+                run SQL in your <strong>local</strong> project (e.g.{' '}
+                <code className="rounded bg-black/20 px-1">npx supabase db execute</code> or local
+                Studio at :54323), not the hosted dashboard.
               </p>
-              <p>Create the profile by running this in Supabase → SQL Editor (same project your app uses):</p>
+              <p>
+                Create the profile by running this in Supabase → SQL Editor (same project your app
+                uses):
+              </p>
               <pre className="overflow-x-auto rounded bg-black/30 p-2 text-xs">
                 {`INSERT INTO public.profiles (id, email, full_name, avatar_url, role)
 SELECT u.id, u.email, COALESCE(u.raw_user_meta_data->>'full_name', u.raw_user_meta_data->>'name'), u.raw_user_meta_data->>'avatar_url', 'client'
@@ -132,10 +143,14 @@ WHERE p.id IS NULL
 ON CONFLICT (id) DO NOTHING;`}
               </pre>
               <p className="text-amber-200/90">
-                Then: <code className="rounded bg-black/20 px-1">UPDATE public.profiles SET role = &apos;admin&apos; WHERE id = &apos;{user.id}&apos;;</code>
+                Then:{' '}
+                <code className="rounded bg-black/20 px-1">
+                  UPDATE public.profiles SET role = &apos;admin&apos; WHERE id = &apos;{user.id}
+                  &apos;;
+                </code>
               </p>
               {profileError && (
-                <p className="text-amber-200/70 text-xs">Fetch error: {profileError}</p>
+                <p className="text-xs text-amber-200/70">Fetch error: {profileError}</p>
               )}
             </>
           ) : (

@@ -261,9 +261,7 @@ const PrescriptionVitalsSidebar: React.FC<PrescriptionVitalsSidebarProps> = ({
                 onChange={(e) => onDaysPerWeekChange(Number(e.target.value))}
                 className="h-2 w-full appearance-none rounded-full bg-white/10 accent-[#ffbf00]"
               />
-              <span className="w-8 font-mono text-sm font-bold text-[#ffbf00]">
-                {daysPerWeek}
-              </span>
+              <span className="w-8 font-mono text-sm font-bold text-[#ffbf00]">{daysPerWeek}</span>
             </div>
           </div>
         )}
