@@ -40,11 +40,12 @@ const ManageUsers: React.FC = () => {
         if (response.status === 401) {
           throw new Error('Unauthorized. Please ensure you have admin access.');
         }
-        throw new Error('Failed to fetch users');
+        const errBody = await response.json().catch(() => ({})) as { error?: string };
+        throw new Error(errBody.error ?? 'Failed to fetch users');
       }
 
       const data = await response.json();
-      setUsers(data);
+      setUsers(Array.isArray(data) ? data : []);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load users';
       setError(errorMessage);

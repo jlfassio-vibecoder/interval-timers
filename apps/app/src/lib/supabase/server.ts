@@ -42,6 +42,7 @@ const anonKey =
 
 /**
  * Client with service role key when available (bypasses RLS). Otherwise anon (RLS applies).
+ * Admin APIs (e.g. users list) need service role to read all profiles; with anon key RLS often returns empty.
  */
 export function getSupabaseServer() {
   if (!supabaseUrl) throw new Error('SUPABASE_URL or PUBLIC_SUPABASE_URL or VITE_SUPABASE_URL required');
@@ -50,5 +51,10 @@ export function getSupabaseServer() {
     throw new Error(
       'SUPABASE_SERVICE_ROLE_KEY or SUPABASE_ANON_KEY or PUBLIC_SUPABASE_ANON_KEY or VITE_SUPABASE_ANON_KEY required'
     );
+  if (!serviceRoleKey && process.env.NODE_ENV === 'production') {
+    console.warn(
+      '[supabase/server] SUPABASE_SERVICE_ROLE_KEY is not set. Admin users list may be empty (RLS). Set the service_role secret from Supabase Dashboard → API in Vercel env.'
+    );
+  }
   return createClient(supabaseUrl, key);
 }
