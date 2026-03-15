@@ -67,3 +67,28 @@ Code: DEPLOYMENT_NOT_FOUND
 4. **Redeploy the main project** so the new rewrites take effect
 
 5. **Verify:** Open `https://<your-app-url>/account` directly — it should load. Then try logging in from AMRAP again.
+
+## Troubleshooting: HTTP 500 on App (interval-timers-accounts.vercel.app)
+
+**Symptom:** The App URL (e.g. `https://interval-timers-accounts.vercel.app` or `https://hiitworkouttimer.com/admin`) returns:
+
+```
+This page isn't working
+HTTP ERROR 500
+```
+
+**Cause:** The App throws in production when Supabase env vars are not set. `src/lib/supabase/supabase-instance.ts` fails fast so auth is never sent to a wrong/missing project.
+
+**Fix:**
+
+1. Open **Vercel** → **App project** (interval-timers-accounts) → **Settings** → **Environment Variables**.
+2. Add for **Production** (and **Preview** if you use branch previews):
+   - `SUPABASE_URL` = your Supabase project URL (e.g. `https://<project-ref>.supabase.co`)
+   - `SUPABASE_ANON_KEY` = anon key from Supabase Dashboard → Project Settings → API
+3. **Redeploy** the App project (Deployments → … → Redeploy) so the new env is used.
+
+**If env vars are already set and you still get 500:**
+
+- **Redeploy** again so the build runs with the current env (older builds may have baked in empty values).
+- In Vercel → App project → **Deployments** → open the latest deployment → **Functions** or **Runtime Logs**. The logged error (e.g. missing Supabase, or another exception) will show the real cause.
+4. See **docs/SUPABASE_ENV.md** for all supported variable names (`VITE_*`, `PUBLIC_*`, etc.).
