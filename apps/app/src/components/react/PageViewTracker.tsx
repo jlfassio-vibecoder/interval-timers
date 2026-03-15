@@ -31,7 +31,7 @@ const PageViewTracker: React.FC<PageViewTrackerProps> = ({
     () => {
       trackPageView(client, { appId });
     },
-    pathname === undefined ? [] : [pathname, client, appId]
+    [pathname, client, appId]
   );
 
   return null;

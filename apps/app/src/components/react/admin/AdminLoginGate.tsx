@@ -119,7 +119,6 @@ const AdminLoginGate: React.FC = () => {
                   {import.meta.env.PUBLIC_SUPABASE_URL ||
                     import.meta.env.VITE_SUPABASE_URL ||
                     import.meta.env.SUPABASE_URL ||
-                    '' ||
                     '(not set)'}
                 </code>
               </p>
