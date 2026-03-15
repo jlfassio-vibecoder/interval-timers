@@ -24,6 +24,7 @@ const ManageUsers: React.FC = () => {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [hint, setHint] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [revokingUid, setRevokingUid] = useState<string | null>(null);
 
@@ -31,6 +32,7 @@ const ManageUsers: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
+      setHint(null);
 
       const response = await fetch('/api/admin/users', {
         credentials: 'include',
@@ -45,7 +47,13 @@ const ManageUsers: React.FC = () => {
       }
 
       const data = await response.json();
-      setUsers(Array.isArray(data) ? data : []);
+      const list = Array.isArray(data) ? data : (data && Array.isArray(data.users) ? data.users : []);
+      setUsers(list);
+      if (data && typeof data._hint === 'string') {
+        setHint(data._hint);
+      } else {
+        setHint(null);
+      }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load users';
       setError(errorMessage);
@@ -141,6 +149,13 @@ const ManageUsers: React.FC = () => {
       {loading && (
         <div className="rounded-lg border border-white/10 bg-black/20 p-6 backdrop-blur-sm">
           <p className="text-white/60">Loading users...</p>
+        </div>
+      )}
+
+      {/* Hint (e.g. service role key missing in production) */}
+      {hint && (
+        <div className="rounded-lg border border-[#ffbf00]/50 bg-[#ffbf00]/10 p-4 backdrop-blur-sm">
+          <p className="text-sm text-[#ffbf00]">{hint}</p>
         </div>
       )}
 
