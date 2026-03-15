@@ -41,6 +41,13 @@ const anonKey =
   normalizeEnvVar(import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined);
 
 /**
+ * Whether the server has the Supabase service role key (bypasses RLS). Used to hint when admin list is empty.
+ */
+export function hasServiceRoleKey(): boolean {
+  return !!serviceRoleKey;
+}
+
+/**
  * Client with service role key when available (bypasses RLS). Otherwise anon (RLS applies).
  * Admin APIs (e.g. users list) need service role to read all profiles; with anon key RLS often returns empty.
  */

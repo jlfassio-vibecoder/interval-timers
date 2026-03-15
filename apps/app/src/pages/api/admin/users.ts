@@ -5,6 +5,7 @@
 
 import type { APIRoute } from 'astro';
 import { verifyTrainerOrAdminRequest } from '@/lib/supabase/admin/auth';
+import { hasServiceRoleKey } from '@/lib/supabase/server';
 import { getAllUsersWithAuthServer } from '@/lib/supabase/admin/statistics';
 
 const SERVICE_ROLE_HINT =
@@ -30,7 +31,13 @@ export const GET: APIRoute = async ({ request, cookies }) => {
     // Fetch all users (with Auth provider/claims merged). Requires service role to bypass RLS.
     const users = await getAllUsersWithAuthServer();
 
-    return new Response(JSON.stringify(users), {
+    const payload: { users: unknown[]; _hint?: string } = { users };
+    if (users.length === 0 && !hasServiceRoleKey()) {
+      payload._hint =
+        'SUPABASE_SERVICE_ROLE_KEY is missing or wrong. Use the service_role secret from Supabase Dashboard → Project Settings → API (not the anon key). Add it in Vercel → App project → Environment Variables, then redeploy.';
+    }
+
+    return new Response(JSON.stringify(payload), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
