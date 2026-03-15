@@ -4,7 +4,7 @@
  */
 
 import type { APIRoute } from 'astro';
-import { verifyAdminRequest } from '@/lib/supabase/admin/auth';
+import { verifyTrainerOrAdminRequest } from '@/lib/supabase/admin/auth';
 import {
   fetchFullChallenge,
   fetchChallengeMetadata,
@@ -16,7 +16,7 @@ import type { ChallengeTemplate, ChallengeConfig } from '@/types/ai-challenge';
 
 export const GET: APIRoute = async ({ request, params, cookies, url }) => {
   try {
-    await verifyAdminRequest(request, cookies);
+    await verifyTrainerOrAdminRequest(request, cookies);
 
     const challengeId = params.challengeId;
     if (!challengeId) {
@@ -62,7 +62,7 @@ export const GET: APIRoute = async ({ request, params, cookies, url }) => {
 
 export const PATCH: APIRoute = async ({ request, params, cookies }) => {
   try {
-    await verifyAdminRequest(request, cookies);
+    await verifyTrainerOrAdminRequest(request, cookies);
 
     const challengeId = params.challengeId;
     if (!challengeId) {
@@ -124,7 +124,7 @@ export const PATCH: APIRoute = async ({ request, params, cookies }) => {
 
 export const PUT: APIRoute = async ({ request, params, cookies }) => {
   try {
-    await verifyAdminRequest(request, cookies);
+    await verifyTrainerOrAdminRequest(request, cookies);
 
     const challengeId = params.challengeId;
     if (!challengeId) {
@@ -184,7 +184,7 @@ export const PUT: APIRoute = async ({ request, params, cookies }) => {
 
 export const DELETE: APIRoute = async ({ request, params, cookies }) => {
   try {
-    await verifyAdminRequest(request, cookies);
+    await verifyTrainerOrAdminRequest(request, cookies);
 
     const challengeId = params.challengeId;
     if (!challengeId) {

@@ -4,12 +4,12 @@
  */
 
 import type { APIRoute } from 'astro';
-import { verifyAdminRequest } from '@/lib/supabase/admin/auth';
+import { verifyTrainerOrAdminRequest } from '@/lib/supabase/admin/auth';
 import { getAllUsersWithAuthServer } from '@/lib/supabase/admin/statistics';
 
 export const GET: APIRoute = async ({ request, cookies }) => {
   try {
-    await verifyAdminRequest(request, cookies);
+    await verifyTrainerOrAdminRequest(request, cookies);
 
     // Fetch all users (with Auth provider/claims merged)
     const users = await getAllUsersWithAuthServer();

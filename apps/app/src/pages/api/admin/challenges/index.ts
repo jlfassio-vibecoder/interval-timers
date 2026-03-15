@@ -4,14 +4,14 @@
  */
 
 import type { APIRoute } from 'astro';
-import { verifyAdminRequest } from '@/lib/supabase/admin/auth';
+import { verifyTrainerOrAdminRequest } from '@/lib/supabase/admin/auth';
 import { fetchChallengeLibrary, createChallenge } from '@/lib/supabase/admin/challenges';
 import type { ChallengeTemplate, ChallengeConfig } from '@/types/ai-challenge';
 import type { PromptChainMetadata } from '@/types/ai-program';
 
 export const GET: APIRoute = async ({ request, cookies }) => {
   try {
-    await verifyAdminRequest(request, cookies);
+    await verifyTrainerOrAdminRequest(request, cookies);
     const challenges = await fetchChallengeLibrary();
     return new Response(JSON.stringify(challenges), {
       status: 200,
@@ -39,7 +39,7 @@ export const GET: APIRoute = async ({ request, cookies }) => {
 
 export const POST: APIRoute = async ({ request, cookies }) => {
   try {
-    const adminInfo = await verifyAdminRequest(request, cookies);
+    const adminInfo = await verifyTrainerOrAdminRequest(request, cookies);
 
     let body: {
       challengeData: ChallengeTemplate;

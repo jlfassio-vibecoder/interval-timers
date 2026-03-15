@@ -69,14 +69,14 @@ const StatusBadge: React.FC<{ status: GeneratedExerciseStatus }> = ({ status }) 
   const config = {
     pending: {
       icon: Clock,
-      bg: 'bg-amber-500/20',
-      text: 'text-amber-400',
+      bg: 'bg-[#ffbf00]/20',
+      text: 'text-[#ffbf00]',
       label: 'Pending Review',
     },
     approved: {
       icon: CheckCircle,
-      bg: 'bg-emerald-500/20',
-      text: 'text-emerald-400',
+      bg: 'bg-[#ffbf00]/20',
+      text: 'text-[#ffbf00]',
       label: 'Approved',
     },
     rejected: { icon: XCircle, bg: 'bg-red-500/20', text: 'text-red-400', label: 'Rejected' },
@@ -218,15 +218,15 @@ const GeneratedExerciseDetail: React.FC<GeneratedExerciseDetailProps> = ({
     : visibleVideos;
 
   return (
-    <div className="flex min-h-screen flex-col gap-4 bg-slate-900 pb-10 text-white">
+    <div className="flex min-h-screen flex-col gap-4 bg-[#0d0500] pb-10 text-white">
       {/* 1. HERO SECTION - The Stroboscopic Shot */}
-      <div className="relative h-80 w-full overflow-hidden md:h-[28rem]">
+      <div className="relative flex h-80 w-full items-center justify-center overflow-hidden bg-[#0d0500] md:h-[28rem]">
         <img
           src={exercise.imageUrl}
           alt={`${exercise.exerciseName} biomechanics visualization`}
-          className="h-full w-full object-cover"
+          className="max-h-full max-w-full object-contain"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/50 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#0d0500] via-[#0d0500]/50 to-transparent" />
         <div className="absolute bottom-0 left-0 w-full p-6">
           {isAdmin && (
             <div className="mb-3">
@@ -234,7 +234,7 @@ const GeneratedExerciseDetail: React.FC<GeneratedExerciseDetailProps> = ({
             </div>
           )}
           <h1 className="mb-2 text-3xl font-bold md:text-5xl">{exercise.exerciseName}</h1>
-          <span className="font-mono text-sm tracking-wider text-emerald-400">
+          <span className="font-mono text-sm tracking-wider text-[#ffbf00]">
             {exercise.kineticChainType}
           </span>
         </div>
@@ -245,7 +245,7 @@ const GeneratedExerciseDetail: React.FC<GeneratedExerciseDetailProps> = ({
         <div className="px-4 md:px-6">
           <button
             onClick={() => setIsEditMode(true)}
-            className="inline-flex items-center gap-2 rounded-lg bg-slate-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-600"
+            className="inline-flex items-center gap-2 rounded-lg bg-[#ffbf00] px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-[#ffbf00]/90"
           >
             <Edit className="h-4 w-4" />
             Edit Exercise
@@ -256,15 +256,15 @@ const GeneratedExerciseDetail: React.FC<GeneratedExerciseDetailProps> = ({
       {/* Admin Controls - show when pending OR in edit mode */}
       {isAdmin && (exercise.status === 'pending' || isEditMode) && (
         <div className="px-4 md:px-6">
-          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-700 bg-slate-800 p-4">
-            <span className="text-sm text-slate-400">Admin Actions:</span>
+          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-white/10 bg-black/40 p-4">
+            <span className="text-sm text-white/60">Admin Actions:</span>
 
             {/* Approve - show for pending or rejected (not already approved) */}
             {exercise.status !== 'approved' && onStatusUpdate && (
               <button
                 onClick={handleApprove}
                 disabled={isUpdating || isSavingImage}
-                className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-700 disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded-lg bg-[#ffbf00] px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-[#ffbf00]/90 disabled:opacity-50"
               >
                 <CheckCircle className="h-4 w-4" />
                 Approve
@@ -288,7 +288,7 @@ const GeneratedExerciseDetail: React.FC<GeneratedExerciseDetailProps> = ({
               <button
                 onClick={openSaveImageModal}
                 disabled={isUpdating || isSavingImage}
-                className="inline-flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-amber-700 disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded-lg bg-[#ffbf00] px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-[#ffbf00]/90 disabled:opacity-50"
               >
                 <Save className="h-4 w-4" />
                 Save Image
@@ -300,7 +300,7 @@ const GeneratedExerciseDetail: React.FC<GeneratedExerciseDetailProps> = ({
               <button
                 onClick={onRegenerate}
                 disabled={isUpdating || isSavingImage}
-                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded-lg bg-[#ffbf00] px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-[#ffbf00]/90 disabled:opacity-50"
               >
                 <RefreshCw className="h-4 w-4" />
                 Regenerate
@@ -311,7 +311,7 @@ const GeneratedExerciseDetail: React.FC<GeneratedExerciseDetailProps> = ({
             {isEditMode && (
               <button
                 onClick={() => setIsEditMode(false)}
-                className="inline-flex items-center gap-2 rounded-lg bg-slate-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-500"
+                className="inline-flex items-center gap-2 rounded-lg bg-white/10 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-white/10"
               >
                 <X className="h-4 w-4" />
                 Done Editing
@@ -320,11 +320,11 @@ const GeneratedExerciseDetail: React.FC<GeneratedExerciseDetailProps> = ({
           </div>
 
           {/* Deep Dive Content Generation */}
-          <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-slate-700 bg-slate-800 p-4">
-            <span className="text-sm text-slate-400">Deep Dive Content:</span>
+          <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-white/10 bg-black/40 p-4">
+            <span className="text-sm text-white/60">Deep Dive Content:</span>
             {exercise.deepDiveHtmlContent ? (
               <div className="flex items-center gap-3">
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-medium text-emerald-400">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-[#ffbf00]/20 px-3 py-1 text-xs font-medium text-[#ffbf00]">
                   <CheckCircle className="h-3.5 w-3.5" />
                   Generated
                 </span>
@@ -332,7 +332,7 @@ const GeneratedExerciseDetail: React.FC<GeneratedExerciseDetailProps> = ({
                   href={`/exercises/${exercise.slug}/learn`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 rounded-lg bg-slate-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-600"
+                  className="inline-flex items-center gap-2 rounded-lg bg-[#ffbf00]/20 px-4 py-2 text-sm font-medium text-[#ffbf00] transition-colors hover:bg-[#ffbf00]/30"
                 >
                   <ExternalLink className="h-4 w-4" />
                   View Page
@@ -341,7 +341,7 @@ const GeneratedExerciseDetail: React.FC<GeneratedExerciseDetailProps> = ({
                   <button
                     onClick={onGenerateDeepDive}
                     disabled={isGeneratingDeepDive}
-                    className="inline-flex items-center gap-2 rounded-lg bg-slate-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-600 disabled:opacity-50"
+                    className="inline-flex items-center gap-2 rounded-lg bg-[#ffbf00]/20 px-4 py-2 text-sm font-medium text-[#ffbf00] transition-colors hover:bg-[#ffbf00]/30 disabled:opacity-50"
                   >
                     <RefreshCw
                       className={`h-4 w-4 ${isGeneratingDeepDive ? 'animate-spin' : ''}`}
@@ -353,7 +353,7 @@ const GeneratedExerciseDetail: React.FC<GeneratedExerciseDetailProps> = ({
                 {onEditDeepDive && (
                   <button
                     onClick={onEditDeepDive}
-                    className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+                    className="inline-flex items-center gap-2 rounded-lg bg-[#ffbf00]/20 px-4 py-2 text-sm font-medium text-[#ffbf00] transition-colors hover:bg-[#ffbf00]/30"
                   >
                     <Edit className="h-4 w-4" />
                     Edit Page
@@ -362,14 +362,14 @@ const GeneratedExerciseDetail: React.FC<GeneratedExerciseDetailProps> = ({
               </div>
             ) : (
               <div className="flex items-center gap-3">
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-500/20 px-3 py-1 text-xs font-medium text-slate-400">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10/20 px-3 py-1 text-xs font-medium text-white/60">
                   Not Generated
                 </span>
                 {onGenerateDeepDive && (
                   <button
                     onClick={onGenerateDeepDive}
                     disabled={isGeneratingDeepDive}
-                    className="inline-flex items-center gap-2 rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-purple-700 disabled:opacity-50"
+                    className="inline-flex items-center gap-2 rounded-lg bg-[#ffbf00] px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-[#ffbf00]/90 disabled:opacity-50"
                   >
                     {isGeneratingDeepDive ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -390,7 +390,7 @@ const GeneratedExerciseDetail: React.FC<GeneratedExerciseDetailProps> = ({
         <div className="px-4 md:px-6">
           <div className="rounded-xl border border-red-900/50 bg-red-900/20 p-4">
             <h3 className="mb-1 text-sm font-bold text-red-400">Rejection Reason</h3>
-            <p className="text-sm text-slate-300">{exercise.rejectionReason}</p>
+            <p className="text-sm text-white/80">{exercise.rejectionReason}</p>
           </div>
         </div>
       )}
@@ -419,7 +419,7 @@ const GeneratedExerciseDetail: React.FC<GeneratedExerciseDetailProps> = ({
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="prose prose-invert prose-slate prose-headings:text-white prose-p:text-slate-300 prose-li:text-slate-300 prose-strong:text-white max-w-none rounded-xl border border-slate-700 bg-slate-800 p-5"
+            className="prose prose-invert prose-headings:text-white prose-p:text-white/80 prose-li:text-white/80 prose-strong:text-white max-w-none rounded-xl border border-white/10 bg-black/40 p-5"
           >
             <ReactMarkdown>{exercise.userFriendlyInstructions!.trim()}</ReactMarkdown>
           </motion.div>
@@ -427,32 +427,32 @@ const GeneratedExerciseDetail: React.FC<GeneratedExerciseDetailProps> = ({
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.15 }}
-            className="mt-4 overflow-hidden rounded-xl border border-slate-700 bg-slate-800"
+            className="mt-4 overflow-hidden rounded-xl border border-white/10 bg-black/40"
           >
             <button
               type="button"
               onClick={() => setLearnMoreOpen((prev) => !prev)}
-              className="flex w-full items-center justify-between gap-2 p-5 text-left font-bold text-slate-200 transition-colors hover:bg-slate-700/50"
+              className="flex w-full items-center justify-between gap-2 p-5 text-left font-bold text-white/90 transition-colors hover:bg-white/10"
             >
               <span>Learn more about the biomechanics</span>
               {learnMoreOpen ? (
-                <ChevronDown className="h-5 w-5 text-slate-400" />
+                <ChevronDown className="h-5 w-5 text-white/60" />
               ) : (
-                <ChevronRight className="h-5 w-5 text-slate-400" />
+                <ChevronRight className="h-5 w-5 text-white/60" />
               )}
             </button>
             {learnMoreOpen && (
-              <div className="space-y-4 border-t border-slate-700 px-5 pb-5 pt-2">
+              <div className="space-y-4 border-t border-white/10 px-5 pb-5 pt-2">
                 {(biomechanics.performanceCues?.length ?? 0) > 0 && (
-                  <div className="rounded-lg border-l-4 border-emerald-500 bg-slate-800/50 p-4">
-                    <h4 className="mb-2 flex items-center gap-2 text-base font-bold text-emerald-400">
+                  <div className="rounded-lg border-l-4 border-[#ffbf00] bg-black/30 p-4">
+                    <h4 className="mb-2 flex items-center gap-2 text-base font-bold text-[#ffbf00]">
                       <Zap className="h-4 w-4" />
                       Performance Cues
                     </h4>
                     <ul className="space-y-2">
                       {normalizeListItems(biomechanics.performanceCues ?? []).map((cue, idx) => (
-                        <li key={idx} className="flex items-start gap-3 text-sm text-slate-300">
-                          <span className="font-mono text-emerald-400/80">{idx + 1}.</span>
+                        <li key={idx} className="flex items-start gap-3 text-sm text-white/80">
+                          <span className="font-mono text-[#ffbf00]/80">{idx + 1}.</span>
                           <span>{cue}</span>
                         </li>
                       ))}
@@ -467,7 +467,7 @@ const GeneratedExerciseDetail: React.FC<GeneratedExerciseDetailProps> = ({
                     </h4>
                     <ul className="space-y-2">
                       {normalizeListItems(biomechanics.commonMistakes ?? []).map((mistake, idx) => (
-                        <li key={idx} className="flex items-start gap-3 text-sm text-slate-300">
+                        <li key={idx} className="flex items-start gap-3 text-sm text-white/80">
                           <span className="font-mono text-red-400/80">{idx + 1}.</span>
                           <span>{mistake}</span>
                         </li>
@@ -478,12 +478,12 @@ const GeneratedExerciseDetail: React.FC<GeneratedExerciseDetailProps> = ({
                 {(biomechanics.biomechanicalChain ||
                   biomechanics.pivotPoints ||
                   biomechanics.stabilizationNeeds) && (
-                  <div className="rounded-lg border border-slate-600 bg-slate-800/50 p-4">
-                    <h4 className="mb-3 flex items-center gap-2 text-base font-bold text-blue-400">
+                  <div className="rounded-lg border border-white/10 bg-black/30 p-4">
+                    <h4 className="mb-3 flex items-center gap-2 text-base font-bold text-[#ffbf00]">
                       <Shield className="h-4 w-4" />
                       Biomechanical Analysis
                     </h4>
-                    <div className="flex gap-2 border-b border-slate-700 pb-3">
+                    <div className="flex gap-2 border-b border-white/10 pb-3">
                       {[
                         { id: 'chain' as const, label: 'The Chain' },
                         { id: 'pivot' as const, label: 'Pivot Points' },
@@ -495,15 +495,15 @@ const GeneratedExerciseDetail: React.FC<GeneratedExerciseDetailProps> = ({
                           onClick={() => setActiveAnalysisTab(id)}
                           className={`rounded px-3 py-1.5 text-sm font-medium ${
                             activeAnalysisTab === id
-                              ? 'bg-blue-500/20 text-blue-400'
-                              : 'text-slate-400 hover:bg-white/5 hover:text-white'
+                              ? 'bg-[#ffbf00]/20 text-[#ffbf00]'
+                              : 'text-white/60 hover:bg-white/5 hover:text-white'
                           }`}
                         >
                           {label}
                         </button>
                       ))}
                     </div>
-                    <div className="mt-3 text-sm leading-relaxed text-slate-400">
+                    <div className="mt-3 text-sm leading-relaxed text-white/60">
                       {activeAnalysisTab === 'chain' && (
                         <div
                           className="[&_p:last-child]:mb-0 [&_p]:mb-0"
@@ -546,18 +546,18 @@ const GeneratedExerciseDetail: React.FC<GeneratedExerciseDetailProps> = ({
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
-              className="rounded-xl border-l-4 border-emerald-500 bg-slate-800 p-5"
+              className="rounded-xl border-l-4 border-[#ffbf00] bg-black/40 p-5"
             >
               <h3 className="mb-3 flex items-center gap-2 text-lg font-bold">
-                <Zap className="h-5 w-5 text-emerald-400" />
+                <Zap className="h-5 w-5 text-[#ffbf00]" />
                 Performance Cues
               </h3>
               <ul className="space-y-4">
                 {(() => {
                   const items = normalizeListItems(biomechanics.performanceCues ?? []);
                   return items.map((cue, idx) => (
-                    <li key={idx} className="flex items-start gap-6 text-slate-300">
-                      <span className="font-mono text-lg font-bold text-emerald-400 opacity-80">
+                    <li key={idx} className="flex items-start gap-6 text-white/80">
+                      <span className="font-mono text-lg font-bold text-[#ffbf00] opacity-80">
                         {(idx + 1).toString().padStart(items.length.toString().length, '0')}
                       </span>
                       <span>{cue}</span>
@@ -584,7 +584,7 @@ const GeneratedExerciseDetail: React.FC<GeneratedExerciseDetailProps> = ({
                 {(() => {
                   const items = normalizeListItems(biomechanics.commonMistakes ?? []);
                   return items.map((mistake, idx) => (
-                    <li key={idx} className="flex items-start gap-6 text-slate-300">
+                    <li key={idx} className="flex items-start gap-6 text-white/80">
                       <span className="font-mono text-lg font-bold text-red-400 opacity-80">
                         {(idx + 1).toString().padStart(items.length.toString().length, '0')}
                       </span>
@@ -602,25 +602,25 @@ const GeneratedExerciseDetail: React.FC<GeneratedExerciseDetailProps> = ({
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
-              className="overflow-hidden rounded-xl bg-slate-800"
+              className="overflow-hidden rounded-xl bg-black/40"
             >
               <div className="flex items-center justify-between gap-2 p-5 font-bold">
                 <div className="flex items-center gap-2">
-                  <Shield className="h-5 w-5 text-blue-400" />
+                  <Shield className="h-5 w-5 text-[#ffbf00]" />
                   Biomechanical Analysis
                 </div>
                 {isAdmin && onAddAnatomicalImage && (
                   <button
                     type="button"
                     onClick={onAddAnatomicalImage}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-600 bg-slate-700/50 px-3 py-1.5 text-xs font-medium text-slate-300 transition-colors hover:bg-slate-700 hover:text-white"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-black/30 px-3 py-1.5 text-xs font-medium text-white/80 transition-colors hover:bg-black/40 hover:text-white"
                   >
                     <ImagePlus className="h-3.5 w-3.5" />
                     Add anatomical image
                   </button>
                 )}
               </div>
-              <div className="flex gap-2 border-t border-slate-700 px-5 pb-2 pt-4">
+              <div className="flex gap-2 border-t border-white/10 px-5 pb-2 pt-4">
                 {[
                   { id: 'chain' as const, label: 'The Chain' },
                   { id: 'pivot' as const, label: 'Pivot Points' },
@@ -632,7 +632,7 @@ const GeneratedExerciseDetail: React.FC<GeneratedExerciseDetailProps> = ({
                     onClick={() => setActiveAnalysisTab(id)}
                     className={`rounded-lg px-4 py-2 font-medium transition-colors ${
                       activeAnalysisTab === id
-                        ? 'bg-blue-500/20 text-blue-400'
+                        ? 'bg-[#ffbf00]/20 text-[#ffbf00]'
                         : 'bg-white/5 text-white/70 hover:bg-white/10 hover:text-white'
                     }`}
                   >
@@ -640,7 +640,7 @@ const GeneratedExerciseDetail: React.FC<GeneratedExerciseDetailProps> = ({
                   </button>
                 ))}
               </div>
-              <div className="border-t border-slate-700 p-5">
+              <div className="border-t border-white/10 p-5">
                 {activeAnalysisTab === 'chain' && (
                   <div className="flex gap-4">
                     {anatomicalImagesBySection.chain && (
@@ -648,12 +648,12 @@ const GeneratedExerciseDetail: React.FC<GeneratedExerciseDetailProps> = ({
                         <img
                           src={anatomicalImagesBySection.chain.imageUrl}
                           alt="The Chain"
-                          className="w-full rounded-lg border border-slate-700 object-contain"
+                          className="w-full rounded-lg border border-white/10 object-contain"
                         />
                       </div>
                     )}
                     <div
-                      className="min-w-0 flex-1 text-sm leading-relaxed text-slate-400 [&_p:last-child]:mb-0 [&_p]:mb-0"
+                      className="min-w-0 flex-1 text-sm leading-relaxed text-white/60 [&_p:last-child]:mb-0 [&_p]:mb-0"
                       dangerouslySetInnerHTML={{
                         __html: formatParagraphContent(biomechanics.biomechanicalChain ?? ''),
                       }}
@@ -667,12 +667,12 @@ const GeneratedExerciseDetail: React.FC<GeneratedExerciseDetailProps> = ({
                         <img
                           src={anatomicalImagesBySection.pivot.imageUrl}
                           alt="Pivot Points"
-                          className="w-full rounded-lg border border-slate-700 object-contain"
+                          className="w-full rounded-lg border border-white/10 object-contain"
                         />
                       </div>
                     )}
                     <div
-                      className="min-w-0 flex-1 text-sm leading-relaxed text-slate-400 [&_p:last-child]:mb-0 [&_p]:mb-0"
+                      className="min-w-0 flex-1 text-sm leading-relaxed text-white/60 [&_p:last-child]:mb-0 [&_p]:mb-0"
                       dangerouslySetInnerHTML={{
                         __html: formatParagraphContent(biomechanics.pivotPoints ?? ''),
                       }}
@@ -686,12 +686,12 @@ const GeneratedExerciseDetail: React.FC<GeneratedExerciseDetailProps> = ({
                         <img
                           src={anatomicalImagesBySection.stabilization.imageUrl}
                           alt="Stabilization"
-                          className="w-full rounded-lg border border-slate-700 object-contain"
+                          className="w-full rounded-lg border border-white/10 object-contain"
                         />
                       </div>
                     )}
                     <div
-                      className="min-w-0 flex-1 text-sm leading-relaxed text-slate-400 [&_p:last-child]:mb-0 [&_p]:mb-0"
+                      className="min-w-0 flex-1 text-sm leading-relaxed text-white/60 [&_p:last-child]:mb-0 [&_p]:mb-0"
                       dangerouslySetInnerHTML={{
                         __html: formatParagraphContent(biomechanics.stabilizationNeeds ?? ''),
                       }}
@@ -714,7 +714,7 @@ const GeneratedExerciseDetail: React.FC<GeneratedExerciseDetailProps> = ({
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4 }}
             >
-              <h4 className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
+              <h4 className="mb-3 text-xs font-semibold uppercase tracking-wider text-white/50">
                 Sources
               </h4>
               <div className="flex flex-wrap gap-2">
@@ -724,7 +724,7 @@ const GeneratedExerciseDetail: React.FC<GeneratedExerciseDetailProps> = ({
                     href={`https://google.com/search?q=${encodeURIComponent(source.searchQuery)}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 rounded-full border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs text-slate-300 transition-colors hover:bg-slate-700 hover:text-white"
+                    className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-black/40 px-3 py-1.5 text-xs text-white/80 transition-colors hover:bg-black/40 hover:text-white"
                   >
                     {source.title}
                     <ExternalLink className="h-3 w-3" />
@@ -738,17 +738,17 @@ const GeneratedExerciseDetail: React.FC<GeneratedExerciseDetailProps> = ({
 
       {/* Metadata footer */}
       <div className="mt-8 px-4 md:px-6">
-        <div className="flex flex-wrap gap-4 text-xs text-slate-600">
+        <div className="flex flex-wrap gap-4 text-xs text-white/40">
           <span>Complexity: {exercise.complexityLevel}</span>
           <span>Style: {exercise.visualStyle}</span>
         </div>
         {/* Admin: preserved image prompt */}
         {isAdmin && exercise.imagePrompt && (
           <details className="mt-4 cursor-pointer">
-            <summary className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+            <summary className="text-xs font-semibold uppercase tracking-wider text-white/50">
               Image Prompt (preserved)
             </summary>
-            <p className="mt-2 rounded-lg border border-slate-700 bg-slate-800/50 p-3 text-xs leading-relaxed text-slate-400">
+            <p className="mt-2 rounded-lg border border-white/10 bg-black/30 p-3 text-xs leading-relaxed text-white/60">
               {exercise.imagePrompt}
             </p>
           </details>
@@ -758,19 +758,19 @@ const GeneratedExerciseDetail: React.FC<GeneratedExerciseDetailProps> = ({
       {/* Reject Modal */}
       {showRejectModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
-          <div className="w-full max-w-md rounded-xl border border-slate-700 bg-slate-800 p-6">
+          <div className="w-full max-w-md rounded-xl border border-white/10 bg-black/40 p-6">
             <h3 className="mb-4 text-lg font-bold">Reject Exercise</h3>
             <textarea
               value={rejectReason}
               onChange={(e) => setRejectReason(e.target.value)}
               placeholder="Enter reason for rejection..."
-              className="w-full resize-none rounded-lg border border-slate-600 bg-slate-900 p-3 text-white placeholder-slate-500 focus:border-transparent focus:ring-2 focus:ring-red-500"
+              className="w-full resize-none rounded-lg border border-white/10 bg-[#0d0500] p-3 text-white placeholder-white/40 focus:border-transparent focus:ring-2 focus:ring-red-500"
               rows={4}
             />
             <div className="mt-4 flex gap-3">
               <button
                 onClick={() => setShowRejectModal(false)}
-                className="flex-1 rounded-lg bg-slate-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-600"
+                className="flex-1 rounded-lg bg-black/40 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-white/10"
               >
                 Cancel
               </button>
@@ -789,31 +789,31 @@ const GeneratedExerciseDetail: React.FC<GeneratedExerciseDetailProps> = ({
       {/* Save Image Only Modal */}
       {showSaveImageModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
-          <div className="w-full max-w-md rounded-xl border border-slate-700 bg-slate-800 p-6">
+          <div className="w-full max-w-md rounded-xl border border-white/10 bg-black/40 p-6">
             <h3 className="mb-2 text-lg font-bold">Save Image Only</h3>
-            <p className="mb-4 text-sm text-slate-400">
+            <p className="mb-4 text-sm text-white/60">
               Save this image to the exercise library with a different name. The image will be
               approved and available for mapping to exercises.
             </p>
-            <label className="mb-2 block text-sm font-medium text-slate-300">Exercise Name</label>
+            <label className="mb-2 block text-sm font-medium text-white/80">Exercise Name</label>
             <input
               type="text"
               value={saveImageName}
               onChange={(e) => setSaveImageName(e.target.value)}
               placeholder="Enter the correct exercise name..."
-              className="w-full rounded-lg border border-slate-600 bg-slate-900 p-3 text-white placeholder-slate-500 focus:border-transparent focus:ring-2 focus:ring-amber-500"
+              className="w-full rounded-lg border border-white/10 bg-[#0d0500] p-3 text-white placeholder-white/40 focus:border-transparent focus:ring-2 focus:ring-[#ffbf00]"
             />
             <div className="mt-4 flex gap-3">
               <button
                 onClick={() => setShowSaveImageModal(false)}
-                className="flex-1 rounded-lg bg-slate-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-600"
+                className="flex-1 rounded-lg bg-black/40 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-white/10"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSaveImageOnly}
                 disabled={isSavingImage || !saveImageName.trim()}
-                className="flex-1 rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-amber-700 disabled:opacity-50"
+                className="flex-1 rounded-lg bg-[#ffbf00] px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-[#ffbf00]/90 disabled:opacity-50"
               >
                 {isSavingImage ? 'Saving...' : 'Save Image'}
               </button>

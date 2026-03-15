@@ -7,7 +7,7 @@
  */
 
 import type { APIRoute } from 'astro';
-import { verifyAdminRequest } from '@/lib/supabase/admin/auth';
+import { verifyTrainerOrAdminRequest } from '@/lib/supabase/admin/auth';
 import {
   fetchFullProgram,
   updateProgram,
@@ -18,7 +18,7 @@ import type { ProgramTemplate, ProgramConfig } from '@/types/ai-program';
 
 export const GET: APIRoute = async ({ request, params, cookies }) => {
   try {
-    await verifyAdminRequest(request, cookies);
+    await verifyTrainerOrAdminRequest(request, cookies);
 
     const programId = params.programId;
     if (!programId) {
@@ -67,7 +67,7 @@ export const GET: APIRoute = async ({ request, params, cookies }) => {
 
 export const PATCH: APIRoute = async ({ request, params, cookies }) => {
   try {
-    await verifyAdminRequest(request, cookies);
+    await verifyTrainerOrAdminRequest(request, cookies);
 
     const programId = params.programId;
     if (!programId) {
@@ -132,7 +132,7 @@ export const PATCH: APIRoute = async ({ request, params, cookies }) => {
 
 export const PUT: APIRoute = async ({ request, params, cookies }) => {
   try {
-    await verifyAdminRequest(request, cookies);
+    await verifyTrainerOrAdminRequest(request, cookies);
 
     const programId = params.programId;
     if (!programId) {
@@ -203,7 +203,7 @@ export const PUT: APIRoute = async ({ request, params, cookies }) => {
 
 export const DELETE: APIRoute = async ({ request, params, cookies }) => {
   try {
-    await verifyAdminRequest(request, cookies);
+    await verifyTrainerOrAdminRequest(request, cookies);
 
     const programId = params.programId;
     if (!programId) {

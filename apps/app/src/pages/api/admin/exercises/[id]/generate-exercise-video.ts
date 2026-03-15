@@ -4,7 +4,7 @@ import { GoogleGenAI } from '@google/genai';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import { verifyAdminRequest } from '@/lib/supabase/admin/auth';
+import { verifyTrainerOrAdminRequest } from '@/lib/supabase/admin/auth';
 import {
   getGeneratedExerciseById,
   updateGeneratedExerciseVideos,
@@ -54,7 +54,7 @@ export const POST: APIRoute = async ({ request, params, cookies }) => {
   }
 
   try {
-    await verifyAdminRequest(request, cookies);
+    await verifyTrainerOrAdminRequest(request, cookies);
 
     const exercise = await getGeneratedExerciseById(exerciseId);
     if (!exercise) {

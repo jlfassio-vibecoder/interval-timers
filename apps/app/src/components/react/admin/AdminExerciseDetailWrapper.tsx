@@ -550,10 +550,10 @@ const AdminExerciseDetailWrapper: React.FC<AdminExerciseDetailWrapperProps> = ({
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-900">
+      <div className="flex min-h-screen items-center justify-center bg-[#0d0500]">
         <div className="flex flex-col items-center gap-4 text-white">
-          <Loader2 className="h-8 w-8 animate-spin text-emerald-400" />
-          <p className="text-slate-400">Loading exercise...</p>
+          <Loader2 className="h-8 w-8 animate-spin text-[#ffbf00]" />
+          <p className="text-white/60">Loading exercise...</p>
         </div>
       </div>
     );
@@ -561,20 +561,20 @@ const AdminExerciseDetailWrapper: React.FC<AdminExerciseDetailWrapperProps> = ({
 
   if (error || !exercise) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-900 p-4">
+      <div className="flex min-h-screen items-center justify-center bg-[#0d0500] p-4">
         <div className="max-w-md text-center">
           <div className="mb-4 flex justify-center">
-            <AlertTriangle className="h-12 w-12 text-amber-400" />
+            <AlertTriangle className="h-12 w-12 text-[#ffbf00]" />
           </div>
           <h1 className="mb-2 text-xl font-bold text-white">{error || 'Exercise not found'}</h1>
-          <p className="mb-6 text-slate-400">
+          <p className="mb-6 text-white/60">
             {!user
               ? 'Please sign in to access admin features.'
               : 'The exercise may have been deleted or the link is invalid.'}
           </p>
           <Link
             to="/exercises"
-            className="inline-flex items-center gap-2 rounded-lg bg-slate-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-600"
+            className="inline-flex items-center gap-2 rounded-lg bg-black/40 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-white/10"
           >
             <ArrowLeft className="h-4 w-4" />
             {EXERCISE_LABELS.backLink}
@@ -585,13 +585,13 @@ const AdminExerciseDetailWrapper: React.FC<AdminExerciseDetailWrapperProps> = ({
   }
 
   return (
-    <div className="min-h-screen bg-slate-900">
+    <div className="min-h-screen bg-[#0d0500]">
       {/* Admin header */}
-      <div className="border-b border-slate-700 bg-slate-800 px-4 py-3">
+      <div className="border-b border-white/10 bg-black/40 px-4 py-3">
         <div className="mx-auto flex max-w-6xl items-center justify-between">
           <Link
             to="/exercises"
-            className="inline-flex items-center gap-2 text-sm text-slate-400 transition-colors hover:text-white"
+            className="inline-flex items-center gap-2 text-sm text-white/60 transition-colors hover:text-[#ffbf00]"
           >
             <ArrowLeft className="h-4 w-4" />
             {EXERCISE_LABELS.backLink}
@@ -599,7 +599,7 @@ const AdminExerciseDetailWrapper: React.FC<AdminExerciseDetailWrapperProps> = ({
           <div className="flex items-center gap-4">
             <Link
               to={`/exercise-image-gen?slug=${exercise.slug}`}
-              className="inline-flex items-center gap-2 text-sm text-slate-400 transition-colors hover:text-white"
+              className="inline-flex items-center gap-2 text-sm text-white/60 transition-colors hover:text-[#ffbf00]"
               title="Edit in Visualization Lab"
             >
               <Sparkles className="h-4 w-4" />
@@ -616,21 +616,21 @@ const AdminExerciseDetailWrapper: React.FC<AdminExerciseDetailWrapperProps> = ({
                   setLoading(false);
                 });
               }}
-              className="inline-flex items-center gap-2 text-sm text-slate-400 transition-colors hover:text-white"
+              className="inline-flex items-center gap-2 text-sm text-white/60 transition-colors hover:text-[#ffbf00]"
               title="Refresh Exercise Data"
             >
               <RefreshCw className="h-4 w-4" />
               Refresh
             </button>
-            <span className="font-mono text-xs text-slate-500">ID: {exercise.id}</span>
+            <span className="font-mono text-xs text-white/50">ID: {exercise.id}</span>
           </div>
         </div>
       </div>
 
       {/* Success message for saved image */}
       {imageSavedAs && (
-        <div className="border-b border-emerald-700 bg-emerald-900/30 px-4 py-3">
-          <div className="mx-auto flex max-w-6xl items-center gap-2 text-sm text-emerald-400">
+        <div className="border-b border-[#ffbf00]/30 bg-[#ffbf00]/10 px-4 py-3">
+          <div className="mx-auto flex max-w-6xl items-center gap-2 text-sm text-[#ffbf00]">
             <CheckCircle className="h-4 w-4" />
             Image saved as &quot;{imageSavedAs}&quot; to exercise library
           </div>
@@ -638,12 +638,12 @@ const AdminExerciseDetailWrapper: React.FC<AdminExerciseDetailWrapperProps> = ({
       )}
 
       {/* Exercise Name */}
-      <div className="border-b border-slate-700 px-4 py-4">
+      <div className="border-b border-white/10 px-4 py-4">
         <div className="mx-auto max-w-6xl">
-          <h3 className="mb-3 font-mono text-xs font-bold uppercase tracking-wider text-slate-400">
+          <h3 className="mb-3 font-mono text-xs font-bold uppercase tracking-wider text-white/60">
             Exercise Name
           </h3>
-          <p className="mb-3 text-sm text-slate-500">
+          <p className="mb-3 text-sm text-white/50">
             The URL slug is derived from the name and will update when you save.
           </p>
           <div className="mb-3 flex flex-wrap items-center gap-3">
@@ -653,14 +653,14 @@ const AdminExerciseDetailWrapper: React.FC<AdminExerciseDetailWrapperProps> = ({
               onChange={(e) =>
                 setExercise((prev) => (prev ? { ...prev, exerciseName: e.target.value } : null))
               }
-              className="max-w-md flex-1 rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-slate-200 focus:border-emerald-500/50 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+              className="max-w-md flex-1 rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-white/90 focus:border-[#ffbf00]/50 focus:outline-none focus:ring-2 focus:ring-[#ffbf00]/20"
               placeholder="e.g. High Knees"
             />
             <button
               type="button"
               onClick={handleSaveName}
               disabled={isSavingName || !(exercise.exerciseName?.trim() ?? '')}
-              className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-500 disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-lg bg-[#ffbf00] px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-[#ffbf00]/90 disabled:opacity-50"
             >
               {isSavingName ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -675,12 +675,12 @@ const AdminExerciseDetailWrapper: React.FC<AdminExerciseDetailWrapperProps> = ({
 
       {/* Biomechanics Data - Pull commonMistakes */}
       {!(exercise.biomechanics?.commonMistakes?.length ?? 0) && (
-        <div className="border-b border-slate-700 px-4 py-4">
+        <div className="border-b border-white/10 px-4 py-4">
           <div className="mx-auto max-w-6xl">
-            <h3 className="mb-3 font-mono text-xs font-bold uppercase tracking-wider text-slate-400">
+            <h3 className="mb-3 font-mono text-xs font-bold uppercase tracking-wider text-white/60">
               Biomechanics Data
             </h3>
-            <p className="mb-3 text-sm text-slate-500">
+            <p className="mb-3 text-sm text-white/50">
               When commonMistakes is missing, pull from another exercise or generate with AI.
             </p>
             <div className="flex flex-wrap gap-2">
@@ -688,7 +688,7 @@ const AdminExerciseDetailWrapper: React.FC<AdminExerciseDetailWrapperProps> = ({
                 type="button"
                 onClick={runCommonMistakesSearch}
                 disabled={isPullingCommonMistakes}
-                className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-500 disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded-lg bg-[#ffbf00] px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-[#ffbf00]/90 disabled:opacity-50"
               >
                 {isPullingCommonMistakes ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -703,7 +703,7 @@ const AdminExerciseDetailWrapper: React.FC<AdminExerciseDetailWrapperProps> = ({
                   setAiEditorFocus('commonMistakes');
                   setShowBiomechanicsAIEditor(true);
                 }}
-                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-500"
+                className="inline-flex items-center gap-2 rounded-lg bg-[#ffbf00] px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-[#ffbf00]/90"
               >
                 <Sparkles className="h-4 w-4" />
                 AI Edit
@@ -720,12 +720,12 @@ const AdminExerciseDetailWrapper: React.FC<AdminExerciseDetailWrapperProps> = ({
         const stab = (exercise.biomechanics?.stabilizationNeeds ?? '').trim();
         const needsAnalysis = !chain || !pivot || !stab;
         return needsAnalysis ? (
-          <div className="border-b border-slate-700 px-4 py-4">
+          <div className="border-b border-white/10 px-4 py-4">
             <div className="mx-auto max-w-6xl">
-              <h3 className="mb-3 font-mono text-xs font-bold uppercase tracking-wider text-slate-400">
+              <h3 className="mb-3 font-mono text-xs font-bold uppercase tracking-wider text-white/60">
                 Biomechanical Analysis
               </h3>
-              <p className="mb-3 text-sm text-slate-500">
+              <p className="mb-3 text-sm text-white/50">
                 When Chain, Pivot Points, or Stabilization is missing, pull from another exercise or
                 generate with AI.
               </p>
@@ -734,7 +734,7 @@ const AdminExerciseDetailWrapper: React.FC<AdminExerciseDetailWrapperProps> = ({
                   type="button"
                   onClick={runBiomechanicalAnalysisSearch}
                   disabled={isPullingBiomechanicalAnalysis}
-                  className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-500 disabled:opacity-50"
+                  className="inline-flex items-center gap-2 rounded-lg bg-[#ffbf00] px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-[#ffbf00]/90 disabled:opacity-50"
                 >
                   {isPullingBiomechanicalAnalysis ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -749,7 +749,7 @@ const AdminExerciseDetailWrapper: React.FC<AdminExerciseDetailWrapperProps> = ({
                     setAiEditorFocus('biomechanicalAnalysis');
                     setShowBiomechanicsAIEditor(true);
                   }}
-                  className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-500"
+                  className="inline-flex items-center gap-2 rounded-lg bg-[#ffbf00] px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-[#ffbf00]/90"
                 >
                   <Sparkles className="h-4 w-4" />
                   AI Edit
@@ -778,33 +778,33 @@ const AdminExerciseDetailWrapper: React.FC<AdminExerciseDetailWrapperProps> = ({
       })()}
 
       {/* Workout Block tagging */}
-      <div className="border-b border-slate-700 px-4 py-4">
+      <div className="border-b border-white/10 px-4 py-4">
         <div className="mx-auto max-w-6xl">
-          <h3 className="mb-3 font-mono text-xs font-bold uppercase tracking-wider text-slate-400">
+          <h3 className="mb-3 font-mono text-xs font-bold uppercase tracking-wider text-white/60">
             Workout Block
           </h3>
-          <p className="mb-3 text-sm text-slate-500">
+          <p className="mb-3 text-sm text-white/50">
             Tag which workout phases this exercise fits. Used for filtering on /exercises.
           </p>
           <div className="mb-4 flex flex-wrap gap-3">
             {BLOCKS.map(({ value, label }) => (
               <label
                 key={value}
-                className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-600 bg-slate-800/50 px-3 py-2 text-sm transition-colors hover:bg-slate-700/50"
+                className="flex cursor-pointer items-center gap-2 rounded-lg border border-white/10 bg-black/30/50 px-3 py-2 text-sm transition-colors hover:bg-black/40/50"
               >
                 <input
                   type="checkbox"
                   checked={(exercise.suitableBlocks ?? []).includes(value)}
                   onChange={() => toggleBlock(value)}
-                  className="h-4 w-4 rounded border-slate-500 accent-emerald-500"
+                  className="h-4 w-4 rounded border-white/20 accent-[#ffbf00]"
                 />
-                <span className="text-slate-300">{label}</span>
+                <span className="text-white/80">{label}</span>
               </label>
             ))}
           </div>
           {(exercise.suitableBlocks ?? []).includes('main') && (
             <div className="mb-4">
-              <label className="mb-2 block text-xs font-medium text-slate-400">
+              <label className="mb-2 block text-xs font-medium text-white/60">
                 Main Workout Type
               </label>
               <select
@@ -819,7 +819,7 @@ const AdminExerciseDetailWrapper: React.FC<AdminExerciseDetailWrapperProps> = ({
                       : null
                   )
                 }
-                className="rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-sm text-slate-200"
+                className="rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white/90"
               >
                 <option value="">— Select —</option>
                 {MAIN_TYPES.map(({ value: v, label: l }) => (
@@ -834,7 +834,7 @@ const AdminExerciseDetailWrapper: React.FC<AdminExerciseDetailWrapperProps> = ({
             type="button"
             onClick={handleSaveBlocks}
             disabled={isSavingBlocks}
-            className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-500 disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-lg bg-[#ffbf00] px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-[#ffbf00]/90 disabled:opacity-50"
           >
             {isSavingBlocks ? (
               <Loader2 className="h-4 w-4 animate-spin" />

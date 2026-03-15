@@ -15,7 +15,6 @@ import {
   Download,
   Trash2,
   X,
-  ImagePlus,
 } from 'lucide-react';
 import { uploadExerciseImage } from '@/lib/supabase/client/storage';
 import {
@@ -30,6 +29,7 @@ import {
   transformSearchResultsToSources,
   generateSlug,
 } from '@/lib/parse-biomechanics';
+import { ContentGenerationLab } from '@interval-timers/content-generation-lab';
 import { useVisualizationLab } from '@/hooks/useVisualizationLab';
 import type { SearchChunk } from '@/lib/visualization-lab/types';
 import {
@@ -45,6 +45,11 @@ import {
   type VizLabTemplate,
   type VizLabTemplateInput,
 } from '@/lib/visualization-lab/templates';
+import {
+  listVizLabTemplates,
+  createVizLabTemplate,
+  deleteVizLabTemplate,
+} from '@/lib/supabase/client/viz-lab-templates';
 import { downloadBlob, buildExportMetadata } from '@/lib/visualization-lab/export';
 import {
   DEMOGRAPHICS_PRESETS,
@@ -163,15 +168,15 @@ export default function ExerciseImageGenerator() {
   const {
     loading,
     result,
-    error,
+    error: _error,
     handleSubmit,
-    clearResult,
+    clearResult: _clearResult,
     reviewPromptsBeforeGenerate,
     setReviewPromptsBeforeGenerate,
     researchResult,
     promptStep,
-    handleGenerateFromPrompts,
-    cancelPromptReview,
+    handleGenerateFromPrompts: _handleGenerateFromPrompts,
+    cancelPromptReview: _cancelPromptReview,
   } = generation;
 
   const [saving, setSaving] = useState(false);
@@ -181,7 +186,9 @@ export default function ExerciseImageGenerator() {
   const [savedExerciseSlug, setSavedExerciseSlug] = useState<string | null>(null);
   const [saveExerciseError, setSaveExerciseError] = useState<string | null>(null);
   const [recentTopics, setRecentTopics] = useState<string[]>(() => loadRecentTopics());
-  const [templates, setTemplates] = useState<VizLabTemplate[]>(() => loadTemplates());
+  const [templates, setTemplates] = useState<VizLabTemplate[]>([]);
+  const [supabaseTemplateIds, setSupabaseTemplateIds] = useState<Set<string>>(new Set());
+  const [templatesLoading, setTemplatesLoading] = useState(true);
   const [showTemplateNameInput, setShowTemplateNameInput] = useState(false);
   const [templateNameInput, setTemplateNameInput] = useState('');
   const [previewMode, setPreviewMode] = useState<'save-exercise' | null>(null);
@@ -189,6 +196,35 @@ export default function ExerciseImageGenerator() {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [editedPrompt, setEditedPrompt] = useState('');
   const [editedPrompts, setEditedPrompts] = useState<[string, string, string]>(['', '', '']);
+
+  const [batchTopicList, setBatchTopicList] = useState('');
+  const [batchRunning, setBatchRunning] = useState(false);
+  const [batchCompleted, setBatchCompleted] = useState(0);
+  const [batchTotal, setBatchTotal] = useState(0);
+  const [batchErrors, setBatchErrors] = useState<{ topic: string; error: string }[]>([]);
+
+  const refreshTemplates = async () => {
+    setTemplatesLoading(true);
+    try {
+      const [supabaseTemplates, localTemplates] = await Promise.all([
+        listVizLabTemplates(),
+        Promise.resolve(loadTemplates()),
+      ]);
+      const supabaseIds = new Set(supabaseTemplates.map((t) => t.id));
+      const localFiltered = localTemplates.filter((t) => !supabaseIds.has(t.id));
+      setTemplates([...supabaseTemplates, ...localFiltered]);
+      setSupabaseTemplateIds(supabaseIds);
+    } catch {
+      setTemplates(loadTemplates());
+      setSupabaseTemplateIds(new Set());
+    } finally {
+      setTemplatesLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    refreshTemplates();
+  }, []);
 
   useEffect(() => {
     if (researchResult) {
@@ -259,7 +295,7 @@ export default function ExerciseImageGenerator() {
     }
   };
 
-  const handleSaveTemplate = () => {
+  const handleSaveTemplate = async () => {
     const name = templateNameInput.trim();
     if (!name || !exerciseTopic.trim()) return;
     const templateInput: VizLabTemplateInput = {
@@ -279,19 +315,29 @@ export default function ExerciseImageGenerator() {
       referenceImageUrl: referenceImageUrl || '',
     };
     try {
-      saveTemplate(templateInput);
-      setTemplates(loadTemplates());
+      if (user) {
+        await createVizLabTemplate(templateInput, user.id);
+        await refreshTemplates();
+      } else {
+        saveTemplate(templateInput);
+        await refreshTemplates();
+      }
       setTemplateNameInput('');
       setShowTemplateNameInput(false);
+      toast.success('Template saved');
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Failed to save template (storage may be full)');
+      toast.error(e instanceof Error ? e.message : 'Failed to save template');
     }
   };
 
-  const handleDeleteTemplate = (id: string) => {
+  const handleDeleteTemplate = async (id: string) => {
     try {
-      deleteTemplate(id);
-      setTemplates(loadTemplates());
+      if (supabaseTemplateIds.has(id)) {
+        await deleteVizLabTemplate(id);
+      } else {
+        deleteTemplate(id);
+      }
+      await refreshTemplates();
       toast.success('Template deleted');
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to delete template');
@@ -548,6 +594,132 @@ export default function ExerciseImageGenerator() {
     }
   };
 
+  const handleBatchGenerate = async () => {
+    if (!user) {
+      toast.error('Sign in to batch generate exercises');
+      return;
+    }
+    const topics = batchTopicList
+      .split('\n')
+      .map((t) => t.trim())
+      .filter(Boolean);
+    if (topics.length === 0) {
+      toast.error('Enter at least one exercise topic (one per line)');
+      return;
+    }
+    setBatchRunning(true);
+    setBatchTotal(topics.length);
+    setBatchCompleted(0);
+    setBatchErrors([]);
+    const errors: { topic: string; error: string }[] = [];
+
+    for (let i = 0; i < topics.length; i++) {
+      const topic = topics[i];
+      try {
+        const res = await fetch('/api/generate-exercise-image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            exerciseTopic: topic,
+            complexityLevel,
+            visualStyle,
+            outputMode,
+            demographics,
+            movementPhase: movementPhase || undefined,
+            ...(outputMode === 'sequence'
+              ? {
+                  bodySideStart: bodySideStart || undefined,
+                  bodySideEnd: bodySideEnd || undefined,
+                }
+              : { bodySide: bodySide || undefined }),
+            formCuesToEmphasize: formCuesToEmphasize.trim() || undefined,
+            misrenderingsToAvoid: misrenderingsToAvoid.trim() || undefined,
+            domainContext: domainContext.trim() || undefined,
+            referenceImage: referenceImageData || undefined,
+            researchOnly: false,
+          }),
+        });
+        if (!res.ok) {
+          const errData = (await res.json().catch(() => ({}))) as { error?: string };
+          const message =
+            res.status === 429
+              ? 'Rate limit exceeded. Please wait a few minutes and try again.'
+              : (errData.error || 'Failed to generate');
+          throw new Error(message);
+        }
+        const data = await res.json();
+        if (!data.image) throw new Error('No image in response');
+
+        const baseSlug = generateSlug(topic);
+        const uniqueSlug = await generateUniqueSlug(baseSlug);
+        const ts = Date.now();
+        const storagePath = `generated-exercises/${user.id}/${uniqueSlug}-${ts}.png`;
+        const blob = dataUrlToBlob(data.image);
+        const { downloadUrl, storagePath: savedPath } = await uploadExerciseImage(
+          blob,
+          storagePath,
+          'image/png'
+        );
+        const { biomechanics, kineticChainType } = parseBiomechanicalPoints(
+          data.biomechanicalPoints || []
+        );
+        const sources = transformSearchResultsToSources(
+          data.searchResults ?? [],
+          topic
+        );
+        const imagePromptToSave = data.imagePrompts?.[0] ?? data.imagePrompt ?? '';
+        const exerciseId = await createGeneratedExercise({
+          slug: uniqueSlug,
+          exerciseName: topic,
+          imageUrl: downloadUrl,
+          storagePath: savedPath,
+          kineticChainType,
+          biomechanics,
+          imagePrompt: imagePromptToSave,
+          complexityLevel,
+          visualStyle,
+          sources,
+          status: 'pending',
+          generatedBy: user.id,
+        });
+        if (data.images && data.images.length === 3) {
+          await addExerciseImage(exerciseId, {
+            role: 'sequenceStart',
+            imageUrl: downloadUrl,
+            storagePath: savedPath,
+            visualStyle,
+            imagePrompt: data.imagePrompts?.[0] ?? imagePromptToSave,
+            createdBy: user.id,
+          });
+          const roles: ('sequenceMid' | 'sequenceEnd')[] = ['sequenceMid', 'sequenceEnd'];
+          for (let j = 1; j < 3; j++) {
+            const galleryPath = `generated-exercises/${user.id}/${uniqueSlug}-${ts}-${roles[j - 1]}.png`;
+            const galleryBlob = dataUrlToBlob(data.images[j]);
+            const { downloadUrl: galleryUrl, storagePath: gallerySavedPath } =
+              await uploadExerciseImage(galleryBlob, galleryPath, 'image/png');
+            await addExerciseImage(exerciseId, {
+              role: roles[j - 1],
+              imageUrl: galleryUrl,
+              storagePath: gallerySavedPath,
+              visualStyle,
+              imagePrompt: data.imagePrompts?.[j] ?? imagePromptToSave,
+              createdBy: user.id,
+            });
+          }
+        }
+      } catch (err) {
+        errors.push({ topic, error: err instanceof Error ? err.message : 'Unknown error' });
+      }
+      setBatchErrors([...errors]);
+      setBatchCompleted(i + 1);
+    }
+
+    setBatchRunning(false);
+    setBatchErrors(errors);
+    const saved = topics.length - errors.length;
+    toast.success(`Batch complete: ${saved} saved, ${errors.length} failed`);
+  };
+
   const handleDownloadImage = () => {
     if (!result?.image) return;
     const slug = generateSlug(exerciseTopic) || 'exercise';
@@ -591,8 +763,24 @@ export default function ExerciseImageGenerator() {
     downloadBlob(blob, `${slug}-metadata-${dateStr}.json`);
   };
 
+  const generationForLab = {
+    loading: generation.loading,
+    result: generation.result,
+    error: generation.error,
+    clearResult: generation.clearResult,
+    researchResult: generation.researchResult,
+    promptStep: generation.promptStep,
+    submitFromPrompts: generation.handleGenerateFromPrompts,
+    cancelPromptReview: generation.cancelPromptReview,
+  };
+
   return (
     <div className="mx-auto max-w-4xl rounded-lg border border-white/10 bg-black/20 p-6 text-white backdrop-blur-sm">
+      <h2 className="mb-6 flex items-center gap-2 text-2xl font-bold text-white">
+        <Info className="h-6 w-6 text-[#ffbf00]" />
+        Exercise Biomechanics & Image Generator
+      </h2>
+
       {editingExerciseLoading && (
         <div className="mb-4 flex items-center gap-2 rounded-lg border border-white/10 bg-black/20 px-4 py-3 text-white/80">
           <Loader2 className="h-4 w-4 animate-spin" />
@@ -600,18 +788,18 @@ export default function ExerciseImageGenerator() {
         </div>
       )}
       {editingExercise && !editingExerciseLoading && (
-        <div className="border-orange-light/30 bg-orange-light/10 mb-4 rounded-lg border px-4 py-3 text-sm text-white">
-          <span className="font-medium text-orange-light">Editing:</span>{' '}
-          {editingExercise.exerciseName} — Regenerate primary or add to carousel
+        <div className="mb-4 rounded-lg border border-[#ffbf00]/30 bg-[#ffbf00]/10 px-4 py-3 text-sm text-white/90">
+          Editing: {editingExercise.exerciseName} — Regenerate primary or add to carousel
         </div>
       )}
 
-      <h2 className="mb-6 flex items-center gap-2 text-2xl font-bold text-white">
-        <Info className="h-6 w-6 text-orange-light" />
-        Exercise Biomechanics & Image Generator
-      </h2>
-
-      <form onSubmit={handleSubmit} className="mb-8 space-y-4">
+      <ContentGenerationLab<
+        import('@/lib/visualization-lab/types').BiomechanicalPoints,
+        import('@/lib/visualization-lab/types').ResearchOnlyResult
+      >
+        title=""
+        formSlot={
+          <form onSubmit={handleSubmit} className="mb-8 space-y-4">
         <div>
           <label className="mb-1 block text-sm font-medium text-white/80">Exercise Topic</label>
           {recentTopics.length > 0 && (
@@ -621,7 +809,7 @@ export default function ExerciseImageGenerator() {
                   key={topic}
                   type="button"
                   onClick={() => setExerciseTopic(topic)}
-                  className="hover:border-orange-light/50 hover:bg-orange-light/20 rounded-full border border-white/20 bg-white/5 px-3 py-1 text-xs font-medium text-white transition-colors"
+                  className="hover:border-[#ffbf00]/50 hover:bg-[#ffbf00]/20 rounded-full border border-white/20 bg-white/5 px-3 py-1 text-xs font-medium text-white transition-colors"
                 >
                   {topic}
                 </button>
@@ -634,7 +822,7 @@ export default function ExerciseImageGenerator() {
             onChange={(e) => setExerciseTopic(e.target.value)}
             placeholder="e.g. Barbell Squat, Push Up"
             required
-            className="focus:border-orange-light/50 focus:ring-orange-light/20 w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-white placeholder:text-white/40 focus:outline-none focus:ring-2"
+            className="focus:border-[#ffbf00]/50 focus:ring-[#ffbf00]/20 w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-white placeholder:text-white/40 focus:outline-none focus:ring-2"
           />
         </div>
 
@@ -644,7 +832,7 @@ export default function ExerciseImageGenerator() {
             <select
               value={complexityLevel}
               onChange={(e) => setComplexityLevel(e.target.value)}
-              className="focus:border-orange-light/50 focus:ring-orange-light/20 w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-white focus:outline-none focus:ring-2"
+              className="focus:border-[#ffbf00]/50 focus:ring-[#ffbf00]/20 w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-white focus:outline-none focus:ring-2"
             >
               <option value="beginner">Beginner</option>
               <option value="intermediate">Intermediate</option>
@@ -657,7 +845,7 @@ export default function ExerciseImageGenerator() {
             <select
               value={visualStyle}
               onChange={(e) => setVisualStyle(e.target.value)}
-              className="focus:border-orange-light/50 focus:ring-orange-light/20 w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-white focus:outline-none focus:ring-2"
+              className="focus:border-[#ffbf00]/50 focus:ring-[#ffbf00]/20 w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-white focus:outline-none focus:ring-2"
             >
               <option value="photorealistic">Photorealistic</option>
               <option value="illustration">Illustration</option>
@@ -672,7 +860,7 @@ export default function ExerciseImageGenerator() {
             <select
               value={outputMode}
               onChange={(e) => setOutputMode(e.target.value as 'single' | 'sequence')}
-              className="focus:border-orange-light/50 focus:ring-orange-light/20 w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-white focus:outline-none focus:ring-2"
+              className="focus:border-[#ffbf00]/50 focus:ring-[#ffbf00]/20 w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-white focus:outline-none focus:ring-2"
             >
               <option value="single">Single image</option>
               <option value="sequence">3 image sequence</option>
@@ -684,13 +872,56 @@ export default function ExerciseImageGenerator() {
               id="review-prompts"
               checked={reviewPromptsBeforeGenerate}
               onChange={(e) => setReviewPromptsBeforeGenerate(e.target.checked)}
-              className="focus:ring-orange-light/50 h-4 w-4 rounded border-white/20 bg-black/20 text-orange-light"
+              className="focus:ring-[#ffbf00]/50 h-4 w-4 rounded border-white/20 bg-black/20 text-[#ffbf00]"
             />
             <label htmlFor="review-prompts" className="text-sm font-medium text-white/80">
               Review prompts before generating
             </label>
           </div>
         </div>
+
+        {!editingExercise && (
+          <details className="group rounded-lg border border-white/10 bg-black/20">
+            <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-white/80 hover:bg-white/5">
+              Batch generate — multiple exercises from list
+            </summary>
+            <div className="space-y-3 border-t border-white/10 px-4 py-3">
+              <p className="text-xs text-white/60">
+                One exercise topic per line. Uses current form settings (complexity, style, etc.).
+              </p>
+              <textarea
+                value={batchTopicList}
+                onChange={(e) => setBatchTopicList(e.target.value)}
+                placeholder="e.g.&#10;Barbell Squat&#10;Push Up&#10;Plank"
+                rows={5}
+                disabled={batchRunning}
+                className="focus:border-[#ffbf00]/50 focus:ring-[#ffbf00]/20 w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 disabled:opacity-60"
+              />
+              {batchRunning && (
+                <p className="text-sm text-white/70">
+                  {batchCompleted} / {batchTotal} completed
+                </p>
+              )}
+              {batchErrors.length > 0 && (
+                <ul className="max-h-32 overflow-y-auto rounded border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-200">
+                  {batchErrors.map(({ topic, error }, idx) => (
+                    <li key={idx}>
+                      <strong>{topic}:</strong> {error}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <button
+                type="button"
+                onClick={handleBatchGenerate}
+                disabled={batchRunning || !batchTopicList.trim()}
+                className="hover:bg-[#ffbf00]/20 rounded-lg border border-[#ffbf00]/50 bg-[#ffbf00]/10 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {batchRunning ? 'Generating…' : 'Generate'}
+              </button>
+            </div>
+          </details>
+        )}
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
@@ -700,7 +931,7 @@ export default function ExerciseImageGenerator() {
             <select
               value={movementPhase}
               onChange={(e) => setMovementPhase(e.target.value)}
-              className="focus:border-orange-light/50 focus:ring-orange-light/20 w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-white focus:outline-none focus:ring-2"
+              className="focus:border-[#ffbf00]/50 focus:ring-[#ffbf00]/20 w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-white focus:outline-none focus:ring-2"
             >
               <option value="">Not specified</option>
               <option value="bottom">Bottom</option>
@@ -718,7 +949,7 @@ export default function ExerciseImageGenerator() {
                 <select
                   value={bodySideStart}
                   onChange={(e) => setBodySideStart(e.target.value)}
-                  className="focus:border-orange-light/50 focus:ring-orange-light/20 w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-white focus:outline-none focus:ring-2"
+                  className="focus:border-[#ffbf00]/50 focus:ring-[#ffbf00]/20 w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-white focus:outline-none focus:ring-2"
                 >
                   <option value="">Not specified</option>
                   <option value="left">Left</option>
@@ -732,7 +963,7 @@ export default function ExerciseImageGenerator() {
                 <select
                   value={bodySideEnd}
                   onChange={(e) => setBodySideEnd(e.target.value)}
-                  className="focus:border-orange-light/50 focus:ring-orange-light/20 w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-white focus:outline-none focus:ring-2"
+                  className="focus:border-[#ffbf00]/50 focus:ring-[#ffbf00]/20 w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-white focus:outline-none focus:ring-2"
                 >
                   <option value="">Not specified</option>
                   <option value="left">Left</option>
@@ -748,7 +979,7 @@ export default function ExerciseImageGenerator() {
               <select
                 value={bodySide}
                 onChange={(e) => setBodySide(e.target.value)}
-                className="focus:border-orange-light/50 focus:ring-orange-light/20 w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-white focus:outline-none focus:ring-2"
+                className="focus:border-[#ffbf00]/50 focus:ring-[#ffbf00]/20 w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-white focus:outline-none focus:ring-2"
               >
                 <option value="">Not specified</option>
                 <option value="right">Right</option>
@@ -768,7 +999,7 @@ export default function ExerciseImageGenerator() {
               const text = getPresetTextById(e.target.value);
               if (text != null) setDemographics(text);
             }}
-            className="focus:border-orange-light/50 focus:ring-orange-light/20 mb-2 w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-white focus:outline-none focus:ring-2"
+            className="focus:border-[#ffbf00]/50 focus:ring-[#ffbf00]/20 mb-2 w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-white focus:outline-none focus:ring-2"
           >
             <option value="">Select a preset...</option>
             {DEMOGRAPHICS_PRESETS.map((grp) => (
@@ -786,7 +1017,7 @@ export default function ExerciseImageGenerator() {
             onChange={(e) => setDemographics(e.target.value)}
             placeholder="e.g. Female athlete, 30s"
             rows={3}
-            className="focus:border-orange-light/50 focus:ring-orange-light/20 w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-white placeholder:text-white/40 focus:outline-none focus:ring-2"
+            className="focus:border-[#ffbf00]/50 focus:ring-[#ffbf00]/20 w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-white placeholder:text-white/40 focus:outline-none focus:ring-2"
           />
         </div>
 
@@ -804,7 +1035,7 @@ export default function ExerciseImageGenerator() {
                 onChange={(e) => setFormCuesToEmphasize(e.target.value)}
                 placeholder="e.g. Arms pumping by hips, low curl, legs at 45°"
                 rows={3}
-                className="focus:border-orange-light/50 focus:ring-orange-light/20 w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2"
+                className="focus:border-[#ffbf00]/50 focus:ring-[#ffbf00]/20 w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2"
               />
             </div>
             <div>
@@ -816,7 +1047,7 @@ export default function ExerciseImageGenerator() {
                 onChange={(e) => setMisrenderingsToAvoid(e.target.value)}
                 placeholder="e.g. Do NOT show V-up or jackknife"
                 rows={3}
-                className="focus:border-orange-light/50 focus:ring-orange-light/20 w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2"
+                className="focus:border-[#ffbf00]/50 focus:ring-[#ffbf00]/20 w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2"
               />
             </div>
             <div>
@@ -828,7 +1059,7 @@ export default function ExerciseImageGenerator() {
                 onChange={(e) => setDomainContext(e.target.value)}
                 placeholder="e.g. Pilates: control, precision. Avoid maximal effort aesthetic."
                 rows={3}
-                className="focus:border-orange-light/50 focus:ring-orange-light/20 w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2"
+                className="focus:border-[#ffbf00]/50 focus:ring-[#ffbf00]/20 w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2"
               />
             </div>
           </div>
@@ -837,119 +1068,113 @@ export default function ExerciseImageGenerator() {
         {/* Templates: Save as / Load */}
         <div className="rounded-lg border border-white/10 bg-black/10 p-4">
           <p className="mb-2 text-xs font-medium text-white/70">Templates</p>
-          <div className="flex flex-wrap items-center gap-3">
-            {showTemplateNameInput ? (
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={templateNameInput}
-                  onChange={(e) => setTemplateNameInput(e.target.value)}
-                  placeholder="Template name"
-                  className="focus:border-orange-light/50 rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleSaveTemplate();
-                    if (e.key === 'Escape') {
+          {templatesLoading ? (
+            <div className="flex items-center gap-2 py-2 text-sm text-white/60">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading templates...
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-center gap-3">
+              {showTemplateNameInput ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={templateNameInput}
+                    onChange={(e) => setTemplateNameInput(e.target.value)}
+                    placeholder="Template name"
+                    className="focus:border-[#ffbf00]/50 rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleSaveTemplate();
+                      if (e.key === 'Escape') {
+                        setShowTemplateNameInput(false);
+                        setTemplateNameInput('');
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleSaveTemplate}
+                    disabled={!templateNameInput.trim() || !exerciseTopic.trim()}
+                    className="bg-[#ffbf00]/20 hover:bg-[#ffbf00]/30 rounded-lg border border-white/10 px-3 py-2 text-sm font-medium text-white transition-colors disabled:opacity-50"
+                  >
+                    Save
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
                       setShowTemplateNameInput(false);
                       setTemplateNameInput('');
-                    }
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={handleSaveTemplate}
-                  disabled={!templateNameInput.trim() || !exerciseTopic.trim()}
-                  className="bg-orange-light/20 hover:bg-orange-light/30 rounded-lg border border-white/10 px-3 py-2 text-sm font-medium text-white transition-colors disabled:opacity-50"
-                >
-                  Save
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowTemplateNameInput(false);
-                    setTemplateNameInput('');
-                  }}
-                  className="rounded-lg p-2 text-white/60 transition-colors hover:text-white"
-                  aria-label="Cancel"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setShowTemplateNameInput(true)}
-                disabled={!exerciseTopic.trim()}
-                className="hover:border-orange-light/30 hover:bg-orange-light/20 inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm font-medium text-white transition-colors disabled:opacity-50"
-              >
-                <FileDown className="h-4 w-4" />
-                Save as template
-              </button>
-            )}
-            {templates.length > 0 && (
-              <>
-                <div className="flex items-center gap-2">
-                  <label htmlFor="load-template" className="sr-only">
-                    Load template
-                  </label>
-                  <select
-                    id="load-template"
-                    value=""
-                    onChange={(e) => {
-                      const id = e.target.value;
-                      if (!id) return;
-                      const t = templates.find((x) => x.id === id);
-                      if (t) applyTemplate(t);
                     }}
-                    className="focus:border-orange-light/50 rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-white focus:outline-none"
+                    className="rounded-lg p-2 text-white/60 transition-colors hover:text-white"
+                    aria-label="Cancel"
                   >
-                    <option value="">Load template...</option>
-                    {templates.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.name}
-                      </option>
-                    ))}
-                  </select>
+                    <X className="h-4 w-4" />
+                  </button>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  {templates.map((t) => (
-                    <span
-                      key={t.id}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-black/20 px-2 py-1 text-xs"
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowTemplateNameInput(true)}
+                  disabled={!exerciseTopic.trim()}
+                  className="hover:border-[#ffbf00]/30 hover:bg-[#ffbf00]/20 inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm font-medium text-white transition-colors disabled:opacity-50"
+                >
+                  <FileDown className="h-4 w-4" />
+                  Save as template
+                </button>
+              )}
+              {templates.length > 0 && (
+                <>
+                  <div className="flex items-center gap-2">
+                    <label htmlFor="load-template" className="sr-only">
+                      Load template
+                    </label>
+                    <select
+                      id="load-template"
+                      value=""
+                      onChange={(e) => {
+                        const id = e.target.value;
+                        if (!id) return;
+                        const t = templates.find((x) => x.id === id);
+                        if (t) applyTemplate(t);
+                      }}
+                      className="focus:border-[#ffbf00]/50 rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-white focus:outline-none"
                     >
-                      {t.name}
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteTemplate(t.id)}
-                        className="rounded p-0.5 text-white/60 transition-colors hover:bg-red-500/20 hover:text-red-300"
-                        aria-label={`Delete template ${t.name}`}
+                      <option value="">Load template...</option>
+                      {templates.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {templates.map((t) => (
+                      <span
+                        key={t.id}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-black/20 px-2 py-1 text-xs"
                       >
-                        <Trash2 className="h-3 w-3" />
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
+                        {t.name}
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteTemplate(t.id)}
+                          className="rounded p-0.5 text-white/60 transition-colors hover:bg-red-500/20 hover:text-red-300"
+                          aria-label={`Delete template ${t.name}`}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
         </div>
-
-        <ReferenceImagePicker
-          referenceImageData={referenceImageData}
-          loadingReference={loadingReference}
-          referenceError={referenceError}
-          loadReferenceFromUrl={loadReferenceFromUrl}
-          setReferenceFromDataUrl={setReferenceFromDataUrl}
-          clearReferenceImage={clearReferenceImage}
-          referenceImageUrl={referenceImageUrl}
-          setReferenceImageUrl={setReferenceImageUrl}
-          loadReferenceImage={loadReferenceImage}
-          recentGeneratedDataUrl={result?.image ?? null}
-        />
 
         <button
           type="submit"
           disabled={loading || promptStep === 'review'}
-          className="hover:bg-orange-light/90 flex w-full items-center justify-center gap-2 rounded-lg bg-orange-light px-4 py-3 font-bold text-black transition-colors disabled:opacity-50"
+          className="hover:bg-[#ffbf00]/90 flex w-full items-center justify-center gap-2 rounded-lg bg-[#ffbf00] px-4 py-3 font-bold text-black transition-colors disabled:opacity-50"
         >
           {loading ? (
             <>
@@ -968,106 +1193,156 @@ export default function ExerciseImageGenerator() {
           )}
         </button>
       </form>
-
-      {promptStep === 'review' && researchResult && (
-        <div className="border-orange-light/30 mb-8 rounded-lg border bg-black/30 p-6">
-          <h3 className="mb-2 text-lg font-semibold text-white">Review image prompts</h3>
-          <p className="mb-4 text-sm text-white/70">
-            Edit the prompts below before generating. Changes will be used for image generation.
-          </p>
-          {outputMode === 'sequence' && researchResult.imagePrompts?.length === 3 ? (
-            <div className="mb-4 space-y-4">
-              {(['Start', 'Mid', 'End'] as const).map((label, i) => (
-                <div key={i}>
-                  <label className="mb-1 block text-sm font-medium text-white/80">{label}</label>
-                  <textarea
-                    value={editedPrompts[i]}
-                    onChange={(e) => {
-                      const next = [...editedPrompts] as [string, string, string];
-                      next[i] = e.target.value;
-                      setEditedPrompts(next);
-                    }}
-                    rows={4}
-                    className="focus:border-orange-light/50 focus:ring-orange-light/20 w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2"
-                  />
-                </div>
-              ))}
+        }
+        referenceSlot={
+          <ReferenceImagePicker
+            referenceImageData={referenceImageData}
+            loadingReference={loadingReference}
+            referenceError={referenceError}
+            loadReferenceFromUrl={loadReferenceFromUrl}
+            setReferenceFromDataUrl={setReferenceFromDataUrl}
+            clearReferenceImage={clearReferenceImage}
+            referenceImageUrl={referenceImageUrl}
+            setReferenceImageUrl={setReferenceImageUrl}
+            loadReferenceImage={loadReferenceImage}
+            recentGeneratedDataUrl={result?.image ?? null}
+          />
+        }
+        reviewSlot={(params) =>
+          outputMode === 'sequence' && params.researchResult.imagePrompts?.length === 3 ? (
+            <div className="border-[#ffbf00]/30 mb-8 rounded-lg border bg-black/30 p-6">
+              <h3 className="mb-2 text-lg font-semibold text-white">Review image prompts</h3>
+              <p className="mb-4 text-sm text-white/70">
+                Edit the prompts below before generating. Changes will be used for image generation.
+              </p>
+              <div className="mb-4 space-y-4">
+                {(['Start', 'Mid', 'End'] as const).map((label, i) => (
+                  <div key={i}>
+                    <label className="mb-1 block text-sm font-medium text-white/80">{label}</label>
+                    <textarea
+                      value={editedPrompts[i]}
+                      onChange={(e) => {
+                        const next = [...editedPrompts] as [string, string, string];
+                        next[i] = e.target.value;
+                        setEditedPrompts(next);
+                      }}
+                      rows={4}
+                      className="focus:border-[#ffbf00]/50 focus:ring-[#ffbf00]/20 w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2"
+                    />
+                  </div>
+                ))}
+              </div>
+              <div className="mb-4">
+                <h4 className="mb-2 text-sm font-medium text-white/80">
+                  Biomechanical analysis (read-only)
+                </h4>
+                <ul className="space-y-2">
+                  {params.researchResult.biomechanicalPoints.map((point, idx) => (
+                    <li
+                      key={idx}
+                      className="flex items-start gap-2 rounded-lg border border-white/10 bg-black/20 p-2 text-sm text-white/90"
+                    >
+                      <CheckCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#ffbf00]" />
+                      {point}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={params.onCancel}
+                  className="rounded-lg border border-white/20 bg-white/5 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-white/10"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => params.onSubmit({ imagePrompts: editedPrompts })}
+                  disabled={loading}
+                  className="hover:bg-[#ffbf00]/90 flex items-center gap-2 rounded-lg bg-[#ffbf00] px-4 py-2 font-bold text-black transition-colors disabled:opacity-50"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="h-4 w-4" />
+                      Generate images
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           ) : (
-            <div className="mb-4">
-              <label className="mb-1 block text-sm font-medium text-white/80">Image prompt</label>
-              <textarea
-                value={editedPrompt}
-                onChange={(e) => setEditedPrompt(e.target.value)}
-                rows={6}
-                className="focus:border-orange-light/50 focus:ring-orange-light/20 w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2"
-              />
-            </div>
-          )}
-          <div className="mb-4">
-            <h4 className="mb-2 text-sm font-medium text-white/80">
-              Biomechanical analysis (read-only)
-            </h4>
-            <ul className="space-y-2">
-              {researchResult.biomechanicalPoints.map((point, idx) => (
-                <li
-                  key={idx}
-                  className="flex items-start gap-2 rounded-lg border border-white/10 bg-black/20 p-2 text-sm text-white/90"
+            <div className="border-[#ffbf00]/30 mb-8 rounded-lg border bg-black/30 p-6">
+              <h3 className="mb-2 text-lg font-semibold text-white">Review image prompts</h3>
+              <p className="mb-4 text-sm text-white/70">
+                Edit the prompts below before generating. Changes will be used for image generation.
+              </p>
+              <div className="mb-4">
+                <label className="mb-1 block text-sm font-medium text-white/80">Image prompt</label>
+                <textarea
+                  value={editedPrompt}
+                  onChange={(e) => setEditedPrompt(e.target.value)}
+                  rows={6}
+                  className="focus:border-[#ffbf00]/50 focus:ring-[#ffbf00]/20 w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2"
+                />
+              </div>
+              <div className="mb-4">
+                <h4 className="mb-2 text-sm font-medium text-white/80">
+                  Biomechanical analysis (read-only)
+                </h4>
+                <ul className="space-y-2">
+                  {params.researchResult.biomechanicalPoints.map((point, idx) => (
+                    <li
+                      key={idx}
+                      className="flex items-start gap-2 rounded-lg border border-white/10 bg-black/20 p-2 text-sm text-white/90"
+                    >
+                      <CheckCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#ffbf00]" />
+                      {point}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={params.onCancel}
+                  className="rounded-lg border border-white/20 bg-white/5 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-white/10"
                 >
-                  <CheckCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-orange-light" />
-                  {point}
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div className="flex justify-end gap-3">
-            <button
-              type="button"
-              onClick={cancelPromptReview}
-              className="rounded-lg border border-white/20 bg-white/5 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-white/10"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={() =>
-                handleGenerateFromPrompts(
-                  outputMode === 'sequence' && researchResult.imagePrompts?.length === 3
-                    ? { imagePrompts: editedPrompts }
-                    : { imagePrompt: editedPrompt }
-                )
-              }
-              disabled={loading}
-              className="hover:bg-orange-light/90 flex items-center gap-2 rounded-lg bg-orange-light px-4 py-2 font-bold text-black transition-colors disabled:opacity-50"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <Send className="h-4 w-4" />
-                  Generate images
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {error && (
-        <div className="mb-6 rounded-lg border border-red-500/20 bg-red-500/10 p-4 text-red-300">
-          <strong>Error:</strong> {error}
-        </div>
-      )}
-
-      {result && (
-        <div className="animate-fade-in space-y-6">
-          {previewMode === 'save-exercise' && previewPayload && (
-            <div className="border-orange-light/30 rounded-lg border bg-black/30 p-6">
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => params.onSubmit({ imagePrompt: editedPrompt })}
+                  disabled={loading}
+                  className="hover:bg-[#ffbf00]/90 flex items-center gap-2 rounded-lg bg-[#ffbf00] px-4 py-2 font-bold text-black transition-colors disabled:opacity-50"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="h-4 w-4" />
+                      Generate images
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          )
+        }
+        resultSlot={({ result: res, onClear }) => (
+          <div className="animate-fade-in space-y-6">
+            {previewMode === 'save-exercise' && previewPayload && (
+            <div className="border-[#ffbf00]/30 rounded-lg border bg-black/30 p-6">
               <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-white">
-                <BookOpen className="h-5 w-5 text-orange-light" />
+                <BookOpen className="h-5 w-5 text-[#ffbf00]" />
                 Preview before save
               </h3>
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
@@ -1085,7 +1360,7 @@ export default function ExerciseImageGenerator() {
                     <code className="rounded bg-white/10 px-1">{previewPayload.slug}</code>
                   </p>
                   <div className="mt-2 flex flex-wrap gap-2">
-                    <span className="border-orange-light/50 bg-orange-light/10 rounded-full border px-2 py-0.5 text-xs text-orange-light">
+                    <span className="border-[#ffbf00]/50 bg-[#ffbf00]/10 rounded-full border px-2 py-0.5 text-xs text-[#ffbf00]">
                       {previewPayload.kineticChainType}
                     </span>
                     <span className="rounded-full border border-white/20 bg-white/5 px-2 py-0.5 text-xs text-white/80">
@@ -1150,7 +1425,7 @@ export default function ExerciseImageGenerator() {
                       <h4 className="mb-1 text-xs font-semibold uppercase tracking-wider text-white/60">
                         Sources
                       </h4>
-                      <ul className="space-y-0.5 text-xs text-orange-light">
+                      <ul className="space-y-0.5 text-xs text-[#ffbf00]">
                         {previewPayload.sources.map((s, i) => (
                           <li key={i}>
                             {s.title} ({s.domain}) — {s.searchQuery}
@@ -1166,7 +1441,7 @@ export default function ExerciseImageGenerator() {
                   type="button"
                   onClick={() => handleSaveExercise(previewPayload.slug)}
                   disabled={savingExercise}
-                  className="hover:bg-orange-light/90 inline-flex items-center gap-2 rounded-lg bg-orange-light px-4 py-2 text-sm font-medium text-black transition-colors disabled:opacity-50"
+                  className="hover:bg-[#ffbf00]/90 inline-flex items-center gap-2 rounded-lg bg-[#ffbf00] px-4 py-2 text-sm font-medium text-black transition-colors disabled:opacity-50"
                 >
                   {savingExercise ? (
                     <>
@@ -1195,16 +1470,16 @@ export default function ExerciseImageGenerator() {
           <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
             <div>
               <h3 className="mb-4 text-xl font-semibold text-white">
-                {result.images ? 'Generated Images' : 'Generated Image'}
+                {res.images ? 'Generated Images' : 'Generated Image'}
               </h3>
-              {result.images && result.images.length === 3 ? (
+              {res.images && res.images.length === 3 ? (
                 <div className="grid grid-cols-3 gap-3">
                   {(['Start', 'Mid', 'End'] as const).map((label, i) => (
                     <div key={label} className="space-y-1">
                       <p className="text-center text-xs font-medium text-white/70">{label}</p>
                       <div className="overflow-hidden rounded-lg border border-white/10 bg-black/40">
                         <img
-                          src={result.images![i]}
+                          src={res.images![i]}
                           alt={`${label} position for ${exerciseTopic}`}
                           className="h-auto w-full object-contain"
                         />
@@ -1215,7 +1490,7 @@ export default function ExerciseImageGenerator() {
               ) : (
                 <div className="overflow-hidden rounded-lg border border-white/10 bg-black/40">
                   <img
-                    src={result.image}
+                    src={res.image}
                     alt={`Generated infographic for ${exerciseTopic}`}
                     className="h-auto w-full object-contain"
                   />
@@ -1223,24 +1498,24 @@ export default function ExerciseImageGenerator() {
               )}
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 {!user ? (
-                  <p className="text-sm text-orange-light">Sign in to save images.</p>
+                  <p className="text-sm text-[#ffbf00]">Sign in to save images.</p>
                 ) : editingExercise ? (
                   <>
                     <button
                       type="button"
                       onClick={handleReplacePrimary}
                       disabled={savingExercise}
-                      className="hover:bg-orange-light/90 inline-flex items-center gap-2 rounded-lg bg-orange-light px-4 py-2 text-sm font-medium text-black transition-colors disabled:opacity-50"
+                      className="hover:bg-[#ffbf00]/90 inline-flex items-center gap-2 rounded-lg bg-[#ffbf00] px-4 py-2 text-sm font-medium text-black transition-colors disabled:opacity-50"
                     >
                       {savingExercise ? (
                         <>
                           <Loader2 className="h-4 w-4 animate-spin" />
-                          Saving...
+                          Updating...
                         </>
                       ) : (
                         <>
-                          <RefreshCw className="h-4 w-4" />
-                          Replace primary image
+                          <Save className="h-4 w-4" />
+                          Replace Primary
                         </>
                       )}
                     </button>
@@ -1248,17 +1523,17 @@ export default function ExerciseImageGenerator() {
                       type="button"
                       onClick={handleAddToCarousel}
                       disabled={savingExercise}
-                      className="hover:border-orange-light/30 hover:bg-orange-light/20 inline-flex items-center gap-2 rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-sm font-medium text-white transition-colors disabled:opacity-50"
+                      className="hover:border-[#ffbf00]/30 hover:bg-[#ffbf00]/20 inline-flex items-center gap-2 rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-sm font-medium text-white transition-colors disabled:opacity-50"
                     >
                       {savingExercise ? (
                         <>
                           <Loader2 className="h-4 w-4 animate-spin" />
-                          Saving...
+                          Adding...
                         </>
                       ) : (
                         <>
-                          <ImagePlus className="h-4 w-4" />
-                          Add to carousel
+                          <Save className="h-4 w-4" />
+                          Add to Carousel
                         </>
                       )}
                     </button>
@@ -1269,7 +1544,7 @@ export default function ExerciseImageGenerator() {
                       type="button"
                       onClick={handleSaveToStorage}
                       disabled={saving}
-                      className="hover:border-orange-light/30 hover:bg-orange-light/20 inline-flex items-center gap-2 rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-sm font-medium text-white transition-colors disabled:opacity-50"
+                      className="hover:border-[#ffbf00]/30 hover:bg-[#ffbf00]/20 inline-flex items-center gap-2 rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-sm font-medium text-white transition-colors disabled:opacity-50"
                     >
                       {saving ? (
                         <>
@@ -1287,7 +1562,7 @@ export default function ExerciseImageGenerator() {
                       type="button"
                       onClick={handleOpenPreview}
                       disabled={savingExercise || !!savedExerciseSlug || previewLoading}
-                      className="hover:bg-orange-light/90 inline-flex items-center gap-2 rounded-lg bg-orange-light px-4 py-2 text-sm font-medium text-black transition-colors disabled:opacity-50"
+                      className="hover:bg-[#ffbf00]/90 inline-flex items-center gap-2 rounded-lg bg-[#ffbf00] px-4 py-2 text-sm font-medium text-black transition-colors disabled:opacity-50"
                     >
                       {previewLoading ? (
                         <>
@@ -1319,7 +1594,7 @@ export default function ExerciseImageGenerator() {
                 <button
                   type="button"
                   onClick={handleDownloadImage}
-                  className="hover:border-orange-light/30 hover:bg-orange-light/20 inline-flex items-center gap-1 rounded-lg border border-white/10 bg-black/20 px-3 py-1.5 text-sm font-medium text-white transition-colors"
+                  className="hover:border-[#ffbf00]/30 hover:bg-[#ffbf00]/20 inline-flex items-center gap-1 rounded-lg border border-white/10 bg-black/20 px-3 py-1.5 text-sm font-medium text-white transition-colors"
                 >
                   <Download className="h-3.5 w-3.5" />
                   Download Image
@@ -1327,15 +1602,15 @@ export default function ExerciseImageGenerator() {
                 <button
                   type="button"
                   onClick={handleDownloadMetadata}
-                  className="hover:border-orange-light/30 hover:bg-orange-light/20 inline-flex items-center gap-1 rounded-lg border border-white/10 bg-black/20 px-3 py-1.5 text-sm font-medium text-white transition-colors"
+                  className="hover:border-[#ffbf00]/30 hover:bg-[#ffbf00]/20 inline-flex items-center gap-1 rounded-lg border border-white/10 bg-black/20 px-3 py-1.5 text-sm font-medium text-white transition-colors"
                 >
                   <FileText className="h-3.5 w-3.5" />
                   Download Metadata
                 </button>
                 <button
                   type="button"
-                  onClick={clearResult}
-                  className="hover:border-orange-light/30 hover:bg-orange-light/20 inline-flex items-center gap-1 rounded-lg border border-white/10 bg-black/20 px-3 py-1.5 text-sm font-medium text-white transition-colors"
+                  onClick={onClear}
+                  className="hover:border-[#ffbf00]/30 hover:bg-[#ffbf00]/20 inline-flex items-center gap-1 rounded-lg border border-white/10 bg-black/20 px-3 py-1.5 text-sm font-medium text-white transition-colors"
                 >
                   <RefreshCw className="h-3.5 w-3.5" />
                   Generate another
@@ -1345,7 +1620,7 @@ export default function ExerciseImageGenerator() {
                     href={savedImageUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-sm text-orange-light hover:underline"
+                    className="inline-flex items-center gap-1 text-sm text-[#ffbf00] hover:underline"
                   >
                     Image saved <ArrowUpRight className="h-3 w-3" />
                   </a>
@@ -1353,7 +1628,7 @@ export default function ExerciseImageGenerator() {
                 {(savedExerciseSlug || editingExercise?.slug) && (
                   <Link
                     to={`/exercises/${savedExerciseSlug ?? editingExercise!.slug}`}
-                    className="inline-flex items-center gap-1 text-sm text-orange-light hover:underline"
+                    className="inline-flex items-center gap-1 text-sm text-[#ffbf00] hover:underline"
                   >
                     View Exercise (Admin) <ArrowUpRight className="h-3 w-3" />
                   </Link>
@@ -1361,24 +1636,24 @@ export default function ExerciseImageGenerator() {
                 {saveError && <p className="text-sm text-red-300">{saveError}</p>}
                 {saveExerciseError && <p className="text-sm text-red-300">{saveExerciseError}</p>}
               </div>
-              {(result.imagePrompt ||
-                (result.imagePrompts && result.imagePrompts.length === 3)) && (
+              {(res.imagePrompt ||
+                (res.imagePrompts && res.imagePrompts.length === 3)) && (
                 <details className="mt-2 cursor-pointer text-xs text-white/60">
-                  <summary>View Image Prompt{result.imagePrompts?.length === 3 ? 's' : ''}</summary>
-                  {result.imagePrompts?.length === 3 ? (
+                  <summary>View Image Prompt{res.imagePrompts?.length === 3 ? 's' : ''}</summary>
+                  {res.imagePrompts?.length === 3 ? (
                     <div className="mt-1 space-y-2">
                       {(['Start', 'Mid', 'End'] as const).map((label, i) => (
                         <div key={i}>
                           <span className="font-medium text-white/70">{label}:</span>
                           <p className="mt-0.5 rounded-lg border border-white/10 bg-black/20 p-2 text-white/80">
-                            {result.imagePrompts![i]}
+                            {res.imagePrompts![i]}
                           </p>
                         </div>
                       ))}
                     </div>
                   ) : (
                     <p className="mt-1 rounded-lg border border-white/10 bg-black/20 p-2 text-white/80">
-                      {result.imagePrompt}
+                      {res.imagePrompt}
                     </p>
                   )}
                 </details>
@@ -1388,24 +1663,24 @@ export default function ExerciseImageGenerator() {
             <div>
               <h3 className="mb-4 text-xl font-semibold text-white">Biomechanical Analysis</h3>
               <ul className="space-y-3">
-                {result.biomechanicalPoints.map((point, idx) => (
+                {res.biomechanicalPoints.map((point, idx) => (
                   <li
                     key={idx}
                     className="flex items-start gap-3 rounded-lg border border-white/10 bg-black/20 p-3"
                   >
-                    <CheckCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-orange-light" />
+                    <CheckCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-[#ffbf00]" />
                     <span className="text-white/90">{point}</span>
                   </li>
                 ))}
               </ul>
 
-              {result.searchResults && result.searchResults.length > 0 && (
+              {res.searchResults && res.searchResults.length > 0 && (
                 <div className="mt-6">
                   <h4 className="mb-2 text-sm font-semibold uppercase tracking-wider text-white/60">
                     Sources (Google Search)
                   </h4>
-                  <ul className="space-y-1 text-xs text-orange-light">
-                    {result.searchResults.map(
+                  <ul className="space-y-1 text-xs text-[#ffbf00]">
+                    {res.searchResults.map(
                       (chunk: SearchChunk, i: number) =>
                         chunk.web && (
                           <li key={i}>
@@ -1426,7 +1701,9 @@ export default function ExerciseImageGenerator() {
             </div>
           </div>
         </div>
-      )}
+          )}
+        generation={generationForLab}
+      />
     </div>
   );
 }

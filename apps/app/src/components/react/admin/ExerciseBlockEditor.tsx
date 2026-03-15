@@ -267,7 +267,7 @@ const ExerciseBlockEditor: React.FC<ExerciseBlockEditorProps> = ({
               </button>
               <button
                 type="submit"
-                className="hover:bg-orange-light/90 rounded-lg bg-orange-light px-4 py-2 font-medium text-black"
+                className="hover:bg-[#ffbf00]/90 rounded-lg bg-[#ffbf00] px-4 py-2 font-medium text-black"
               >
                 Save
               </button>

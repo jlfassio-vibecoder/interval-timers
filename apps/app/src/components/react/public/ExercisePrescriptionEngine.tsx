@@ -241,7 +241,7 @@ const ExercisePrescriptionEngine: React.FC<ExercisePrescriptionEngineProps> = ({
           <h1 className="mb-2 font-heading text-3xl font-bold text-white md:text-4xl">
             {headerTitle}
           </h1>
-          <p className="font-mono text-xs uppercase tracking-[0.2em] text-orange-light">
+          <p className="font-mono text-xs uppercase tracking-[0.2em] text-[#ffbf00]">
             {headerSubtitle}
           </p>
         </div>
@@ -250,7 +250,7 @@ const ExercisePrescriptionEngine: React.FC<ExercisePrescriptionEngineProps> = ({
             <button
               type="button"
               onClick={() => setFiltersOpen(true)}
-              className="border-orange-light/50 bg-orange-light/20 hover:bg-orange-light/30 inline-flex items-center gap-2 rounded-full border px-6 py-3 font-mono text-xs font-bold uppercase tracking-widest text-orange-light transition-all"
+              className="border-[#ffbf00]/50 bg-[#ffbf00]/20 hover:bg-[#ffbf00]/30 inline-flex items-center gap-2 rounded-full border px-6 py-3 font-mono text-xs font-bold uppercase tracking-widest text-[#ffbf00] transition-all"
             >
               <SlidersHorizontal className="h-4 w-4" />
               Filters
@@ -330,7 +330,7 @@ const ExercisePrescriptionEngine: React.FC<ExercisePrescriptionEngineProps> = ({
               {alternatives.map((exercise) => (
                 <article
                   key={exercise.id}
-                  className="hover:border-orange-light/30 flex flex-col rounded-3xl border border-white/10 bg-black/20 p-[2px] shadow-2xl backdrop-blur-sm transition hover:bg-black/30"
+                  className="hover:border-[#ffbf00]/30 flex flex-col rounded-3xl border border-white/10 bg-black/20 p-[2px] shadow-2xl backdrop-blur-sm transition hover:bg-black/30"
                 >
                   <GridCard
                     headerImage={exercise.imageUrl || DEFAULT_PROGRAM_IMAGE}
@@ -355,7 +355,7 @@ const ExercisePrescriptionEngine: React.FC<ExercisePrescriptionEngineProps> = ({
                       href={
                         linkToDeepDive ? `/learn/${exercise.slug}` : `/exercises/${exercise.slug}`
                       }
-                      className="ml-auto inline-flex items-center gap-1 rounded-lg bg-orange-light px-4 py-2 text-sm font-bold uppercase tracking-wider text-black transition hover:bg-white"
+                      className="ml-auto inline-flex items-center gap-1 rounded-lg bg-[#ffbf00] px-4 py-2 text-sm font-bold uppercase tracking-wider text-black transition hover:bg-[#ffbf00]/90"
                     >
                       {linkToDeepDive ? deepDiveCtaLabel : 'View'}
                       <ChevronRight className="h-4 w-4" />
@@ -367,19 +367,19 @@ const ExercisePrescriptionEngine: React.FC<ExercisePrescriptionEngineProps> = ({
           ) : (
             <>
               {topMatch && (
-                <div className="border-orange-light/30 rounded-xl border bg-black/20 p-4">
-                  <article className="border-orange-light/40 bg-orange-light/10 flex flex-col rounded-3xl border p-[2px] shadow-2xl backdrop-blur-sm">
+                <div className="border-[#ffbf00]/30 rounded-xl border bg-black/20 p-4">
+                  <article className="border-[#ffbf00]/40 bg-[#ffbf00]/10 flex flex-col rounded-3xl border p-[2px] shadow-2xl backdrop-blur-sm">
                     <GridCard
                       headerImage={topMatch.imageUrl || DEFAULT_PROGRAM_IMAGE}
                       headerImageAlt={topMatch.exerciseName}
-                      className="border-orange-light/40"
+                      className="border-[#ffbf00]/40"
                       headerContent={
                         <>
                           <div className="min-w-0 flex-1">
                             <h2 className="line-clamp-2 font-heading text-lg font-bold text-white">
                               {topMatch.exerciseName}
                             </h2>
-                            <p className="mt-1 font-mono text-xs uppercase tracking-wider text-orange-light">
+                            <p className="mt-1 font-mono text-xs uppercase tracking-wider text-[#ffbf00]">
                               Top match for your vitals
                             </p>
                           </div>
@@ -399,7 +399,7 @@ const ExercisePrescriptionEngine: React.FC<ExercisePrescriptionEngineProps> = ({
                         href={
                           linkToDeepDive ? `/learn/${topMatch.slug}` : `/exercises/${topMatch.slug}`
                         }
-                        className="ml-auto inline-flex items-center gap-1 rounded-lg bg-orange-light px-4 py-2 text-sm font-bold uppercase tracking-wider text-black transition hover:bg-white"
+                        className="ml-auto inline-flex items-center gap-1 rounded-lg bg-[#ffbf00] px-4 py-2 text-sm font-bold uppercase tracking-wider text-black transition hover:bg-[#ffbf00]/90"
                       >
                         {linkToDeepDive ? deepDiveCtaLabel : 'View Exercise'}
                         <ChevronRight className="h-4 w-4" />
@@ -420,7 +420,7 @@ const ExercisePrescriptionEngine: React.FC<ExercisePrescriptionEngineProps> = ({
                         key={exercise.id}
                         className={`flex flex-col rounded-3xl border p-[2px] shadow-2xl backdrop-blur-sm transition ${
                           exercise.matchScore >= 50
-                            ? 'hover:border-orange-light/30 border-white/10 bg-black/20 hover:bg-black/30'
+                            ? 'hover:border-[#ffbf00]/30 border-white/10 bg-black/20 hover:bg-black/30'
                             : 'border-white/5 bg-black/10 opacity-75'
                         } ${exercise.matchScore < 30 ? 'grayscale' : ''}`}
                       >
@@ -449,7 +449,7 @@ const ExercisePrescriptionEngine: React.FC<ExercisePrescriptionEngineProps> = ({
                                 ? `/learn/${exercise.slug}`
                                 : `/exercises/${exercise.slug}`
                             }
-                            className="ml-auto inline-flex items-center gap-1 rounded-lg bg-orange-light px-4 py-2 text-sm font-bold uppercase tracking-wider text-black transition hover:bg-white"
+                            className="ml-auto inline-flex items-center gap-1 rounded-lg bg-[#ffbf00] px-4 py-2 text-sm font-bold uppercase tracking-wider text-black transition hover:bg-[#ffbf00]/90"
                           >
                             {linkToDeepDive ? deepDiveCtaLabel : 'View'}
                             <ChevronRight className="h-4 w-4" />
@@ -493,7 +493,7 @@ const ExercisePrescriptionEngine: React.FC<ExercisePrescriptionEngineProps> = ({
                                   ? `/learn/${exercise.slug}`
                                   : `/exercises/${exercise.slug}`
                               }
-                              className="ml-auto inline-flex items-center gap-1 rounded-lg bg-orange-light px-4 py-2 text-sm font-bold uppercase tracking-wider text-black transition hover:bg-white"
+                              className="ml-auto inline-flex items-center gap-1 rounded-lg bg-[#ffbf00] px-4 py-2 text-sm font-bold uppercase tracking-wider text-black transition hover:bg-[#ffbf00]/90"
                             >
                               {linkToDeepDive ? deepDiveCtaLabel : 'View'}
                               <ChevronRight className="h-4 w-4" />

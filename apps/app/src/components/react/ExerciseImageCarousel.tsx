@@ -56,11 +56,11 @@ interface ExerciseImageCarouselProps {
 
 /** Role badge colors and labels */
 const ROLE_CONFIG: Record<ExerciseImageRole, { label: string; color: string }> = {
-  primary: { label: 'Primary', color: 'bg-emerald-500/80 text-white' },
+  primary: { label: 'Primary', color: 'bg-[#ffbf00]/80 text-black' },
   secondary: { label: 'Secondary', color: 'bg-blue-500/80 text-white' },
   tertiary: { label: 'Tertiary', color: 'bg-purple-500/80 text-white' },
   ghosted: { label: 'Ghosted', color: 'bg-slate-500/80 text-white' },
-  illustration: { label: 'Illustration', color: 'bg-amber-500/80 text-white' },
+  illustration: { label: 'Illustration', color: 'bg-[#ffbf00]/80 text-black' },
   multiplicity: { label: 'Multiplicity', color: 'bg-teal-500/80 text-white' },
   sequenceStart: { label: 'Start', color: 'bg-teal-600/80 text-white' },
   sequenceMid: { label: 'Mid', color: 'bg-teal-500/80 text-white' },
@@ -234,13 +234,13 @@ const ExerciseImageCarousel: React.FC<ExerciseImageCarouselProps> = ({
     <>
       <div className="px-4 md:px-6">
         <div className="mb-3 flex items-center justify-between">
-          <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500">Gallery</h4>
+          <h4 className="text-xs font-semibold uppercase tracking-wider text-[#ffbf00]">Gallery</h4>
           {isAdmin && (
             <div className="flex items-center gap-2">
               {images.length < 5 && onAddImage && (
                 <button
                   onClick={onAddImage}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-slate-700 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-slate-600"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-[#ffbf00] px-3 py-1.5 text-xs font-medium text-black transition-colors hover:bg-[#ffbf00]/90"
                 >
                   <Plus className="h-3.5 w-3.5" />
                   Add Image
@@ -249,7 +249,7 @@ const ExerciseImageCarousel: React.FC<ExerciseImageCarouselProps> = ({
               {onAddVideo && (
                 <button
                   onClick={onAddVideo}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-teal-500"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-[#ffbf00] px-3 py-1.5 text-xs font-medium text-black transition-colors hover:bg-[#ffbf00]/90"
                 >
                   <Video className="h-3.5 w-3.5" />
                   Add Video
@@ -275,7 +275,7 @@ const ExerciseImageCarousel: React.FC<ExerciseImageCarouselProps> = ({
           <div className="flex items-center justify-center rounded-xl border border-dashed border-slate-700 py-8">
             <button
               onClick={onAddImage}
-              className="flex flex-col items-center gap-2 text-slate-500 transition-colors hover:text-slate-400"
+              className="flex flex-col items-center gap-2 text-slate-500 transition-colors hover:text-[#ffbf00]"
             >
               <ImageIcon className="h-8 w-8" />
               <span className="text-sm">Add gallery images</span>

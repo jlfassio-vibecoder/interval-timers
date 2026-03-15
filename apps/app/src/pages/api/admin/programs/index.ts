@@ -4,14 +4,14 @@
  */
 
 import type { APIRoute } from 'astro';
-import { verifyAdminRequest } from '@/lib/supabase/admin/auth';
+import { verifyTrainerOrAdminRequest } from '@/lib/supabase/admin/auth';
 import { createProgram } from '@/lib/supabase/admin/program-server';
 import type { ProgramTemplate, ProgramConfig, PromptChainMetadata } from '@/types/ai-program';
 
 export const POST: APIRoute = async ({ request, cookies }) => {
   try {
     // Verify admin authentication (extracts token from cookies or Authorization header)
-    const adminInfo = await verifyAdminRequest(request, cookies);
+    const adminInfo = await verifyTrainerOrAdminRequest(request, cookies);
 
     // Parse request body
     let body: {

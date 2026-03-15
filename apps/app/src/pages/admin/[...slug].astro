@@ -2,12 +2,12 @@
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import AdminDashboard from '../../components/react/admin/AdminDashboard';
 import { adminPaths } from '@/lib/admin/config';
-import { verifyAdminRequest } from '@/lib/supabase/admin/auth';
+import { verifyTrainerOrAdminRequest } from '@/lib/supabase/admin/auth';
 
 export const prerender = false;
 
 try {
-  await verifyAdminRequest(Astro.request, Astro.cookies);
+  await verifyTrainerOrAdminRequest(Astro.request, Astro.cookies);
 } catch (e) {
   const msg = e instanceof Error ? e.message : '';
   if (msg === 'UNAUTHORIZED') {

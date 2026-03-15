@@ -7,13 +7,13 @@
  */
 
 import type { APIRoute } from 'astro';
-import { verifyAdminRequest } from '@/lib/supabase/admin/auth';
+import { verifyTrainerOrAdminRequest } from '@/lib/supabase/admin/auth';
 
 export const prerender = false;
 
 export const POST: APIRoute = async ({ request, params, cookies }) => {
   try {
-    await verifyAdminRequest(request, cookies);
+    await verifyTrainerOrAdminRequest(request, cookies);
 
     const uid = params.uid;
     if (!uid) {

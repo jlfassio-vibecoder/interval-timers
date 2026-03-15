@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { verifyAdminRequest } from '@/lib/supabase/admin/auth';
+import { verifyTrainerOrAdminRequest } from '@/lib/supabase/admin/auth';
 import {
   getGeneratedExerciseById,
   updateGeneratedExerciseDeepDive,
@@ -17,7 +17,7 @@ export const POST: APIRoute = async ({ request, params, cookies }) => {
   }
 
   try {
-    await verifyAdminRequest(request, cookies);
+    await verifyTrainerOrAdminRequest(request, cookies);
 
     const exerciseData = await getGeneratedExerciseById(id);
     if (!exerciseData) {
