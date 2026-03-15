@@ -7,6 +7,7 @@ on:
     branches: [main, master]
     paths:
       - 'apps/app/**'
+      - 'packages/content-generation-lab/**'
       - 'packages/exercise-mapping/**'
       - 'package.json'
       - 'package-lock.json'
@@ -14,6 +15,7 @@ on:
     branches: [main, master]
     paths:
       - 'apps/app/**'
+      - 'packages/content-generation-lab/**'
       - 'packages/exercise-mapping/**'
       - 'package.json'
       - 'package-lock.json'
