@@ -6,13 +6,15 @@ import './index.css'
 import App from './App.tsx'
 
 // Supabase auth-js uses navigator.locks; concurrent getSession/onAuthStateChange can race and
-// trigger "Lock broken by another request with the 'steal' option". One op aborts but the other
-// succeeds; auth state is correct. Suppress the uncaught rejection to avoid console noise.
+// trigger lock-steal AbortErrors (wording varies: "Lock broken by another request with the 'steal'
+// option" or "Lock was stolen by another request"). One op aborts but the other succeeds; auth
+// state is correct. Suppress the uncaught rejection so the app keeps working when logged in.
 window.addEventListener('unhandledrejection', (event) => {
   const msg = event.reason?.message ?? '';
   if (
     event.reason?.name === 'AbortError' &&
-    msg.includes("Lock broken by another request with the 'steal' option")
+    (msg.includes("Lock broken by another request with the 'steal' option") ||
+      msg.includes('Lock was stolen by another request'))
   ) {
     event.preventDefault();
   }

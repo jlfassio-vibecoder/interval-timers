@@ -25,7 +25,10 @@ function getAmrapWorkoutLabel(workoutList: string[]): string {
 import { fetchUserPrograms, getProgramWithSchedule } from '@/lib/supabase/client/user-programs';
 import SessionFeed from './SessionFeed';
 import SessionDetailDrawer from './SessionDetailDrawer';
+import AmrapResultDetailDrawer from './AmrapResultDetailDrawer';
+import AmrapScheduleModal from './AmrapScheduleModal';
 import WorkoutPlayer from '@/components/react/tracking/WorkoutPlayer';
+import { createAmrapSession } from '@/lib/supabase/client/amrap-create-session';
 import type { ProgramSchedule } from '@/types/ai-program';
 
 type WorkoutFromSchedule = ProgramSchedule['workouts'][number];
@@ -61,7 +64,9 @@ async function resolveTitles(sessions: SessionHistoryItem[]): Promise<SessionHis
 }
 
 const HistoryZone: React.FC = () => {
-  const { user } = useAppContext();
+  const { user, session } = useAppContext();
+  /** Use session.user.id when profile (user) is not yet loaded so AMRAP results fetch immediately. */
+  const effectiveUserId = user?.uid ?? session?.user?.id ?? null;
   const [filter, setFilter] = useState<FilterTab>('all');
   const [programFilterId, setProgramFilterId] = useState<string | null>(null);
   const [programs, setPrograms] = useState<{ programId: string; title?: string }[]>([]);
@@ -70,6 +75,8 @@ const HistoryZone: React.FC = () => {
   const [selectedSession, setSelectedSession] = useState<SessionHistoryItem | null>(null);
   const [amrapResults, setAmrapResults] = useState<AmrapSessionResult[]>([]);
   const [amrapLoading, setAmrapLoading] = useState(true);
+  const [selectedAmrapResult, setSelectedAmrapResult] = useState<AmrapSessionResult | null>(null);
+  const [schedulingFor, setSchedulingFor] = useState<AmrapSessionResult | null>(null);
   const [workoutPlayer, setWorkoutPlayer] = useState<{
     workout: WorkoutFromSchedule;
     programId: string;
@@ -118,17 +125,25 @@ const HistoryZone: React.FC = () => {
   }, [user?.uid]);
 
   useEffect(() => {
-    if (!user?.uid) {
+    if (!effectiveUserId) {
       setAmrapResults([]);
       setAmrapLoading(false);
       return;
     }
     setAmrapLoading(true);
-    getAmrapSessionResults(user.uid, 10)
-      .then(setAmrapResults)
-      .catch(() => setAmrapResults([]))
+    getAmrapSessionResults(effectiveUserId, 10)
+      .then((results) => {
+        setAmrapResults(results);
+        if (import.meta.env.DEV && results.length === 0) {
+          console.warn('[HistoryZone] getAmrapSessionResults returned 0 rows for user', effectiveUserId);
+        }
+      })
+      .catch((err) => {
+        setAmrapResults([]);
+        if (import.meta.env.DEV) console.error('[HistoryZone] getAmrapSessionResults failed:', err);
+      })
       .finally(() => setAmrapLoading(false));
-  }, [user?.uid]);
+  }, [effectiveUserId]);
 
   const handleDoAgain = useCallback(
     (workout: WorkoutFromSchedule, programId: string, weekId: string, workoutId: string) => {
@@ -136,6 +151,26 @@ const HistoryZone: React.FC = () => {
     },
     []
   );
+
+  const handleAmrapDoAgain = useCallback(async (result: AmrapSessionResult) => {
+    setSelectedAmrapResult(null);
+    try {
+      const { session_id } = await createAmrapSession({
+        duration_minutes: result.duration_minutes,
+        workout_list: result.workout_list,
+        host_nickname: 'Host',
+      });
+      const origin = typeof window !== 'undefined' ? window.location.origin : '';
+      window.location.href = `${origin}/amrap/with-friends/session/${session_id}`;
+    } catch {
+      // Error could be shown via toast; for now user stays on page
+    }
+  }, []);
+
+  const handleAmrapSchedule = useCallback((result: AmrapSessionResult) => {
+    setSelectedAmrapResult(null);
+    setSchedulingFor(result);
+  }, []);
 
   return (
     <div>
@@ -227,10 +262,19 @@ const HistoryZone: React.FC = () => {
               {amrapResults.map((r) => (
                 <li
                   key={r.id}
-                  className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setSelectedAmrapResult(r)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setSelectedAmrapResult(r);
+                    }
+                  }}
+                  className="cursor-pointer rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm transition-colors hover:bg-white/10"
                 >
                   <span className="font-medium text-white/90">
-                    {getAmrapWorkoutLabel(r.workout_list)}
+                    {r.workout_name ?? getAmrapWorkoutLabel(r.workout_list)}
                   </span>
                   <span className="ml-2 text-white/60">
                     {r.total_rounds} rounds · {r.duration_minutes} min
@@ -243,6 +287,7 @@ const HistoryZone: React.FC = () => {
                     className="text-orange-400 ml-2 hover:underline"
                     target="_blank"
                     rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
                   >
                     View session
                   </a>
@@ -258,6 +303,22 @@ const HistoryZone: React.FC = () => {
           session={selectedSession}
           onClose={() => setSelectedSession(null)}
           onDoAgain={handleDoAgain}
+        />
+      )}
+
+      {selectedAmrapResult && (
+        <AmrapResultDetailDrawer
+          result={selectedAmrapResult}
+          onClose={() => setSelectedAmrapResult(null)}
+          onDoAgain={handleAmrapDoAgain}
+          onSchedule={handleAmrapSchedule}
+        />
+      )}
+
+      {schedulingFor && (
+        <AmrapScheduleModal
+          result={schedulingFor}
+          onClose={() => setSchedulingFor(null)}
         />
       )}
 

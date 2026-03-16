@@ -114,6 +114,14 @@ Direct links avoid proxy conflicts with shared paths like `/src`.
 
 Runs app, amrap, and landing together. Give the servers ~5 seconds to start before opening the landing page.
 
+**AMRAP with Friends (video / livestream)**
+
+1. Run `npm run dev:amrap:video` (starts AMRAP on 5177, App on 3006, token server on 9517).
+2. Open AMRAP either:
+   - **Via hub:** `http://localhost:3006/amrap/` (App proxies to AMRAP; WebSocket is proxied so HMR works), or
+   - **Standalone:** `http://localhost:5177/amrap/`
+Both work locally; production uses the same origin (e.g. `https://yoursite.com/amrap/`).
+
 ---
 
 ## Landing and Standalone Timers
