@@ -11,6 +11,7 @@ import { useAppContext } from '@/contexts/AppContext';
 import { getSessionHistory } from '@/lib/supabase/client/session-history';
 import type { SessionHistoryItem } from '@/lib/supabase/client/session-history';
 import { getAmrapSessionResults } from '@/lib/supabase/client/amrap-session-results';
+import { getAmrapSessionUrl } from '@/lib/amrap-urls';
 import { fetchHandoffLogs } from '@/lib/supabase/client/workout-logs';
 import { getProgramWithSchedule } from '@/lib/supabase/client/user-programs';
 import type { ProgramSchedule } from '@/types/ai-program';
@@ -102,7 +103,7 @@ const AccountFeed: React.FC = () => {
         title: a.workout_list?.[0]?.trim() ?? 'AMRAP',
         type: 'amrap',
         durationMinutes: a.duration_minutes,
-        link: `/amrap/with-friends/session/${a.session_id}`,
+        link: getAmrapSessionUrl(a.session_id),
         metadata: { totalRounds: a.total_rounds },
       }));
 

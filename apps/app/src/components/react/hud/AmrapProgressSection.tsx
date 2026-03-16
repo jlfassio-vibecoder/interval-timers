@@ -3,15 +3,7 @@
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  CartesianGrid,
-} from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { useAppContext } from '@/contexts/AppContext';
 import { getAmrapSessionResultsForAnalytics } from '@/lib/supabase/client/amrap-session-results';
 
@@ -27,7 +19,9 @@ function stdDev(arr: number[]): number {
 export default function AmrapProgressSection() {
   const { user } = useAppContext();
   const [range, setRange] = useState<DateRangeKey>('30d');
-  const [results, setResults] = useState<Awaited<ReturnType<typeof getAmrapSessionResultsForAnalytics>>>([]);
+  const [results, setResults] = useState<
+    Awaited<ReturnType<typeof getAmrapSessionResultsForAnalytics>>
+  >([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -50,9 +44,15 @@ export default function AmrapProgressSection() {
     const data = filtered
       .map((r) => ({
         date: r.completed_at.slice(0, 10),
-        label: new Date(r.completed_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+        label: new Date(r.completed_at).toLocaleDateString(undefined, {
+          month: 'short',
+          day: 'numeric',
+        }),
         rounds: r.total_rounds,
-        consistencySec: r.round_durations.length >= 2 ? Math.round(stdDev(r.round_durations)) : null as number | null,
+        consistencySec:
+          r.round_durations.length >= 2
+            ? Math.round(stdDev(r.round_durations))
+            : (null as number | null),
       }))
       .reverse();
     return {
@@ -118,11 +118,17 @@ export default function AmrapProgressSection() {
         <div className="flex flex-col gap-6">
           {hasRounds && (
             <div>
-              <p className="mb-2 font-mono text-[10px] uppercase text-white/50">Rounds per session</p>
+              <p className="mb-2 font-mono text-[10px] uppercase text-white/50">
+                Rounds per session
+              </p>
               <div className="h-40 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.08)" />
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      vertical={false}
+                      stroke="rgba(255,255,255,0.08)"
+                    />
                     <XAxis
                       dataKey="label"
                       tick={{ fontSize: 10, fill: 'rgba(255,255,255,0.6)' }}
@@ -162,7 +168,11 @@ export default function AmrapProgressSection() {
                     data={chartData.map((d) => ({ ...d, consistency: d.consistencySec ?? 0 }))}
                     margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
                   >
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.08)" />
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      vertical={false}
+                      stroke="rgba(255,255,255,0.08)"
+                    />
                     <XAxis
                       dataKey="label"
                       tick={{ fontSize: 10, fill: 'rgba(255,255,255,0.6)' }}

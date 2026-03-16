@@ -8,14 +8,17 @@ export function getAppId(): string {
 
 export type TokenResult = { token: string } | { error: string }
 
-/** Fetch token from /api/agora-token (prod) or proxied token server (dev). Always fetches when account is provided to avoid UID 0 / UID_CONFLICT (static tokens are uid-based). */
+/** Fetch token from /api/agora-token (prod) or proxied token server (dev). Always fetches when account is provided to avoid UID 0 / UID_CONFLICT (static tokens are uid-based). When VITE_AGORA_TOKEN_BASE_URL is set (e.g. custom domain deploy), token is fetched from that origin. */
 export async function getTokenOrFetchWithAccount(
   channelName: string,
   account: string
 ): Promise<TokenResult> {
   try {
-    const base = typeof window !== 'undefined' ? window.location.origin : ''
-    const url = `${base}/api/agora-token?channel=${encodeURIComponent(channelName)}&account=${encodeURIComponent(account)}`
+    const envBase = (import.meta.env.VITE_AGORA_TOKEN_BASE_URL ?? '').trim()
+    const base =
+      envBase ||
+      (typeof window !== 'undefined' ? window.location.origin : '')
+    const url = `${base.replace(/\/+$/, '')}/api/agora-token?channel=${encodeURIComponent(channelName)}&account=${encodeURIComponent(account)}`
     const res = await fetch(url)
     if (!res.ok) {
       const err = (await res.json().catch(() => ({}))) as { error?: string }

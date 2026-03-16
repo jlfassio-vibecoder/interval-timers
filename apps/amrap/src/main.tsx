@@ -20,9 +20,12 @@ window.addEventListener('unhandledrejection', (event) => {
   }
 });
 
+const amrapBase = import.meta.env.VITE_AMRAP_BASE ?? '/amrap'
+const basename = typeof amrapBase === 'string' ? amrapBase.replace(/\/+$/, '') || '/' : '/amrap'
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <BrowserRouter basename="/amrap">
+    <BrowserRouter basename={basename}>
       <AmrapAuthProvider>
         <App />
       </AmrapAuthProvider>

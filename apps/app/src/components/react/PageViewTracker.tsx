@@ -27,12 +27,9 @@ const PageViewTracker: React.FC<PageViewTrackerProps> = ({
   appId,
 }) => {
   const client = supabaseProp ?? supabase;
-  useEffect(
-    () => {
-      trackPageView(client, { appId });
-    },
-    [pathname, client, appId]
-  );
+  useEffect(() => {
+    trackPageView(client, { appId });
+  }, [pathname, client, appId]);
 
   return null;
 };
