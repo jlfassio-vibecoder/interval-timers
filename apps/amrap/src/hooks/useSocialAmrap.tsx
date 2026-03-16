@@ -19,6 +19,11 @@ import { getOrCreateAudioContext, playSoundWithContext } from '@/lib/amrapSounds
 import { HUD_REDIRECT_URL } from '@/lib/account-redirect-url';
 import { buildRecoveryUrl } from '@/lib/recovery-url';
 import { saveGuestSessionResult } from '@/lib/guestSessionHistory';
+import {
+  withLockRetry,
+  isLockAbortError,
+  isLockAbortInResult,
+} from '@/lib/lock-retry';
 import { getWorkoutTitle } from '@/lib/workoutLabel';
 import { buildResultsText, computeVolumeLines } from '@/lib/workoutResults';
 import type { AmrapRoundRow, AmrapParticipantRow } from '@/lib/supabase';
@@ -353,14 +358,36 @@ export function useSocialAmrap(
     if (!sessionId) return;
     setJoinLoading(true);
     setJoinError(null);
-    const { data, error: joinErr } = await supabase.rpc('join_session', {
-      p_session_id: sessionId,
-      p_nickname: name,
-      p_user_id: user?.id ?? null,
-    });
+    let data: unknown;
+    let joinErr: { message?: string } | null = null;
+    try {
+      const res = await withLockRetry(() =>
+        supabase.rpc('join_session', {
+          p_session_id: sessionId,
+          p_nickname: name,
+          p_user_id: user?.id ?? null,
+        })
+      );
+      data = res.data;
+      joinErr = res.error ?? null;
+    } catch (e) {
+      setJoinLoading(false);
+      setJoinError(
+        isLockAbortError(e)
+          ? 'Join was interrupted. Please try again.'
+          : e instanceof Error
+            ? e.message
+            : 'Something went wrong. Please try again.'
+      );
+      return;
+    }
     setJoinLoading(false);
     if (joinErr) {
-      setJoinError(joinErr.message);
+      setJoinError(
+        isLockAbortInResult({ error: joinErr })
+          ? 'Join was interrupted. Please try again.'
+          : joinErr.message ?? 'Something went wrong.'
+      );
       return;
     }
     const result = data as { participant_id: string };

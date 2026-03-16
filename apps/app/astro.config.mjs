@@ -94,6 +94,10 @@ export default defineConfig({
           process.env.PUBLIC_SUPABASE_ANON_KEY ||
           process.env.SUPABASE_ANON_KEY ||
           ''
+      ),
+      // Custom domain for AMRAP (e.g. amrapwithfriends.com); used by amrap-urls.ts and app-registry.ts
+      'import.meta.env.PUBLIC_AMRAP_BASE_URL': JSON.stringify(
+        (process.env.PUBLIC_AMRAP_BASE_URL || '').trim()
       )
     },
     server: {

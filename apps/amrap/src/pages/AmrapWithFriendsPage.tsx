@@ -18,45 +18,13 @@ import {
   type GuestSessionResult,
 } from '@/lib/guestSessionHistory';
 import { getWorkoutTitleAndDuration } from '@/lib/workoutLabel';
+import {
+  withLockRetry,
+  isLockAbortError,
+  isLockAbortInResult,
+} from '@/lib/lock-retry';
 
 type Tab = 'create' | 'join' | 'schedule';
-
-/** Supabase auth-js lock race can abort requests; retry with short backoff. */
-const LOCK_ABORT_MSG = "Lock broken by another request with the 'steal' option";
-
-function isLockAbortError(e: unknown): boolean {
-  if (e instanceof Error) {
-    return e.name === 'AbortError' && e.message.includes(LOCK_ABORT_MSG);
-  }
-  return false;
-}
-
-function isLockAbortInResult(result: { error?: { message?: string } | null }): boolean {
-  return !!result.error?.message?.includes(LOCK_ABORT_MSG);
-}
-
-async function withLockRetry<T extends { data: unknown; error: { message?: string } | null }>(
-  fn: () => PromiseLike<T>,
-  maxAttempts = 3
-): Promise<T> {
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    try {
-      const result = await fn();
-      if (isLockAbortInResult(result) && attempt < maxAttempts) {
-        await new Promise((r) => setTimeout(r, 100 * attempt));
-        continue;
-      }
-      return result;
-    } catch (e) {
-      if (isLockAbortError(e) && attempt < maxAttempts) {
-        await new Promise((r) => setTimeout(r, 100 * attempt));
-        continue;
-      }
-      throw e;
-    }
-  }
-  throw new Error('Retry exhausted');
-}
 
 export default function AmrapWithFriendsPage() {
   const navigate = useNavigate();
