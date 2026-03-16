@@ -23,9 +23,12 @@ export default function AmrapScheduleModal({
   onClose,
   onScheduled,
 }: AmrapScheduleModalProps) {
-  const minDate = new Date();
-  minDate.setMinutes(0);
-  minDate.setSeconds(0, 0);
+  const now = new Date();
+  const minDate = new Date(now);
+  minDate.setMinutes(0, 0, 0);
+  if (minDate.getTime() <= now.getTime()) {
+    minDate.setHours(minDate.getHours() + 1);
+  }
   const [value, setValue] = useState(() => toDatetimeLocal(minDate));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
