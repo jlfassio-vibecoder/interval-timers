@@ -32,7 +32,8 @@ export async function getAmrapSessionResults(
   });
 
   if (error) {
-    if (import.meta.env.DEV) console.error('[getAmrapSessionResults]', error.message, error.details);
+    if (import.meta.env.DEV)
+      console.error('[getAmrapSessionResults]', error.message, error.details);
     return [];
   }
 

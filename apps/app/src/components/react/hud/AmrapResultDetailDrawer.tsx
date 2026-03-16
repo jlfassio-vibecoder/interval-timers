@@ -5,6 +5,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Play, Calendar, Copy } from 'lucide-react';
 import type { AmrapSessionResult } from '@/lib/supabase/client/amrap-session-results';
+import { getAmrapSessionUrl } from '@/lib/amrap-urls';
 import { buildAmrapResultsText } from '@/lib/amrap-results-text';
 import RoundConsistencyChart from './RoundConsistencyChart';
 
@@ -22,12 +23,6 @@ function formatDate(iso: string): string {
     day: 'numeric',
     year: 'numeric',
   });
-}
-
-function getSessionUrl(sessionId: string): string {
-  if (typeof window === 'undefined') return '';
-  const base = window.location.origin;
-  return `${base}/amrap/with-friends/session/${sessionId}`;
 }
 
 const AmrapResultDetailDrawer: React.FC<AmrapResultDetailDrawerProps> = ({
@@ -48,7 +43,7 @@ const AmrapResultDetailDrawer: React.FC<AmrapResultDetailDrawerProps> = ({
 
   if (!result) return null;
 
-  const sessionUrl = getSessionUrl(result.session_id);
+  const sessionUrl = getAmrapSessionUrl(result.session_id);
   const resultsText = buildAmrapResultsText(
     result.workout_list,
     result.total_rounds,
@@ -103,11 +98,10 @@ const AmrapResultDetailDrawer: React.FC<AmrapResultDetailDrawerProps> = ({
         </div>
         <div className="p-6">
           <div className="mb-4">
-            <p className="font-heading text-xl font-black text-white">
-              {workoutLabel}
-            </p>
+            <p className="font-heading text-xl font-black text-white">{workoutLabel}</p>
             <p className="mt-1 font-mono text-[10px] text-white/40">
-              {formatDate(result.completed_at)} · {result.total_rounds} rounds · {result.duration_minutes} min
+              {formatDate(result.completed_at)} · {result.total_rounds} rounds ·{' '}
+              {result.duration_minutes} min
             </p>
           </div>
 
@@ -117,7 +111,7 @@ const AmrapResultDetailDrawer: React.FC<AmrapResultDetailDrawerProps> = ({
 
           <div className="mb-4">
             <p className="mb-2 font-mono text-[10px] uppercase text-white/50">Results</p>
-            <pre className="max-h-48 overflow-y-auto rounded-xl border border-white/10 bg-black/30 p-4 font-sans text-sm text-white/90 whitespace-pre-wrap break-words">
+            <pre className="max-h-48 overflow-y-auto whitespace-pre-wrap break-words rounded-xl border border-white/10 bg-black/30 p-4 font-sans text-sm text-white/90">
               {resultsText}
             </pre>
           </div>
@@ -131,19 +125,15 @@ const AmrapResultDetailDrawer: React.FC<AmrapResultDetailDrawerProps> = ({
               <Copy className="h-4 w-4" />
               Copy results
             </button>
-            {copyStatus === 'success' && (
-              <span className="text-xs text-emerald-400">Copied!</span>
-            )}
-            {copyStatus === 'error' && (
-              <span className="text-xs text-red-400">Failed to copy</span>
-            )}
+            {copyStatus === 'success' && <span className="text-xs text-emerald-400">Copied!</span>}
+            {copyStatus === 'error' && <span className="text-xs text-red-400">Failed to copy</span>}
           </div>
 
           <div className="flex flex-col gap-3">
             <button
               type="button"
               onClick={() => onDoAgain(result)}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl border border-orange-light/50 bg-orange-light/20 py-3 font-heading text-sm font-black uppercase text-orange-light transition-colors hover:bg-orange-light/30"
+              className="border-orange-light/50 bg-orange-light/20 hover:bg-orange-light/30 flex w-full items-center justify-center gap-2 rounded-2xl border py-3 font-heading text-sm font-black uppercase text-orange-light transition-colors"
             >
               <Play className="h-4 w-4" />
               Do Again
@@ -163,7 +153,7 @@ const AmrapResultDetailDrawer: React.FC<AmrapResultDetailDrawerProps> = ({
               href={sessionUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-sm text-orange-400 hover:underline"
+              className="text-orange-400 text-sm hover:underline"
             >
               View session
             </a>

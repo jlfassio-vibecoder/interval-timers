@@ -3,11 +3,15 @@
  * Used to resolve app name/path when redirecting with ?from=<appId>.
  */
 
+import { appendQuery } from '@/lib/url-utils';
+
 export interface AppEntry {
   id: string;
   name: string;
   path: string;
   description: string;
+  /** When set, app is on a different origin (e.g. AMRAP at amrapwithfriends.com). Launcher uses this for the link. */
+  baseUrl?: string;
 }
 
 export const APP_REGISTRY: readonly AppEntry[] = [
@@ -40,4 +44,17 @@ export const APP_REGISTRY: readonly AppEntry[] = [
 
 export function getAppById(id: string): AppEntry | undefined {
   return APP_REGISTRY.find((app) => app.id === id);
+}
+
+const PUBLIC_AMRAP_BASE =
+  (typeof import.meta !== 'undefined' && (import.meta.env?.PUBLIC_AMRAP_BASE_URL ?? '').trim()) ||
+  '';
+
+/** Resolves the launch URL for an app. Uses PUBLIC_AMRAP_BASE_URL for AMRAP when set (custom domain). */
+export function getAppLaunchUrl(app: AppEntry, params: Record<string, string>): string {
+  const base =
+    app.baseUrl ??
+    (app.id === 'amrap' && PUBLIC_AMRAP_BASE ? PUBLIC_AMRAP_BASE.replace(/\/+$/, '') + '/' : '');
+  if (base) return appendQuery(base, params);
+  return appendQuery(app.path, params);
 }

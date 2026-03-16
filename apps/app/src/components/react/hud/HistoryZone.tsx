@@ -29,6 +29,7 @@ import AmrapResultDetailDrawer from './AmrapResultDetailDrawer';
 import AmrapScheduleModal from './AmrapScheduleModal';
 import WorkoutPlayer from '@/components/react/tracking/WorkoutPlayer';
 import { createAmrapSession } from '@/lib/supabase/client/amrap-create-session';
+import { getAmrapSessionUrl } from '@/lib/amrap-urls';
 import type { ProgramSchedule } from '@/types/ai-program';
 
 type WorkoutFromSchedule = ProgramSchedule['workouts'][number];
@@ -135,7 +136,10 @@ const HistoryZone: React.FC = () => {
       .then((results) => {
         setAmrapResults(results);
         if (import.meta.env.DEV && results.length === 0) {
-          console.warn('[HistoryZone] getAmrapSessionResults returned 0 rows for user', effectiveUserId);
+          console.warn(
+            '[HistoryZone] getAmrapSessionResults returned 0 rows for user',
+            effectiveUserId
+          );
         }
       })
       .catch((err) => {
@@ -160,8 +164,7 @@ const HistoryZone: React.FC = () => {
         workout_list: result.workout_list,
         host_nickname: 'Host',
       });
-      const origin = typeof window !== 'undefined' ? window.location.origin : '';
-      window.location.href = `${origin}/amrap/with-friends/session/${session_id}`;
+      window.location.href = getAmrapSessionUrl(session_id);
     } catch {
       // Error could be shown via toast; for now user stays on page
     }
@@ -283,7 +286,7 @@ const HistoryZone: React.FC = () => {
                     {new Date(r.completed_at).toLocaleDateString()}
                   </span>
                   <a
-                    href={`/amrap/with-friends/session/${r.session_id}`}
+                    href={getAmrapSessionUrl(r.session_id)}
                     className="text-orange-400 ml-2 hover:underline"
                     target="_blank"
                     rel="noopener noreferrer"
@@ -316,10 +319,7 @@ const HistoryZone: React.FC = () => {
       )}
 
       {schedulingFor && (
-        <AmrapScheduleModal
-          result={schedulingFor}
-          onClose={() => setSchedulingFor(null)}
-        />
+        <AmrapScheduleModal result={schedulingFor} onClose={() => setSchedulingFor(null)} />
       )}
 
       {workoutPlayer && (

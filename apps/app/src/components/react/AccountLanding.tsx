@@ -18,8 +18,7 @@ import {
 } from '@interval-timers/handoff';
 import { trackEvent } from '@interval-timers/analytics';
 import { getAccountCopy } from '@/lib/account-copy';
-import { APP_REGISTRY, getAppById } from '@/lib/app-registry';
-import { appendQuery } from '@/lib/url-utils';
+import { APP_REGISTRY, getAppById, getAppLaunchUrl } from '@/lib/app-registry';
 import { supabase } from '@/lib/supabase/supabase-instance';
 import { logHandoffSession } from '@/lib/supabase/client/log-handoff';
 import TrialBanner from './TrialBanner';
@@ -300,7 +299,7 @@ const AccountLanding: React.FC = () => {
           <div className="border-orange-500/30 bg-orange-500/10 rounded-2xl border p-6">
             <p className="mb-2 text-sm text-white/70">You signed in from {entryApp.name}</p>
             <a
-              href={appendQuery(entryApp.path, { from_hub: '1', app_id: entryApp.id })}
+              href={getAppLaunchUrl(entryApp, { from_hub: '1', app_id: entryApp.id })}
               className="border-orange-500 bg-orange-600 hover:bg-orange-500 inline-flex items-center rounded-xl border-2 px-4 py-2 font-bold text-white"
             >
               Continue to {entryApp.name}
@@ -345,7 +344,7 @@ const AccountLanding: React.FC = () => {
         )}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {APP_REGISTRY.map((app) => {
-            const href = appendQuery(app.path, { from_hub: '1', app_id: app.id });
+            const href = getAppLaunchUrl(app, { from_hub: '1', app_id: app.id });
             return (
               <a
                 key={app.id}

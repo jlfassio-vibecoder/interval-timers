@@ -33,9 +33,7 @@ export interface RoundConsistencyChartProps {
   roundDurations: number[];
 }
 
-export default function RoundConsistencyChart({
-  roundDurations,
-}: RoundConsistencyChartProps) {
+export default function RoundConsistencyChart({ roundDurations }: RoundConsistencyChartProps) {
   if (roundDurations.length === 0) return null;
 
   const data = roundDurations.map((seconds, i) => ({
@@ -43,24 +41,17 @@ export default function RoundConsistencyChart({
     seconds,
   }));
 
-  const average =
-    roundDurations.reduce((a, b) => a + b, 0) / roundDurations.length;
+  const average = roundDurations.reduce((a, b) => a + b, 0) / roundDurations.length;
   const std = stdDev(roundDurations);
   const showConsistencyStat = roundDurations.length > 1;
 
   return (
     <div className="mb-6 rounded-xl border border-white/10 bg-black/30 p-4">
-      <h3 className="mb-3 text-sm font-bold text-white/90">
-        Round duration
-      </h3>
+      <h3 className="mb-3 text-sm font-bold text-white/90">Round duration</h3>
       <div className="h-[200px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-            <CartesianGrid
-              strokeDasharray="3 3"
-              vertical={false}
-              stroke="rgba(255,255,255,0.1)"
-            />
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.1)" />
             <XAxis
               dataKey="round"
               tick={{ fontSize: 12, fill: 'rgba(255,255,255,0.7)' }}
@@ -81,8 +72,10 @@ export default function RoundConsistencyChart({
                 border: '1px solid rgba(255,255,255,0.1)',
                 color: 'rgba(255,255,255,0.9)',
               }}
-              formatter={(value: unknown) =>
-                [formatSeconds(Array.isArray(value) ? value[0] : value), 'Duration']}
+              formatter={(value: unknown) => [
+                formatSeconds(Array.isArray(value) ? value[0] : value),
+                'Duration',
+              ]}
               labelFormatter={(label) => `Round ${label}`}
             />
             <ReferenceLine

@@ -58,14 +58,21 @@ export default function AmrapScheduleModal({
 
   return (
     <>
-      <div className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm" aria-hidden onClick={onClose} />
+      <div
+        className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+        aria-hidden
+        onClick={onClose}
+      />
       <div
         className="fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-white/10 bg-bg-dark p-6 shadow-2xl"
         role="dialog"
         aria-labelledby="amrap-schedule-modal-title"
       >
         <div className="mb-4 flex items-center justify-between">
-          <h2 id="amrap-schedule-modal-title" className="font-heading text-lg font-black uppercase text-white">
+          <h2
+            id="amrap-schedule-modal-title"
+            className="font-heading text-lg font-black uppercase text-white"
+          >
             Schedule AMRAP
           </h2>
           <button
@@ -89,7 +96,8 @@ export default function AmrapScheduleModal({
         ) : (
           <form onSubmit={handleSubmit}>
             <p className="mb-3 text-sm text-white/70">
-              {result.workout_name ?? result.workout_list?.[0] ?? 'AMRAP'} · {result.duration_minutes} min
+              {result.workout_name ?? result.workout_list?.[0] ?? 'AMRAP'} ·{' '}
+              {result.duration_minutes} min
             </p>
             <label className="mb-2 block font-mono text-[10px] uppercase text-white/50">
               Date & time
@@ -99,7 +107,7 @@ export default function AmrapScheduleModal({
               value={value}
               min={toDatetimeLocal(minDate)}
               onChange={(e) => setValue(e.target.value)}
-              className="mb-4 w-full rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-white focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+              className="focus:border-orange-500 focus:ring-orange-500 mb-4 w-full rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-white focus:outline-none focus:ring-1"
             />
             {error && <p className="mb-3 text-sm text-red-400">{error}</p>}
             <div className="flex gap-3">
@@ -113,7 +121,7 @@ export default function AmrapScheduleModal({
               <button
                 type="submit"
                 disabled={loading}
-                className="rounded-xl border border-orange-500 bg-orange-600 px-4 py-2 font-bold text-white hover:bg-orange-500 disabled:opacity-50"
+                className="border-orange-500 bg-orange-600 hover:bg-orange-500 rounded-xl border px-4 py-2 font-bold text-white disabled:opacity-50"
               >
                 {loading ? 'Scheduling…' : 'Schedule'}
               </button>

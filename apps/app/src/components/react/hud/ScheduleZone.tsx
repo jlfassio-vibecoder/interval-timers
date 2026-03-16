@@ -21,6 +21,7 @@ import type { UpcomingStripDay } from './UpcomingStrip';
 import WorkoutEventDrawer from './WorkoutEventDrawer';
 import WorkoutPlayer from '@/components/react/tracking/WorkoutPlayer';
 import { getAmrapScheduledSessionsForUser } from '@/lib/supabase/client/amrap-scheduled-sessions';
+import { getAmrapSessionUrl } from '@/lib/amrap-urls';
 import type { ProgramSchedule } from '@/types/ai-program';
 
 function getAmrapWorkoutLabel(workoutList: string[]): string {
@@ -245,7 +246,7 @@ const ScheduleZone: React.FC<ScheduleZoneProps> = ({ refreshKey = 0, onViewLog }
                   })}
                 </span>
                 <a
-                  href={`/amrap/with-friends/session/${s.id}`}
+                  href={getAmrapSessionUrl(s.id)}
                   className="text-orange-400 ml-2 hover:underline"
                   target="_blank"
                   rel="noopener noreferrer"
