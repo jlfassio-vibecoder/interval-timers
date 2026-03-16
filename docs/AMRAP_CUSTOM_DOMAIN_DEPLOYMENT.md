@@ -13,7 +13,7 @@ Set these in the **AMRAP** Vercel project (or `.env` for local test):
 
 | Variable | Value |
 |----------|--------|
-| `VITE_AMRAP_BASE` | `/` (root; required for custom domain) |
+| `VITE_AMRAP_BASE` | **`/`** (root) — **required** for custom domain; if unset, assets are requested at `/amrap/assets/...` and 404 at root |
 | `VITE_ACCOUNT_REDIRECT_URL` | Full account URL, e.g. `https://app.hiitworkouttimer.com/account` or `https://interval-timers-accounts.vercel.app/account` |
 | `VITE_HUD_REDIRECT_URL` | Same as account URL (used for "View in History") |
 | `VITE_AGORA_TOKEN_BASE_URL` | Origin that serves `/api/agora-token`, e.g. `https://interval-timers-accounts.vercel.app` |
@@ -69,7 +69,7 @@ See [apps/app/.env.example](apps/app/.env.example).
 3. **Framework Preset**: Vite.
 4. **Build Command**: From repo root, use `npm run build -w amrap` (or configure Install Command to run from root so workspaces resolve). If Root is repo root, use `npm run build -w amrap` and **Output Directory**: `apps/amrap/dist`.
 5. **Output Directory**: `dist` (if Root is `apps/amrap`).
-6. **Environment variables**: Add all from section 1 (Production and Preview as needed).
+6. **Environment variables**: Add all from section 1. **Critical:** set `VITE_AMRAP_BASE=/` for **Production** and **Preview** so the build emits `/assets/...` (not `/amrap/assets/...`). Without it you get 404s for JS/CSS on amrapwithfriends.com.
 7. **Custom domain**: Add `amrapwithfriends.com` (and `www.amrapwithfriends.com` if desired) in Project → Settings → Domains.
 
 Ensure the build runs in a context where `npm install` and `npm run build -w amrap` see the monorepo (e.g. Root Directory = repo root with Build Command overriding to `npm run build -w amrap` and Output Directory = `apps/amrap/dist`).
@@ -98,7 +98,26 @@ When you open AMRAP **via the hub** at `http://localhost:3006/amrap/` (e.g. `npm
 
 ---
 
-## 9. Code references
+## 9. Troubleshooting: 404 for `/amrap/assets/` on custom domain
+
+**Symptom:** White screen on amrapwithfriends.com (or amrap-plum.vercel.app) and console errors:
+
+- `Failed to load resource: 404` for `/amrap/assets/index-*.js`
+- `Failed to load resource: 404` for `/amrap/assets/index-*..css`
+
+**Cause:** The AMRAP Vercel project was built without `VITE_AMRAP_BASE=/`. The default base is `/amrap/`, so the built `index.html` references `/amrap/assets/...`. When the app is served at **root** (custom domain), static files are under `/assets/`, not `/amrap/assets/`, so those requests 404.
+
+**Fix:**
+
+1. In **Vercel** → your AMRAP project (e.g. amrap-plum) → **Settings** → **Environment Variables**.
+2. Add (or edit) **`VITE_AMRAP_BASE`** with value **`/`** for **Production** and **Preview**.
+3. **Redeploy** the project (e.g. trigger a new deployment from the Vercel dashboard or push a commit).
+
+After redeploy, the build will emit `<script src="/assets/...">` and `<link href="/assets/...">`, and Vercel will serve them correctly at amrapwithfriends.com and www.amrapwithfriends.com.
+
+---
+
+## 10. Code references
 
 - AMRAP base path: [apps/amrap/vite.config.ts](apps/amrap/vite.config.ts) (`base`), [apps/amrap/src/main.tsx](apps/amrap/src/main.tsx) (`basename`).
 - Account/HUD redirects: [apps/amrap/src/lib/account-redirect-url.ts](apps/amrap/src/lib/account-redirect-url.ts).
