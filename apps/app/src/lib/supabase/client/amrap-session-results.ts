@@ -24,7 +24,7 @@ export interface AmrapSessionResult {
  * Calls public.get_amrap_session_results RPC (uses auth.uid() server-side).
  */
 export async function getAmrapSessionResults(
-  _userId: string,
+  _userId: string, // Kept for API consistency; RPC uses auth.uid() server-side only
   limit: number = 10
 ): Promise<AmrapSessionResult[]> {
   const { data, error } = await supabase.rpc('get_amrap_session_results', {
