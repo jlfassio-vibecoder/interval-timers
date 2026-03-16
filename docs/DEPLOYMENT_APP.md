@@ -92,3 +92,15 @@ HTTP ERROR 500
 - **Redeploy** again so the build runs with the current env (older builds may have baked in empty values).
 - In Vercel → App project → **Deployments** → open the latest deployment → **Functions** or **Runtime Logs**. The logged error (e.g. missing Supabase, or another exception) will show the real cause.
 4. See **docs/SUPABASE_ENV.md** for all supported variable names (`VITE_*`, `PUBLIC_*`, etc.).
+
+## Troubleshooting: 503 on Visualization Lab / generate-exercise-image
+
+**Symptom:** Generating an image in the Visualization Lab (or exercise image generator) returns 503 and "Failed to load resource".
+
+**Cause:** The API returns 503 when `GEMINI_API_KEY` is missing in production. The API runs on the **App** project (interval-timers-accounts), not the main interval-timers project.
+
+**Fix:**
+
+1. Open **Vercel** → **App project** (the one with Root Directory `apps/app`, e.g. "app" or "interval-timers-accounts") → **Settings** → **Environment Variables**.
+2. Add `GEMINI_API_KEY` = your Gemini API key (from [Google AI Studio](https://aistudio.google.com/app/apikey)) for **Production** (and **Preview** if needed).
+3. **Redeploy** the **App** project (Deployments → … → Redeploy). Env vars are only applied on new deployments.
