@@ -36,6 +36,8 @@ export function useAgoraChannel(
   const [error, setError] = useState<string | null>(null)
   const clientRef = useRef<IAgoraRTCClient | null>(null)
   const tracksRef = useRef<{ video: ICameraVideoTrack; audio: IMicrophoneAudioTrack } | null>(null)
+  /** So the next effect run (e.g. StrictMode remount) waits for previous leave before join, avoiding UID_CONFLICT */
+  const previousLeavePromiseRef = useRef<Promise<void> | null>(null)
 
   const addRemoteUser = useCallback((uid: string | number, video?: IRemoteVideoTrack, audio?: IRemoteAudioTrack) => {
     setRemoteUsers((prev) => {
@@ -150,6 +152,10 @@ export function useAgoraChannel(
     const run = async () => {
       try {
         setError(null)
+        if (previousLeavePromiseRef.current) {
+          await previousLeavePromiseRef.current
+          previousLeavePromiseRef.current = null
+        }
         const result = await getTokenOrFetchWithAccount(channelName, participantId)
         if ('error' in result) {
           if (typeof window !== 'undefined') console.warn('[Agora] Token fetch failed:', result.error)
@@ -216,7 +222,7 @@ export function useAgoraChannel(
         tracksRef.current = null
       }
       client.removeAllListeners()
-      void client.leave()
+      previousLeavePromiseRef.current = client.leave()
       clientRef.current = null
       setLocalVideoTrack(null)
       setLocalAudioTrack(null)

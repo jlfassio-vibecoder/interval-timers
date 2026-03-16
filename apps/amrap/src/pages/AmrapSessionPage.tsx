@@ -166,6 +166,7 @@ export default function AmrapSessionPage() {
         myRounds={result.myRounds}
         durationMinutes={result.durationMinutes ?? 15}
         onCopyResults={pageState.copyResults}
+        onViewResults={pageState.handleOpenViewResults}
         recoveryUrl={pageState.recoveryUrl}
       />
 

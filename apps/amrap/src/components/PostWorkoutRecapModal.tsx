@@ -1,6 +1,6 @@
 /**
  * Optional recap modal shown once when the workout finishes.
- * Shows summary and actions: Done, View in History, Copy results.
+ * Shows summary and actions: Done, View in History, View results (when onViewResults provided), Copy results.
  * Optionally shows "Continue on phone" QR when recoveryUrl is provided.
  */
 import { useEffect, useState } from 'react';
@@ -15,6 +15,8 @@ export interface PostWorkoutRecapModalProps {
   myRounds: number;
   durationMinutes: number;
   onCopyResults: () => void;
+  /** When provided, shows "View results" button that closes recap and opens the results modal */
+  onViewResults?: () => void;
   /** When provided, shows "Continue on phone" section with QR code and copy link */
   recoveryUrl?: string | null;
 }
@@ -25,6 +27,7 @@ export default function PostWorkoutRecapModal({
   myRounds,
   durationMinutes,
   onCopyResults,
+  onViewResults,
   recoveryUrl = null,
 }: PostWorkoutRecapModalProps) {
   const navigate = useNavigate();
@@ -48,7 +51,14 @@ export default function PostWorkoutRecapModal({
 
   const handleViewInHistory = () => {
     onClose();
-    window.open(HUD_REDIRECT_URL, '_blank', 'noopener,noreferrer');
+    const url = new URL(HUD_REDIRECT_URL);
+    url.searchParams.set('hud', '1');
+    window.open(url.toString(), '_blank', 'noopener,noreferrer');
+  };
+
+  const handleViewResults = () => {
+    onClose();
+    onViewResults?.();
   };
 
   const handleCopyResults = () => {
@@ -152,6 +162,15 @@ export default function PostWorkoutRecapModal({
           >
             View in History
           </button>
+          {onViewResults != null && (
+            <button
+              type="button"
+              onClick={handleViewResults}
+              className="rounded-xl border border-white/20 bg-white/10 px-4 py-3 font-bold text-white transition-colors hover:bg-white/20"
+            >
+              View results
+            </button>
+          )}
           <button
             type="button"
             onClick={handleCopyResults}

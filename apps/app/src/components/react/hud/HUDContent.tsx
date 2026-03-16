@@ -10,6 +10,7 @@ import TodayZone from './TodayZone';
 import ProgressZone from './ProgressZone';
 import ScheduleZone from './ScheduleZone';
 import HistoryZone from './HistoryZone';
+import AmrapProgressSection from './AmrapProgressSection';
 import type { WorkoutLog } from '@/types';
 
 export interface HUDContentProps {
@@ -56,6 +57,8 @@ const HUDContent: React.FC<HUDContentProps> = ({
       <div id="history-zone">
         <HistoryZone />
       </div>
+
+      <AmrapProgressSection />
     </div>
   );
 };

@@ -101,7 +101,8 @@ export default defineConfig({
       proxy: {
         '/amrap': {
           target: 'http://localhost:5177',
-          changeOrigin: true
+          changeOrigin: true,
+          ws: true // required so Vite HMR WebSocket works when opening http://localhost:3006/amrap/
         },
         '/api/agora-token': {
           target: 'http://localhost:9517',

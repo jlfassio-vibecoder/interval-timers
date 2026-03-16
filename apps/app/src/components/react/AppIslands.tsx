@@ -171,10 +171,10 @@ const AppIslands: React.FC<AppIslandsProps> = ({ pathname: initialPathname }) =>
     const hud = params.get('hud') === '1';
     if (signin) setShowAuthModal(true);
     if (hud) setShowHUD(true);
-    if (signin || hud) {
+    // Only strip signin from URL (so bar doesn't show ?signin=1). Keep hud=1 so /account?hud=1 persists for bookmarking and refresh.
+    if (signin) {
       const url = new URL(window.location.href);
       url.searchParams.delete('signin');
-      url.searchParams.delete('hud');
       const clean = url.pathname + (url.search || '') + url.hash;
       window.history.replaceState(null, '', clean || '/');
     }

@@ -35,6 +35,16 @@ supabase migration list
 8. `20250305700000_amrap_rounds_realtime.sql` — Realtime for amrap_rounds
 9. `20250305800000_amrap_scheduled_start.sql` — scheduled_start_at and create_session overload
 
+## AMRAP session results (HUD)
+
+The app loads AMRAP results via **public.get_amrap_session_results(p_limit)** RPC (migration `20250319100000_expose_shared_schema.sql`). The RPC reads from `shared.amrap_session_results` with `auth.uid()`, so the `shared` schema does not need to be exposed in PostgREST. No Dashboard config required.
+
+**If you already applied an earlier version of this migration** (e.g. the no-op one): run the full contents of `20250319100000_expose_shared_schema.sql` in the Supabase SQL Editor to create or replace the RPC.
+
+## Workout logs readiness (HUD Today Zone)
+
+The HUD Today Zone includes a Readiness Check-In (1–5) stored in `public.workout_logs`. Migration `20250319200000_workout_logs_readiness.sql` adds the `readiness_score` column if missing. Apply it so the readiness query does not return 400.
+
 ## Verification
 
 Use `supabase/verify_amrap_migrations.sql` in the SQL Editor to confirm RPCs, constraints, and RLS. After applying the schema migration, you should see schemas `amrap` and `shared` in the project.
