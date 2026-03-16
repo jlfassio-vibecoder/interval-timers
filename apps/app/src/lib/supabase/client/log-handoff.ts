@@ -83,7 +83,8 @@ export async function logHandoffSession(
     rating: 3,
     notes: '',
     duration_seconds: Number.isFinite(durationSeconds) ? durationSeconds : null,
-    calories: handoff.calories != null && Number.isFinite(handoff.calories) ? handoff.calories : null,
+    calories:
+      handoff.calories != null && Number.isFinite(handoff.calories) ? handoff.calories : null,
     rounds: handoff.rounds != null && Number.isFinite(handoff.rounds) ? handoff.rounds : null,
     source: handoff.source,
     handoff_dedupe_key,

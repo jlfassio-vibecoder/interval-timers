@@ -293,8 +293,12 @@ const IntervalTimerLandingPage: React.FC<IntervalTimerLandingPageProps> = ({ onN
           <div className="font-display mb-2 text-2xl font-bold text-white">Sync-60</div>
           <p className="mb-8 text-sm text-white/50">Designed by AI Fitcopilot</p>
           <div className="flex justify-center gap-6 text-sm font-bold text-white/40">
-            <a href="/privacy" className="hover:text-white/70">Privacy</a>
-            <a href="/terms" className="hover:text-white/70">Terms</a>
+            <a href="/privacy" className="hover:text-white/70">
+              Privacy
+            </a>
+            <a href="/terms" className="hover:text-white/70">
+              Terms
+            </a>
             <span>Science</span>
           </div>
         </div>

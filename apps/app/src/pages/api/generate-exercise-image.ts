@@ -35,7 +35,8 @@ function logStructured(
 function isRateLimitError(error: unknown): boolean {
   const msg = error instanceof Error ? error.message : String(error);
   const lower = msg.toLowerCase();
-  if (lower.includes('429') || lower.includes('rate limit') || lower.includes('resource exhausted')) return true;
+  if (lower.includes('429') || lower.includes('rate limit') || lower.includes('resource exhausted'))
+    return true;
   if (error && typeof error === 'object') {
     const obj = error as { status?: string; code?: number };
     if (obj.status === 'RESOURCE_EXHAUSTED' || obj.code === 429) return true;

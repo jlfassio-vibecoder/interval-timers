@@ -35,13 +35,10 @@ export const GET: APIRoute = async ({ request }) => {
   }
 
   if (!isAllowedUrl(trimmed)) {
-    return new Response(
-      JSON.stringify({ error: 'URL must be from project Supabase storage' }),
-      {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      }
-    );
+    return new Response(JSON.stringify({ error: 'URL must be from project Supabase storage' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
 
   try {

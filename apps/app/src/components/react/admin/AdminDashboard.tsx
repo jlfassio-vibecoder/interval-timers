@@ -19,6 +19,7 @@ import { supabase } from '@/lib/supabase/supabase-instance';
 import { clearAuthCookie } from '@/lib/auth-cookie';
 import DashboardHome from './views/DashboardHome';
 import FunnelView from './views/FunnelView';
+import AnalyticsView from './views/AnalyticsView';
 import ManageUsers from './views/ManageUsers';
 import ManagePrograms from './views/ManagePrograms';
 import ManageChallenges from './views/ManageChallenges';
@@ -35,12 +36,15 @@ import AdminExerciseDetailWrapper from './AdminExerciseDetailWrapper';
 import ExerciseImageGenerator from '@/components/ExerciseImageGenerator';
 import { adminPaths } from '@/lib/admin/config';
 import { ADMIN_NAV_ITEMS, isAdminNavActive } from '@/lib/admin/navigation';
+import PageViewTracker from '@/components/react/PageViewTracker';
 
 const AdminLayout: React.FC = () => {
   const location = useLocation();
 
   return (
     <div className="flex h-screen bg-bg-dark text-white">
+      {/* Passing shared client for admin route page-view tracking (client-rendered). */}
+      <PageViewTracker pathname={location.pathname} supabase={supabase} appId="app" />
       {/* Sidebar */}
       <aside className="w-64 border-r border-white/10 bg-black/20 backdrop-blur-sm">
         <div className="flex h-full flex-col">
@@ -146,6 +150,7 @@ const AdminDashboard: React.FC = () => {
           <Route path="/" element={<AdminLayout />}>
             <Route index element={<DashboardHome />} />
             <Route path="funnel" element={<FunnelView />} />
+            <Route path="analytics" element={<AnalyticsView />} />
             <Route path="users" element={<ManageUsers />} />
             <Route path="programs/:id" element={<ProgramEditor />} />
             <Route path="programs" element={<ManagePrograms />} />

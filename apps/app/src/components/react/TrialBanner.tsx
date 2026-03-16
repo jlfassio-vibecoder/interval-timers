@@ -50,7 +50,7 @@ const TrialBanner: React.FC<TrialBannerProps> = ({ trialEndsAt, onDismiss }) => 
   if (remaining == null) return null;
 
   return (
-    <div className="rounded-2xl border border-orange-500/30 bg-orange-500/10 px-4 py-3">
+    <div className="border-orange-500/30 bg-orange-500/10 rounded-2xl border px-4 py-3">
       <div className="flex items-center justify-between gap-4">
         <p className="text-sm font-medium text-white">
           Pro Access Unlocked — {remaining} remaining.
@@ -70,11 +70,7 @@ const TrialBanner: React.FC<TrialBannerProps> = ({ trialEndsAt, onDismiss }) => 
               stroke="currentColor"
               strokeWidth={2}
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M6 18L18 6M6 6l12 12"
-              />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         )}

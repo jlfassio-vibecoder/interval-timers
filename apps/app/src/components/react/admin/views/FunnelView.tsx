@@ -182,10 +182,10 @@ const FunnelView: React.FC = () => {
               <thead>
                 <tr className="border-b border-white/10">
                   <th className="py-2 pr-4 font-medium text-white/80">Source</th>
-                  <th className="py-2 px-4 font-medium text-white/80">Save click</th>
-                  <th className="py-2 px-4 font-medium text-white/80">Handoff</th>
-                  <th className="py-2 px-4 font-medium text-white/80">Prefill OK</th>
-                  <th className="py-2 px-4 font-medium text-white/80">Prefill fail</th>
+                  <th className="px-4 py-2 font-medium text-white/80">Save click</th>
+                  <th className="px-4 py-2 font-medium text-white/80">Handoff</th>
+                  <th className="px-4 py-2 font-medium text-white/80">Prefill OK</th>
+                  <th className="px-4 py-2 font-medium text-white/80">Prefill fail</th>
                 </tr>
               </thead>
               <tbody>
@@ -194,10 +194,10 @@ const FunnelView: React.FC = () => {
                   .map(([source, s]) => (
                     <tr key={source} className="border-b border-white/5">
                       <td className="py-3 pr-4 font-medium capitalize">{source}</td>
-                      <td className="py-3 px-4">{s.timer_save_click}</td>
-                      <td className="py-3 px-4">{s.account_land_handoff}</td>
-                      <td className="py-3 px-4">{s.prefill_success}</td>
-                      <td className="py-3 px-4">{s.prefill_fail}</td>
+                      <td className="px-4 py-3">{s.timer_save_click}</td>
+                      <td className="px-4 py-3">{s.account_land_handoff}</td>
+                      <td className="px-4 py-3">{s.prefill_success}</td>
+                      <td className="px-4 py-3">{s.prefill_fail}</td>
                     </tr>
                   ))}
               </tbody>
@@ -226,7 +226,7 @@ function FunnelRow({
     <div className="flex items-center justify-between rounded-lg border border-white/5 bg-black/10 px-4 py-3">
       <div className="flex items-center gap-4">
         <div className="rounded-lg bg-white/5 p-2">
-          <Icon className="h-5 w-5 text-orange-400" />
+          <Icon className="text-orange-400 h-5 w-5" />
         </div>
         <div>
           <p className="font-medium text-white">{label}</p>

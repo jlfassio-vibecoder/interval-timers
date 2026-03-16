@@ -58,7 +58,7 @@ const ReferenceImagePicker: React.FC<ReferenceImagePickerProps> = ({
               type="button"
               onClick={() => setReferenceFromDataUrl(recentGeneratedDataUrl)}
               disabled={loadingReference}
-              className="hover:border-[#ffbf00]/30 hover:bg-[#ffbf00]/20 rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm font-medium text-white transition-colors disabled:opacity-50"
+              className="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm font-medium text-white transition-colors hover:border-[#ffbf00]/30 hover:bg-[#ffbf00]/20 disabled:opacity-50"
             >
               Use as reference
             </button>
@@ -81,13 +81,13 @@ const ReferenceImagePicker: React.FC<ReferenceImagePickerProps> = ({
             value={referenceImageUrl}
             onChange={(e) => setReferenceImageUrl(e.target.value)}
             placeholder="https://...supabase.co/storage/..."
-            className="focus:border-[#ffbf00]/50 focus:ring-[#ffbf00]/20 flex-1 rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2"
+            className="flex-1 rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-sm text-white placeholder:text-white/40 focus:border-[#ffbf00]/50 focus:outline-none focus:ring-2 focus:ring-[#ffbf00]/20"
           />
           <button
             type="button"
             onClick={loadReferenceImage}
             disabled={loadingReference || !referenceImageUrl.trim()}
-            className="hover:border-[#ffbf00]/30 hover:bg-[#ffbf00]/20 rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-sm font-medium text-white transition-colors disabled:opacity-50"
+            className="rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-sm font-medium text-white transition-colors hover:border-[#ffbf00]/30 hover:bg-[#ffbf00]/20 disabled:opacity-50"
           >
             {loadingReference ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Load'}
           </button>

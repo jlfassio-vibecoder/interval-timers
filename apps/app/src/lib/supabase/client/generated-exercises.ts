@@ -148,8 +148,10 @@ function toPayload(input: Partial<CreateGeneratedExerciseInput>): Record<string,
   if (input.videoStoragePath != null) row.video_storage_path = input.videoStoragePath;
   if (input.videos != null) row.videos = input.videos;
   if (input.deepDiveHtmlContent != null) row.deep_dive_html_content = input.deepDiveHtmlContent;
-  if (input.userFriendlyInstructions != null) row.user_friendly_instructions = input.userFriendlyInstructions;
-  if (input.tutorialConfig != null) row.tutorial_config = input.tutorialConfig as unknown as Record<string, unknown>;
+  if (input.userFriendlyInstructions != null)
+    row.user_friendly_instructions = input.userFriendlyInstructions;
+  if (input.tutorialConfig != null)
+    row.tutorial_config = input.tutorialConfig as unknown as Record<string, unknown>;
   return row;
 }
 
@@ -180,8 +182,10 @@ export async function updateGeneratedExercise(
   if (updates.storagePath != null) row.storage_path = updates.storagePath;
   if (updates.rejectedBy != null) row.rejected_by = updates.rejectedBy;
   if (updates.rejectionReason != null) row.rejection_reason = updates.rejectionReason;
-  if (updates.userFriendlyInstructions != null) row.user_friendly_instructions = updates.userFriendlyInstructions;
-  if (updates.tutorialConfig != null) row.tutorial_config = updates.tutorialConfig as unknown as Record<string, unknown>;
+  if (updates.userFriendlyInstructions != null)
+    row.user_friendly_instructions = updates.userFriendlyInstructions;
+  if (updates.tutorialConfig != null)
+    row.tutorial_config = updates.tutorialConfig as unknown as Record<string, unknown>;
   const { error } = await supabase.from('generated_exercises').update(row).eq('id', id);
   if (error) throw error;
 }

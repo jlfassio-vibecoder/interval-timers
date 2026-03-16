@@ -7,7 +7,9 @@ import BaseLayout from '../layouts/BaseLayout.astro';
   description="Privacy policy for HIIT Workout Timer and AI Fitcopilot. Learn how we collect, use, and protect your data."
   canonicalUrl={new URL('/privacy', Astro.url.origin).href}
 >
-  <div class="relative min-h-screen overflow-x-hidden text-white selection:bg-orange-light selection:text-black">
+  <div
+    class="relative min-h-screen overflow-x-hidden text-white selection:bg-orange-light selection:text-black"
+  >
     <main class="relative z-10 mx-auto max-w-3xl px-6 py-24">
       <h1 class="mb-8 font-heading text-4xl font-bold text-white">Privacy Policy</h1>
       <p class="mb-8 text-sm text-white/60">Last updated: March 2025</p>
@@ -16,24 +18,30 @@ import BaseLayout from '../layouts/BaseLayout.astro';
         <section>
           <h2 class="mb-4 text-xl font-bold text-white">1. Overview</h2>
           <p>
-            HIIT Workout Timer and AI Fitcopilot (&quot;we&quot;, &quot;our&quot;, or &quot;the app&quot;) respect your privacy.
-            This policy explains what data we collect, how we use it, and your rights regarding your information.
+            HIIT Workout Timer and AI Fitcopilot (&quot;we&quot;, &quot;our&quot;, or &quot;the
+            app&quot;) respect your privacy. This policy explains what data we collect, how we use
+            it, and your rights regarding your information.
           </p>
         </section>
 
         <section>
           <h2 class="mb-4 text-xl font-bold text-white">2. Information We Collect</h2>
-          <p class="mb-4">We collect information you provide and data generated when you use our services:</p>
+          <p class="mb-4">
+            We collect information you provide and data generated when you use our services:
+          </p>
           <ul class="list-disc space-y-2 pl-6">
             <li>
-              <strong>Account information:</strong> When you sign up or log in (via email/password or Google/Apple Sign-In),
-              we store your email address, display name (if provided), and authentication identifiers.
+              <strong>Account information:</strong> When you sign up or log in (via email/password or
+              Google/Apple Sign-In), we store your email address, display name (if provided), and authentication
+              identifiers.
             </li>
             <li>
-              <strong>Workout and activity data:</strong> Workout logs, session duration, rounds, timers used, and progress data you create or sync.
+              <strong>Workout and activity data:</strong> Workout logs, session duration, rounds, timers
+              used, and progress data you create or sync.
             </li>
             <li>
-              <strong>Usage data:</strong> General analytics to improve the app (e.g., features used, errors).
+              <strong>Usage data:</strong> General analytics to improve the app (e.g., features used,
+              errors).
             </li>
           </ul>
         </section>
@@ -43,15 +51,28 @@ import BaseLayout from '../layouts/BaseLayout.astro';
           <p class="mb-4">We use the following third-party services to operate the app:</p>
           <ul class="list-disc space-y-2 pl-6">
             <li>
-              <strong>Supabase:</strong> Authentication, database, and backend hosting. Their privacy policy applies to data stored with them.
+              <strong>Supabase:</strong> Authentication, database, and backend hosting. Their privacy
+              policy applies to data stored with them.
             </li>
             <li>
-              <strong>Google Sign-In:</strong> When you use &quot;Continue with Google&quot;, Google may collect and process data per their
-              <a href="https://policies.google.com/privacy" class="text-orange-400 underline hover:text-orange-300" target="_blank" rel="noopener noreferrer">Privacy Policy</a>.
+              <strong>Google Sign-In:</strong> When you use &quot;Continue with Google&quot;, Google may
+              collect and process data per their
+              <a
+                href="https://policies.google.com/privacy"
+                class="text-orange-400 hover:text-orange-300 underline"
+                target="_blank"
+                rel="noopener noreferrer">Privacy Policy</a
+              >.
             </li>
             <li>
-              <strong>Apple Sign-In:</strong> When you use &quot;Continue with Apple&quot;, Apple may collect and process data per their
-              <a href="https://www.apple.com/legal/privacy/" class="text-orange-400 underline hover:text-orange-300" target="_blank" rel="noopener noreferrer">Privacy Policy</a>.
+              <strong>Apple Sign-In:</strong> When you use &quot;Continue with Apple&quot;, Apple may
+              collect and process data per their
+              <a
+                href="https://www.apple.com/legal/privacy/"
+                class="text-orange-400 hover:text-orange-300 underline"
+                target="_blank"
+                rel="noopener noreferrer">Privacy Policy</a
+              >.
             </li>
           </ul>
         </section>
@@ -69,26 +90,27 @@ import BaseLayout from '../layouts/BaseLayout.astro';
         <section>
           <h2 class="mb-4 text-xl font-bold text-white">5. Data Security</h2>
           <p>
-            We use industry-standard measures to protect your data, including secure connections (HTTPS), authentication
-            through trusted providers, and access controls. Sensitive data is stored with our database provider (Supabase)
-            under their security practices.
+            We use industry-standard measures to protect your data, including secure connections
+            (HTTPS), authentication through trusted providers, and access controls. Sensitive data
+            is stored with our database provider (Supabase) under their security practices.
           </p>
         </section>
 
         <section>
           <h2 class="mb-4 text-xl font-bold text-white">6. Your Rights</h2>
           <p>
-            Depending on your location, you may have rights to access, correct, delete, or export your data. You can
-            request account deletion or data export by contacting us. You may also revoke access granted to third-party
-            sign-in providers (e.g., Google or Apple) through their account settings.
+            Depending on your location, you may have rights to access, correct, delete, or export
+            your data. You can request account deletion or data export by contacting us. You may
+            also revoke access granted to third-party sign-in providers (e.g., Google or Apple)
+            through their account settings.
           </p>
         </section>
 
         <section>
           <h2 class="mb-4 text-xl font-bold text-white">7. Contact</h2>
           <p>
-            For privacy-related questions or requests, contact us at the support or contact channel provided in the app,
-            or via the main website.
+            For privacy-related questions or requests, contact us at the support or contact channel
+            provided in the app, or via the main website.
           </p>
         </section>
       </div>

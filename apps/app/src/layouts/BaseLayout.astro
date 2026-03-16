@@ -4,6 +4,8 @@ import faviconSvgUrl from '../assets/favicon/favicon.svg?url';
 import favicon96Url from '../assets/favicon/favicon-96x96.png?url';
 import appleTouchUrl from '../assets/favicon/apple-touch-icon.png?url';
 import ToastProvider from '../components/react/ToastProvider';
+import PageViewTracker from '../components/react/PageViewTracker';
+import FrontendErrorMonitor from '../components/react/FrontendErrorMonitor';
 import Footer from '../components/astro/Footer.astro';
 
 interface Props {
@@ -96,5 +98,7 @@ const {
     <slot />
     <Footer />
     <ToastProvider client:idle />
+    <PageViewTracker client:load />
+    <FrontendErrorMonitor client:load />
   </body>
 </html>

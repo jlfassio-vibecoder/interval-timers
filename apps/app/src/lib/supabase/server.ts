@@ -52,7 +52,8 @@ export function hasServiceRoleKey(): boolean {
  * Admin APIs (e.g. users list) need service role to read all profiles; with anon key RLS often returns empty.
  */
 export function getSupabaseServer() {
-  if (!supabaseUrl) throw new Error('SUPABASE_URL or PUBLIC_SUPABASE_URL or VITE_SUPABASE_URL required');
+  if (!supabaseUrl)
+    throw new Error('SUPABASE_URL or PUBLIC_SUPABASE_URL or VITE_SUPABASE_URL required');
   const key = serviceRoleKey || anonKey;
   if (!key)
     throw new Error(

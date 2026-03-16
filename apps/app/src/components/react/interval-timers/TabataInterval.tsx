@@ -292,7 +292,9 @@ const TabataInterval: React.FC<TabataTimerProps> = ({ onNavigate }) => {
             <button
               type="button"
               onClick={() =>
-                window.dispatchEvent(new CustomEvent('showAuthModal', { detail: { fromAppId: 'tabata' } }))
+                window.dispatchEvent(
+                  new CustomEvent('showAuthModal', { detail: { fromAppId: 'tabata' } })
+                )
               }
               className="rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-white/10"
             >
@@ -305,7 +307,7 @@ const TabataInterval: React.FC<TabataTimerProps> = ({ onNavigate }) => {
                   new CustomEvent('showAuthModalWithSignup', { detail: { fromAppId: 'tabata' } })
                 )
               }
-              className="rounded-lg border-2 border-orange-500 bg-orange-600 px-3 py-2 text-sm font-bold text-white transition-colors hover:bg-orange-500"
+              className="border-orange-500 bg-orange-600 hover:bg-orange-500 rounded-lg border-2 px-3 py-2 text-sm font-bold text-white transition-colors"
             >
               Create account
             </button>

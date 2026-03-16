@@ -9,15 +9,51 @@ import type { UserProfile } from '@/types';
 
 const PROVIDER_LABELS: Record<string, string> = {
   'google.com': 'Google',
+  google: 'Google',
   password: 'Email',
+  email: 'Email',
   'facebook.com': 'Facebook',
+  facebook: 'Facebook',
   'apple.com': 'Apple',
+  apple: 'Apple',
   'github.com': 'GitHub',
+  github: 'GitHub',
 };
 
 function formatProviderIds(providerIds?: string[]): string {
   if (!providerIds || providerIds.length === 0) return '—';
   return providerIds.map((id) => PROVIDER_LABELS[id] ?? id).join(', ');
+}
+
+const ROLE_LABELS: Record<string, string> = {
+  admin: 'Admin',
+  trainer: 'Trainer',
+  client: 'User',
+};
+
+function getRoleDisplay(role: UserProfile['role'] | undefined): {
+  label: string;
+  className: string;
+} {
+  const r = role ?? 'client';
+  const label = ROLE_LABELS[r] ?? (r === 'admin' ? 'Admin' : r === 'trainer' ? 'Trainer' : 'User');
+  switch (r) {
+    case 'admin':
+      return {
+        label,
+        className: 'rounded-full bg-purple-500/20 px-3 py-1 text-xs font-medium text-purple-300',
+      };
+    case 'trainer':
+      return {
+        label,
+        className: 'rounded-full bg-amber-500/20 px-3 py-1 text-xs font-medium text-amber-300',
+      };
+    default:
+      return {
+        label,
+        className: 'rounded-full bg-blue-500/20 px-3 py-1 text-xs font-medium text-blue-300',
+      };
+  }
 }
 
 const ManageUsers: React.FC = () => {
@@ -42,12 +78,12 @@ const ManageUsers: React.FC = () => {
         if (response.status === 401) {
           throw new Error('Unauthorized. Please ensure you have admin access.');
         }
-        const errBody = await response.json().catch(() => ({})) as { error?: string };
+        const errBody = (await response.json().catch(() => ({}))) as { error?: string };
         throw new Error(errBody.error ?? 'Failed to fetch users');
       }
 
       const data = await response.json();
-      const list = Array.isArray(data) ? data : (data && Array.isArray(data.users) ? data.users : []);
+      const list = Array.isArray(data) ? data : data && Array.isArray(data.users) ? data.users : [];
       setUsers(list);
       if (data && typeof data._hint === 'string') {
         setHint(data._hint);
@@ -169,8 +205,8 @@ const ManageUsers: React.FC = () => {
       {/* Users Table */}
       {!loading && !error && (
         <>
-          <div className="overflow-hidden rounded-lg border border-white/10 bg-black/20 backdrop-blur-sm">
-            <table className="w-full">
+          <div className="overflow-x-auto rounded-lg border border-white/10 bg-black/20 backdrop-blur-sm">
+            <table className="w-full min-w-max">
               <thead className="border-b border-white/10 bg-black/30">
                 <tr>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-white/80">User</th>
@@ -183,6 +219,15 @@ const ManageUsers: React.FC = () => {
                   <th className="px-6 py-4 text-left text-sm font-semibold text-white/80">
                     Created
                   </th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-white/80">
+                    Last sign-in
+                  </th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-white/80">
+                    Sign-in visits
+                  </th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-white/80">
+                    Activity visits
+                  </th>
                   <th className="px-6 py-4 text-right text-sm font-semibold text-white/80">
                     Actions
                   </th>
@@ -191,7 +236,7 @@ const ManageUsers: React.FC = () => {
               <tbody className="divide-y divide-white/5">
                 {filteredUsers.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-8 text-center text-white/60">
+                    <td colSpan={10} className="px-6 py-8 text-center text-white/60">
                       {searchQuery ? 'No users found matching your search.' : 'No users found.'}
                     </td>
                   </tr>
@@ -214,15 +259,10 @@ const ManageUsers: React.FC = () => {
                         )}
                       </td>
                       <td className="px-6 py-4">
-                        {user.isAdmin ? (
-                          <span className="rounded-full bg-purple-500/20 px-3 py-1 text-xs font-medium text-purple-300">
-                            Admin
-                          </span>
-                        ) : (
-                          <span className="rounded-full bg-blue-500/20 px-3 py-1 text-xs font-medium text-blue-300">
-                            User
-                          </span>
-                        )}
+                        {(() => {
+                          const { label, className } = getRoleDisplay(user.role);
+                          return <span className={className}>{label}</span>;
+                        })()}
                       </td>
                       <td className="px-6 py-4 text-white/70">
                         {user.purchasedIndex !== null && user.purchasedIndex !== undefined
@@ -232,6 +272,11 @@ const ManageUsers: React.FC = () => {
                       <td className="px-6 py-4 text-white/70">
                         {user.createdAt ? formatDate(user.createdAt) : 'N/A'}
                       </td>
+                      <td className="px-6 py-4 text-white/70">
+                        {user.lastSignInAt ? formatDate(user.lastSignInAt) : 'Never'}
+                      </td>
+                      <td className="px-6 py-4 text-white/70">{user.signInVisitCount ?? 0}</td>
+                      <td className="px-6 py-4 text-white/70">{user.activityVisitCount ?? 0}</td>
                       <td className="px-6 py-4 text-right">
                         <button
                           onClick={() => handleRevokeSessions(user.uid)}

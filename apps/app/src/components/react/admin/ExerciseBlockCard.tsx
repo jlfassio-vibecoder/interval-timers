@@ -111,7 +111,7 @@ const ExerciseBlockCard: React.FC<ExerciseBlockCardProps> = ({
                   onChange={(e) => onExerciseQueryChange(e.target.value)}
                   placeholder="e.g. bench press"
                   title="Map to approved exercise"
-                  className="focus:border-[#ffbf00]/50 w-full min-w-0 rounded border-b border-transparent border-white/10 bg-transparent px-1 py-0.5 text-sm text-white/80 transition-colors placeholder:text-white/40 focus:bg-black/20 focus:outline-none"
+                  className="w-full min-w-0 rounded border-b border-transparent border-white/10 bg-transparent px-1 py-0.5 text-sm text-white/80 transition-colors placeholder:text-white/40 focus:border-[#ffbf00]/50 focus:bg-black/20 focus:outline-none"
                 />
               </div>
             )}

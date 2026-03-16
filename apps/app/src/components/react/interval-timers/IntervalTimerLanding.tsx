@@ -64,24 +64,24 @@ const IntervalTimerLanding: React.FC<IntervalTimerLandingProps> = ({
             </div>
             <div className="flex flex-wrap items-center justify-end gap-2 text-xs font-bold md:gap-3">
               <div className="hidden md:flex md:flex-wrap md:items-center md:gap-1 md:gap-x-3">
-              {INTERVAL_TIMER_PROTOCOLS.map(({ id }, index) => (
-                <React.Fragment key={id}>
-                  <button
-                    type="button"
-                    onClick={() => onNavigate(id)}
-                    className={
-                      id === currentProtocol
-                        ? 'text-orange-light'
-                        : 'text-white/70 transition-colors hover:text-orange-light'
-                    }
-                  >
-                    {getProtocolLabel(id)}
-                  </button>
-                  {index < INTERVAL_TIMER_PROTOCOLS.length - 1 && (
-                    <span className="text-white/40">/</span>
-                  )}
-                </React.Fragment>
-              ))}
+                {INTERVAL_TIMER_PROTOCOLS.map(({ id }, index) => (
+                  <React.Fragment key={id}>
+                    <button
+                      type="button"
+                      onClick={() => onNavigate(id)}
+                      className={
+                        id === currentProtocol
+                          ? 'text-orange-light'
+                          : 'text-white/70 transition-colors hover:text-orange-light'
+                      }
+                    >
+                      {getProtocolLabel(id)}
+                    </button>
+                    {index < INTERVAL_TIMER_PROTOCOLS.length - 1 && (
+                      <span className="text-white/40">/</span>
+                    )}
+                  </React.Fragment>
+                ))}
               </div>
               {navEnd}
             </div>

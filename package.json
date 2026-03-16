@@ -77,6 +77,10 @@
     "env:link": "echo 'One-time setup: vercel link in each dir (select matching project): 1) root -> Main 2) apps/app -> App 3) apps/landing -> Landing 4) apps/amrap -> AMRAP'",
     "generate:timer": "node scripts/generate-timer-app.cjs"
   },
+  "overrides": {
+    "serialize-javascript": "7.0.4",
+    "path-to-regexp": "6.3.0"
+  },
   "dependencies": {
     "@supabase/supabase-js": "^2.47.0",
     "agora-token": "^2.0.5"

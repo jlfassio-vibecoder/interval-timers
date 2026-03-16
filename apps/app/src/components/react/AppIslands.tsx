@@ -203,8 +203,9 @@ const AppIslands: React.FC<AppIslandsProps> = ({ pathname: initialPathname }) =>
     const handleShowAuth = (e?: Event) => {
       try {
         const fromAppId =
-          (e instanceof CustomEvent ? (e as CustomEvent<{ fromAppId?: string }>).detail?.fromAppId : undefined) ??
-          'app';
+          (e instanceof CustomEvent
+            ? (e as CustomEvent<{ fromAppId?: string }>).detail?.fromAppId
+            : undefined) ?? 'app';
         setAuthModalFromAppId(fromAppId);
         setAuthModalSignupFirst(false);
         setShowAuthModal(true);
@@ -215,8 +216,9 @@ const AppIslands: React.FC<AppIslandsProps> = ({ pathname: initialPathname }) =>
     const handleShowAuthWithSignup = (e?: Event) => {
       try {
         const fromAppId =
-          (e instanceof CustomEvent ? (e as CustomEvent<{ fromAppId?: string }>).detail?.fromAppId : undefined) ??
-          'app';
+          (e instanceof CustomEvent
+            ? (e as CustomEvent<{ fromAppId?: string }>).detail?.fromAppId
+            : undefined) ?? 'app';
         setAuthModalFromAppId(fromAppId);
         setAuthModalSignupFirst(true);
         setShowAuthModal(true);
@@ -438,13 +440,28 @@ const AppIslands: React.FC<AppIslandsProps> = ({ pathname: initialPathname }) =>
         fromAppId={authModalFromAppId}
         defaultSignUp={authModalSignupFirst}
         onSignupStart={() =>
-          trackEvent(supabase, 'account_signup_start', { from_app_id: authModalFromAppId }, { appId: 'app' })
+          trackEvent(
+            supabase,
+            'account_signup_start',
+            { from_app_id: authModalFromAppId },
+            { appId: 'app' }
+          )
         }
         onSignupComplete={() =>
-          trackEvent(supabase, 'account_signup_complete', { from_app_id: authModalFromAppId, method: 'email' }, { appId: 'app' })
+          trackEvent(
+            supabase,
+            'account_signup_complete',
+            { from_app_id: authModalFromAppId, method: 'email' },
+            { appId: 'app' }
+          )
         }
         onLoginComplete={() =>
-          trackEvent(supabase, 'account_login_complete', { from_app_id: authModalFromAppId, method: 'email' }, { appId: 'app' })
+          trackEvent(
+            supabase,
+            'account_login_complete',
+            { from_app_id: authModalFromAppId, method: 'email' },
+            { appId: 'app' }
+          )
         }
         getRedirectUrl={async (authUser) => {
           const { data } = await supabase

@@ -79,3 +79,74 @@ export async function trackEvent(
     console.warn('[analytics] trackEvent failed:', error);
   }
 }
+
+export interface TrackPageViewOptions {
+  path?: string;
+  referrer?: string;
+  utm_source?: string;
+  utm_medium?: string;
+  utm_campaign?: string;
+  appId?: string;
+}
+
+/**
+ * Track a page view for acquisition analytics. POSTs to /api/analytics/page-view.
+ * Fire-and-forget; errors are logged in dev only.
+ */
+export async function trackPageView(
+  supabase: SupabaseClient,
+  options?: TrackPageViewOptions
+): Promise<void> {
+  if (typeof window === 'undefined') return;
+
+  const path =
+    options?.path ??
+    (typeof window !== 'undefined' ? window.location.pathname : '/');
+  const referrer =
+    options?.referrer ??
+    (typeof document !== 'undefined' ? document.referrer || undefined : undefined);
+  const params =
+    typeof window !== 'undefined' && window.location.search
+      ? new URLSearchParams(window.location.search)
+      : null;
+  const utm_source = options?.utm_source ?? params?.get('utm_source') ?? undefined;
+  const utm_medium = options?.utm_medium ?? params?.get('utm_medium') ?? undefined;
+  const utm_campaign = options?.utm_campaign ?? params?.get('utm_campaign') ?? undefined;
+
+  let userId: string | null = null;
+  try {
+    const { data } = await supabase.auth.getSession();
+    userId = data.session?.user?.id ?? null;
+  } catch {
+    // ignore
+  }
+  const sessionId = getOrCreateSessionId();
+
+  const body = {
+    path,
+    referrer: referrer || undefined,
+    utm_source,
+    utm_medium,
+    utm_campaign,
+    session_id: sessionId || undefined,
+    user_id: userId,
+    app_id: options?.appId ?? undefined,
+  };
+
+  try {
+    const base = typeof window !== 'undefined' ? window.location.origin : '';
+    const res = await fetch(`${base}/api/analytics/page-view`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      credentials: 'include',
+    });
+    if (!res.ok && import.meta.env?.DEV) {
+      console.warn('[analytics] trackPageView failed:', res.status);
+    }
+  } catch (err) {
+    if (import.meta.env?.DEV) {
+      console.warn('[analytics] trackPageView failed:', err);
+    }
+  }
+}

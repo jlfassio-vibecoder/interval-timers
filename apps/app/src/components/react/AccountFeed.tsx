@@ -188,7 +188,11 @@ const AccountFeed: React.FC = () => {
                           : 'bg-white/10 text-white/70'
                     }`}
                   >
-                    {item.type === 'amrap' ? 'AMRAP' : item.type === 'timer' ? item.title : 'Program'}
+                    {item.type === 'amrap'
+                      ? 'AMRAP'
+                      : item.type === 'timer'
+                        ? item.title
+                        : 'Program'}
                   </span>
                 </div>
                 {item.link && (

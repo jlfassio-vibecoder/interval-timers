@@ -81,7 +81,8 @@ export default function RoundConsistencyChart({
                 border: '1px solid rgba(255,255,255,0.1)',
                 color: 'rgba(255,255,255,0.9)',
               }}
-              formatter={(value: number | string | undefined) => [formatSeconds(value), 'Duration']}
+              formatter={(value: unknown) =>
+                [formatSeconds(Array.isArray(value) ? value[0] : value), 'Duration']}
               labelFormatter={(label) => `Round ${label}`}
             />
             <ReferenceLine

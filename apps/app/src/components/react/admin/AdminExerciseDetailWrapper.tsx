@@ -790,7 +790,7 @@ const AdminExerciseDetailWrapper: React.FC<AdminExerciseDetailWrapperProps> = ({
             {BLOCKS.map(({ value, label }) => (
               <label
                 key={value}
-                className="flex cursor-pointer items-center gap-2 rounded-lg border border-white/10 bg-black/30/50 px-3 py-2 text-sm transition-colors hover:bg-black/40/50"
+                className="bg-black/30/50 hover:bg-black/40/50 flex cursor-pointer items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm transition-colors"
               >
                 <input
                   type="checkbox"

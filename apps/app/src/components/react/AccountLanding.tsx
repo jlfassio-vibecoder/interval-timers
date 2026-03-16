@@ -28,7 +28,9 @@ const AccountLanding: React.FC = () => {
   const { user, session, loading, isInTrial } = useAppContext();
   const [fromAppId, setFromAppId] = useState<string | null>(null);
   const [handoff, setHandoff] = useState<StoredHandoff | null>(null);
-  const [prefillResult, setPrefillResult] = useState<{ success: boolean; source?: string } | null>(null);
+  const [prefillResult, setPrefillResult] = useState<{ success: boolean; source?: string } | null>(
+    null
+  );
   const prefillAttemptedRef = useRef(false);
   const oauthEventEmittedRef = useRef(false);
   const [loadingTimedOut, setLoadingTimedOut] = useState(false);
@@ -62,10 +64,15 @@ const AccountLanding: React.FC = () => {
         try {
           sessionStorage.setItem(HANDOFF_STORAGE_KEY, JSON.stringify(stored));
           setHandoff(stored);
-          trackEvent(supabase, 'account_land_handoff', {
-            intent: stored.intent,
-            source: stored.source ?? stored.from,
-          }, { appId: 'app' });
+          trackEvent(
+            supabase,
+            'account_land_handoff',
+            {
+              intent: stored.intent,
+              source: stored.source ?? stored.from,
+            },
+            { appId: 'app' }
+          );
         } catch {
           // Ignore storage errors
         }
@@ -94,12 +101,7 @@ const AccountLanding: React.FC = () => {
   // Phase 3: after auth, log handoff session once and clear storage
   useEffect(() => {
     const uid = user?.uid ?? session?.user?.id;
-    if (
-      !handoff ||
-      handoff.intent !== 'save_session' ||
-      !uid ||
-      prefillAttemptedRef.current
-    ) {
+    if (!handoff || handoff.intent !== 'save_session' || !uid || prefillAttemptedRef.current) {
       return;
     }
     prefillAttemptedRef.current = true;
@@ -129,7 +131,8 @@ const AccountLanding: React.FC = () => {
       oauthEventEmittedRef.current ||
       typeof window === 'undefined' ||
       !window.location.hash?.includes('access_token')
-    ) return;
+    )
+      return;
     const uid = user?.uid ?? session?.user?.id;
     const authUser = session?.user;
     if (!uid || !authUser) return;
@@ -165,14 +168,10 @@ const AccountLanding: React.FC = () => {
     const fromAppIdVal = handoff?.source ?? fromAppId ?? 'app';
 
     return (
-      <main className="relative z-10 mx-auto max-w-3xl px-4 pt-24 pb-16 md:px-6">
+      <main className="relative z-10 mx-auto max-w-3xl px-4 pb-16 pt-24 md:px-6">
         <div className="rounded-2xl border border-white/10 bg-black/20 p-12 text-center">
-          <h2 className="mb-4 font-heading text-2xl font-bold text-white">
-            {copy.headline}
-          </h2>
-          <p className="mb-6 text-white/70">
-            {copy.subtext}
-          </p>
+          <h2 className="mb-4 font-heading text-2xl font-bold text-white">{copy.headline}</h2>
+          <p className="mb-6 text-white/70">{copy.subtext}</p>
           <div className="mb-6 text-left">
             <p className="mb-2 text-sm font-medium text-white/90">
               Create your free profile to unlock:
@@ -193,14 +192,24 @@ const AccountLanding: React.FC = () => {
               <>
                 <button
                   type="button"
-                  onClick={() => window.dispatchEvent(new CustomEvent('showAuthModalWithSignup', { detail: { fromAppId: fromAppIdVal } }))}
-                  className="rounded-xl border-2 border-orange-500 bg-orange-600 px-6 py-3 font-bold text-white hover:bg-orange-500"
+                  onClick={() =>
+                    window.dispatchEvent(
+                      new CustomEvent('showAuthModalWithSignup', {
+                        detail: { fromAppId: fromAppIdVal },
+                      })
+                    )
+                  }
+                  className="border-orange-500 bg-orange-600 hover:bg-orange-500 rounded-xl border-2 px-6 py-3 font-bold text-white"
                 >
                   Create free profile
                 </button>
                 <button
                   type="button"
-                  onClick={() => window.dispatchEvent(new CustomEvent('showAuthModal', { detail: { fromAppId: fromAppIdVal } }))}
+                  onClick={() =>
+                    window.dispatchEvent(
+                      new CustomEvent('showAuthModal', { detail: { fromAppId: fromAppIdVal } })
+                    )
+                  }
                   className="rounded-xl border border-white/20 bg-white/10 px-6 py-3 font-bold text-white hover:bg-white/20"
                 >
                   Log in
@@ -210,14 +219,24 @@ const AccountLanding: React.FC = () => {
               <>
                 <button
                   type="button"
-                  onClick={() => window.dispatchEvent(new CustomEvent('showAuthModal', { detail: { fromAppId: fromAppIdVal } }))}
-                  className="rounded-xl border-2 border-orange-500 bg-orange-600 px-6 py-3 font-bold text-white hover:bg-orange-500"
+                  onClick={() =>
+                    window.dispatchEvent(
+                      new CustomEvent('showAuthModal', { detail: { fromAppId: fromAppIdVal } })
+                    )
+                  }
+                  className="border-orange-500 bg-orange-600 hover:bg-orange-500 rounded-xl border-2 px-6 py-3 font-bold text-white"
                 >
                   Log in
                 </button>
                 <button
                   type="button"
-                  onClick={() => window.dispatchEvent(new CustomEvent('showAuthModalWithSignup', { detail: { fromAppId: fromAppIdVal } }))}
+                  onClick={() =>
+                    window.dispatchEvent(
+                      new CustomEvent('showAuthModalWithSignup', {
+                        detail: { fromAppId: fromAppIdVal },
+                      })
+                    )
+                  }
                   className="rounded-xl border border-white/20 bg-white/10 px-6 py-3 font-bold text-white hover:bg-white/20"
                 >
                   Create account
@@ -234,14 +253,12 @@ const AccountLanding: React.FC = () => {
   const prefillSourceName = prefillResult?.source ? getAppById(prefillResult.source)?.name : null;
 
   return (
-    <main className="relative z-10 mx-auto max-w-3xl px-4 pt-24 pb-16 md:px-6">
+    <main className="relative z-10 mx-auto max-w-3xl px-4 pb-16 pt-24 md:px-6">
       {/* Prefill confirmation / error */}
       {prefillResult?.success && prefillSourceName && (
         <section className="mb-8">
           <div className="rounded-2xl border border-green-500/30 bg-green-500/10 p-6">
-            <p className="mb-3 text-white">
-              Your {prefillSourceName} session has been saved.
-            </p>
+            <p className="mb-3 text-white">Your {prefillSourceName} session has been saved.</p>
             <button
               type="button"
               onClick={() => window.dispatchEvent(new CustomEvent('showHUD'))}
@@ -274,19 +291,17 @@ const AccountLanding: React.FC = () => {
         <h1 className="mb-4 font-heading text-4xl font-black leading-tight text-white md:text-5xl">
           Your Account
         </h1>
-        <p className="text-lg text-white/70">
-          Manage all your apps and workouts in one place.
-        </p>
+        <p className="text-lg text-white/70">Manage all your apps and workouts in one place.</p>
       </header>
 
       {/* Entry-point card */}
       {entryApp && (
         <section className="mb-8">
-          <div className="rounded-2xl border border-orange-500/30 bg-orange-500/10 p-6">
+          <div className="border-orange-500/30 bg-orange-500/10 rounded-2xl border p-6">
             <p className="mb-2 text-sm text-white/70">You signed in from {entryApp.name}</p>
             <a
               href={appendQuery(entryApp.path, { from_hub: '1', app_id: entryApp.id })}
-              className="inline-flex items-center rounded-xl border-2 border-orange-500 bg-orange-600 px-4 py-2 font-bold text-white hover:bg-orange-500"
+              className="border-orange-500 bg-orange-600 hover:bg-orange-500 inline-flex items-center rounded-xl border-2 px-4 py-2 font-bold text-white"
             >
               Continue to {entryApp.name}
             </a>
@@ -297,16 +312,14 @@ const AccountLanding: React.FC = () => {
       {/* HUD CTA */}
       <section className="mb-12">
         <div className="rounded-2xl border border-white/10 bg-black/20 p-6">
-          <h3 className="mb-2 font-heading text-lg font-bold text-white">
-            Manage your workouts
-          </h3>
+          <h3 className="mb-2 font-heading text-lg font-bold text-white">Manage your workouts</h3>
           <p className="mb-4 text-sm text-white/70">
             Manage workouts and schedule from all your apps in one place.
           </p>
           <button
             type="button"
             onClick={() => window.dispatchEvent(new CustomEvent('showHUD'))}
-            className="rounded-xl border-2 border-orange-500 bg-orange-600 px-4 py-2 font-bold text-white hover:bg-orange-500"
+            className="border-orange-500 bg-orange-600 hover:bg-orange-500 rounded-xl border-2 px-4 py-2 font-bold text-white"
           >
             Open HUD
           </button>
@@ -342,7 +355,7 @@ const AccountLanding: React.FC = () => {
                 <div className="flex items-start justify-between gap-2">
                   <span className="font-heading font-bold text-white">{app.name}</span>
                   {isInTrial && (
-                    <span className="shrink-0 rounded-full bg-orange-600/30 px-2 py-0.5 font-mono text-[10px] uppercase text-orange-400">
+                    <span className="bg-orange-600/30 text-orange-400 shrink-0 rounded-full px-2 py-0.5 font-mono text-[10px] uppercase">
                       Unlocked
                     </span>
                   )}
