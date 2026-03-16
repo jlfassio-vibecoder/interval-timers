@@ -60,18 +60,11 @@ export function AmrapAuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Use only onAuthStateChange to avoid lock contention: getSession() and onAuthStateChange
+  // both acquire the same navigator.locks auth-token lock; in production (or with StrictMode
+  // double-mount) that can cause "Lock was stolen by another request" and break the app when
+  // logged in. onAuthStateChange emits INITIAL_SESSION with the current session on subscribe.
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session: s } }) => {
-      setSession(s);
-      setUser(s?.user ?? null);
-      if (s?.user) {
-        await fetchProfile(s.user.id);
-      } else {
-        setProfile(null);
-        setLoading(false);
-      }
-    });
-
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, s) => {
