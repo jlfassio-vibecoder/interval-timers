@@ -65,7 +65,16 @@ function toPublicSession(row: AmrapSessionRow): AmrapSessionPublic {
   return rest as AmrapSessionPublic;
 }
 
-export function useAmrapSession(sessionId: string | undefined): AmrapSessionData {
+export interface UseAmrapSessionOptions {
+  /** When false, defer initial fetch and realtime until true. Use to avoid Supabase auth lock contention when logged in (e.g. pass !authLoading). Default true. */
+  startFetch?: boolean;
+}
+
+export function useAmrapSession(
+  sessionId: string | undefined,
+  options: UseAmrapSessionOptions = {}
+): AmrapSessionData {
+  const { startFetch = true } = options;
   const [session, setSession] = useState<AmrapSessionPublic | null>(null);
   const [participants, setParticipants] = useState<AmrapParticipantRow[]>([]);
   const [rounds, setRounds] = useState<AmrapRoundRow[]>([]);
@@ -118,17 +127,19 @@ export function useAmrapSession(sessionId: string | undefined): AmrapSessionData
       setError('No session ID');
       return;
     }
-
+    if (!startFetch) {
+      return;
+    }
     setLoading(true);
     Promise.all([
       fetchSession(sessionId),
       fetchParticipants(sessionId),
       fetchRounds(sessionId),
     ]).finally(() => setLoading(false));
-  }, [sessionId, fetchSession, fetchParticipants, fetchRounds]);
+  }, [sessionId, startFetch, fetchSession, fetchParticipants, fetchRounds]);
 
   useEffect(() => {
-    if (!sessionId) return;
+    if (!sessionId || !startFetch) return;
 
     const channel = supabase
       .channel(`amrap_session_${sessionId}`)
@@ -149,10 +160,10 @@ export function useAmrapSession(sessionId: string | undefined): AmrapSessionData
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [sessionId]);
+  }, [sessionId, startFetch]);
 
   useEffect(() => {
-    if (!sessionId) return;
+    if (!sessionId || !startFetch) return;
 
     const channel = supabase
       .channel(`amrap_participants_${sessionId}`)
@@ -171,16 +182,16 @@ export function useAmrapSession(sessionId: string | undefined): AmrapSessionData
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [sessionId, fetchParticipants]);
+  }, [sessionId, startFetch, fetchParticipants]);
 
   useEffect(() => {
-    if (!sessionId || session?.state !== 'waiting') return;
+    if (!sessionId || !startFetch || session?.state !== 'waiting') return;
     const interval = setInterval(() => fetchParticipants(sessionId), 3000);
     return () => clearInterval(interval);
-  }, [sessionId, session?.state, fetchParticipants]);
+  }, [sessionId, startFetch, session?.state, fetchParticipants]);
 
   useEffect(() => {
-    if (!sessionId) return;
+    if (!sessionId || !startFetch) return;
 
     const channel = supabase
       .channel(`amrap_rounds_${sessionId}`)
@@ -199,7 +210,7 @@ export function useAmrapSession(sessionId: string | undefined): AmrapSessionData
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [sessionId, fetchRounds]);
+  }, [sessionId, startFetch, fetchRounds]);
 
   const refetch = useCallback(async () => {
     if (!sessionId) return;
