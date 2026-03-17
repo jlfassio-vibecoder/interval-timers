@@ -15,7 +15,11 @@ export default function LogoutPage() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      await supabase.auth.signOut();
+      try {
+        await supabase.auth.signOut();
+      } catch {
+        // Navigate regardless so user is not stuck; original used .finally() for same contract.
+      }
       if (cancelled) return;
       releaseAuthLock();
       setTimeout(() => {
