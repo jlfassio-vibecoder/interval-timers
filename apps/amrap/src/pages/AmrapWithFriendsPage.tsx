@@ -29,7 +29,7 @@ type Tab = 'create' | 'join' | 'schedule';
 export default function AmrapWithFriendsPage() {
   const navigate = useNavigate();
   const { hasFullAccess } = useAmrapPermissions();
-  const { user } = useAmrapAuth();
+  const { user, loading: authLoading } = useAmrapAuth();
   const [tab, setTab] = useState<Tab>('create');
   const [hostNickname, setHostNickname] = useState('');
   const [joinSessionId, setJoinSessionId] = useState('');
@@ -320,6 +320,9 @@ export default function AmrapWithFriendsPage() {
           {tab === 'create' && (
             <section className="rounded-2xl border border-white/10 bg-black/30 p-6">
               <h2 className="mb-4 text-xl font-bold text-white">Create a session</h2>
+              {authLoading && (
+                <p className="mb-4 text-sm text-white/60">Loading…</p>
+              )}
               <div className="mb-4">
                 <label htmlFor="host-nickname" className="mb-1 block text-sm font-medium text-white/80">
                   Your name <span className="text-white/50">(required)</span>
@@ -346,7 +349,7 @@ export default function AmrapWithFriendsPage() {
                   )
                 }
                 onCancel={() => {}}
-                disabled={loading}
+                disabled={loading || authLoading}
                 extraContent={
                   <>
                     <div className="mb-4 flex gap-2 rounded-xl bg-black/30 p-1">
@@ -414,6 +417,9 @@ export default function AmrapWithFriendsPage() {
           {tab === 'join' && (
             <section className="rounded-2xl border border-white/10 bg-black/30 p-6">
               <h2 className="mb-4 text-xl font-bold text-white">Join a session</h2>
+              {authLoading && (
+                <p className="mb-4 text-sm text-white/60">Loading…</p>
+              )}
               <p className="mb-4 text-sm text-white/70">
                 Enter the session ID from the host (e.g. from the share link).
               </p>
@@ -435,8 +441,9 @@ export default function AmrapWithFriendsPage() {
                 />
                 <AmrapCtaButton
                   onClick={handleJoinSession}
+                  disabled={loading || authLoading}
                 >
-                  {loading ? 'Joining…' : 'Join session'}
+                  {loading ? 'Joining…' : authLoading ? 'Loading…' : 'Join session'}
                 </AmrapCtaButton>
               </div>
               {joinError && (

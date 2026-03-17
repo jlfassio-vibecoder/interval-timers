@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { twMerge } from 'tailwind-merge';
 
 const BASE_CLASSES =
-  'rounded-xl bg-orange-600 px-8 py-3 font-bold text-white shadow-[0_0_20px_rgba(234,88,12,0.4)] transition-transform hover:-translate-y-1 hover:bg-orange-500';
+  'rounded-xl bg-orange-600 px-8 py-3 font-bold text-white shadow-[0_0_20px_rgba(234,88,12,0.4)] transition-transform hover:-translate-y-1 hover:bg-orange-500 disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50';
 
 interface AmrapCtaButtonProps {
   children: ReactNode;
@@ -14,6 +14,8 @@ interface AmrapCtaButtonProps {
   /** Used when rendering as button. */
   onClick?: () => void;
   className?: string;
+  /** When true, button is disabled (only for button variant). */
+  disabled?: boolean;
 }
 
 export default function AmrapCtaButton({
@@ -22,6 +24,7 @@ export default function AmrapCtaButton({
   href,
   onClick,
   className,
+  disabled,
 }: AmrapCtaButtonProps) {
   const classes = twMerge(BASE_CLASSES, className);
 
@@ -41,7 +44,12 @@ export default function AmrapCtaButton({
   }
 
   return (
-    <button type="button" onClick={onClick} className={classes}>
+    <button
+      type="button"
+      onClick={onClick}
+      className={classes}
+      disabled={disabled}
+    >
       {children}
     </button>
   );
