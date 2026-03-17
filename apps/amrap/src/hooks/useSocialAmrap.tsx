@@ -149,7 +149,7 @@ export function useSocialAmrap(
     handleCloseRecoveryQr: () => void;
   };
 } {
-  const { user } = useAmrapAuth();
+  const { user, loading: authLoading } = useAmrapAuth();
   const effectiveSessionId =
     sessionId === null || sessionId === undefined ? undefined : sessionId;
   const {
@@ -161,7 +161,11 @@ export function useSocialAmrap(
     error,
     loading,
     refetch,
-  } = useAmrapSession(effectiveSessionId);
+  } = useAmrapSession(effectiveSessionId, {
+    // Defer session fetch and realtime until auth has settled to avoid navigator.locks
+    // contention (getSession vs onAuthStateChange) when user is logged in.
+    startFetch: !authLoading,
+  });
   const hostToken = sessionId ? getStoredHostToken(sessionId) : null;
   const sessionState = useSessionState(
     effectiveSessionId,
