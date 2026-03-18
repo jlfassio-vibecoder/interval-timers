@@ -9,17 +9,43 @@ import type { ProgramSchedule } from '@/types/ai-program';
 
 export type CalendarEventStatus = 'scheduled' | 'completed' | 'missed';
 
+export type CalendarEventType =
+  | 'program'
+  | 'amrap'
+  | 'timer'
+  | 'readiness'
+  | 'amrap_scheduled'
+  | 'timer_scheduled';
+
 export interface CalendarEvent {
+  type: CalendarEventType;
   date: string;
-  programId: string;
-  programTitle: string;
-  weekNumber: number;
   workoutTitle: string;
-  workoutIndex: number;
-  /** For WorkoutPlayer; matches week-${weekNumber} and String(workoutIndex). */
-  workoutId: string;
-  weekId: string;
   status: CalendarEventStatus;
+  /** Program events only. */
+  programId?: string;
+  programTitle?: string;
+  weekNumber?: number;
+  workoutIndex?: number;
+  workoutId?: string;
+  weekId?: string;
+  /** AMRAP session id (amrap, amrap_scheduled). */
+  sessionId?: string;
+  /** Timer app source (timer): tabata, daily-warmup, etc. */
+  sourceApp?: string;
+  metadata?: {
+    rounds?: number;
+    durationSeconds?: number;
+    durationMinutes?: number;
+    effort?: number;
+    rating?: number;
+    /** Timer: workout_logs row id for edit. */
+    logId?: string;
+    /** Timer: notes from workout_logs. */
+    notes?: string;
+    /** timer_scheduled: full scheduled_at ISO string for display. */
+    scheduledAt?: string;
+  };
 }
 
 export interface ProgramForCalendar {
@@ -41,10 +67,10 @@ function addDays(isoDate: string, days: number): string {
   return `${y}-${m}-${day}`;
 }
 
-/** Composite key for completion lookup: programId:weekId:workoutId */
-export function eventCompletionKey(
-  ev: Pick<CalendarEvent, 'programId' | 'weekId' | 'workoutId'>
-): string {
+/** Composite key for completion lookup: programId:weekId:workoutId. Only valid for program events. */
+export function eventCompletionKey(ev: CalendarEvent): string {
+  if (ev.type !== 'program' || ev.programId == null || ev.weekId == null || ev.workoutId == null)
+    return '';
   return `${ev.programId}:${ev.weekId}:${ev.workoutId}`;
 }
 
@@ -80,6 +106,7 @@ export function getCalendarEventsForRange(
             else if (date < today) status = 'missed';
           }
           events.push({
+            type: 'program',
             date,
             programId,
             programTitle: title,

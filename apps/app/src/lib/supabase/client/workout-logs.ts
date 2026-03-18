@@ -25,6 +25,19 @@ export async function saveWorkoutLog(log: Omit<WorkoutLog, 'id'>): Promise<strin
   return data.id;
 }
 
+export async function updateWorkoutLog(
+  id: string,
+  updates: { effort?: number; rating?: number; notes?: string }
+): Promise<void> {
+  const payload: Record<string, unknown> = {};
+  if (updates.effort !== undefined) payload.effort = updates.effort;
+  if (updates.rating !== undefined) payload.rating = updates.rating;
+  if (updates.notes !== undefined) payload.notes = updates.notes;
+  if (Object.keys(payload).length === 0) return;
+  const { error } = await supabase.from('workout_logs').update(payload).eq('id', id);
+  if (error) throw error;
+}
+
 export async function fetchWorkoutLogs(uid: string): Promise<WorkoutLog[]> {
   const { data, error } = await supabase
     .from('workout_logs')

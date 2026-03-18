@@ -112,6 +112,7 @@ const AccountLanding: React.FC = () => {
           // ignore
         }
         setHandoff(null);
+        window.dispatchEvent(new CustomEvent('calendar:refresh'));
       }
       setPrefillResult(result.ok ? { success: true, source: handoff.source } : { success: false });
       trackEvent(

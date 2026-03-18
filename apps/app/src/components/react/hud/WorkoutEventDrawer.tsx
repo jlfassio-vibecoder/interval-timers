@@ -42,20 +42,28 @@ const WorkoutEventDrawer: React.FC<WorkoutEventDrawerProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const programId = event.type === 'program' ? event.programId : undefined;
+  const weekId = event.type === 'program' ? event.weekId : undefined;
+  const workoutId = event.type === 'program' ? event.workoutId : undefined;
+
   useEffect(() => {
+    if (programId == null || weekId == null || workoutId == null) {
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
     setLoading(true);
     setError(null);
-    getProgramWithSchedule(event.programId)
+    getProgramWithSchedule(programId)
       .then((prog) => {
         if (cancelled || !prog) {
           setWorkout(null);
           setError(prog ? null : 'Program not found');
           return;
         }
-        const weekNum = parseWeekId(event.weekId);
+        const weekNum = parseWeekId(weekId);
         const week = prog.schedule.find((w) => w.weekNumber === weekNum);
-        const idx = parseInt(event.workoutId, 10);
+        const idx = parseInt(workoutId, 10);
         const w = week?.workouts?.[idx] ?? null;
         setWorkout(w ?? null);
         if (!w) setError('Workout not found');
@@ -72,7 +80,7 @@ const WorkoutEventDrawer: React.FC<WorkoutEventDrawerProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [event.programId, event.weekId, event.workoutId]);
+  }, [programId, weekId, workoutId]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -164,7 +172,9 @@ const WorkoutEventDrawer: React.FC<WorkoutEventDrawerProps> = ({
                   <button
                     type="button"
                     onClick={() =>
-                      onStartWorkout(workout, event.programId, event.weekId, event.workoutId)
+                      programId != null && weekId != null && workoutId != null
+                        ? onStartWorkout(workout, programId, weekId, workoutId)
+                        : undefined
                     }
                     className="border-orange-light/50 bg-orange-light/20 hover:bg-orange-light/30 flex items-center justify-center gap-2 rounded-2xl border py-3 font-heading text-sm font-black uppercase text-orange-light transition-colors"
                   >

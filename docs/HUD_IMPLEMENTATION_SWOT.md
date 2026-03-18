@@ -100,8 +100,8 @@ AppIslands (showHUD, calendarRefreshKey)
 
 ## Recommendations
 
-1. **Add real-time or periodic refresh** for ScheduleZone and HistoryZone when data may change (e.g. after AMRAP schedule, calendar sync).
-2. **Bump `calendarRefreshKey`** when AmrapScheduleModal or HistoryZone "Do Again" creates a session, so ScheduleZone reflects new events.
-3. **Document `VITE_HUD_REDIRECT_URL` vs `VITE_ACCOUNT_REDIRECT_URL`** in a single env reference (e.g. `AUTH_ENV_AND_REDIRECTS.md`) to reduce misconfig.
-4. **Consider unified history** as a future refactor: single feed with mixed program + AMRAP items, unified filters and actions.
-5. **Evaluate readiness storage** — if readiness features expand, move to dedicated table or view for clarity.
+1. **Add real-time or periodic refresh** for ScheduleZone and HistoryZone when data may change (e.g. after AMRAP schedule, calendar sync). *(Incomplete)*
+2. **Bump `calendarRefreshKey`** when AmrapScheduleModal or HistoryZone "Do Again" creates a session, so ScheduleZone reflects new events. *(Incomplete)*
+3. **Document `VITE_HUD_REDIRECT_URL` vs `VITE_ACCOUNT_REDIRECT_URL`** in a single env reference (e.g. `AUTH_ENV_AND_REDIRECTS.md`) to reduce misconfig. *(Completed — see `docs/AUTH_ENV_AND_REDIRECTS.md`)*
+4. **Consider unified history** as a future refactor: single feed with mixed program + AMRAP items, unified filters and actions. *(Incomplete)*
+5. **Evaluate readiness storage** — if readiness features expand, move to dedicated table or view for clarity. *(Incomplete)*

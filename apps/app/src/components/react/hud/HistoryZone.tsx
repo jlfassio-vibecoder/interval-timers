@@ -64,7 +64,14 @@ async function resolveTitles(sessions: SessionHistoryItem[]): Promise<SessionHis
   });
 }
 
-const HistoryZone: React.FC = () => {
+export interface HistoryZoneProps {
+  /** When changed, refetches session history and AMRAP results (e.g. realtime). */
+  refreshKey?: number;
+  /** Called when calendar should refetch (e.g. AMRAP scheduled, program workout completed). */
+  onCalendarRefresh?: () => void;
+}
+
+const HistoryZone: React.FC<HistoryZoneProps> = ({ refreshKey = 0, onCalendarRefresh }) => {
   const { user, session } = useAppContext();
   /** Use session.user.id when profile (user) is not yet loaded so AMRAP results fetch immediately. */
   const effectiveUserId = user?.uid ?? session?.user?.id ?? null;
@@ -113,7 +120,7 @@ const HistoryZone: React.FC = () => {
 
   useEffect(() => {
     loadSessions();
-  }, [loadSessions]);
+  }, [loadSessions, refreshKey]);
 
   useEffect(() => {
     if (!user?.uid) {
@@ -147,7 +154,7 @@ const HistoryZone: React.FC = () => {
         if (import.meta.env.DEV) console.error('[HistoryZone] getAmrapSessionResults failed:', err);
       })
       .finally(() => setAmrapLoading(false));
-  }, [effectiveUserId]);
+  }, [effectiveUserId, refreshKey]);
 
   const handleDoAgain = useCallback(
     (workout: WorkoutFromSchedule, programId: string, weekId: string, workoutId: string) => {
@@ -285,15 +292,27 @@ const HistoryZone: React.FC = () => {
                   <span className="ml-2 font-mono text-[10px] text-white/40">
                     {new Date(r.completed_at).toLocaleDateString()}
                   </span>
-                  <a
-                    href={getAmrapSessionUrl(r.session_id)}
-                    className="text-orange-400 ml-2 hover:underline"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    View session
-                  </a>
+                  <span className="ml-2 flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedAmrapResult(r);
+                      }}
+                      className="text-orange-400 hover:underline"
+                    >
+                      View Results
+                    </button>
+                    <a
+                      href={getAmrapSessionUrl(r.session_id)}
+                      className="text-orange-400 hover:underline"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      View session
+                    </a>
+                  </span>
                 </li>
               ))}
             </ul>
@@ -332,6 +351,7 @@ const HistoryZone: React.FC = () => {
           onComplete={() => {
             setWorkoutPlayer(null);
             loadSessions();
+            onCalendarRefresh?.();
           }}
         />
       )}

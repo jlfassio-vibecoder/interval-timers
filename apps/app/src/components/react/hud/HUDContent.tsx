@@ -21,8 +21,12 @@ export interface HUDContentProps {
   /** For ghost state message, e.g. "5 Workouts Completed this week." */
   workoutsThisWeek?: number;
   workoutLogs?: WorkoutLog[];
+  /** Called when calendar should refetch (e.g. AMRAP scheduled, workout completed). */
+  onCalendarRefresh?: () => void;
   /** When changed, calendar refetches (e.g. after Sync to Calendar). */
   calendarRefreshKey?: number;
+  /** When changed, history zone refetches (e.g. realtime workout logs / AMRAP results). */
+  historyRefreshKey?: number;
 }
 
 const HUDContent: React.FC<HUDContentProps> = ({
@@ -30,8 +34,10 @@ const HUDContent: React.FC<HUDContentProps> = ({
   showUpgradePrompts,
   onOpenConversionModal,
   workoutsThisWeek = 5,
-  workoutLogs: _workoutLogs = [],
+  workoutLogs = [],
+  onCalendarRefresh,
   calendarRefreshKey = 0,
+  historyRefreshKey = 0,
 }) => {
   const scrollToHistory = useCallback(() => {
     document.getElementById('history-zone')?.scrollIntoView({ behavior: 'smooth' });
@@ -52,10 +58,16 @@ const HUDContent: React.FC<HUDContentProps> = ({
         workoutsThisWeek={workoutsThisWeek}
       />
 
-      <ScheduleZone refreshKey={calendarRefreshKey} onViewLog={scrollToHistory} />
+      <ScheduleZone
+        refreshKey={calendarRefreshKey}
+        onViewLog={scrollToHistory}
+        onCalendarRefresh={onCalendarRefresh}
+        workoutsThisWeek={workoutsThisWeek}
+        workoutLogs={workoutLogs}
+      />
 
       <div id="history-zone">
-        <HistoryZone />
+        <HistoryZone refreshKey={historyRefreshKey} onCalendarRefresh={onCalendarRefresh} />
       </div>
 
       <AmrapProgressSection />
