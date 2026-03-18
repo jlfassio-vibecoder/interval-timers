@@ -22,6 +22,7 @@ import type { GeneratedExercise } from '@/types/generated-exercise';
 import type { ExtendedBiomechanics } from './ExerciseDetailModal';
 import { buildApprovedExerciseMaps, normalizeExerciseName } from '@/lib/approved-exercise-maps';
 import { parseBiomechanicalPoints, FULL_BIOMECHANICS_CARD_LENGTH } from '@/lib/parse-biomechanics';
+import { useHUDRealtime } from '@/hooks/useHUDRealtime';
 import HUDContent from './hud/HUDContent';
 import ProgramSidebar from './hud/ProgramSidebar';
 import ProgressiveUpgradeBanner from './hud/ProgressiveUpgradeBanner';
@@ -57,6 +58,7 @@ const AppIslands: React.FC<AppIslandsProps> = ({ pathname: initialPathname }) =>
   const [showHUD, setShowHUD] = useState(false);
   const [showConversionModal, setShowConversionModal] = useState(false);
   const [calendarRefreshKey, setCalendarRefreshKey] = useState(0);
+  const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
   const [selectedArtist, setSelectedArtist] = useState<Artist | null>(null);
   const [selectedRawWorkout, setSelectedRawWorkout] = useState<WorkoutInSet | null>(null);
   const [showLogModal, setShowLogModal] = useState(false);
@@ -79,6 +81,28 @@ const AppIslands: React.FC<AppIslandsProps> = ({ pathname: initialPathname }) =>
   const approvedExtendedBiomechanicsMapRef = useRef<Map<string, ExtendedBiomechanics>>(new Map());
   /** Approved exercise slug by normalized name; used for "View full page" link to canonical indexable page. */
   const approvedExerciseSlugByNameRef = useRef<Map<string, string>>(new Map());
+
+  useHUDRealtime(user?.uid ?? null, showHUD, {
+    onUserWorkoutLogsChange: () => {
+      setCalendarRefreshKey((k) => k + 1);
+      setHistoryRefreshKey((k) => k + 1);
+    },
+    onAmrapResultsChange: () => setHistoryRefreshKey((k) => k + 1),
+    onAmrapSessionsChange: () => setCalendarRefreshKey((k) => k + 1),
+    onWorkoutLogsChange: () => {
+      setCalendarRefreshKey((k) => k + 1);
+      setHistoryRefreshKey((k) => k + 1);
+    },
+  });
+
+  useEffect(() => {
+    const handler = () => {
+      setCalendarRefreshKey((k) => k + 1);
+      setHistoryRefreshKey((k) => k + 1);
+    };
+    window.addEventListener('calendar:refresh', handler);
+    return () => window.removeEventListener('calendar:refresh', handler);
+  }, []);
 
   const stateRef = useRef({
     selectedExercise: null as Exercise | null,
@@ -505,7 +529,9 @@ const AppIslands: React.FC<AppIslandsProps> = ({ pathname: initialPathname }) =>
             isPaid={isPaid}
             showUpgradePrompts={showUpgradePrompts}
             onOpenConversionModal={() => setShowConversionModal(true)}
+            onCalendarRefresh={() => setCalendarRefreshKey((k) => k + 1)}
             calendarRefreshKey={calendarRefreshKey}
+            historyRefreshKey={historyRefreshKey}
             workoutsThisWeek={
               workoutLogs.filter((l) => {
                 const d = l.date ? new Date(l.date) : null;
