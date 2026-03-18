@@ -6,6 +6,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import { X, ExternalLink, Trash2 } from 'lucide-react';
 import type { CalendarEvent } from '@/lib/calendar-events';
 import { getAppById } from '@/lib/app-registry';
@@ -61,8 +62,9 @@ const ScheduledTimerDrawer: React.FC<ScheduledTimerDrawerProps> = ({
       await deleteScheduledWorkout(event.sessionId);
       onRemoved?.();
       onClose();
-    } catch {
+    } catch (err) {
       setRemoving(false);
+      toast.error(err instanceof Error ? err.message : 'Failed to remove scheduled workout');
     }
   };
 

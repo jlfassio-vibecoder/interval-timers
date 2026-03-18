@@ -13,3 +13,4 @@ CREATE POLICY "user_event_order_preference_insert_own" ON public.user_event_orde
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "user_event_order_preference_update_own" ON public.user_event_order_preference
   FOR UPDATE USING (auth.uid() = user_id);
+

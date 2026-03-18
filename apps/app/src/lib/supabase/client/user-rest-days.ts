@@ -42,14 +42,16 @@ function isTableMissingError(error: { code?: string }): boolean {
 }
 
 /**
- * Mark a day as rest. Idempotent (insert ignores duplicate key).
+ * Mark a day as rest. Idempotent (upsert with ignoreDuplicates so duplicate key does not throw).
  */
 export async function addRestDay(userId: string, date: string): Promise<void> {
   const dateOnly = date.slice(0, 10);
-  const { error } = await supabase.from('user_rest_days').insert({
-    user_id: userId,
-    date: dateOnly,
-  });
+  const { error } = await supabase
+    .from('user_rest_days')
+    .upsert(
+      { user_id: userId, date: dateOnly },
+      { onConflict: 'user_id,date', ignoreDuplicates: true }
+    );
   if (error) {
     if (isTableMissingError(error)) {
       throw new Error(

@@ -98,8 +98,9 @@ function getStartOfWeek(): Date {
   return start;
 }
 
+// Parse date-only (YYYY-MM-DD) with noon UTC to match project pattern and avoid timezone edge cases.
 function isDateInThisWeek(isoDate: string): boolean {
-  const d = isoDate ? new Date(isoDate) : null;
+  const d = isoDate ? new Date(isoDate + 'T12:00:00Z') : null;
   if (!d) return false;
   return d >= getStartOfWeek();
 }
@@ -719,6 +720,7 @@ const ScheduleZone: React.FC<ScheduleZoneProps> = ({
   const handleClearScheduledConfirm = useCallback(async () => {
     if (!user?.uid || scheduledToClear.length === 0) return;
     try {
+      // Sequential to avoid rate limits and to surface first error to user.
       for (const ev of scheduledToClear) {
         if (ev.type === 'timer_scheduled' && ev.sessionId) {
           await deleteScheduledWorkout(ev.sessionId);
