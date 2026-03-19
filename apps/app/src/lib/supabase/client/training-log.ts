@@ -357,7 +357,9 @@ export async function getTrainingLogAnalytics(
   const inRange = filtered.filter((log) => log.date >= cutoffStr);
 
   const thisWeekMon = getWeekMonday(localTodayISO());
-  const thisMonthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+  const today = localTodayISO();
+  const [thisYear, thisMonth] = today.split('-');
+  const thisMonthStart = `${thisYear}-${thisMonth}-01`;
 
   const weekMinutes = new Map<string, number>();
   const typeMinutes = new Map<string, number>();

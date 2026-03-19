@@ -29,6 +29,7 @@ CREATE INDEX IF NOT EXISTS idx_workout_log_exercises_log
 -- RLS: restrict access to rows owned via workout_logs.user_id (matches other user-scoped tables).
 ALTER TABLE public.workout_log_exercises ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS workout_log_exercises_user_access ON public.workout_log_exercises;
 CREATE POLICY workout_log_exercises_user_access
   ON public.workout_log_exercises
   FOR ALL
