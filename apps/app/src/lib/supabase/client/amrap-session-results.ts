@@ -19,6 +19,21 @@ export interface AmrapSessionResult {
   workout_name: string | null;
 }
 
+function normalizeWorkoutList(raw: unknown): string[] {
+  if (Array.isArray(raw)) {
+    return raw.map((e) => (typeof e === 'string' ? e.trim() : String(e))).filter(Boolean);
+  }
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      return normalizeWorkoutList(parsed);
+    } catch {
+      return raw.trim() ? [raw.trim()] : [];
+    }
+  }
+  return [];
+}
+
 /**
  * Get AMRAP session results for the current user, ordered by completed_at desc.
  * Calls public.get_amrap_session_results RPC (uses auth.uid() server-side).
@@ -52,7 +67,7 @@ export async function getAmrapSessionResults(
     id: row.id,
     session_id: row.session_id,
     total_rounds: row.total_rounds ?? 0,
-    workout_list: (row.workout_list ?? []) as string[],
+    workout_list: normalizeWorkoutList(row.workout_list),
     duration_minutes: row.duration_minutes ?? 0,
     completed_at: row.completed_at as string,
     round_durations: (row.round_durations ?? []) as number[],

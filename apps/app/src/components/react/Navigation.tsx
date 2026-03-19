@@ -202,6 +202,13 @@ const Navigation: React.FC<NavigationProps> = ({
         </a>
       )}
       <a
+        href="/interval-timers"
+        className="hidden items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-white transition-colors hover:bg-white/15 hover:text-orange-light md:flex"
+        aria-label="Calendar"
+      >
+        <span className="text-xs font-bold uppercase">Calendar</span>
+      </a>
+      <a
         href="/account"
         className="hidden items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-white transition-colors hover:bg-white/15 hover:text-orange-light md:flex"
         aria-label="Account"
@@ -396,6 +403,13 @@ const Navigation: React.FC<NavigationProps> = ({
                 })}
                 {user ? (
                   <>
+                    <a
+                      href="/interval-timers"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="rounded-full bg-white/10 px-4 py-2.5 font-semibold text-white transition-colors hover:bg-white/15 hover:text-orange-light"
+                    >
+                      Calendar
+                    </a>
                     <a
                       href="/account"
                       onClick={() => setMobileMenuOpen(false)}

@@ -8,6 +8,7 @@
 import { getAmrapSessionResults } from './amrap-session-results';
 import { getAmrapScheduledSessionsForUser } from './amrap-scheduled-sessions';
 import { getScheduledWorkoutsForRange } from './scheduled-workouts';
+import { getAmrapPresetName } from '@/lib/amrap-preset-name';
 import type { CalendarEvent } from '@/lib/calendar-events';
 import { supabase } from '../supabase-instance';
 
@@ -28,15 +29,18 @@ export async function getAmrapCompletedEventsForRange(
   for (const r of results) {
     const date = dateOnly(r.completed_at);
     if (date >= rangeStart && date <= rangeEnd) {
+      const workoutList = r.workout_list?.length ? r.workout_list : undefined;
+      const presetTitle = workoutList ? getAmrapPresetName(workoutList) : null;
       events.push({
         type: 'amrap',
         date,
-        workoutTitle: r.workout_name ?? r.workout_list?.[0]?.trim() ?? 'AMRAP',
+        workoutTitle: r.workout_name?.trim() || presetTitle || 'AMRAP With Friends',
         status: 'completed',
         sessionId: r.session_id,
         metadata: {
           rounds: r.total_rounds,
           durationMinutes: r.duration_minutes,
+          workoutList,
         },
       });
     }
@@ -53,17 +57,22 @@ export async function getAmrapScheduledEventsForRange(
   rangeEnd: string
 ): Promise<CalendarEvent[]> {
   const sessions = await getAmrapScheduledSessionsForUser(userId, rangeStart, rangeEnd);
-  return sessions.map((s) => ({
-    type: 'amrap_scheduled' as const,
-    date: dateOnly(s.scheduled_start_at),
-    workoutTitle: s.workout_list?.[0]?.trim() ?? 'AMRAP',
-    status: 'scheduled' as const,
-    sessionId: s.id,
-    metadata: {
-      durationMinutes: s.duration_minutes,
-      scheduledAt: s.scheduled_start_at,
-    },
-  }));
+  return sessions.map((s) => {
+    const workoutList = s.workout_list?.length ? s.workout_list : undefined;
+    const presetTitle = workoutList ? getAmrapPresetName(workoutList) : null;
+    return {
+      type: 'amrap_scheduled' as const,
+      date: dateOnly(s.scheduled_start_at),
+      workoutTitle: presetTitle ?? 'AMRAP With Friends',
+      status: 'scheduled' as const,
+      sessionId: s.id,
+      metadata: {
+        durationMinutes: s.duration_minutes,
+        scheduledAt: s.scheduled_start_at,
+        workoutList,
+      },
+    };
+  });
 }
 
 /**
