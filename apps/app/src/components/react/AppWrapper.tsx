@@ -9,6 +9,7 @@ import { AppProvider } from '../../contexts/AppContext';
 import AppIslands from './AppIslands';
 import FluidBackground from './FluidBackground';
 import AccountLanding from './AccountLanding';
+import { TrainingLogPage } from './training-log';
 
 const AIChat = lazy(() => import('./AIChat'));
 const PurchaseFlow = lazy(() => import('./PurchaseFlow'));
@@ -82,11 +83,24 @@ const AppWrapper: React.FC<AppWrapperProps> = ({ children, pathname }) => {
   }, []);
 
   const isAccountPage = pathname === '/account';
+  const isTrainingLogPage = pathname === '/training-log';
+
+  const mainContent = isAccountPage ? (
+    <AccountLanding />
+  ) : isTrainingLogPage ? (
+    <main>
+      <section className="relative z-10 overflow-hidden border-t border-white/10 bg-black/20 py-16 backdrop-blur-sm md:py-24">
+        <TrainingLogPage />
+      </section>
+    </main>
+  ) : (
+    children
+  );
 
   return (
     <StrictMode>
       <AppProvider>
-        {isAccountPage ? <AccountLanding /> : children}
+        {mainContent}
         <FluidBackground />
         {shouldRenderDeferredIslands && (
           <Suspense fallback={null}>

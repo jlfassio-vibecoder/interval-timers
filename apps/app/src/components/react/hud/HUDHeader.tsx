@@ -6,7 +6,7 @@
  */
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Bell, LogOut, Settings, UserCircle, X } from 'lucide-react';
+import { Activity, Bell, LogOut, Settings, UserCircle, X } from 'lucide-react';
 import { useAppContext } from '@/contexts/AppContext';
 
 export interface HUDHeaderProps {
@@ -149,6 +149,15 @@ const HUDHeader: React.FC<HUDHeaderProps> = ({ onClose, notificationCount = 0, o
                   >
                     <UserCircle className="h-4 w-4" />
                     Profile
+                  </a>
+                  <a
+                    href="/training-log"
+                    role="menuitem"
+                    className="flex items-center gap-2 px-4 py-2 text-sm text-white/90 transition hover:bg-white/10 hover:text-white"
+                    onClick={() => setDropdownOpen(false)}
+                  >
+                    <Activity className="h-4 w-4" />
+                    Training Log
                   </a>
                   <a
                     href="/settings"

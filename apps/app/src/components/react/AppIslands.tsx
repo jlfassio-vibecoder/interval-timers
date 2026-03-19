@@ -12,6 +12,7 @@ import type { WorkoutInSet } from '@/types/ai-workout';
 import Navigation from './Navigation';
 import { AuthModal } from '@interval-timers/auth-ui';
 import { trackEvent } from '@interval-timers/analytics';
+import { HEALTH_GUIDELINE_WEEKLY_MINUTES } from '@/lib/training-log-constants';
 import { supabase } from '@/lib/supabase/supabase-instance';
 import { adminPaths } from '@/lib/admin/config';
 import type { ProgramMetadata } from '@/types/ai-program';
@@ -488,6 +489,7 @@ const AppIslands: React.FC<AppIslandsProps> = ({ pathname: initialPathname }) =>
           )
         }
         getRedirectUrl={async (authUser) => {
+          if (authModalFromAppId === 'training-log') return '/training-log';
           const { data } = await supabase
             .from('profiles')
             .select('role')
@@ -532,15 +534,20 @@ const AppIslands: React.FC<AppIslandsProps> = ({ pathname: initialPathname }) =>
             onCalendarRefresh={() => setCalendarRefreshKey((k) => k + 1)}
             calendarRefreshKey={calendarRefreshKey}
             historyRefreshKey={historyRefreshKey}
+            goalMinutes={user?.weeklyGoalMinutes ?? HEALTH_GUIDELINE_WEEKLY_MINUTES}
             workoutsThisWeek={
               workoutLogs.filter((l) => {
-                const d = l.date ? new Date(l.date) : null;
+                const d = l.date ? new Date(l.date + 'T12:00:00') : null;
                 if (!d) return false;
                 const now = new Date();
                 const startOfWeek = new Date(now);
-                startOfWeek.setDate(now.getDate() - now.getDay());
+                const day = now.getDay();
+                const mondayOffset = day === 0 ? -6 : 1 - day;
+                startOfWeek.setDate(now.getDate() + mondayOffset);
                 startOfWeek.setHours(0, 0, 0, 0);
-                return d >= startOfWeek;
+                const endOfWeek = new Date(startOfWeek);
+                endOfWeek.setDate(endOfWeek.getDate() + 7);
+                return d >= startOfWeek && d < endOfWeek;
               }).length
             }
             workoutLogs={workoutLogs}

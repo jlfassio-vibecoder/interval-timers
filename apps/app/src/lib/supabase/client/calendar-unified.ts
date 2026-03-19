@@ -88,6 +88,7 @@ export async function getTimerLogEventsForRange(
     .select('id, date, workout_name, source, duration_seconds, effort, rating, rounds, notes')
     .eq('user_id', userId)
     .not('source', 'is', null)
+    .neq('source', 'amrap_with_friends') // AMRAP With Friends shown via getAmrapCompletedEventsForRange
     .neq('workout_name', 'Readiness')
     .gte('date', rangeStart)
     .lte('date', rangeEnd)

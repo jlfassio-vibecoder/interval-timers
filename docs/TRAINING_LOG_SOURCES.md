@@ -1,0 +1,69 @@
+# Training Log: workout_logs.source Registry
+
+Training Log aggregates sessions from **`workout_logs`** and **`user_workout_logs`**. This document records every `workout_logs.source` value: how rows are written, dedupe key shape, and any domain table.
+
+## Sources
+
+| source | Writer | Dedupe key shape | Domain table |
+|--------|--------|------------------|--------------|
+| `tabata` | Handoff (`log-handoff.ts`) | `sha256(userId\|intent\|source\|timestamp)` | — |
+| `amrap` | Handoff (solo timer) | `sha256(userId\|intent\|source\|timestamp)` | — |
+| `daily-warmup` | Handoff | `sha256(userId\|intent\|source\|timestamp)` | — |
+| `emom` | Handoff | `sha256(userId\|intent\|source\|timestamp)` | — |
+| `lactate-threshold` | Handoff | `sha256(userId\|intent\|source\|timestamp)` | — |
+| `phosphagen` | Handoff | `sha256(userId\|intent\|source\|timestamp)` | — |
+| `gibala` | Handoff | `sha256(userId\|intent\|source\|timestamp)` | — |
+| `wingate` | Handoff | `sha256(userId\|intent\|source\|timestamp)` | — |
+| `timmons` | Handoff | `sha256(userId\|intent\|source\|timestamp)` | — |
+| `10-20-30` | Handoff | `sha256(userId\|intent\|source\|timestamp)` | — |
+| `mindful` | Handoff | `sha256(userId\|intent\|source\|timestamp)` | — |
+| `aerobic` | Handoff | `sha256(userId\|intent\|source\|timestamp)` | — |
+| `bio-sync60` | Handoff | `sha256(userId\|intent\|source\|timestamp)` | — |
+| `amrap_with_friends` | DB sync (`persist_amrap_session_results`) | `amrap_with_friends:{user_id}:{session_id}` | `shared.amrap_session_results` |
+| *(null)* | Manual / summary (`saveWorkoutLog`) | — | — |
+| *(Readiness)* | `readiness.ts` (workout_name='Readiness') | — | — |
+
+## Program sessions
+
+Program completions come from **`user_workout_logs`**, not `workout_logs`. They are merged by `fetchWorkoutLogsForTraining` with `source: 'program'`. No dedupe key in workout_logs.
+
+## Handoff flow
+
+1. User completes timer in spoke app (Tabata, EMOM, etc.).
+2. Spoke redirects to `/account?intent=save_session&source=<appId>&time=X&rounds=Y` (via `buildAccountRedirectUrl`).
+3. User signs up/logs in on account page.
+4. `AccountLanding` calls `logHandoffSession(handoff, uid)`.
+5. `log-handoff.ts` inserts into `workout_logs` if `source` is in `ALLOWED_SOURCES`.
+
+## Rich / multiplayer timers (AMRAP template)
+
+For timers with their own DB tables (e.g. AMRAP With Friends):
+
+1. **Domain table** stores full session data (rounds, participants, etc.).
+2. **Trigger / RPC** on completion calls `SECURITY DEFINER` function.
+3. Function upserts domain table **and** inserts into `workout_logs` with stable `handoff_dedupe_key`.
+4. Use `completed_at::date` (or session timezone) for `workout_logs.date`, not server `current_date`.
+
+## Future timers
+
+When adding a new interval timer:
+
+- **Simple (no DB):** Add `source` to `ALLOWED_SOURCES` and `SOURCE_TO_WORKOUT_NAME` in `log-handoff.ts`; add post-session handoff UI in the spoke app.
+- **Rich (own tables):** Copy `20250329000000_amrap_sync_workout_logs.sql` pattern: trigger sync to `workout_logs` on completion with namespaced dedupe key.
+
+### Template for rich timers (own DB tables)
+
+Use AMRAP With Friends as the reference implementation:
+
+1. **Domain table** – Store full session data (participants, rounds, etc.), e.g. `shared.<protocol>_session_results`.
+2. **Completion trigger** – `AFTER UPDATE` on session table when `state = 'finished'` → call `persist_*` function.
+3. **`SECURITY DEFINER` function** – Same transaction:
+   - Upsert into domain table.
+   - Insert/upsert into `workout_logs` with:
+     - `source` = stable string (e.g. `amrap_with_friends`).
+     - `handoff_dedupe_key` = `{source}:{user_id}:{session_id}` (matches unique partial index).
+     - `date` = `(now())::date` (completion date).
+     - `duration_seconds`, `rounds`, `workout_name`, etc.
+4. **Backfill** – One-time `INSERT ... SELECT` from domain table into `workout_logs` for existing rows, with `ON CONFLICT DO NOTHING`.
+
+Reference: [`supabase/migrations/20250329000000_amrap_sync_workout_logs.sql`](../supabase/migrations/20250329000000_amrap_sync_workout_logs.sql)

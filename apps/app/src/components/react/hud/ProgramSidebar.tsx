@@ -7,7 +7,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Lock, Calendar, TrendingUp, Play } from 'lucide-react';
+import { Activity, Lock, Calendar, TrendingUp, Play } from 'lucide-react';
 import { useAppContext } from '@/contexts/AppContext';
 import {
   fetchUserPrograms,
@@ -141,6 +141,14 @@ const ProgramSidebar: React.FC<ProgramSidebarProps> = ({
       <h4 className="border-orange-light/20 border-b pb-4 font-mono text-[10px] uppercase tracking-[0.4em] text-orange-light">
         Program
       </h4>
+
+      <a
+        href="/training-log"
+        className="flex w-full items-center justify-center gap-2 rounded-full border border-white/10 bg-white/5 py-2.5 font-mono text-[10px] uppercase tracking-widest text-white transition-colors hover:bg-white/10"
+      >
+        <Activity className="h-3.5 w-3.5" />
+        Training Log
+      </a>
 
       {/* Active Program Card — always show container */}
       <section aria-label="Active program">

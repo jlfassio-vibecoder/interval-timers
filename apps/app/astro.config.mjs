@@ -118,6 +118,14 @@ export default defineConfig({
     resolve: {
       alias: {
         '@': src
+      },
+      // Force single React instance; @supabase/auth-ui-react pulls React 18 and causes "Invalid hook call"
+      dedupe: ['react', 'react-dom']
+    },
+    optimizeDeps: {
+      include: ['node-domexception', 'react', 'react-dom'],
+      esbuildOptions: {
+        mainFields: ['module', 'main']
       }
     },
     ssr: {
@@ -125,13 +133,6 @@ export default defineConfig({
       // This is necessary because Firebase App Hosting may not have all transitive dependencies
       // at runtime. We exclude native modules that can't be bundled.
       noExternal: isProduction ? true : ['piccolore', 'clsx', 'es-module-lexer', 'devalue']
-    },
-    optimizeDeps: {
-      include: ['node-domexception'],
-      esbuildOptions: {
-        // Handle CommonJS modules that don't have default exports
-        mainFields: ['module', 'main']
-      }
     },
     build: {
       rollupOptions: {

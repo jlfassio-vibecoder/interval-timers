@@ -22,6 +22,8 @@ export interface UserProfile {
   signInVisitCount?: number;
   /** Count of resumed-activity visits */
   activityVisitCount?: number;
+  /** Training Log: weekly target minutes (Mon–Sun). Default 150. */
+  weeklyGoalMinutes?: number | null;
 }
 
 export interface Exercise {
@@ -61,6 +63,14 @@ export interface WorkoutLog {
   calories?: number;
   rounds?: number;
   source?: string;
+  /** For deduping AMRAP/handoff merges (amrap_with_friends:userId:sessionId). */
+  handoffDedupeKey?: string;
+  /** Training Log enrichment. */
+  workoutType?: string;
+  workoutFormat?: string;
+  intensity?: string;
+  focusArea?: string;
+  isActiveRest?: boolean;
 }
 
 export interface Artist {
