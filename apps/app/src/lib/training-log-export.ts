@@ -6,17 +6,10 @@
  */
 
 import type { WorkoutLog } from '@/types';
-import { deriveWorkoutFormat } from '@/lib/supabase/client/training-log';
-
-function deriveWorkoutType(log: WorkoutLog): string {
-  if (log.workoutType) return log.workoutType;
-  const s = (log.source ?? '').toLowerCase();
-  if (s.includes('program')) return 'Conditioning';
-  if (s.includes('tabata') || s.includes('hiit')) return 'Cardiovascular Fitness';
-  if (s.includes('amrap') || s.includes('emom') || s.includes('circuit')) return 'Conditioning';
-  if (s.includes('warmup') || s.includes('warm-up')) return 'Mobility';
-  return 'Other';
-}
+import {
+  deriveWorkoutFormat,
+  deriveWorkoutType,
+} from '@/lib/supabase/client/training-log';
 
 /** Escape a CSV field: wrap in quotes if it contains comma, quote, or newline. */
 function escapeCsvField(value: string | number | undefined | null): string {

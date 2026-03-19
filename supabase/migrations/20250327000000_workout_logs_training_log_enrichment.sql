@@ -25,3 +25,24 @@ CREATE TABLE IF NOT EXISTS public.workout_log_exercises (
 
 CREATE INDEX IF NOT EXISTS idx_workout_log_exercises_log
   ON public.workout_log_exercises(workout_log_id);
+
+-- RLS: restrict access to rows owned via workout_logs.user_id (matches other user-scoped tables).
+ALTER TABLE public.workout_log_exercises ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY workout_log_exercises_user_access
+  ON public.workout_log_exercises
+  FOR ALL
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.workout_logs wl
+      WHERE wl.id = workout_log_exercises.workout_log_id
+        AND wl.user_id = auth.uid()
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.workout_logs wl
+      WHERE wl.id = workout_log_exercises.workout_log_id
+        AND wl.user_id = auth.uid()
+    )
+  );

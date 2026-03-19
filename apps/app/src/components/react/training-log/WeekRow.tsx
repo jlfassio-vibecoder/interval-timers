@@ -95,7 +95,7 @@ const WeekRowInner = forwardRef<HTMLDivElement, WeekRowProps>(function WeekRowIn
         <div className="flex w-24 shrink-0 flex-col items-end pr-2">
           {!hideRangeLabel && <span className="font-mono text-xs text-white/70">{week.range}</span>}
           <span
-            className={`${hideRangeLabel ? '' : 'mt-0.5'}rounded px-1.5 py-0.5 font-mono text-sm font-bold ${totalColor}`}
+            className={`${hideRangeLabel ? '' : 'mt-0.5 '}rounded px-1.5 py-0.5 font-mono text-sm font-bold ${totalColor}`}
           >
             {week.totalMinutes} min
           </span>

@@ -277,8 +277,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const setWeeklyGoalMinutes = React.useCallback(
     async (minutes: number) => {
       if (!user?.uid) return;
-      await updateWeeklyGoalMinutes(user.uid, minutes);
-      setUser((prev) => (prev ? { ...prev, weeklyGoalMinutes: minutes } : null));
+      const clamped = Math.max(1, Math.min(999, minutes));
+      await updateWeeklyGoalMinutes(user.uid, clamped);
+      setUser((prev) => (prev ? { ...prev, weeklyGoalMinutes: clamped } : null));
     },
     [user?.uid]
   );

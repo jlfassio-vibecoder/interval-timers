@@ -141,6 +141,9 @@ const TrainingLog: React.FC = () => {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (weeks.length === 0 || selectedWorkout) return;
+      if (goalModalOpen) return;
+      const target = e.target as HTMLElement;
+      if (target.closest('input, textarea, select, [contenteditable="true"]')) return;
       if (e.key === 'ArrowRight') {
         e.preventDefault();
         const next = Math.min(focusedWeekIndex + 1, weeks.length - 1);
@@ -166,7 +169,7 @@ const TrainingLog: React.FC = () => {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [weeks.length, focusedWeekIndex, selectedWorkout]);
+  }, [weeks.length, focusedWeekIndex, selectedWorkout, goalModalOpen]);
 
   useEffect(() => {
     setFocusedWeekIndex((prev) => (weeks.length > 0 ? Math.min(prev, weeks.length - 1) : 0));

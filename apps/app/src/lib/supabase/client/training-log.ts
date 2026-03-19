@@ -356,8 +356,7 @@ export async function getTrainingLogAnalytics(
   const cutoffStr = `${y}-${m}-${d}`;
   const inRange = filtered.filter((log) => log.date >= cutoffStr);
 
-  const now = new Date();
-  const thisWeekMon = getWeekMonday(now.toISOString().slice(0, 10));
+  const thisWeekMon = getWeekMonday(localTodayISO());
   const thisMonthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
 
   const weekMinutes = new Map<string, number>();
@@ -411,11 +410,17 @@ export async function getTrainingLogAnalytics(
     minutes: dayMinutes.get(day) ?? 0,
   }));
 
+  // Enumerate calendar weeks backwards from current week; missing weeks = 0 minutes.
   let streak = 0;
-  for (let i = weekKeys.length - 1; i >= 0; i--) {
-    const total = weekMinutes.get(weekKeys[i]) ?? 0;
-    if (total >= goalMinutes) streak++;
-    else break;
+  let checkMon = thisWeekMon;
+  for (let i = 0; i < 52; i++) {
+    const total = weekMinutes.get(checkMon) ?? 0;
+    if (total >= goalMinutes) {
+      streak++;
+      checkMon = addCalendarDays(checkMon, -7);
+    } else {
+      break;
+    }
   }
 
   let mostActiveDay = 'Monday';
