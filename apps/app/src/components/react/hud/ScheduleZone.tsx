@@ -742,23 +742,33 @@ const ScheduleZone: React.FC<ScheduleZoneProps> = ({
 
   const handleClearScheduledConfirm = useCallback(async () => {
     if (!user?.uid || scheduledToClear.length === 0) return;
-    try {
-      // Sequential to avoid rate limits and to surface first error to user.
-      for (const ev of scheduledToClear) {
+    let cleared = 0;
+    let failed = 0;
+    // Sequential to avoid rate limits; per-item catch so partial success still refreshes UI.
+    for (const ev of scheduledToClear) {
+      try {
         if (ev.type === 'timer_scheduled' && ev.sessionId) {
           await deleteScheduledWorkout(ev.sessionId);
+          cleared++;
         } else if (ev.type === 'amrap_scheduled' && ev.sessionId) {
           await cancelAmrapSessionForCreator(ev.sessionId);
+          cleared++;
         }
+      } catch (err) {
+        failed++;
+        if (import.meta.env.DEV) console.error('[ScheduleZone] clear scheduled item failed:', err);
       }
-      setClearConfirmModalOpen(false);
-      onCalendarRefresh?.();
+    }
+    setClearConfirmModalOpen(false);
+    onCalendarRefresh?.();
+    setSelectedDates(new Set());
+    setSelectMode(false);
+    if (failed === 0) {
       toast.success('Scheduled workouts cleared');
-      setSelectedDates(new Set());
-      setSelectMode(false);
-    } catch (err) {
-      if (import.meta.env.DEV) console.error('[ScheduleZone] clear scheduled failed:', err);
-      toast.error(err instanceof Error ? err.message : 'Failed to clear scheduled');
+    } else if (cleared > 0) {
+      toast.warning(`Cleared ${cleared}; ${failed} failed.`);
+    } else {
+      toast.error('Failed to clear scheduled workouts');
     }
   }, [user?.uid, scheduledToClear, onCalendarRefresh]);
 
