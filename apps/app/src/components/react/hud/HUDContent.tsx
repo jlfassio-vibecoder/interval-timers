@@ -11,6 +11,9 @@ import ProgressZone from './ProgressZone';
 import ScheduleZone from './ScheduleZone';
 import HistoryZone from './HistoryZone';
 import AmrapProgressSection from './AmrapProgressSection';
+import { TrainingLogPreview } from '@/components/react/training-log';
+import { HEALTH_GUIDELINE_WEEKLY_MINUTES } from '@/lib/training-log-constants';
+import { getMinutesThisWeek } from '@/lib/training-log-utils';
 import type { UpcomingStripDay } from './UpcomingStrip';
 import type { WorkoutLog } from '@/types';
 import type { CalendarEvent } from '@/lib/calendar-events';
@@ -30,6 +33,8 @@ export interface HUDContentProps {
   /** For ghost state message, e.g. "5 Workouts Completed this week." */
   workoutsThisWeek?: number;
   workoutLogs?: WorkoutLog[];
+  /** Training Log weekly goal (minutes). Default 150. */
+  goalMinutes?: number;
   /** Called when calendar should refetch (e.g. AMRAP scheduled, workout completed). */
   onCalendarRefresh?: () => void;
   /** When changed, calendar refetches (e.g. after Sync to Calendar). */
@@ -44,11 +49,13 @@ const HUDContent: React.FC<HUDContentProps> = ({
   onOpenConversionModal,
   workoutsThisWeek = 5,
   workoutLogs = [],
+  goalMinutes = HEALTH_GUIDELINE_WEEKLY_MINUTES,
   onCalendarRefresh,
   calendarRefreshKey = 0,
   historyRefreshKey = 0,
 }) => {
   const [stripData, setStripData] = useState<StripDataForUpcoming | null>(null);
+  const minutesThisWeek = getMinutesThisWeek(workoutLogs ?? []);
   const scrollToHistory = useCallback(() => {
     document.getElementById('history-zone')?.scrollIntoView({ behavior: 'smooth' });
   }, []);
@@ -68,6 +75,8 @@ const HUDContent: React.FC<HUDContentProps> = ({
         onOpenConversionModal={onOpenConversionModal}
         workoutsThisWeek={workoutsThisWeek}
       />
+
+      <TrainingLogPreview minutesThisWeek={minutesThisWeek} goalMinutes={goalMinutes} />
 
       <ScheduleZone
         refreshKey={calendarRefreshKey}

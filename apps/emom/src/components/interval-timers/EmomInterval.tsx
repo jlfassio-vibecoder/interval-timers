@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { buildAccountRedirectUrl } from '@interval-timers/handoff';
 import { IntervalTimerLanding } from '@interval-timers/timer-ui';
 import type { IntervalTimerPage } from '@interval-timers/timer-core';
 import { getProtocolAccent, SETUP_DURATION_SECONDS } from '@interval-timers/timer-core';
@@ -41,7 +42,13 @@ interface SimContent {
 const EMOM_ACCENT = getProtocolAccent('emom');
 
 const EmomInterval: React.FC<EmomIntervalProps> = ({ onNavigate, onNavigateToLanding }) => {
+  const accountBase =
+    import.meta.env.VITE_ACCOUNT_REDIRECT_URL ??
+    (import.meta.env.DEV ? 'http://localhost:3006/account' : '/account');
+
   const [isReportOpen, setIsReportOpen] = useState(false);
+  const [showPostSession, setShowPostSession] = useState(false);
+  const [postSessionTotalSeconds, setPostSessionTotalSeconds] = useState(0);
   const [isTimerOpen, setIsTimerOpen] = useState(false);
   const [isDurationSelectOpen, setIsDurationSelectOpen] = useState(false);
   const [timerState, setTimerState] = useState<TimerState>('idle');
@@ -293,8 +300,19 @@ const EmomInterval: React.FC<EmomIntervalProps> = ({ onNavigate, onNavigateToLan
     setTaskFinishedAt(null);
     setRoundHistory([]);
     setIsPaused(false);
+    setShowPostSession(false);
     playSound('warning');
   };
+
+  useEffect(() => {
+    if (timerState === 'finished') {
+      const totalSec =
+        WARMUP_DURATION_SECONDS + SETUP_DURATION_SECONDS + totalCycles * 60;
+      setPostSessionTotalSeconds(totalSec);
+      setShowPostSession(true);
+      setIsTimerOpen(false);
+    }
+  }, [timerState, totalCycles]);
 
   useEffect(() => {
     if (isDurationSelectOpen) {
@@ -816,6 +834,50 @@ const EmomInterval: React.FC<EmomIntervalProps> = ({ onNavigate, onNavigateToLan
           </div>
         </div>
       )}
+
+      {/* POST-SESSION CARD */}
+      {showPostSession &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/90 p-4">
+            <div className="animate-zoom-in w-full max-w-md rounded-2xl border border-white/10 bg-[#0d0500] p-8 shadow-2xl">
+              <h3 className="mb-2 text-xl font-bold text-white">Workout complete!</h3>
+              <p className="mb-6 text-white/70">
+                Save your session to track progress and view stats.
+              </p>
+              <div className="flex flex-col gap-3">
+                <a
+                  href={buildAccountRedirectUrl(
+                    'save_session',
+                    'emom',
+                    { time: String(postSessionTotalSeconds) },
+                    accountBase
+                  )}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    window.location.href = buildAccountRedirectUrl(
+                      'save_session',
+                      'emom',
+                      { time: String(postSessionTotalSeconds) },
+                      accountBase
+                    );
+                  }}
+                  className="rounded-xl bg-teal-500 px-6 py-3 text-center font-bold text-black transition-transform hover:-translate-y-0.5 hover:bg-teal-400"
+                >
+                  Save to account
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setShowPostSession(false)}
+                  className="rounded-xl border border-white/20 px-6 py-3 font-bold text-white/80 hover:bg-white/10 hover:text-white"
+                >
+                  Done
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
 
       {/* INFO MODAL */}
       {isReportOpen && (

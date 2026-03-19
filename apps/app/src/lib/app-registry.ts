@@ -20,6 +20,12 @@ export const APP_REGISTRY: readonly AppEntry[] = [
   { id: 'tabata', name: 'Tabata', path: '/tabata-timer', description: '4-min protocol' },
   { id: 'daily-warmup', name: 'Daily Warm-Up', path: '/daily-warm-up', description: 'Mobility' },
   { id: 'app', name: 'Programs', path: '/interval-timers', description: 'HUD & schedules' },
+  {
+    id: 'training-log',
+    name: 'Training Log',
+    path: '/training-log',
+    description: 'Track & analyze workouts',
+  },
   { id: 'lactate', name: 'Lactate', path: '/lactate-threshold', description: 'Threshold training' },
   {
     id: 'phosphagen',

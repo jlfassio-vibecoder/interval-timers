@@ -13,10 +13,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@interval-timers/types": "*",
-    "@interval-timers/timer-sounds": "*",
+    "@interval-timers/handoff": "*",
     "@interval-timers/timer-core": "*",
+    "@interval-timers/timer-sounds": "*",
     "@interval-timers/timer-ui": "*",
+    "@interval-timers/types": "*",
     "clsx": "^2.1.1",
     "framer-motion": "^12.34.3",
     "lucide-react": "^0.575.0",

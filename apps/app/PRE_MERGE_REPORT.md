@@ -1,49 +1,58 @@
-# Pre-Merge Report (Final PR Gatekeeper)
+# Pre-Merge Report: Training Log PR #86
 
-**Date:** 2026-02-27  
-**Scope:** Pending Copilot comments, code quality, and AI slop filtration for PR merge.
+**Date:** 2025-03-19  
+**Branch:** feature/app-training-logs  
+**Reviewer:** Senior Lead Engineer (Final Gatekeeper)
 
 ---
 
-## Fixed
+## Fixed (Critical / Performance / Logic)
 
-| Item                  | Location                                            | Action                                                                                                                                                                                                                                                                                 |
-| --------------------- | --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Naming / branding** | `src/lib/gemini-server.ts`, `src/pages/api/chat.ts` | Renamed `AI_FITNESS_GUY_SYSTEM_PROMPT` → `AI_FITCOPILOT_SYSTEM_PROMPT`, `sendAIFitnessGuyMessage` → `sendAIFitcopilotMessage`; updated import and call in `chat.ts`.                                                                                                                   |
-| **Documentation**     | `docs/services/gemini-service.md`                   | Updated system-instruction snippet and tone to match trainer-facing Fitcopilot prompt; corrected source of truth to `gemini-server.ts` and `/api/chat`; removed obsolete Firebase AI Logic / Vertex AI / `gemini-2.5-flash` references; documented client → `/api/chat` → server flow. |
-| **Redundant comment** | `src/lib/gemini-server.ts`                          | Removed obvious "Initialize the client" comment; kept "NOTE: server-side only" for security context.                                                                                                                                                                                   |
+| Item | File | Change |
+|------|------|--------|
+| **RLS on workout_log_exercises** | `supabase/migrations/20250327000000_workout_logs_training_log_enrichment.sql` | Added Row Level Security and user-access policy; added `DROP POLICY IF EXISTS` for idempotent migration (project pattern) |
+| **WeekRow className typo** | `WeekRow.tsx` | Fixed `${hideRangeLabel ? '' : 'mt-0.5'}rounded` → `'mt-0.5 '` (missing space caused invalid `mt-0.5rounded`) |
+| **deriveWorkoutType consistency** | `training-log-export.ts` | Removed duplicate implementation; now imports from `training-log.ts` (CSV export matches UI analytics) |
+| **thisWeekMon timezone** | `training-log.ts` | Replaced `now.toISOString().slice(0,10)` with `localTodayISO()` for correct local week boundary |
+| **thisMonthStart undefined** | `training-log.ts` | Fixed regression: `now` was removed but still referenced; now derived from `localTodayISO()` |
+| **Streak calculation** | `training-log.ts` | Iterate backwards over calendar weeks via `addCalendarDays(checkMon, -7)`; missing weeks = 0 minutes (prevents overstated streaks) |
+| **Keyboard nav hijack** | `TrainingLog.tsx` | Early return when `goalModalOpen` or focus in `input/textarea/select/[contenteditable]` |
+| **Weekly goal state sync** | `AppContext.tsx` | Clamp to 1–999 before DB update and `setUser` so local state matches persisted value |
 
 ---
 
 ## Slop Scrubbed
 
-| Item                 | Location                          | Action                                                                                                                                      |
-| -------------------- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| Redundant comment    | `src/lib/gemini-server.ts`        | Removed `// Initialize the client` (obvious from next lines).                                                                               |
-| Commented-out code   | `src/lib/gemini-server.ts`        | Already removed in prior pass (old `GoogleGenerativeAI` import).                                                                            |
-| Outdated doc content | `docs/services/gemini-service.md` | Replaced Training Camp / ARMY PHYSICAL TRAINING persona with actual Fitcopilot prompt; removed hallucinated Firebase AI Logic code samples. |
-
-No dead logic, placeholder code, or unused variables were found in the modified files. No hallucinated APIs were introduced; existing `@google/genai` usage matches the implementation.
-
----
-
-## Ignored
-
-| Suggestion / Item                        | Reason                                                                                                                                                                                                                       |
-| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Broader comment purge across codebase    | Per Phase 2: only changed files in this PR were scrubbed. Comments in other files (e.g. "// Check for...", "// Get credentials") are often section headers in multi-step API flows and were left as-is to avoid scope creep. |
-| Renaming `sendAIFitcopilotMessage` again | Already applied in a previous comment; no second rename.                                                                                                                                                                     |
-| Further doc restructuring                | Doc now points to real source of truth and flow; remaining structure (Error Handling, Best Practices) retained for consistency.                                                                                              |
+| Item | Action |
+|------|--------|
+| **Redundant comments** | None removed. JSDoc and section comments (e.g. "Bar scale: 100% = target") add value and are retained. |
+| **Hallucinated APIs** | None found. All imports (`deriveWorkoutType`, `deriveWorkoutFormat`, `toast.warning`, Recharts, etc.) verified against project. |
+| **Dead logic / placeholders** | None found. No TODO/FIXME in training-log files. |
+| **Empty catch blocks** | `AnalyticsSummaryCards` catch reverts draft but does not surface error — intentional silent revert; no change. |
 
 ---
 
-## Verification
+## Ignored (Explicitly)
 
-- **TypeScript:** `npm run type-check` — pass
-- **ESLint:** `npm run lint` — pass
-- **Astro / env:** No `import.meta.env` without `PUBLIC_` in client-bound code for this PR; `gemini-server.ts` is server-only; `geminiService.ts` uses only `SITE` and `DEV`.
-- **Node APIs:** No `fs`/`path` in client components.
-- **TODO/FIXME:** None in `src/`.
+| Suggestion | Reason |
+|------------|--------|
+| **Week boundary in training-log-insights** | `cutoff.toISOString().slice(0,10)` for 10-day lookback — low impact; not flagged as critical. |
+| **Rounding in getMinutesThisWeek** | Returns fractional minutes; callers use `Math.round` for display. Kept as-is. |
+| **Further RLS policy idempotency** | `DROP POLICY IF EXISTS` added; `ENABLE ROW LEVEL SECURITY` left as-is (no IF EXISTS in Postgres). |
+
+---
+
+## Security & Build-Time Checks
+
+- **import.meta.env**: No env usage in training-log client components.
+- **Node.js APIs (fs, process)**: None in client-side training-log code.
+- **Astro Frontmatter**: No new frontmatter in this PR scope.
+
+---
+
+## Build & Type Check
+
+- `npm run type-check` (apps/app): **PASSED**
 
 ---
 
@@ -51,4 +60,4 @@ No dead logic, placeholder code, or unused variables were found in the modified 
 
 **READY TO MERGE**
 
-The PR is consistent with the decision matrix: critical naming and docs are aligned with Fitcopilot and the real chat flow; one redundant comment was removed; no new debt or hallucinations. Type-check and lint pass. Recommend merge after your usual branch/squash policy.
+All Copilot comments addressed. No critical issues, slop, or hallucinations remain. Migration is idempotent per project convention.

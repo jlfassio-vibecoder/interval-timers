@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { HEALTH_GUIDELINE_WEEKLY_MINUTES } from '@/lib/training-log-constants';
 import { supabase } from '@/lib/supabase/supabase-instance';
 import { getTrainerForUser } from '@/lib/supabase/client/trainer-resolver';
+import { updateWeeklyGoalMinutes } from '@/lib/supabase/client/profiles';
 import type { Session } from '@supabase/supabase-js';
 import type { UserProfile, WorkoutLog } from '@/types';
 
@@ -33,6 +35,7 @@ interface AppContextType {
   setCompletedWorkouts: (workouts: Set<string>) => void;
   setPurchasedIndex: (index: number | null) => void;
   setActiveProgramId: (id: string | null) => void;
+  setWeeklyGoalMinutes: (minutes: number) => Promise<void>;
   handleLogout: () => Promise<void>;
 }
 
@@ -61,6 +64,7 @@ function getSSRStub(): AppContextType {
     setCompletedWorkouts: () => {},
     setPurchasedIndex: () => {},
     setActiveProgramId: () => {},
+    setWeeklyGoalMinutes: async () => {},
     handleLogout: async () => {},
   };
 }
@@ -227,6 +231,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         createdAt: new Date().toISOString(),
         purchasedIndex: null,
         trialEndsAt: null,
+        weeklyGoalMinutes: HEALTH_GUIDELINE_WEEKLY_MINUTES,
       });
     };
 
@@ -245,6 +250,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
 
       if (data) {
+        const goal = data.weekly_goal_minutes;
         setUser({
           uid: data.id,
           email: email || null,
@@ -255,6 +261,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           createdAt: data.created_at || new Date().toISOString(),
           purchasedIndex: null, // Populate from subscription table later
           trialEndsAt: data.trial_ends_at ?? null,
+          weeklyGoalMinutes:
+            typeof goal === 'number' && goal > 0 ? goal : HEALTH_GUIDELINE_WEEKLY_MINUTES,
         });
       } else {
         // Session exists but no profile row (0 rows; e.g. RLS blocks, or trigger hasn't created it yet)
@@ -265,6 +273,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setMinimalUser();
     }
   };
+
+  const setWeeklyGoalMinutes = React.useCallback(
+    async (minutes: number) => {
+      if (!user?.uid) return;
+      const clamped = Math.max(1, Math.min(999, minutes));
+      await updateWeeklyGoalMinutes(user.uid, clamped);
+      setUser((prev) => (prev ? { ...prev, weeklyGoalMinutes: clamped } : null));
+    },
+    [user?.uid]
+  );
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -317,6 +335,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setCompletedWorkouts,
         setPurchasedIndex,
         setActiveProgramId,
+        setWeeklyGoalMinutes,
         handleLogout,
       }}
     >

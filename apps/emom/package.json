@@ -13,6 +13,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@interval-timers/handoff": "*",
     "@interval-timers/types": "*",
     "@interval-timers/timer-sounds": "*",
     "@interval-timers/timer-core": "*",

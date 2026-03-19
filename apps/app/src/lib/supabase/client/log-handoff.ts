@@ -9,12 +9,36 @@ import type { StoredHandoff } from '@interval-timers/handoff';
 
 const SAVE_SESSION_INTENT = 'save_session';
 
-const ALLOWED_SOURCES = new Set(['tabata', 'amrap', 'daily-warmup']);
+const ALLOWED_SOURCES = new Set([
+  'tabata',
+  'amrap',
+  'daily-warmup',
+  'emom',
+  'lactate-threshold',
+  'phosphagen',
+  'gibala',
+  'wingate',
+  'timmons',
+  '10-20-30',
+  'mindful',
+  'aerobic',
+  'bio-sync60',
+]);
 
 const SOURCE_TO_WORKOUT_NAME: Record<string, string> = {
   tabata: 'Tabata',
   amrap: 'AMRAP',
   'daily-warmup': 'Daily Warm-Up',
+  emom: 'EMOM',
+  'lactate-threshold': 'Lactate Threshold',
+  phosphagen: 'Power Intervals',
+  gibala: 'Gibala Method',
+  wingate: 'Wingate',
+  timmons: 'Timmons',
+  '10-20-30': '10-20-30',
+  mindful: 'Japanese Walking',
+  aerobic: 'Aerobic',
+  'bio-sync60': 'Bio-Sync 60',
 };
 
 /**

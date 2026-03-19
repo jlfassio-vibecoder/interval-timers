@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { buildAccountRedirectUrl } from '@interval-timers/handoff';
 import {
   IntervalTimerLanding,
   IntervalTimerOverlay,
@@ -46,7 +47,13 @@ interface SimContent {
 const ACCENT = getProtocolAccent('lactate');
 
 const LactateInterval: React.FC<LactateIntervalProps> = ({ onNavigate, onNavigateToLanding }) => {
+  const accountBase =
+    import.meta.env.VITE_ACCOUNT_REDIRECT_URL ??
+    (import.meta.env.DEV ? 'http://localhost:3006/account' : '/account');
+
   const [isReportOpen, setIsReportOpen] = useState(false);
+  const [showPostSession, setShowPostSession] = useState(false);
+  const [postSessionTotalSeconds, setPostSessionTotalSeconds] = useState(0);
   const [isSetupOpen, setIsSetupOpen] = useState(false);
   const [isTimerOpen, setIsTimerOpen] = useState(false);
   const [totalCycles, setTotalCycles] = useState(10);
@@ -605,13 +612,60 @@ const LactateInterval: React.FC<LactateIntervalProps> = ({ onNavigate, onNavigat
           <IntervalTimerOverlay
             timeline={lactateTimeline}
             onClose={() => {
+              const totalSeconds = lactateTimeline.reduce((s, b) => s + b.duration, 0);
+              setPostSessionTotalSeconds(totalSeconds);
               setFrozenWarmup(null);
               setIsTimerOpen(false);
+              setShowPostSession(true);
             }}
             theme={{ workBg: ACCENT.workBg }}
             warmupExercises={frozenWarmup?.exercises}
             warmupDurationPerExercise={frozenWarmup?.durationPerExercise}
           />,
+          document.body
+        )}
+
+      {/* POST-SESSION CARD */}
+      {showPostSession &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/90 p-4">
+            <div className="animate-zoom-in w-full max-w-md rounded-2xl border border-white/10 bg-[#0d0500] p-8 shadow-2xl">
+              <h3 className="mb-2 text-xl font-bold text-white">Workout complete!</h3>
+              <p className="mb-6 text-white/70">
+                Save your session to track progress and view stats.
+              </p>
+              <div className="flex flex-col gap-3">
+                <a
+                  href={buildAccountRedirectUrl(
+                    'save_session',
+                    'lactate-threshold',
+                    { time: String(postSessionTotalSeconds) },
+                    accountBase
+                  )}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    window.location.href = buildAccountRedirectUrl(
+                      'save_session',
+                      'lactate-threshold',
+                      { time: String(postSessionTotalSeconds) },
+                      accountBase
+                    );
+                  }}
+                  className="rounded-xl bg-amber-500 px-6 py-3 text-center font-bold text-black transition-transform hover:-translate-y-0.5 hover:bg-amber-400"
+                >
+                  Save to account
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setShowPostSession(false)}
+                  className="rounded-xl border border-white/20 px-6 py-3 font-bold text-white/80 hover:bg-white/10 hover:text-white"
+                >
+                  Done
+                </button>
+              </div>
+            </div>
+          </div>,
           document.body
         )}
 
