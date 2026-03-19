@@ -49,7 +49,7 @@ const TrainingLogAnalytics: React.FC<TrainingLogAnalyticsProps> = ({
     fetchLogs();
   }, [fetchLogs]);
 
-  const insights = data && logs.length >= 0 ? generateInsights(data, logs, goalMinutes) : [];
+  const insights = data && logs.length > 0 ? generateInsights(data, logs, goalMinutes) : [];
 
   if (error) {
     return (
