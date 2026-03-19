@@ -25,7 +25,6 @@ import { buildIcsFromEvents } from '@/lib/ics-export';
 import { updateScheduledWorkout } from '@/lib/supabase/client/scheduled-workouts';
 import { rescheduleAmrapSession } from '@/lib/supabase/client/amrap-reschedule';
 import AppCalendar from './AppCalendar';
-import UpcomingStrip from './UpcomingStrip';
 import type { UpcomingStripDay } from './UpcomingStrip';
 import WorkoutEventDrawer from './WorkoutEventDrawer';
 import SimpleActivityDrawer from './SimpleActivityDrawer';
@@ -124,6 +123,15 @@ export interface ScheduleZoneProps {
   workoutsThisWeek?: number;
   /** Workout logs for duration aggregation (for weekly summary bar). */
   workoutLogs?: WorkoutLog[];
+  /** Called with strip data when month view has next-7-days data; called with null when not. */
+  onStripDataReady?: (
+    data: {
+      stripDays: UpcomingStripDay[];
+      todayISO: string;
+      restDays: Set<string>;
+      onDayClick: (date: string, events: CalendarEvent[]) => void;
+    } | null
+  ) => void;
 }
 
 const ScheduleZone: React.FC<ScheduleZoneProps> = ({
@@ -132,6 +140,7 @@ const ScheduleZone: React.FC<ScheduleZoneProps> = ({
   onCalendarRefresh,
   workoutsThisWeek = 0,
   workoutLogs = [],
+  onStripDataReady,
 }) => {
   const { user, activeProgramId } = useAppContext();
   const [year, setYear] = useState(() => new Date().getFullYear());
@@ -430,6 +439,20 @@ const ScheduleZone: React.FC<ScheduleZoneProps> = ({
     [selectMode]
   );
 
+  useEffect(() => {
+    if (!onStripDataReady) return;
+    if (viewMode !== 'week' && stripDays.length > 0) {
+      onStripDataReady({
+        stripDays,
+        todayISO: today,
+        restDays,
+        onDayClick: handleDayClick,
+      });
+    } else {
+      onStripDataReady(null);
+    }
+  }, [onStripDataReady, viewMode, stripDays, today, restDays, handleDayClick]);
+
   const handleDaySelect = useCallback((date: string, selected: boolean) => {
     const iso = date.slice(0, 10);
     setSelectedDates((prev) => {
@@ -719,23 +742,33 @@ const ScheduleZone: React.FC<ScheduleZoneProps> = ({
 
   const handleClearScheduledConfirm = useCallback(async () => {
     if (!user?.uid || scheduledToClear.length === 0) return;
-    try {
-      // Sequential to avoid rate limits and to surface first error to user.
-      for (const ev of scheduledToClear) {
+    let cleared = 0;
+    let failed = 0;
+    // Sequential to avoid rate limits; per-item catch so partial success still refreshes UI.
+    for (const ev of scheduledToClear) {
+      try {
         if (ev.type === 'timer_scheduled' && ev.sessionId) {
           await deleteScheduledWorkout(ev.sessionId);
+          cleared++;
         } else if (ev.type === 'amrap_scheduled' && ev.sessionId) {
           await cancelAmrapSessionForCreator(ev.sessionId);
+          cleared++;
         }
+      } catch (err) {
+        failed++;
+        if (import.meta.env.DEV) console.error('[ScheduleZone] clear scheduled item failed:', err);
       }
-      setClearConfirmModalOpen(false);
-      onCalendarRefresh?.();
+    }
+    setClearConfirmModalOpen(false);
+    onCalendarRefresh?.();
+    setSelectedDates(new Set());
+    setSelectMode(false);
+    if (failed === 0) {
       toast.success('Scheduled workouts cleared');
-      setSelectedDates(new Set());
-      setSelectMode(false);
-    } catch (err) {
-      if (import.meta.env.DEV) console.error('[ScheduleZone] clear scheduled failed:', err);
-      toast.error(err instanceof Error ? err.message : 'Failed to clear scheduled');
+    } else if (cleared > 0) {
+      toast.warning(`Cleared ${cleared}; ${failed} failed.`);
+    } else {
+      toast.error('Failed to clear scheduled workouts');
     }
   }, [user?.uid, scheduledToClear, onCalendarRefresh]);
 
@@ -842,20 +875,6 @@ const ScheduleZone: React.FC<ScheduleZoneProps> = ({
             loading={loading}
           />
         )}
-        {!loading && stripDays.length > 0 && viewMode !== 'week' && (
-          <div className="mt-6">
-            <h4 className="mb-3 font-mono text-[10px] uppercase tracking-[0.4em] text-orange-light">
-              Next 7 days
-            </h4>
-            <UpcomingStrip
-              days={stripDays}
-              todayISO={today}
-              onDayClick={handleDayClick}
-              droppable
-              restDays={restDays}
-            />
-          </div>
-        )}
         <DragOverlay>
           {activeEvent ? <CalendarEventDragPreview event={activeEvent} /> : null}
         </DragOverlay>
@@ -931,6 +950,8 @@ const ScheduleZone: React.FC<ScheduleZoneProps> = ({
             onViewResults={
               isSingleAmrap && amrapResultForCalendar ? handleAmrapViewResults : undefined
             }
+            onSessionDeleted={onCalendarRefresh}
+            onSessionRescheduled={onCalendarRefresh}
           />
         )}
       {selectedDayEvents && selectedDayEvents.length > 1 && (

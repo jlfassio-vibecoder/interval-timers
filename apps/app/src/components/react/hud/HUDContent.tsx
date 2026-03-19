@@ -5,13 +5,22 @@
  * Main content for HUDShell: Today Zone, Recent Progress, Calendar, History.
  */
 
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import TodayZone from './TodayZone';
 import ProgressZone from './ProgressZone';
 import ScheduleZone from './ScheduleZone';
 import HistoryZone from './HistoryZone';
 import AmrapProgressSection from './AmrapProgressSection';
+import type { UpcomingStripDay } from './UpcomingStrip';
 import type { WorkoutLog } from '@/types';
+import type { CalendarEvent } from '@/lib/calendar-events';
+
+export interface StripDataForUpcoming {
+  stripDays: UpcomingStripDay[];
+  todayISO: string;
+  restDays: Set<string>;
+  onDayClick: (date: string, events: CalendarEvent[]) => void;
+}
 
 export interface HUDContentProps {
   isPaid: boolean;
@@ -39,6 +48,7 @@ const HUDContent: React.FC<HUDContentProps> = ({
   calendarRefreshKey = 0,
   historyRefreshKey = 0,
 }) => {
+  const [stripData, setStripData] = useState<StripDataForUpcoming | null>(null);
   const scrollToHistory = useCallback(() => {
     document.getElementById('history-zone')?.scrollIntoView({ behavior: 'smooth' });
   }, []);
@@ -49,6 +59,7 @@ const HUDContent: React.FC<HUDContentProps> = ({
         isPaid={isPaid}
         showUpgradePrompts={showUpgradePrompts}
         onOpenConversionModal={onOpenConversionModal}
+        stripData={stripData}
       />
 
       <ProgressZone
@@ -64,6 +75,7 @@ const HUDContent: React.FC<HUDContentProps> = ({
         onCalendarRefresh={onCalendarRefresh}
         workoutsThisWeek={workoutsThisWeek}
         workoutLogs={workoutLogs}
+        onStripDataReady={setStripData}
       />
 
       <div id="history-zone">

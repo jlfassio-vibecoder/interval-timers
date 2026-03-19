@@ -238,6 +238,12 @@ const AmrapInterval: React.FC<AmrapIntervalProps> = ({ onNavigate, onNavigateToL
         brandLabel="AI Fitness Guy"
         navEnd={
           <div className="flex items-center gap-2">
+            <a
+              href="/interval-timers"
+              className="text-xs font-bold text-white/70 transition-colors hover:text-[#ffbf00] md:text-sm"
+            >
+              Calendar
+            </a>
             <AccountLink
               className="text-xs font-bold text-white/70 transition-colors hover:text-[#ffbf00] md:text-sm"
             >

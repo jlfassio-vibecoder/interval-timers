@@ -12,6 +12,22 @@ export interface AmrapScheduledSession {
   scheduled_start_at: string;
 }
 
+/** Normalize workout_list from API (jsonb) to string[] so calendar/drawer always get exercise list. */
+function normalizeWorkoutList(raw: unknown): string[] {
+  if (Array.isArray(raw)) {
+    return raw.map((e) => (typeof e === 'string' ? e.trim() : String(e))).filter(Boolean);
+  }
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      return normalizeWorkoutList(parsed);
+    } catch {
+      return raw.trim() ? [raw.trim()] : [];
+    }
+  }
+  return [];
+}
+
 /**
  * Get AMRAP sessions scheduled by the user (created_by_user_id) or where user is a participant.
  */
@@ -47,7 +63,7 @@ export async function getAmrapScheduledSessionsForUser(
     return (created ?? []).map((row) => ({
       id: row.id,
       duration_minutes: row.duration_minutes,
-      workout_list: (row.workout_list ?? []) as string[],
+      workout_list: normalizeWorkoutList(row.workout_list),
       scheduled_start_at: row.scheduled_start_at as string,
     }));
   }
@@ -70,7 +86,7 @@ export async function getAmrapScheduledSessionsForUser(
     byId.set(row.id, {
       id: row.id,
       duration_minutes: row.duration_minutes,
-      workout_list: (row.workout_list ?? []) as string[],
+      workout_list: normalizeWorkoutList(row.workout_list),
       scheduled_start_at: row.scheduled_start_at as string,
     });
   }
@@ -79,7 +95,7 @@ export async function getAmrapScheduledSessionsForUser(
       byId.set(row.id, {
         id: row.id,
         duration_minutes: row.duration_minutes,
-        workout_list: (row.workout_list ?? []) as string[],
+        workout_list: normalizeWorkoutList(row.workout_list),
         scheduled_start_at: row.scheduled_start_at as string,
       });
     }

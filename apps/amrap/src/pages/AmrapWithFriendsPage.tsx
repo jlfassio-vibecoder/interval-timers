@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import {
   setStoredHostToken,
@@ -28,6 +28,7 @@ type Tab = 'create' | 'join' | 'schedule';
 
 export default function AmrapWithFriendsPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { hasFullAccess } = useAmrapPermissions();
   const { user, loading: authLoading } = useAmrapAuth();
   const [tab, setTab] = useState<Tab>('create');
@@ -45,9 +46,28 @@ export default function AmrapWithFriendsPage() {
   } | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authModalSignUp, setAuthModalSignUp] = useState(false);
+  const [fromCalendar, setFromCalendar] = useState(false);
   const [guestResults, setGuestResults] = useState<GuestSessionResult[]>(() =>
     getGuestSessionResults()
   );
+
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam === 'create') setTab('create');
+    const scheduleParam = searchParams.get('schedule');
+    if (scheduleParam === '1' || scheduleParam === 'true') {
+      setScheduleMode('schedule');
+    }
+    const dateParam = searchParams.get('date');
+    if (dateParam && dateParam.trim()) {
+      const trimmed = dateParam.trim();
+      const hasTime = /^\d{4}-\d{2}-\d{2}T\d{1,2}:\d{2}/.test(trimmed);
+      setScheduledAt(hasTime ? trimmed : `${trimmed}T09:00`);
+    }
+    if (searchParams.get('from') === 'calendar') setFromCalendar(true);
+    // Only read URL params on initial mount so we don't overwrite user edits
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const onFocus = () => setGuestResults(getGuestSessionResults());
@@ -191,6 +211,15 @@ export default function AmrapWithFriendsPage() {
       <div className="mx-auto max-w-2xl px-4 py-8">
         <div className="mb-6 flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
+            {fromCalendar && (
+              <a
+                href="/interval-timers"
+                className="inline-flex items-center gap-2 text-sm font-bold text-white/70 transition-colors hover:text-orange-400"
+              >
+                <span>←</span>
+                <span>Back to calendar</span>
+              </a>
+            )}
             <Link
               to="/"
               className="inline-flex items-center gap-2 text-sm font-bold text-white/70 transition-colors hover:text-orange-400"
@@ -198,6 +227,12 @@ export default function AmrapWithFriendsPage() {
               <span>←</span>
               <span>Back to AMRAP</span>
             </Link>
+            <a
+              href="/interval-timers"
+              className="inline-flex items-center gap-2 text-sm font-bold text-white/70 transition-colors hover:text-orange-400"
+            >
+              Calendar
+            </a>
             <AccountLink className="text-sm font-bold text-white/70 transition-colors hover:text-orange-400">
               My Account
             </AccountLink>

@@ -10,18 +10,23 @@ import { useAppContext } from '@/contexts/AppContext';
 import ReadinessCheckIn from './ReadinessCheckIn';
 import TodayWorkoutCard from './TodayWorkoutCard';
 import QuickStatsBar from './QuickStatsBar';
+import UpcomingStrip from './UpcomingStrip';
+import type { StripDataForUpcoming } from './HUDContent';
 
 export interface TodayZoneProps {
   isPaid: boolean;
   /** When false, hide upgrade CTAs (e.g. user has only trainer_assigned/cohort programs). */
   showUpgradePrompts: boolean;
   onOpenConversionModal: () => void;
+  /** Strip data from ScheduleZone so UpcomingStrip can render between QuickStatsBar and TodayWorkoutCard. */
+  stripData?: StripDataForUpcoming | null;
 }
 
 const TodayZone: React.FC<TodayZoneProps> = ({
   isPaid,
   showUpgradePrompts,
   onOpenConversionModal,
+  stripData,
 }) => {
   const { user, activeProgramId } = useAppContext();
   const [refreshKey, setRefreshKey] = useState(0);
@@ -46,6 +51,21 @@ const TodayZone: React.FC<TodayZoneProps> = ({
         Today
       </h4>
       <ReadinessCheckIn userId={user.uid} key={`readiness-${refreshKey}`} />
+      <QuickStatsBar userId={user.uid} activeProgramId={activeProgramId} />
+      {stripData && stripData.stripDays.length > 0 && (
+        <div>
+          <h4 className="mb-3 font-mono text-[10px] uppercase tracking-[0.4em] text-orange-light">
+            Next 7 days
+          </h4>
+          <UpcomingStrip
+            days={stripData.stripDays}
+            todayISO={stripData.todayISO}
+            onDayClick={stripData.onDayClick}
+            droppable={false}
+            restDays={stripData.restDays}
+          />
+        </div>
+      )}
       <TodayWorkoutCard
         key={`today-${activeProgramId ?? 'none'}-${refreshKey}`}
         userId={user.uid}
@@ -55,7 +75,6 @@ const TodayZone: React.FC<TodayZoneProps> = ({
         onOpenConversionModal={onOpenConversionModal}
         onWorkoutComplete={handleWorkoutComplete}
       />
-      <QuickStatsBar userId={user.uid} activeProgramId={activeProgramId} />
     </section>
   );
 };

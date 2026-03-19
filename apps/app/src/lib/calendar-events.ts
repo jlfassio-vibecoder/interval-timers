@@ -45,6 +45,8 @@ export interface CalendarEvent {
     notes?: string;
     /** timer_scheduled: full scheduled_at ISO string for display. */
     scheduledAt?: string;
+    /** AMRAP: full exercise list for display in drawer. */
+    workoutList?: string[];
   };
 }
 

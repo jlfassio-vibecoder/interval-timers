@@ -8,7 +8,7 @@
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { useAppContext } from '@/contexts/AppContext';
-import { createAmrapSession } from '@/lib/supabase/client/amrap-create-session';
+import { getAmrapCreateUrl } from '@/lib/amrap-urls';
 import { saveScheduledWorkout } from '@/lib/supabase/client/scheduled-workouts';
 import {
   getSuggestedTimeForWorkoutType,
@@ -69,8 +69,6 @@ const SCHEDULABLE_TYPES: { value: SchedulableWorkoutType; label: string }[] = [
   { value: 'daily-warmup', label: 'Daily Warm-Up' },
 ];
 
-const AMRAP_DURATIONS = [5, 10, 15, 20] as const;
-
 export default function ScheduleWorkoutModal({
   date: prefillDate,
   isRestDay = false,
@@ -82,8 +80,6 @@ export default function ScheduleWorkoutModal({
   const [datetimeValue, setDatetimeValue] = useState(() =>
     toDatetimeLocal(defaultDatetime(prefillDate))
   );
-  const [amrapDuration, setAmrapDuration] = useState(10);
-  const [amrapName, setAmrapName] = useState('AMRAP');
   const [timerLabel, setTimerLabel] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -108,27 +104,33 @@ export default function ScheduleWorkoutModal({
     };
   }, [user?.uid, workoutType]);
 
+  const handleOpenAmrapSetup = () => {
+    onClose();
+    const dateParam =
+      datetimeValue && datetimeValue.length >= 10
+        ? datetimeValue.slice(0, 16)
+        : prefillDate
+          ? `${prefillDate}T09:00`
+          : undefined;
+    window.location.href = getAmrapCreateUrl({
+      date: dateParam,
+      schedule: true,
+      fromCalendar: true,
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user?.uid) return;
+    if (!user?.uid || workoutType === 'amrap') return;
     setError(null);
     setLoading(true);
     try {
       const scheduledAt = new Date(datetimeValue).toISOString();
-      if (workoutType === 'amrap') {
-        await createAmrapSession({
-          duration_minutes: amrapDuration,
-          workout_list: [amrapName.trim() || 'AMRAP'],
-          host_nickname: 'Host',
-          scheduled_start_at: scheduledAt,
-        });
-      } else {
-        await saveScheduledWorkout(user.uid, {
-          sourceApp: workoutType,
-          scheduledAt,
-          workoutTitle: timerLabel.trim() || null,
-        });
-      }
+      await saveScheduledWorkout(user.uid, {
+        sourceApp: workoutType,
+        scheduledAt,
+        workoutTitle: timerLabel.trim() || null,
+      });
       setSuccess(true);
       onScheduled?.();
       onClose();
@@ -196,88 +198,87 @@ export default function ScheduleWorkoutModal({
               ))}
             </div>
 
-            <label className="mb-2 block font-mono text-[10px] uppercase text-white/50">
-              Date & time
-            </label>
-            {suggestedTime != null && (
-              <button
-                type="button"
-                onClick={() => setDatetimeValue(applySuggestedTime(datetimeValue, suggestedTime))}
-                className="border-orange-500/50 bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 mb-2 inline-flex items-center rounded-full border px-3 py-1.5 font-mono text-xs transition-colors"
-              >
-                Usually at {formatSuggestedTime(suggestedTime.hour, suggestedTime.minute)}
-              </button>
-            )}
-            <input
-              type="datetime-local"
-              value={datetimeValue}
-              onChange={(e) => setDatetimeValue(e.target.value)}
-              className="focus:border-orange-500 focus:ring-orange-500 mb-4 w-full rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-white focus:outline-none focus:ring-1"
-            />
-
-            {workoutType === 'amrap' && (
+            {workoutType === 'amrap' ? (
+              <>
+                <p className="mb-4 text-sm text-white/80">
+                  Use the full AMRAP setup to pick a workout, set your name, and schedule.
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="rounded-xl border border-white/20 bg-white/10 px-4 py-2 font-bold text-white hover:bg-white/20"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleOpenAmrapSetup}
+                    className="border-orange-500 bg-orange-600 hover:bg-orange-500 rounded-xl border px-4 py-2 font-bold text-white"
+                  >
+                    Open AMRAP setup
+                  </button>
+                </div>
+              </>
+            ) : (
               <>
                 <label className="mb-2 block font-mono text-[10px] uppercase text-white/50">
-                  Duration
+                  Date & time
                 </label>
-                <select
-                  value={amrapDuration}
-                  onChange={(e) => setAmrapDuration(Number(e.target.value))}
+                {suggestedTime != null && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setDatetimeValue(applySuggestedTime(datetimeValue, suggestedTime))
+                    }
+                    className="border-orange-500/50 bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 mb-2 inline-flex items-center rounded-full border px-3 py-1.5 font-mono text-xs transition-colors"
+                  >
+                    Usually at {formatSuggestedTime(suggestedTime.hour, suggestedTime.minute)}
+                  </button>
+                )}
+                <input
+                  type="datetime-local"
+                  value={datetimeValue}
+                  onChange={(e) => setDatetimeValue(e.target.value)}
                   className="focus:border-orange-500 focus:ring-orange-500 mb-4 w-full rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-white focus:outline-none focus:ring-1"
-                >
-                  {AMRAP_DURATIONS.map((m) => (
-                    <option key={m} value={m} className="bg-bg-dark text-white">
-                      {m} min
-                    </option>
-                  ))}
-                </select>
-                <label className="mb-2 block font-mono text-[10px] uppercase text-white/50">
-                  Workout name (optional)
-                </label>
-                <input
-                  type="text"
-                  value={amrapName}
-                  onChange={(e) => setAmrapName(e.target.value)}
-                  placeholder="AMRAP"
-                  className="focus:border-orange-500 focus:ring-orange-500 mb-4 w-full rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-white placeholder:text-white/40 focus:outline-none focus:ring-1"
                 />
+
+                {(workoutType === 'tabata' || workoutType === 'daily-warmup') && (
+                  <>
+                    <label className="mb-2 block font-mono text-[10px] uppercase text-white/50">
+                      Label (optional)
+                    </label>
+                    <input
+                      type="text"
+                      value={timerLabel}
+                      onChange={(e) => setTimerLabel(e.target.value)}
+                      placeholder={
+                        workoutType === 'tabata' ? 'e.g. Tabata 20 min' : 'e.g. Daily Warm-Up'
+                      }
+                      className="focus:border-orange-500 focus:ring-orange-500 mb-4 w-full rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-white placeholder:text-white/40 focus:outline-none focus:ring-1"
+                    />
+                  </>
+                )}
+
+                {error && <p className="mb-3 text-sm text-red-400">{error}</p>}
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="rounded-xl border border-white/20 bg-white/10 px-4 py-2 font-bold text-white hover:bg-white/20"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="border-orange-500 bg-orange-600 hover:bg-orange-500 rounded-xl border px-4 py-2 font-bold text-white disabled:opacity-50"
+                  >
+                    {loading ? 'Scheduling…' : 'Schedule'}
+                  </button>
+                </div>
               </>
             )}
-
-            {(workoutType === 'tabata' || workoutType === 'daily-warmup') && (
-              <>
-                <label className="mb-2 block font-mono text-[10px] uppercase text-white/50">
-                  Label (optional)
-                </label>
-                <input
-                  type="text"
-                  value={timerLabel}
-                  onChange={(e) => setTimerLabel(e.target.value)}
-                  placeholder={
-                    workoutType === 'tabata' ? 'e.g. Tabata 20 min' : 'e.g. Daily Warm-Up'
-                  }
-                  className="focus:border-orange-500 focus:ring-orange-500 mb-4 w-full rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-white placeholder:text-white/40 focus:outline-none focus:ring-1"
-                />
-              </>
-            )}
-
-            {error && <p className="mb-3 text-sm text-red-400">{error}</p>}
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={onClose}
-                className="rounded-xl border border-white/20 bg-white/10 px-4 py-2 font-bold text-white hover:bg-white/20"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={loading}
-                className="border-orange-500 bg-orange-600 hover:bg-orange-500 rounded-xl border px-4 py-2 font-bold text-white disabled:opacity-50"
-              >
-                {loading ? 'Scheduling…' : 'Schedule'}
-              </button>
-            </div>
           </form>
         )}
       </div>
