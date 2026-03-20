@@ -46,6 +46,8 @@ export const APP_REGISTRY: readonly AppEntry[] = [
   },
   { id: 'aerobic', name: 'Aerobic', path: '/aerobic-timer', description: 'VO2 intervals' },
   { id: 'bio-sync60', name: 'Bio-Sync 60', path: '/bio-sync60', description: 'Master clock' },
+  // When baseUrl is unset, hub is same-origin; path '/' assumes hub at root.
+  // Set PUBLIC_UNIVERSAL_ACTIVITY_HUB_URL for cross-origin (e.g. hub on separate domain).
   {
     id: 'universal_activity_hub',
     name: 'Universal Activity Hub',

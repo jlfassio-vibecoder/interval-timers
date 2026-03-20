@@ -8,6 +8,7 @@
 
 import type { APIRoute } from 'astro';
 import type { WorkoutInSet, WorkoutSetTemplate } from '@/types/ai-workout';
+import { corsPreflightResponse, getJsonResponseHeaders } from '@/lib/api-cors';
 import { tryParseWorkoutWithGemini } from '@/lib/gemini-server';
 import { parseJSONWithRepair } from '@/lib/json-parser';
 import { normalizeWorkoutSet } from '@/lib/program-schedule-utils';
@@ -17,9 +18,12 @@ import { callVertexAI } from '@/lib/vertex-ai-client';
 function jsonError(message: string, status: number): Response {
   return new Response(JSON.stringify({ error: message }), {
     status,
-    headers: { 'Content-Type': 'application/json' },
+    headers: getJsonResponseHeaders(),
   });
 }
+
+export const OPTIONS: APIRoute = () =>
+  corsPreflightResponse() ?? new Response(null, { status: 204 });
 
 export const POST: APIRoute = async ({ request }) => {
   try {
@@ -119,16 +123,16 @@ export const POST: APIRoute = async ({ request }) => {
       workouts,
     });
 
-    return new Response(
-      JSON.stringify({ workoutSet }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } }
-    );
+    return new Response(JSON.stringify({ workoutSet }), {
+      status: 200,
+      headers: getJsonResponseHeaders(),
+    });
   } catch (error) {
     console.error('[parse-pasted-workout] Error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Failed to parse workout';
     return new Response(JSON.stringify({ error: errorMessage }), {
       status: 500,
-      headers: { 'Content-Type': 'application/json' },
+      headers: getJsonResponseHeaders(),
     });
   }
 };

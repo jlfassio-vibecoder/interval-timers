@@ -9,6 +9,7 @@
 
 import type { APIRoute } from 'astro';
 import type { WorkoutInSet, WorkoutSetTemplate } from '@/types/ai-workout';
+import { corsPreflightResponse, getJsonResponseHeaders } from '@/lib/api-cors';
 import { normalizeWorkoutSet } from '@/lib/program-schedule-utils';
 
 const TTL_MS = 30 * 60 * 1000; // 30 minutes
@@ -30,7 +31,7 @@ function pruneExpired(): void {
 function jsonResponse(body: object, status: number): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { 'Content-Type': 'application/json' },
+    headers: getJsonResponseHeaders(),
   });
 }
 
@@ -79,6 +80,7 @@ function randomId(): string {
 }
 
 export const POST: APIRoute = async ({ request }) => {
+  pruneExpired();
   try {
     if (!request.body) {
       return jsonResponse({ error: 'Request body is required' }, 400);
@@ -114,6 +116,9 @@ export const POST: APIRoute = async ({ request }) => {
     );
   }
 };
+
+export const OPTIONS: APIRoute = () =>
+  corsPreflightResponse() ?? new Response(null, { status: 204 });
 
 export const GET: APIRoute = async ({ url }) => {
   pruneExpired();

@@ -6,7 +6,7 @@
  * saves to user_workout_logs with workout_display_name, redirects to Training Log on complete.
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAppContext } from '@/contexts/AppContext';
 import WorkoutPlayer from '@/components/react/tracking/WorkoutPlayer';
 import { getExercisesFromWorkout } from '@/lib/program-schedule-utils';
@@ -101,7 +101,7 @@ export default function PastedWorkoutPlayerPage() {
   }
 
   if (state.status === 'ready' && !user?.uid) {
-    const returnUrl = `/workout/log-pasted?${window.location.search}`;
+    const returnUrl = `/workout/log-pasted${window.location.search}`;
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-black/95 px-4 text-center text-white">
         <p className="text-white/70">Sign in to log this workout.</p>
@@ -116,7 +116,7 @@ export default function PastedWorkoutPlayerPage() {
   }
 
   const workout = state.workoutSet.workouts[0]!;
-  const workoutId = crypto.randomUUID().slice(0, 8);
+  const workoutId = useMemo(() => crypto.randomUUID().slice(0, 8), []);
 
   return (
     <WorkoutPlayer

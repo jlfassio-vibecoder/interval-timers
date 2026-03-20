@@ -89,7 +89,7 @@ export default function PastedScheduleConfirmPage() {
   }
 
   if (error) {
-    const returnUrl = `/workout/schedule-pasted?${window.location.search}`;
+    const returnUrl = `/workout/schedule-pasted${window.location.search}`;
     const isSignInRequired = handoff && !user?.uid;
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-black/95 px-4 text-center text-white">
@@ -116,7 +116,7 @@ export default function PastedScheduleConfirmPage() {
   }
 
   if (handoff && !user?.uid) {
-    const returnUrl = `/workout/schedule-pasted?${window.location.search}`;
+    const returnUrl = `/workout/schedule-pasted${window.location.search}`;
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-black/95 px-4 text-center text-white">
         <p className="text-white/70">Sign in to save this scheduled workout.</p>
