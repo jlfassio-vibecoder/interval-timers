@@ -110,11 +110,13 @@ export const POST: APIRoute = async ({ request }) => {
     const workouts = Array.isArray(raw.workouts)
       ? (raw.workouts as unknown[]).filter(
           (w): w is WorkoutInSet =>
-            w &&
-            typeof w === 'object' &&
-            (('exerciseBlocks' in w && Array.isArray((w as WorkoutInSet).exerciseBlocks)) ||
-              ('blocks' in w && Array.isArray((w as WorkoutInSet).blocks)) ||
-              ('title' in w && typeof (w as WorkoutInSet).title === 'string'))
+            Boolean(
+              w &&
+              typeof w === 'object' &&
+              (('exerciseBlocks' in w && Array.isArray((w as WorkoutInSet).exerciseBlocks)) ||
+                ('blocks' in w && Array.isArray((w as WorkoutInSet).blocks)) ||
+                ('title' in w && typeof (w as WorkoutInSet).title === 'string'))
+            )
         )
       : [];
 
