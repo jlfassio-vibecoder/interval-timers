@@ -46,6 +46,16 @@ export const APP_REGISTRY: readonly AppEntry[] = [
   },
   { id: 'aerobic', name: 'Aerobic', path: '/aerobic-timer', description: 'VO2 intervals' },
   { id: 'bio-sync60', name: 'Bio-Sync 60', path: '/bio-sync60', description: 'Master clock' },
+  {
+    id: 'universal_activity_hub',
+    name: 'Universal Activity Hub',
+    path: '/',
+    description: 'Paste & schedule any workout',
+    baseUrl:
+      (typeof import.meta !== 'undefined' &&
+        (import.meta.env?.PUBLIC_UNIVERSAL_ACTIVITY_HUB_URL ?? '').trim()) ||
+      '',
+  },
 ] as const;
 
 export function getAppById(id: string): AppEntry | undefined {
@@ -59,7 +69,7 @@ const PUBLIC_AMRAP_BASE =
 /** Resolves the launch URL for an app. Uses PUBLIC_AMRAP_BASE_URL for AMRAP when set (custom domain). */
 export function getAppLaunchUrl(app: AppEntry, params: Record<string, string>): string {
   const base =
-    app.baseUrl ??
+    (app.baseUrl && app.baseUrl.trim()) ||
     (app.id === 'amrap' && PUBLIC_AMRAP_BASE ? PUBLIC_AMRAP_BASE.replace(/\/+$/, '') + '/' : '');
   if (base) return appendQuery(base, params);
   return appendQuery(app.path, params);

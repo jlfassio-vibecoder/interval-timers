@@ -5,6 +5,7 @@ export default {
     "./src/**/*.{js,ts,jsx,tsx}",
     "../../packages/timer-ui/src/**/*.{js,ts,jsx,tsx}",
     "../../packages/auth-ui/src/**/*.{js,ts,jsx,tsx}",
+    "../../packages/schedule-picker/**/*.{ts,tsx}",
   ],
   safelist: [
     // WorkoutExplorer card header backgrounds (dynamic classes)

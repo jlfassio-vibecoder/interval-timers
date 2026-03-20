@@ -134,7 +134,9 @@ export async function getScheduledWorkoutEventsForRange(
         ? 'Tabata'
         : row.source_app === 'daily-warmup'
           ? 'Daily Warm-Up'
-          : 'Timer'),
+          : row.source_app === 'universal_activity_hub'
+            ? 'Universal Activity'
+            : 'Timer'),
     status: 'scheduled' as const,
     sessionId: row.id,
     sourceApp: row.source_app,

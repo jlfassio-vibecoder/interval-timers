@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { getStoredHostToken } from '@/hooks/useAmrapSession';
 import type { ScheduledSession } from '@/hooks/useScheduledSessions';
 import { getWorkoutTitle, getWorkoutTitleAndDuration } from '@/lib/workoutLabel';
-import CreateFlowSchedulePicker from '@/components/CreateFlowSchedulePicker';
+import CreateFlowSchedulePicker from '@interval-timers/schedule-picker';
 
 function toDatetimeLocal(d: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0');

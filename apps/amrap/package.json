@@ -21,6 +21,7 @@
     "@interval-timers/analytics": "*",
     "@interval-timers/auth-ui": "*",
     "@interval-timers/handoff": "*",
+    "@interval-timers/schedule-picker": "*",
     "@interval-timers/timer-core": "*",
     "@interval-timers/timer-sounds": "*",
     "@interval-timers/timer-ui": "*",

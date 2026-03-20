@@ -641,6 +641,34 @@ Focus on: program design, exercise selection, form cues, periodization, client s
 Keep responses short (under 50 words) and high-energy. The user is a personal trainer—answer in that context (e.g. "prescribe", "assign to clients", "scale for").`;
 
 /**
+ * Parse pasted workout text into WorkoutSetTemplate JSON using Gemini.
+ * Fallback when Vertex AI is not configured. Returns raw model output (JSON string).
+ * Returns null if GEMINI_API_KEY is not set.
+ */
+export async function tryParseWorkoutWithGemini(userPrompt: string): Promise<string | null> {
+  if (!apiKey || apiKey.trim() === '') return null;
+  try {
+    const response = await client.models.generateContent({
+      model: 'gemini-2.0-flash',
+      config: {
+        systemInstruction:
+          'You are a fitness data parser. Output ONLY valid JSON matching WorkoutSetTemplate, no markdown or explanations.',
+      },
+      contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+    });
+    const candidate = response.candidates?.[0];
+    const textPart = candidate?.content?.parts?.find((p: { text?: string }) => p.text);
+    const text = textPart?.text?.trim();
+    return text || null;
+  } catch (error) {
+    if (import.meta.env?.DEV || process.env.NODE_ENV !== 'production') {
+      console.error('[parse-pasted-workout] Gemini fallback error:', error);
+    }
+    return null;
+  }
+}
+
+/**
  * Send a message to the AI Fitcopilot chat. Used by the AIChat widget via /api/chat.
  * Server-side only; uses GEMINI_API_KEY.
  */

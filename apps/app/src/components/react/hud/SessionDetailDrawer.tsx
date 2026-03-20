@@ -11,6 +11,7 @@ import { getProgramWithSchedule } from '@/lib/supabase/client/user-programs';
 import type { SessionHistoryItem } from '@/lib/supabase/client/session-history';
 import type { ProgramSchedule } from '@/types/ai-program';
 import type { ExerciseLog, SetLog } from '@/types/tracking';
+import { formatSetRepsDisplay } from '@/lib/tracking-per-side';
 
 type WorkoutFromSchedule = ProgramSchedule['workouts'][number];
 
@@ -46,12 +47,15 @@ function formatDate(iso: string): string {
 
 function SetRow({ set }: { set: SetLog }) {
   const weight = set.actualWeight > 0 ? `${set.actualWeight} lb` : '—';
-  const reps = set.actualReps > 0 ? set.actualReps : '—';
+  const reps = formatSetRepsDisplay(set);
+  const rpe =
+    set.actualRPE != null && set.actualRPE > 0 ? ` @ RPE ${set.actualRPE}` : '';
   return (
     <tr className="border-b border-white/5 last:border-0">
       <td className="py-1.5 pr-3 font-mono text-[10px] text-white/50">{set.setNumber}</td>
       <td className="py-1.5 font-mono text-xs text-white/80">
         {weight} × {reps}
+        {rpe}
       </td>
       <td className="py-1.5 text-right">
         {set.completed ? (
@@ -72,6 +76,11 @@ function ExerciseSection({ exercise }: { exercise: ExerciseLog }) {
       <p className="mb-2 font-mono text-[10px] font-medium uppercase text-white/70">
         {exercise.exerciseName}
       </p>
+      {exercise.coachNotes?.trim() ? (
+        <p className="mb-2 rounded border border-white/10 bg-white/5 px-2 py-1.5 font-mono text-[10px] text-white/55">
+          {exercise.coachNotes}
+        </p>
+      ) : null}
       <table className="w-full">
         <thead>
           <tr className="border-b border-white/10 text-left font-mono text-[10px] text-white/50">
@@ -86,6 +95,12 @@ function ExerciseSection({ exercise }: { exercise: ExerciseLog }) {
           ))}
         </tbody>
       </table>
+      {exercise.notes?.trim() ? (
+        <p className="mt-2 font-mono text-[10px] text-white/50">
+          <span className="text-white/40">Notes: </span>
+          {exercise.notes}
+        </p>
+      ) : null}
     </div>
   );
 }

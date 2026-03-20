@@ -10,6 +10,8 @@ import AppIslands from './AppIslands';
 import FluidBackground from './FluidBackground';
 import AccountLanding from './AccountLanding';
 import { TrainingLogPage } from './training-log';
+import PastedWorkoutPlayerPage from './PastedWorkoutPlayerPage';
+import PastedScheduleConfirmPage from './PastedScheduleConfirmPage';
 
 const AIChat = lazy(() => import('./AIChat'));
 const PurchaseFlow = lazy(() => import('./PurchaseFlow'));
@@ -84,9 +86,15 @@ const AppWrapper: React.FC<AppWrapperProps> = ({ children, pathname }) => {
 
   const isAccountPage = pathname === '/account';
   const isTrainingLogPage = pathname === '/training-log';
+  const isLogPastedPage = pathname === '/workout/log-pasted';
+  const isSchedulePastedPage = pathname === '/workout/schedule-pasted';
 
   const mainContent = isAccountPage ? (
     <AccountLanding />
+  ) : isLogPastedPage ? (
+    <PastedWorkoutPlayerPage />
+  ) : isSchedulePastedPage ? (
+    <PastedScheduleConfirmPage />
   ) : isTrainingLogPage ? (
     <main>
       <section className="relative z-10 overflow-hidden border-t border-white/10 bg-black/20 py-16 backdrop-blur-sm md:py-24">

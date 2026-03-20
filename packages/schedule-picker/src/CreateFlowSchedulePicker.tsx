@@ -1,3 +1,11 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Week grid + time picker for scheduling workouts. Used by AMRAP create/reschedule
+ * and Universal Activity Hub schedule flow.
+ */
+
 import { useMemo, useState } from 'react';
 import {
   startOfWeek,
@@ -10,14 +18,14 @@ import {
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
 
-/** Minimum time for datetime-local (today at 00:00 in local tz). */
-function toDatetimeLocal(d: Date): string {
+/** Format Date for datetime-local input (YYYY-MM-DDTHH:mm). */
+export function toDatetimeLocal(d: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 /** Parse datetime-local string to Date. */
-function fromDatetimeLocal(s: string): Date | null {
+export function fromDatetimeLocal(s: string): Date | null {
   if (!s || s.length < 16) return null;
   const d = new Date(s);
   return Number.isNaN(d.getTime()) ? null : d;
@@ -30,15 +38,20 @@ export interface CreateFlowSchedulePickerProps {
   minDate?: Date;
   /** Max weeks ahead (0 = this week only, 1 = 2 weeks, 52 = 1 year). Default 1. */
   maxWeeksAhead?: number;
+  /** Optional custom description above the picker. Default: AMRAP invitee countdown text. */
+  description?: string;
 }
 
 const DEFAULT_MAX_WEEKS_AHEAD = 1;
+const DEFAULT_DESCRIPTION =
+  'Optionally set when you plan to start; invitees will see a countdown and can join up to 10 minutes before.';
 
 export default function CreateFlowSchedulePicker({
   value,
   onChange,
   minDate,
   maxWeeksAhead = DEFAULT_MAX_WEEKS_AHEAD,
+  description = DEFAULT_DESCRIPTION,
 }: CreateFlowSchedulePickerProps) {
   const today = useMemo(() => new Date(), []);
   const thisWeekStart = useMemo(() => startOfWeek(today, { weekStartsOn: 0 }), [today]);
@@ -98,9 +111,7 @@ export default function CreateFlowSchedulePicker({
 
   return (
     <div className="rounded-xl border border-white/20 bg-black/20 p-4">
-      <p className="mb-2 text-sm text-white/70">
-        Optionally set when you plan to start; invitees will see a countdown and can join up to 10 minutes before.
-      </p>
+      <p className="mb-2 text-sm text-white/70">{description}</p>
       <div className="mb-3 flex flex-wrap items-baseline gap-x-4 gap-y-1 text-sm">
         <span className="font-medium text-white/90">
           Today: {format(today, 'EEEE, MMMM d, yyyy')}
