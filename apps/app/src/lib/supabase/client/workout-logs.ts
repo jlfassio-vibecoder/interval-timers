@@ -68,11 +68,14 @@ function formatProgramSessionWorkoutName(weekId: string, workoutId: string): str
 function mapUserWorkoutLogRowToWorkoutLog(row: Record<string, unknown>): WorkoutLog {
   const weekId = String(row.week_id ?? '');
   const workoutId = String(row.workout_id ?? '');
+  const displayName = row.workout_display_name as string | null | undefined;
   return {
     id: `uwl:${row.id as string}`,
     userId: row.user_id as string,
     workoutId: workoutId || undefined,
-    workoutName: formatProgramSessionWorkoutName(weekId, workoutId),
+    workoutName: displayName?.trim()
+      ? displayName
+      : formatProgramSessionWorkoutName(weekId, workoutId),
     date: row.date as string,
     effort: 5,
     rating: 3,
@@ -89,7 +92,7 @@ function mapUserWorkoutLogRowToWorkoutLog(row: Record<string, unknown>): Workout
 export async function fetchUserWorkoutLogsForTraining(uid: string): Promise<WorkoutLog[]> {
   const { data, error } = await supabase
     .from('user_workout_logs')
-    .select('id, user_id, program_id, week_id, workout_id, date, duration_seconds')
+    .select('id, user_id, program_id, week_id, workout_id, date, duration_seconds, workout_display_name')
     .eq('user_id', uid)
     .order('date', { ascending: false });
 

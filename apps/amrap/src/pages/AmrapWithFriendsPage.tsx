@@ -11,7 +11,7 @@ import AmrapCtaButton from '@/components/AmrapCtaButton';
 import { AuthModal } from '@interval-timers/auth-ui';
 import { ACCOUNT_REDIRECT_URL } from '@/lib/account-redirect-url';
 import WeekCalendar from '@/components/WeekCalendar';
-import CreateFlowSchedulePicker from '@/components/CreateFlowSchedulePicker';
+import CreateFlowSchedulePicker from '@interval-timers/schedule-picker';
 import WorkoutPicker from '@/components/WorkoutPicker';
 import {
   getGuestSessionResults,

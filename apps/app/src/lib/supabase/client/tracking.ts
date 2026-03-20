@@ -11,17 +11,20 @@ export async function saveWorkoutLog(userId: string, log: WorkoutLog): Promise<s
     throw new Error('Invalid workout log date');
   }
 
+  const payload: Record<string, unknown> = {
+    user_id: userId,
+    program_id: log.programId,
+    week_id: log.weekId,
+    workout_id: log.workoutId,
+    date: log.date.toISOString().slice(0, 10),
+    duration_seconds: log.durationSeconds,
+    exercises: log.exercises,
+  };
+  if (log.workoutDisplayName != null) payload.workout_display_name = log.workoutDisplayName;
+
   const { data, error } = await supabase
     .from('user_workout_logs')
-    .insert({
-      user_id: userId,
-      program_id: log.programId,
-      week_id: log.weekId,
-      workout_id: log.workoutId,
-      date: log.date.toISOString().slice(0, 10),
-      duration_seconds: log.durationSeconds,
-      exercises: log.exercises,
-    })
+    .insert(payload)
     .select('id')
     .single();
 

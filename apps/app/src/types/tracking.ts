@@ -12,13 +12,21 @@ export interface SetLog {
   targetRPE: number;
   actualWeight: number;
   actualReps: number;
+  /** When prescription is per side: logged reps for left / right (stored in JSON on save). */
+  actualRepsLeft?: number;
+  actualRepsRight?: number;
+  /** Logged session RPE (typically 1–10); omit or 0 when not entered. */
+  actualRPE?: number;
   completed: boolean;
 }
 
 export interface ExerciseLog {
   exerciseName: string;
   sets: SetLog[];
+  /** User notes for this exercise during the session. */
   notes?: string;
+  /** Program / coach cues (optional context from schedule). */
+  coachNotes?: string;
 }
 
 export interface WorkoutLog {
@@ -29,4 +37,6 @@ export interface WorkoutLog {
   date: Date;
   durationSeconds: number;
   exercises: ExerciseLog[];
+  /** Display label for Training Log (e.g. pasted workouts from Universal Activity Hub). */
+  workoutDisplayName?: string;
 }

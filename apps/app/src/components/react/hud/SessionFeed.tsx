@@ -9,6 +9,7 @@ import React, { useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import type { SessionHistoryItem } from '@/lib/supabase/client/session-history';
 import type { ExerciseLog, SetLog } from '@/types/tracking';
+import { formatSetRepsDisplay } from '@/lib/tracking-per-side';
 
 export interface SessionFeedProps {
   sessions: SessionHistoryItem[];
@@ -32,12 +33,15 @@ function formatDate(iso: string): string {
 
 function SetRow({ set }: { set: SetLog }) {
   const weight = set.actualWeight > 0 ? `${set.actualWeight} lb` : '—';
-  const reps = set.actualReps > 0 ? set.actualReps : '—';
+  const reps = formatSetRepsDisplay(set);
+  const rpe =
+    set.actualRPE != null && set.actualRPE > 0 ? ` @ RPE ${set.actualRPE}` : '';
   return (
     <tr className="border-b border-white/5 last:border-0">
       <td className="py-1.5 pr-2 font-mono text-[10px] text-white/50">{set.setNumber}</td>
       <td className="py-1.5 font-mono text-xs text-white/80">
         {weight} × {reps}
+        {rpe}
       </td>
       <td className="py-1.5">
         {set.completed ? (
@@ -58,6 +62,9 @@ function ExerciseBlock({ exercise }: { exercise: ExerciseLog }) {
       <p className="mb-1 font-mono text-[10px] font-medium uppercase text-white/70">
         {exercise.exerciseName}
       </p>
+      {exercise.coachNotes?.trim() ? (
+        <p className="mb-1.5 font-mono text-[9px] text-white/45">{exercise.coachNotes}</p>
+      ) : null}
       <table className="w-full">
         <tbody>
           {exercise.sets.map((set, i) => (
@@ -65,6 +72,12 @@ function ExerciseBlock({ exercise }: { exercise: ExerciseLog }) {
           ))}
         </tbody>
       </table>
+      {exercise.notes?.trim() ? (
+        <p className="mt-1 font-mono text-[9px] text-white/45">
+          <span className="text-white/35">Notes: </span>
+          {exercise.notes}
+        </p>
+      ) : null}
     </div>
   );
 }

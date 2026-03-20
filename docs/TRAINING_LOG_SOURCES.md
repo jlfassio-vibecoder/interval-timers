@@ -27,6 +27,19 @@ Training Log aggregates sessions from **`workout_logs`** and **`user_workout_log
 
 Program completions come from **`user_workout_logs`**, not `workout_logs`. They are merged by `fetchWorkoutLogsForTraining` with `source: 'program'`. No dedupe key in workout_logs.
 
+### Universal Activity Hub (pasted workouts)
+
+Pasted workouts opened via **Open Workout** are written to `user_workout_logs` with:
+
+- `program_id` = `universal_activity_hub`
+- `week_id` = `adhoc`
+- `workout_id` = unique per session
+- `workout_display_name` = workout title (e.g. from AI parse)
+
+Training Log uses `workout_display_name` when set instead of `formatProgramSessionWorkoutName`. Flow: hub → POST `/api/workout-handoff` → `window.open` `/workout/log-pasted?hid=...` → WorkoutPlayer → `saveWorkoutLog` with `workoutDisplayName`.
+
+Program gym logs store `exercises` as JSON on `user_workout_logs`. Per-side prescriptions (e.g. `10/side`, “per side” in reps or name) log **`actualRepsLeft`** and **`actualRepsRight`** on each set plus **`actualReps`** (L+R) for totals; no DB migration—new keys live inside the existing `exercises` jsonb.
+
 ## Handoff flow
 
 1. User completes timer in spoke app (Tabata, EMOM, etc.).

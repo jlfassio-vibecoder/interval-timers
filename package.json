@@ -23,6 +23,7 @@
     "apps/ten-twenty-thirty",
     "apps/timmons",
     "apps/trainer-chat",
+    "apps/universal-activity-hub",
     "apps/wingate",
     "apps/bio-sync-sixty/apps/*",
     "packages/*"
@@ -69,6 +70,7 @@
     "build:master-clock": "npm run build -w master-clock",
     "dev:trainer-chat": "npm run dev -w trainer-chat",
     "build:trainer-chat": "npm run build -w trainer-chat",
+    "dev:universal-activity-hub": "npm run dev -w universal-activity-hub",
     "dev:recovery-pwa": "npm run dev -w recovery-pwa",
     "build:recovery-pwa": "npm run build -w recovery-pwa",
     "dev:app": "npm run dev -w app",

@@ -7,12 +7,13 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { X, ChevronLeft, ChevronRight, Check } from 'lucide-react';
-import type { ProgramSchedule } from '@/types/ai-program';
+import { X, ChevronLeft, ChevronRight, Check, Plus } from 'lucide-react';
+import type { Exercise, ProgramSchedule } from '@/types/ai-program';
 import type { ExerciseLog, SetLog, WorkoutLog } from '@/types/tracking';
 import { saveWorkoutLog } from '@/lib/supabase/client/tracking';
 import { useAppContext } from '@/contexts/AppContext';
 import { getExercisesFromWorkout } from '@/lib/program-schedule-utils';
+import { isPerSidePrescription } from '@/lib/tracking-per-side';
 
 type WorkoutFromSchedule = ProgramSchedule['workouts'][number];
 
@@ -21,6 +22,8 @@ export interface WorkoutPlayerProps {
   programId: string;
   weekId: string;
   workoutId: string;
+  /** Display label for Training Log (e.g. pasted workouts from Universal Activity Hub). */
+  workoutDisplayName?: string;
   onClose: () => void;
   onComplete: () => void;
 }
@@ -31,20 +34,40 @@ function formatTime(seconds: number): string {
   return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
 }
 
+/** First integer in target string (e.g. "10-12" → 10) for default actual reps. */
+function defaultActualRepsFromTarget(targetReps: string): number {
+  const trimmed = targetReps.trim();
+  if (!trimmed) return 0;
+  const m = trimmed.match(/(\d+)/);
+  return m ? parseInt(m[1], 10) : 0;
+}
+
+function buildSetLogForExercise(block: Exercise, setIndex: number): SetLog {
+  const perSide = isPerSidePrescription(block.reps, block.exerciseName);
+  const def = defaultActualRepsFromTarget(block.reps);
+  const base: SetLog = {
+    setNumber: setIndex + 1,
+    targetReps: block.reps,
+    targetRPE: block.rpe ?? 0,
+    actualWeight: 0,
+    actualReps: perSide ? def * 2 : def,
+    actualRPE: 0,
+    completed: false,
+  };
+  if (perSide) {
+    return { ...base, actualRepsLeft: def, actualRepsRight: def };
+  }
+  return base;
+}
+
 function buildInitialLogs(workout: WorkoutFromSchedule): ExerciseLog[] {
   const exercises = getExercisesFromWorkout(workout);
   if (!exercises.length) return [];
   return exercises.map((block) => ({
     exerciseName: block.exerciseName,
-    sets: Array.from({ length: block.sets }, (_, i) => ({
-      setNumber: i + 1,
-      targetReps: block.reps,
-      targetRPE: block.rpe ?? 0,
-      actualWeight: 0,
-      actualReps: 0,
-      completed: false,
-    })),
-    notes: block.coachNotes,
+    coachNotes: block.coachNotes,
+    notes: '',
+    sets: Array.from({ length: block.sets }, (_, i) => buildSetLogForExercise(block, i)),
   }));
 }
 
@@ -53,6 +76,7 @@ const WorkoutPlayer: React.FC<WorkoutPlayerProps> = ({
   programId,
   weekId,
   workoutId,
+  workoutDisplayName,
   onClose,
   onComplete,
 }) => {
@@ -78,6 +102,48 @@ const WorkoutPlayer: React.FC<WorkoutPlayerProps> = ({
             }
           : ex
       )
+    );
+  }, []);
+
+  const addSet = useCallback((exIndex: number) => {
+    setLogs((prev) =>
+      prev.map((ex, ei) => {
+        if (ei !== exIndex) return ex;
+        const last = ex.sets[ex.sets.length - 1];
+        const targetReps = last?.targetReps ?? '';
+        const targetRPE = last?.targetRPE ?? 0;
+        const perSide = isPerSidePrescription(targetReps, ex.exerciseName);
+        const def = defaultActualRepsFromTarget(targetReps);
+        const newSet: SetLog = perSide
+          ? {
+              setNumber: ex.sets.length + 1,
+              targetReps,
+              targetRPE,
+              actualWeight: last?.actualWeight ?? 0,
+              actualRepsLeft: last?.actualRepsLeft ?? def,
+              actualRepsRight: last?.actualRepsRight ?? def,
+              actualReps:
+                (last?.actualRepsLeft ?? def) + (last?.actualRepsRight ?? def),
+              actualRPE: 0,
+              completed: false,
+            }
+          : {
+              setNumber: ex.sets.length + 1,
+              targetReps,
+              targetRPE,
+              actualWeight: last?.actualWeight ?? 0,
+              actualReps: last?.actualReps ?? def,
+              actualRPE: 0,
+              completed: false,
+            };
+        return { ...ex, sets: [...ex.sets, newSet] };
+      })
+    );
+  }, []);
+
+  const updateExerciseNotes = useCallback((exIndex: number, notes: string) => {
+    setLogs((prev) =>
+      prev.map((ex, ei) => (ei === exIndex ? { ...ex, notes } : ex))
     );
   }, []);
 
@@ -107,6 +173,7 @@ const WorkoutPlayer: React.FC<WorkoutPlayerProps> = ({
         date: new Date(),
         durationSeconds: elapsedTime,
         exercises: logs,
+        ...(workoutDisplayName != null && { workoutDisplayName }),
       };
       await saveWorkoutLog(uid, log);
       onComplete();
@@ -120,6 +187,7 @@ const WorkoutPlayer: React.FC<WorkoutPlayerProps> = ({
     programId,
     weekId,
     workoutId,
+    workoutDisplayName,
     elapsedTime,
     logs,
     hasAtLeastOneCompletedSet,
@@ -130,6 +198,12 @@ const WorkoutPlayer: React.FC<WorkoutPlayerProps> = ({
   const current = exercises[activeExerciseIndex];
   const canPrev = activeExerciseIndex > 0;
   const canNext = activeExerciseIndex < exercises.length - 1;
+  const perSideExercise =
+    current != null &&
+    isPerSidePrescription(
+      current.sets[0]?.targetReps ?? '',
+      current.exerciseName
+    );
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-black/95 text-white">
@@ -170,20 +244,36 @@ const WorkoutPlayer: React.FC<WorkoutPlayerProps> = ({
               {current.exerciseName}
             </h2>
 
+            {current.coachNotes?.trim() ? (
+              <p className="mb-3 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/70">
+                {current.coachNotes}
+              </p>
+            ) : null}
+
             <div className="overflow-x-auto rounded-xl border border-white/10 bg-black/20">
-              <table className="w-full min-w-[400px] text-left text-sm">
+              <table
+                className={`w-full text-left text-sm ${perSideExercise ? 'min-w-[560px]' : 'min-w-[480px]'}`}
+              >
                 <thead>
                   <tr className="border-b border-white/10 text-white/70">
                     <th className="p-3 font-medium">Set</th>
                     <th className="p-3 font-medium">Target</th>
                     <th className="p-3 font-medium">Weight</th>
-                    <th className="p-3 font-medium">Reps</th>
+                    {perSideExercise ? (
+                      <>
+                        <th className="p-3 font-medium">Reps L</th>
+                        <th className="p-3 font-medium">Reps R</th>
+                      </>
+                    ) : (
+                      <th className="p-3 font-medium">Reps</th>
+                    )}
+                    <th className="p-3 font-medium">RPE</th>
                     <th className="min-w-[52px] p-3 font-medium">Done</th>
                   </tr>
                 </thead>
                 <tbody>
                   {current.sets.map((set, setIndex) => (
-                    <tr key={set.setNumber} className="border-b border-white/5 last:border-0">
+                    <tr key={setIndex} className="border-b border-white/5 last:border-0">
                       <td className="p-3 font-medium">{set.setNumber}</td>
                       <td className="p-3 text-white/80">
                         {set.targetReps} reps
@@ -204,18 +294,101 @@ const WorkoutPlayer: React.FC<WorkoutPlayerProps> = ({
                           className="min-h-[44px] w-full max-w-[80px] rounded border border-white/20 bg-black/40 px-2 text-white focus:border-orange-light focus:outline-none"
                         />
                       </td>
+                      {perSideExercise ? (
+                        <>
+                          <td className="p-2">
+                            <input
+                              type="number"
+                              inputMode="numeric"
+                              min={0}
+                              value={
+                                typeof set.actualRepsLeft === 'number'
+                                  ? set.actualRepsLeft
+                                  : ''
+                              }
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                const left = v === '' ? 0 : parseInt(v, 10) || 0;
+                                const right =
+                                  typeof set.actualRepsRight === 'number'
+                                    ? set.actualRepsRight
+                                    : 0;
+                                updateSet(activeExerciseIndex, setIndex, {
+                                  actualRepsLeft: left,
+                                  actualReps: left + right,
+                                });
+                              }}
+                              aria-label="Reps left side"
+                              className="min-h-[44px] w-full max-w-[64px] rounded border border-white/20 bg-black/40 px-2 text-white focus:border-orange-light focus:outline-none"
+                            />
+                          </td>
+                          <td className="p-2">
+                            <input
+                              type="number"
+                              inputMode="numeric"
+                              min={0}
+                              value={
+                                typeof set.actualRepsRight === 'number'
+                                  ? set.actualRepsRight
+                                  : ''
+                              }
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                const right = v === '' ? 0 : parseInt(v, 10) || 0;
+                                const left =
+                                  typeof set.actualRepsLeft === 'number'
+                                    ? set.actualRepsLeft
+                                    : 0;
+                                updateSet(activeExerciseIndex, setIndex, {
+                                  actualRepsRight: right,
+                                  actualReps: left + right,
+                                });
+                              }}
+                              aria-label="Reps right side"
+                              className="min-h-[44px] w-full max-w-[64px] rounded border border-white/20 bg-black/40 px-2 text-white focus:border-orange-light focus:outline-none"
+                            />
+                          </td>
+                        </>
+                      ) : (
+                        <td className="p-2">
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            min={0}
+                            value={set.actualReps || ''}
+                            onChange={(e) =>
+                              updateSet(activeExerciseIndex, setIndex, {
+                                actualReps: parseInt(e.target.value, 10) || 0,
+                              })
+                            }
+                            className="min-h-[44px] w-full max-w-[64px] rounded border border-white/20 bg-black/40 px-2 text-white focus:border-orange-light focus:outline-none"
+                          />
+                        </td>
+                      )}
                       <td className="p-2">
                         <input
                           type="number"
-                          inputMode="numeric"
-                          min={0}
-                          value={set.actualReps || ''}
-                          onChange={(e) =>
-                            updateSet(activeExerciseIndex, setIndex, {
-                              actualReps: parseInt(e.target.value, 10) || 0,
-                            })
+                          inputMode="decimal"
+                          min={1}
+                          max={10}
+                          step={0.5}
+                          value={
+                            set.actualRPE != null && set.actualRPE > 0 ? set.actualRPE : ''
                           }
-                          className="min-h-[44px] w-full max-w-[64px] rounded border border-white/20 bg-black/40 px-2 text-white focus:border-orange-light focus:outline-none"
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            if (v === '') {
+                              updateSet(activeExerciseIndex, setIndex, { actualRPE: 0 });
+                              return;
+                            }
+                            const n = parseFloat(v);
+                            if (!Number.isNaN(n)) {
+                              updateSet(activeExerciseIndex, setIndex, { actualRPE: n });
+                            }
+                          }}
+                          placeholder="—"
+                          aria-label="Actual RPE"
+                          className="min-h-[44px] w-full max-w-[64px] rounded border border-white/20 bg-black/40 px-2 text-white placeholder:text-white/30 focus:border-orange-light focus:outline-none"
                         />
                       </td>
                       <td className="p-2">
@@ -241,6 +414,28 @@ const WorkoutPlayer: React.FC<WorkoutPlayerProps> = ({
                 </tbody>
               </table>
             </div>
+
+            <button
+              type="button"
+              onClick={() => addSet(activeExerciseIndex)}
+              className="mt-3 flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg border border-dashed border-white/25 bg-white/5 px-4 text-sm font-medium text-white/80 transition hover:border-orange-light/50 hover:bg-white/10 hover:text-white"
+            >
+              <Plus className="h-4 w-4" aria-hidden />
+              Add set
+            </button>
+
+            <label className="mt-4 block">
+              <span className="mb-1.5 block font-mono text-[10px] font-medium uppercase tracking-wide text-white/50">
+                Notes for this exercise
+              </span>
+              <textarea
+                value={current.notes ?? ''}
+                onChange={(e) => updateExerciseNotes(activeExerciseIndex, e.target.value)}
+                rows={3}
+                placeholder="Warm-up sets, how it felt, substitutions…"
+                className="w-full resize-y rounded-lg border border-white/20 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/35 focus:border-orange-light focus:outline-none"
+              />
+            </label>
 
             {/* Navigation */}
             <div className="mt-6 flex items-center justify-between gap-4">
