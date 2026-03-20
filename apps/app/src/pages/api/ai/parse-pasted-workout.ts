@@ -106,9 +106,15 @@ export const POST: APIRoute = async ({ request }) => {
       ['beginner', 'intermediate', 'advanced'].includes(raw.difficulty)
         ? (raw.difficulty as 'beginner' | 'intermediate' | 'advanced')
         : 'intermediate';
+    // Same workout shape checks as workout-handoff / schedule-workout-handoff (POST validateWorkoutSet).
     const workouts = Array.isArray(raw.workouts)
-      ? (raw.workouts as WorkoutInSet[]).filter(
-          (w) => w && typeof w === 'object' && ('exerciseBlocks' in w || 'blocks' in w || 'title' in w)
+      ? (raw.workouts as unknown[]).filter(
+          (w): w is WorkoutInSet =>
+            w &&
+            typeof w === 'object' &&
+            (('exerciseBlocks' in w && Array.isArray((w as WorkoutInSet).exerciseBlocks)) ||
+              ('blocks' in w && Array.isArray((w as WorkoutInSet).blocks)) ||
+              ('title' in w && typeof (w as WorkoutInSet).title === 'string'))
         )
       : [];
 
