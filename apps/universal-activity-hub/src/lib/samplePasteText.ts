@@ -1,5 +1,5 @@
-/** Multiline sample for “Load Sample”: structured AMRAP + bullets + lifestyle-style block. */
-export const SAMPLE_PASTE_TEXT = `Upper body chipper — 15 min AMRAP
+/** Multiline sample for "Load Sample": structured AMRAP + bullets + lifestyle-style block. */
+export const SAMPLE_PASTE_TEXT = `Upper body chipper - 15 min AMRAP
 
 - 15 KB swings
 - 10 push-ups

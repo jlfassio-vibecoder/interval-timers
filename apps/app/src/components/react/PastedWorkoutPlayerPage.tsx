@@ -30,6 +30,7 @@ export default function PastedWorkoutPlayerPage() {
   >({ status: 'loading' });
 
   useEffect(() => {
+    let cancelled = false;
     const hid = getHandoffId();
     if (!hid) {
       setState({ status: 'error', message: 'Missing handoff ID. Open the workout from the Universal Activity Hub.' });
@@ -44,6 +45,7 @@ export default function PastedWorkoutPlayerPage() {
         return res.json();
       })
       .then((data) => {
+        if (cancelled) return;
         const ws = data.workoutSet;
         if (!ws?.workouts?.length) {
           setState({ status: 'error', message: 'Invalid workout data.' });
@@ -58,11 +60,14 @@ export default function PastedWorkoutPlayerPage() {
         setState({ status: 'ready', workoutSet: ws });
       })
       .catch((err) => {
-        setState({
-          status: 'error',
-          message: err instanceof Error ? err.message : 'Failed to load workout.',
-        });
+        if (!cancelled) {
+          setState({
+            status: 'error',
+            message: err instanceof Error ? err.message : 'Failed to load workout.',
+          });
+        }
       });
+    return () => { cancelled = true; };
   }, []);
 
   const handleComplete = useCallback(() => {

@@ -27,6 +27,7 @@ export default function PastedScheduleConfirmPage() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
     const hid = getHandoffId();
     if (!hid) {
       setError('Missing handoff ID. Schedule the workout from the Universal Activity Hub.');
@@ -41,6 +42,7 @@ export default function PastedScheduleConfirmPage() {
         return res.json();
       })
       .then((data) => {
+        if (cancelled) return;
         const { workoutSet, scheduledAt } = data;
         if (!workoutSet?.workouts?.length || !scheduledAt) {
           setError('Invalid schedule data.');
@@ -49,12 +51,16 @@ export default function PastedScheduleConfirmPage() {
         setHandoff({ workoutSet, scheduledAt });
       })
       .catch((err) => {
-        setError(err instanceof Error ? err.message : 'Failed to load schedule.');
+        if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load schedule.');
       });
+    return () => { cancelled = true; };
   }, []);
 
+  // Omit `saving` from deps: after a failed save, setSaving(false) would re-run this effect and
+  // retry indefinitely. We only save when handoff + user become available.
   useEffect(() => {
-    if (!handoff || !user?.uid || saving) return;
+    if (!handoff || !user?.uid) return;
+    let cancelled = false;
     setSaving(true);
     saveScheduledWorkout(user.uid, {
       sourceApp: 'universal_activity_hub',
@@ -63,13 +69,16 @@ export default function PastedScheduleConfirmPage() {
       config: { workoutSet: handoff.workoutSet },
     })
       .then(() => {
-        window.location.href = '/training-log';
+        if (!cancelled) window.location.href = '/training-log';
       })
       .catch((err) => {
-        setError(err instanceof Error ? err.message : 'Failed to save.');
-        setSaving(false);
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : 'Failed to save.');
+          setSaving(false);
+        }
       });
-  }, [handoff, user?.uid, saving]);
+    return () => { cancelled = true; };
+  }, [handoff, user?.uid]);
 
   if (!handoff && !error) {
     return (
