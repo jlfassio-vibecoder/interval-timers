@@ -178,7 +178,11 @@ const WorkoutPlayer: React.FC<WorkoutPlayerProps> = ({
       await saveWorkoutLog(uid, log);
       onComplete();
     } catch (err) {
-      setFinishError(err instanceof Error ? err.message : 'Failed to save workout.');
+      const msg = err instanceof Error ? err.message : 'Failed to save workout.';
+      setFinishError(msg);
+      if (import.meta.env.DEV) {
+        console.error('[WorkoutPlayer] saveWorkoutLog failed:', err);
+      }
     } finally {
       setSaving(false);
     }
