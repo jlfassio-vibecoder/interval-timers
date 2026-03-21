@@ -87,6 +87,14 @@
       "destination": "https://interval-timers-accounts.vercel.app/learn"
     },
     {
+      "source": "/training-log",
+      "destination": "https://interval-timers-accounts.vercel.app/training-log"
+    },
+    {
+      "source": "/training-log/(.*)",
+      "destination": "https://interval-timers-accounts.vercel.app/training-log/$1"
+    },
+    {
       "source": "/learn/(.*)",
       "destination": "https://interval-timers-accounts.vercel.app/learn/$1"
     },
