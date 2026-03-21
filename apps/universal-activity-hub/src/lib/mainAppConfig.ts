@@ -10,11 +10,15 @@ export function getMainAppOrigin(): string {
     import.meta.env.VITE_APP_ORIGIN || import.meta.env.VITE_MAIN_APP_ORIGIN;
   if (env) return env;
   if (typeof window !== 'undefined') {
-    const origin = window.location.origin;
-    if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+    const hostname = window.location.hostname;
+    if (
+      hostname === 'localhost' ||
+      hostname === '127.0.0.1' ||
+      hostname === '[::1]'
+    ) {
       return 'http://localhost:3006';
     }
-    return origin;
+    return window.location.origin;
   }
   return 'http://localhost:3006';
 }
