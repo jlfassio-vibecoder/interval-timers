@@ -51,6 +51,14 @@
       "destination": "https://interval-timers-accounts.vercel.app/workouts/$1"
     },
     {
+      "source": "/workout",
+      "destination": "https://interval-timers-accounts.vercel.app/workout"
+    },
+    {
+      "source": "/workout/(.*)",
+      "destination": "https://interval-timers-accounts.vercel.app/workout/$1"
+    },
+    {
       "source": "/exercises",
       "destination": "https://interval-timers-accounts.vercel.app/exercises"
     },
