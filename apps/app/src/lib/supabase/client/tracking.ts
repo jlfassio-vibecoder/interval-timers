@@ -29,9 +29,7 @@ export async function saveWorkoutLog(userId: string, log: WorkoutLog): Promise<s
     duration_seconds: Math.floor(Number(log.durationSeconds) || 0),
     exercises: sanitizeExercises(log.exercises),
   };
-  if (log.workoutDisplayName != null && log.workoutDisplayName !== '') {
-    payload.workout_display_name = String(log.workoutDisplayName);
-  }
+  // Omit workout_display_name until migration 20250330000000 is applied (column may not exist in prod)
 
   const { data, error } = await supabase
     .from('user_workout_logs')

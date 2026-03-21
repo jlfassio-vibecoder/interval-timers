@@ -93,7 +93,7 @@ function mapUserWorkoutLogRowToWorkoutLog(row: Record<string, unknown>): Workout
 export async function fetchUserWorkoutLogsForTraining(uid: string): Promise<WorkoutLog[]> {
   const { data, error } = await supabase
     .from('user_workout_logs')
-    .select('id, user_id, program_id, week_id, workout_id, date, duration_seconds, workout_display_name')
+    .select('*')
     .eq('user_id', uid)
     .order('date', { ascending: false });
 
