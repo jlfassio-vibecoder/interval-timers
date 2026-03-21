@@ -14,6 +14,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@interval-timers/workout-contract": "*",
     "@interval-timers/schedule-picker": "*",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",

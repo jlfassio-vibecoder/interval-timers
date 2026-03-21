@@ -22,6 +22,7 @@
  */
 
 import type { Exercise, ExerciseBlock } from '@/types/ai-program';
+import { ensureWarmupAndCooldown } from '@/types/ai-workout';
 
 export type ProgramWorkout = {
   title: string;
@@ -113,6 +114,6 @@ export function normalizeWorkoutSet<T extends { workouts?: ProgramWorkout[] }>(s
   if (!set.workouts?.length) return set;
   return {
     ...set,
-    workouts: set.workouts.map((w) => normalizeWorkoutForEditor(w)),
+    workouts: set.workouts.map((w) => ensureWarmupAndCooldown(normalizeWorkoutForEditor(w))),
   };
 }

@@ -21,6 +21,11 @@ export const FUNNEL_EVENTS = [
   'account_session_prefill_fail',
   'hub_timer_launch_1',
   'hub_timer_launch_2',
+  'hub_parse_success',
+  'hub_parse_fail',
+  'hub_action_click',
+  'hub_handoff_post_ok',
+  'hub_handoff_post_fail',
 ] as const;
 
 export type FunnelEventName = (typeof FUNNEL_EVENTS)[number];

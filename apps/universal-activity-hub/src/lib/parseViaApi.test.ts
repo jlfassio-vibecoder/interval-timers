@@ -32,7 +32,7 @@ describe('parsePastedWorkoutViaApi', () => {
   beforeEach(() => {
     vi.stubGlobal(
       'fetch',
-      vi.fn((url: string, init?: RequestInit) => {
+      vi.fn((_url: string, _init?: RequestInit) => {
         return Promise.resolve(new Response(JSON.stringify({ workoutSet: mockWorkoutSet })));
       })
     );

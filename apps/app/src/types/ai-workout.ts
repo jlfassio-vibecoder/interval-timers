@@ -7,17 +7,25 @@
  */
 
 import type {
+  WorkoutInSet as WorkoutInSetContract,
+  WorkoutSetTemplate as WorkoutSetTemplateContract,
+} from '@interval-timers/workout-contract';
+import type {
   UserDemographics,
   MedicalProfile,
   Goals,
-  ExerciseBlock,
-  Exercise,
-  WarmupBlock,
   ProgressionProtocol,
   VolumeLandmark,
   PatternSkeleton,
   ExerciseSelection,
+  ExerciseBlock,
+  Exercise,
+  WarmupBlock,
 } from '@/types/ai-program';
+
+/** Re-export for consumers. WorkoutInSet uses warmupBlocks/cooldownBlocks (WarmupBlock[]); main blocks use exerciseBlocks (ExerciseBlock[]). */
+export type { ExerciseBlock, Exercise, WarmupBlock };
+import type { Exercise as MappedExercise } from '@/types';
 
 /** Split type for workout persona */
 export type WorkoutSplitType =
@@ -171,18 +179,53 @@ export interface WorkoutArchitectBlueprint {
 }
 
 /**
- * Single workout in a set (same shape as ProgramSchedule.workouts[n])
+ * Single workout in a set (same shape as ProgramSchedule.workouts[n]).
+ * Base fields: @interval-timers/workout-contract; app adds mapped exercise overrides.
  */
-export interface WorkoutInSet {
-  title: string;
-  description: string;
-  warmupBlocks?: WarmupBlock[];
-  blocks?: Exercise[];
-  exerciseBlocks?: ExerciseBlock[];
-  finisherBlocks?: WarmupBlock[];
-  cooldownBlocks?: WarmupBlock[];
+export interface WorkoutInSet extends WorkoutInSetContract {
   /** Per-exercise image/instruction overrides (same pattern as WOD). Key = exercise name from workout. */
-  exerciseOverrides?: Record<string, import('@/types').Exercise>;
+  exerciseOverrides?: Record<string, MappedExercise>;
+}
+
+/** Default warmup block suggested when a workout has none. */
+export const DEFAULT_WARMUP_BLOCKS: WarmupBlock[] = [
+  {
+    order: 1,
+    exerciseName: 'General warm-up',
+    instructions: [
+      '5–10 min light cardio or dynamic stretches',
+      'Prepare joints and muscles for the workout',
+    ],
+  },
+];
+
+/** Default cooldown block suggested when a workout has none. */
+export const DEFAULT_COOLDOWN_BLOCKS: WarmupBlock[] = [
+  {
+    order: 1,
+    exerciseName: 'Cool down',
+    instructions: [
+      '5–10 min light activity (e.g. walking)',
+      'Static stretches for major muscle groups used',
+    ],
+  },
+];
+
+/**
+ * Ensures a workout has warmupBlocks and cooldownBlocks. When missing or empty,
+ * adds DEFAULT_WARMUP_BLOCKS and DEFAULT_COOLDOWN_BLOCKS.
+ */
+export function ensureWarmupAndCooldown<
+  T extends { warmupBlocks?: WarmupBlock[]; cooldownBlocks?: WarmupBlock[] },
+>(workout: T): T {
+  const w = workout as { warmupBlocks?: WarmupBlock[]; cooldownBlocks?: WarmupBlock[] };
+  if (!w.warmupBlocks || w.warmupBlocks.length === 0) {
+    w.warmupBlocks = [...DEFAULT_WARMUP_BLOCKS];
+  }
+  if (!w.cooldownBlocks || w.cooldownBlocks.length === 0) {
+    w.cooldownBlocks = [...DEFAULT_COOLDOWN_BLOCKS];
+  }
+  return workout;
 }
 
 // --- HIIT Playback (Dynamic Protocol Engine) ---
@@ -221,10 +264,7 @@ export interface HIITWorkoutData {
 /**
  * Workout set template (chain output) – 1–N workouts, no weeks
  */
-export interface WorkoutSetTemplate {
-  title: string;
-  description: string;
-  difficulty: 'beginner' | 'intermediate' | 'advanced';
+export interface WorkoutSetTemplate extends Omit<WorkoutSetTemplateContract, 'workouts'> {
   workouts: WorkoutInSet[];
 }
 

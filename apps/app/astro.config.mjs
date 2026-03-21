@@ -119,7 +119,6 @@ export default defineConfig({
       alias: {
         '@': src
       },
-      // Force single React instance; @supabase/auth-ui-react pulls React 18 and causes "Invalid hook call"
       dedupe: ['react', 'react-dom']
     },
     optimizeDeps: {
@@ -140,6 +139,10 @@ export default defineConfig({
           manualChunks(id) {
             if (id.includes('node_modules/firebase') || id.includes('firebaseService')) {
               return 'firebase';
+            }
+            // Don't split React into vendor; keep with entry to avoid "useState of null" / jsxDEV errors
+            if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/') || id.includes('node_modules/scheduler/')) {
+              return undefined;
             }
             if (id.includes('node_modules')) {
               return 'vendor';

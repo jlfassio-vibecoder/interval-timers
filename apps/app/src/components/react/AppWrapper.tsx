@@ -9,9 +9,12 @@ import { AppProvider } from '../../contexts/AppContext';
 import AppIslands from './AppIslands';
 import FluidBackground from './FluidBackground';
 import AccountLanding from './AccountLanding';
+import SavedWorkoutsPage from './SavedWorkoutsPage';
 import { TrainingLogPage } from './training-log';
 import PastedWorkoutPlayerPage from './PastedWorkoutPlayerPage';
+import PastedSaveWorkoutPage from './PastedSaveWorkoutPage';
 import PastedScheduleConfirmPage from './PastedScheduleConfirmPage';
+import PastedQuickLogPage from './PastedQuickLogPage';
 
 const AIChat = lazy(() => import('./AIChat'));
 const PurchaseFlow = lazy(() => import('./PurchaseFlow'));
@@ -85,14 +88,23 @@ const AppWrapper: React.FC<AppWrapperProps> = ({ children, pathname }) => {
   }, []);
 
   const isAccountPage = pathname === '/account';
+  const isSavedWorkoutsPage = pathname === '/account/saved-workouts';
   const isTrainingLogPage = pathname === '/training-log';
   const isLogPastedPage = pathname === '/workout/log-pasted';
+  const isSavePastedPage = pathname === '/workout/save-pasted';
+  const isLogPastSummaryPage = pathname === '/workout/log-past-summary';
   const isSchedulePastedPage = pathname === '/workout/schedule-pasted';
 
   const mainContent = isAccountPage ? (
     <AccountLanding />
+  ) : isSavedWorkoutsPage ? (
+    <SavedWorkoutsPage />
   ) : isLogPastedPage ? (
     <PastedWorkoutPlayerPage />
+  ) : isSavePastedPage ? (
+    <PastedSaveWorkoutPage />
+  ) : isLogPastSummaryPage ? (
+    <PastedQuickLogPage />
   ) : isSchedulePastedPage ? (
     <PastedScheduleConfirmPage />
   ) : isTrainingLogPage ? (

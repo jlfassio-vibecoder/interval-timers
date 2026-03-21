@@ -20,6 +20,7 @@ Training Log aggregates sessions from **`workout_logs`** and **`user_workout_log
 | `aerobic` | Handoff | `sha256(userId\|intent\|source\|timestamp)` | — |
 | `bio-sync60` | Handoff | `sha256(userId\|intent\|source\|timestamp)` | — |
 | `amrap_with_friends` | DB sync (`persist_amrap_session_results`) | `amrap_with_friends:{user_id}:{session_id}` | `shared.amrap_session_results` |
+| `universal_activity_hub` | Hub Log Past (`PastedQuickLogPage` → `saveWorkoutLog`) | — | — |
 | *(null)* | Manual / summary (`saveWorkoutLog`) | — | — |
 | *(Readiness)* | `readiness.ts` (workout_name='Readiness') | — | — |
 
@@ -29,14 +30,18 @@ Program completions come from **`user_workout_logs`**, not `workout_logs`. They 
 
 ### Universal Activity Hub (pasted workouts)
 
-Pasted workouts opened via **Open Workout** are written to `user_workout_logs` with:
+Two flows:
 
-- `program_id` = `universal_activity_hub`
-- `week_id` = `adhoc`
-- `workout_id` = unique per session
-- `workout_display_name` = workout title (e.g. from AI parse)
+1. **Open Workout / Save Workout** — Written to `user_workout_logs` with:
+   - `program_id` = `universal_activity_hub`
+   - `week_id` = `adhoc`
+   - `workout_id` = unique per session
+   - `workout_display_name` = workout title (e.g. from AI parse)
 
-Training Log uses `workout_display_name` when set instead of `formatProgramSessionWorkoutName`. Flow: hub → POST `/api/workout-handoff` → `window.open` `/workout/log-pasted?hid=...` → WorkoutPlayer → `saveWorkoutLog` with `workoutDisplayName`.
+   Flow: hub → POST `/api/workout-handoff` → `window.open` `/workout/log-pasted?hid=...` → WorkoutPlayer → `saveWorkoutLog` (tracking client) with `workoutDisplayName`.
+
+2. **Log Past** — Quick summary written to `workout_logs` with `source` = `universal_activity_hub`:
+   - Flow: hub → POST `/api/quick-log-workout-handoff` → `window.open` `/workout/log-past-summary?hid=...` → `PastedQuickLogPage` → `saveWorkoutLog` (workout-logs client) with effort, rating, notes, date.
 
 Program gym logs store `exercises` as JSON on `user_workout_logs`. Per-side prescriptions (e.g. `10/side`, “per side” in reps or name) log **`actualRepsLeft`** and **`actualRepsRight`** on each set plus **`actualReps`** (L+R) for totals; no DB migration—new keys live inside the existing `exercises` jsonb.
 

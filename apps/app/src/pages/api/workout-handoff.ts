@@ -8,22 +8,40 @@
  */
 
 import type { APIRoute } from 'astro';
-import type { WorkoutInSet, WorkoutSetTemplate } from '@/types/ai-workout';
+import { parseWorkoutSetFromHandoffBody } from '@interval-timers/workout-contract';
+import type { WorkoutSetTemplate } from '@/types/ai-workout';
+import { checkRateLimit } from '@/lib/api-rate-limit';
 import { corsPreflightResponse, getJsonResponseHeaders } from '@/lib/api-cors';
 import { normalizeWorkoutSet } from '@/lib/program-schedule-utils';
 
 const TTL_MS = 30 * 60 * 1000; // 30 minutes
+/** Delay before deleting after GET so React Strict Mode double-fetch both succeed. */
+const DELETE_DELAY_MS = 5000;
 
 const store = new Map<
   string,
   { payload: WorkoutSetTemplate; expiresAt: number }
 >();
 
+const pendingDeletes = new Map<string, ReturnType<typeof setTimeout>>();
+
 function pruneExpired(): void {
   const now = Date.now();
   for (const [id, entry] of store.entries()) {
     if (entry.expiresAt <= now) store.delete(id);
   }
+}
+
+function scheduleDelete(id: string): void {
+  const existing = pendingDeletes.get(id);
+  if (existing) clearTimeout(existing);
+  pendingDeletes.set(
+    id,
+    setTimeout(() => {
+      store.delete(id);
+      pendingDeletes.delete(id);
+    }, DELETE_DELAY_MS)
+  );
 }
 
 function jsonResponse(body: object, status: number): Response {
@@ -33,41 +51,18 @@ function jsonResponse(body: object, status: number): Response {
   });
 }
 
-function validateWorkoutSet(data: unknown): WorkoutSetTemplate | null {
-  if (!data || typeof data !== 'object' || !('workouts' in data)) return null;
-  const raw = data as Record<string, unknown>;
-  const workouts = raw.workouts;
-  if (!Array.isArray(workouts) || workouts.length === 0) return null;
-  const validWorkouts = workouts.filter(
-    (w): w is WorkoutInSet =>
-      w &&
-      typeof w === 'object' &&
-      (('exerciseBlocks' in w && Array.isArray((w as WorkoutInSet).exerciseBlocks)) ||
-        ('blocks' in w && Array.isArray((w as WorkoutInSet).blocks)) ||
-        ('title' in w && typeof (w as WorkoutInSet).title === 'string'))
-  );
-  if (validWorkouts.length === 0) return null;
-  const title = typeof raw.title === 'string' ? raw.title : 'Pasted Workout';
-  const description = typeof raw.description === 'string' ? raw.description : '';
-  const difficulty =
-    typeof raw.difficulty === 'string' &&
-    ['beginner', 'intermediate', 'advanced'].includes(raw.difficulty)
-      ? (raw.difficulty as 'beginner' | 'intermediate' | 'advanced')
-      : 'intermediate';
-  return normalizeWorkoutSet({
-    title,
-    description,
-    difficulty,
-    workouts: validWorkouts,
-  });
-}
-
 function randomId(): string {
   return crypto.randomUUID();
 }
 
 export const POST: APIRoute = async ({ request }) => {
   pruneExpired();
+  const limit = checkRateLimit('handoff', request);
+  if (!limit.allowed) {
+    const headers: Record<string, string> = { ...getJsonResponseHeaders() };
+    if (limit.retryAfter) headers['Retry-After'] = String(limit.retryAfter);
+    return new Response(JSON.stringify({ error: limit.error }), { status: 429, headers });
+  }
   try {
     if (!request.body) {
       return jsonResponse({ error: 'Request body is required' }, 400);
@@ -78,10 +73,11 @@ export const POST: APIRoute = async ({ request }) => {
     } catch {
       return jsonResponse({ error: 'Invalid JSON' }, 400);
     }
-    const workoutSet = validateWorkoutSet(body.workoutSet);
-    if (!workoutSet) {
+    const extracted = parseWorkoutSetFromHandoffBody(body.workoutSet);
+    if (!extracted) {
       return jsonResponse({ error: 'Invalid workoutSet: must have workouts array' }, 400);
     }
+    const workoutSet: WorkoutSetTemplate = normalizeWorkoutSet(extracted);
     const id = randomId();
     store.set(id, {
       payload: workoutSet,
@@ -110,6 +106,6 @@ export const GET: APIRoute = async ({ url }) => {
   if (!entry) {
     return jsonResponse({ error: 'Handoff not found or expired' }, 404);
   }
-  store.delete(id); // One-time consume
+  scheduleDelete(id);
   return jsonResponse({ workoutSet: entry.payload }, 200);
 };

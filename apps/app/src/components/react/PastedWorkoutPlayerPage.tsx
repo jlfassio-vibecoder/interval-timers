@@ -2,131 +2,111 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  *
- * Consumes workout handoff from Universal Activity Hub, renders WorkoutPlayer,
- * saves to user_workout_logs with workout_display_name, redirects to Training Log on complete.
+ * Route shell for /workout/log-pasted. Consumes workout handoff (hid) or saved library (savedId),
+ * renders reusable pasted-workout flow, saves to user_workout_logs.
  */
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
+import PastedWorkoutFromHandoff from '@/components/react/pasted-workout/PastedWorkoutFromHandoff';
+import PastedWorkoutTextEntry from '@/components/react/pasted-workout/PastedWorkoutTextEntry';
+import { getSavedWorkout } from '@/lib/supabase/client/user-saved-workouts';
 import { useAppContext } from '@/contexts/AppContext';
-import WorkoutPlayer from '@/components/react/tracking/WorkoutPlayer';
-import { getExercisesFromWorkout } from '@/lib/program-schedule-utils';
-import type { WorkoutSetTemplate } from '@/types/ai-workout';
 
-const ADHOC_PROGRAM_ID = 'universal_activity_hub';
-const ADHOC_WEEK_ID = 'adhoc';
-
-function getHandoffId(): string | null {
-  if (typeof window === 'undefined') return null;
-  const params = new URLSearchParams(window.location.search);
-  return params.get('hid');
-}
+/** Loading placeholder — same on SSR and initial client render to avoid hydration mismatch. */
+const LoadingPlaceholder = () => (
+  <div className="flex min-h-screen flex-col items-center justify-center bg-black/95 text-white">
+    <p className="font-mono text-white/70">Loading workout…</p>
+  </div>
+);
 
 export default function PastedWorkoutPlayerPage() {
   const { user } = useAppContext();
-  const [state, setState] = useState<
-    | { status: 'loading' }
-    | { status: 'error'; message: string }
-    | { status: 'ready'; workoutSet: WorkoutSetTemplate }
-  >({ status: 'loading' });
+  const [params, setParams] = useState<{ hid: string | null; savedId: string | null } | 'pending'>('pending');
 
   useEffect(() => {
+    const search = new URLSearchParams(window.location.search);
+    setParams({
+      hid: search.get('hid'),
+      savedId: search.get('savedId'),
+    });
+  }, []);
+
+  const [savedWorkout, setSavedWorkout] = useState<{
+    workoutSet: import('@/types/ai-workout').WorkoutSetTemplate;
+  } | null>(null);
+  const [savedError, setSavedError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (params === 'pending' || !params.savedId || !user?.uid) return;
     let cancelled = false;
-    const hid = getHandoffId();
-    if (!hid) {
-      setState({ status: 'error', message: 'Missing handoff ID. Open the workout from the Universal Activity Hub.' });
-      return;
-    }
-    fetch(`/api/workout-handoff?id=${encodeURIComponent(hid)}`)
-      .then((res) => {
-        if (!res.ok) {
-          if (res.status === 404) throw new Error('Handoff expired or not found.');
-          throw new Error(res.statusText || 'Failed to load workout.');
-        }
-        return res.json();
-      })
-      .then((data) => {
+    getSavedWorkout(params.savedId)
+      .then((row) => {
         if (cancelled) return;
-        const ws = data.workoutSet;
-        if (!ws?.workouts?.length) {
-          setState({ status: 'error', message: 'Invalid workout data.' });
+        if (!row) {
+          setSavedError('Saved workout not found.');
           return;
         }
-        const workout = ws.workouts[0];
-        const exercises = getExercisesFromWorkout(workout);
-        if (!exercises.length) {
-          setState({ status: 'error', message: 'No exercises found in workout.' });
+        if (row.user_id !== user.uid) {
+          setSavedError('You do not have access to this workout.');
           return;
         }
-        setState({ status: 'ready', workoutSet: ws });
+        setSavedWorkout({ workoutSet: row.workout_set });
       })
       .catch((err) => {
-        if (!cancelled) {
-          setState({
-            status: 'error',
-            message: err instanceof Error ? err.message : 'Failed to load workout.',
-          });
-        }
+        if (!cancelled) setSavedError(err instanceof Error ? err.message : 'Failed to load workout.');
       });
-    return () => { cancelled = true; };
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [params, user?.uid]);
 
-  const handleComplete = useCallback(() => {
-    window.location.href = '/training-log';
-  }, []);
-
-  const handleClose = useCallback(() => {
-    window.location.href = '/training-log';
-  }, []);
-
-  if (state.status === 'loading') {
-    return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-black/95 text-white">
-        <p className="font-mono text-white/70">Loading workout…</p>
-      </div>
-    );
+  if (params === 'pending') {
+    return <LoadingPlaceholder />;
   }
 
-  if (state.status === 'error') {
-    return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-black/95 px-4 text-center text-white">
-        <p className="text-red-300">{state.message}</p>
-        <a
-          href="/training-log"
-          className="rounded-lg border border-white/20 px-4 py-2 font-medium hover:bg-white/10"
-        >
-          Go to Training Log
-        </a>
-      </div>
-    );
+  const { hid, savedId } = params;
+
+  if (savedId) {
+    if (savedError) {
+      return (
+        <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-black/95 px-4 text-center text-white">
+          <p className="text-red-300">{savedError}</p>
+          <a
+            href="/account/saved-workouts"
+            className="rounded-lg border border-white/20 px-4 py-2 font-medium hover:bg-white/10"
+          >
+            Your Workouts
+          </a>
+        </div>
+      );
+    }
+    if (!user?.uid) {
+      return (
+        <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-black/95 px-4 text-center text-white">
+          <p className="text-white/70">Sign in to open this workout.</p>
+          <a
+            href={`/account?returnUrl=${encodeURIComponent(`/workout/log-pasted?savedId=${savedId}`)}`}
+            className="rounded-lg bg-orange-500 px-4 py-2 font-medium text-black hover:bg-orange-400"
+          >
+            Sign in
+          </a>
+        </div>
+      );
+    }
+    if (savedWorkout) {
+      return (
+        <PastedWorkoutFromHandoff
+          initialWorkoutSet={savedWorkout.workoutSet}
+          returnPath={`/workout/log-pasted?savedId=${encodeURIComponent(savedId)}`}
+        />
+      );
+    }
+    return <LoadingPlaceholder />;
   }
 
-  if (state.status === 'ready' && !user?.uid) {
-    const returnUrl = `/workout/log-pasted${window.location.search}`;
-    return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-black/95 px-4 text-center text-white">
-        <p className="text-white/70">Sign in to log this workout.</p>
-        <a
-          href={`/account?returnUrl=${encodeURIComponent(returnUrl)}`}
-          className="rounded-lg bg-orange-500 px-4 py-2 font-medium text-black hover:bg-orange-400"
-        >
-          Sign in
-        </a>
-      </div>
-    );
+  if (!hid) {
+    return <PastedWorkoutTextEntry />;
   }
 
-  const workout = state.workoutSet.workouts[0]!;
-  const workoutId = useMemo(() => crypto.randomUUID().slice(0, 8), []);
-
-  return (
-    <WorkoutPlayer
-      workout={workout}
-      programId={ADHOC_PROGRAM_ID}
-      weekId={ADHOC_WEEK_ID}
-      workoutId={workoutId}
-      workoutDisplayName={state.workoutSet.title}
-      onClose={handleClose}
-      onComplete={handleComplete}
-    />
-  );
+  return <PastedWorkoutFromHandoff hid={hid} />;
 }

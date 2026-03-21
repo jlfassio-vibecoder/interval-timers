@@ -1,0 +1,13 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import AppWrapper from '../../components/react/AppWrapper';
+---
+
+<BaseLayout
+  title="Your Workouts | AI Fitcopilot"
+  description="View and manage your saved workouts."
+>
+  <div class="relative min-h-screen overflow-x-hidden text-white selection:bg-orange-light selection:text-black">
+    <AppWrapper client:load pathname={Astro.url.pathname} />
+  </div>
+</BaseLayout>
