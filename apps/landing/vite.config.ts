@@ -6,7 +6,7 @@ import react from '@vitejs/plugin-react'
 import { PROTOCOL_TO_PATH } from './src/lib/protocolPaths'
 
 /** Derived from canonical paths so preview rewrites stay in sync with vercel.json and copy script. */
-const STANDALONE_PATHS = Object.values(PROTOCOL_TO_PATH)
+const STANDALONE_PATHS = ['hub', ...Object.values(PROTOCOL_TO_PATH)]
 
 function standalonePathsPreviewPlugin(): Plugin {
   return {
