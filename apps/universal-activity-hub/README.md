@@ -1,6 +1,6 @@
 # Universal Activity Hub
 
-Standalone Vite + React + Tailwind app: paste unstructured workout text, AI parses it into a [`WorkoutSetTemplate`](./src/types/workoutSetTemplate.ts) (same shape as the main app’s workouts), then (later) schedule, log, or launch timers.
+Standalone Vite + React + Tailwind app: paste unstructured workout text, AI parses it into a **`WorkoutSetTemplate`** (JSON shape is defined in [`@interval-timers/workout-contract`](../../packages/workout-contract); the hub re-exports via [`src/types/workoutSetTemplate.ts`](./src/types/workoutSetTemplate.ts)), then schedule, log, or save to Training Log.
 
 ## Develop
 
@@ -25,20 +25,17 @@ Or from this directory: `npm run dev`
 
 The main app’s **Training Log** (`apps/app`, `/training-log`) aggregates **`workout_logs`** and **`user_workout_logs`** (see [`docs/TRAINING_LOG_SOURCES.md`](../../docs/TRAINING_LOG_SOURCES.md)).
 
-### Open Workout
+### Open Workout / Save Workout
 
-**Open Workout** sends the parsed workout to the main app via a short-lived handoff. The user logs sets, reps, and weights in the gym-style WorkoutPlayer, then saves to Training Log. Requires:
-
-- Main app running on port 3006 (or set `VITE_APP_ORIGIN` / `VITE_MAIN_APP_ORIGIN` in hub `.env.local` for production).
-- User signed in on the main app (opens in new tab; sign-in prompted if needed).
+**Open Workout** and **Save Workout** both send the parsed workout via `/api/workout-handoff`. The user logs sets, reps, and weights in the gym-style WorkoutPlayer, then saves to Training Log. Requires main app on port 3006 (or `VITE_APP_ORIGIN` / `VITE_MAIN_APP_ORIGIN`) and user signed in.
 
 ### Schedule
 
-**Schedule** opens a date/time picker, POSTs the workout and chosen time to the main app’s `/api/schedule-workout-handoff`, then opens the main app in a new tab to confirm and save to your calendar. Requires the main app dev server (API proxy). User must be signed in on the main app to persist.
+**Schedule** opens a date/time picker, POSTs to the main app’s `/api/schedule-workout-handoff`, then opens the main app to confirm and save to your calendar. Requires main app dev server and user signed in.
 
-### Other actions
+### Log Past
 
-**Log Past** and **Launch Timer** are placeholders (not yet wired). Future: wire to summary log and timers.
+**Log Past** POSTs to `/api/quick-log-workout-handoff`, opens `/workout/log-past-summary` for a quick summary form (date, effort, rating, notes), and saves to `workout_logs` with `source: 'universal_activity_hub'`.
 
 
 ## Test

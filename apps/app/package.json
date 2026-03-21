@@ -41,6 +41,8 @@
     "@interval-timers/content-generation-lab": "*",
     "@interval-timers/exercise-mapping": "*",
     "@interval-timers/handoff": "*",
+    "@interval-timers/schedule-picker": "*",
+    "@interval-timers/workout-contract": "*",
     "@runwayml/sdk": "^3.11.0",
     "@supabase/auth-helpers-react": "^0.15.0",
     "@supabase/auth-ui-react": "^0.4.7",
@@ -73,7 +75,7 @@
     "ua-parser-js": "^1.0.41"
   },
   "optionalDependencies": {
-    "@rollup/rollup-linux-x64-gnu": "^4.59.0"
+    "@rollup/rollup-linux-x64-gnu": "^4.59.1"
   },
   "overrides": {
     "fast-xml-parser": ">=5.3.4",

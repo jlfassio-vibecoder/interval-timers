@@ -22,6 +22,7 @@ export async function saveWorkoutLog(log: Omit<WorkoutLog, 'id'>): Promise<strin
   if (log.intensity !== undefined) payload.intensity = log.intensity;
   if (log.focusArea !== undefined) payload.focus_area = log.focusArea;
   if (log.isActiveRest !== undefined) payload.is_active_rest = log.isActiveRest;
+  if (log.source !== undefined) payload.source = log.source;
 
   const { data, error } = await supabase.from('workout_logs').insert(payload).select('id').single();
 

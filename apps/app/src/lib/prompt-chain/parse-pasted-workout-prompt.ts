@@ -20,40 +20,49 @@ OUTPUT REQUIREMENTS:
 
 WorkoutSetTemplate schema:
 {
-  "title": string,       // Workout or activity title (derive from content if missing)
-  "description": string, // Brief description; can summarize the pasted content
+  "title": string,
+  "description": string,
   "difficulty": "beginner" | "intermediate" | "advanced",
-  "workouts": [          // Array of 1+ sessions
-    {
-      "title": string,
-      "description": string,
-      "warmupBlocks": [{ "order": 1, "exerciseName": string, "instructions": [string] }],
-      "exerciseBlocks": [{
+  "workouts": [{
+    "title": string,
+    "description": string,
+    "exerciseBlocks": [{
+      "order": number,
+      "name": string,
+      "exercises": [{
         "order": number,
-        "name": string,
-        "exercises": [{
-          "order": number,
-          "exerciseName": string,
-          "sets": number,
-          "reps": string,
-          "restSeconds": number,
-          "coachNotes": string
-        }]
-      }],
-      "finisherBlocks": [],
-      "cooldownBlocks": []
-    }
-  ]
+        "exerciseName": string,
+        "sets": number,
+        "reps": string,
+        "restSeconds": 0,
+        "coachNotes": string
+      }]
+    }]
+  }]
 }
 
-RULES:
-- Extract exercises from bullet lists, numbered lists, or inline mentions.
-- For "15 KB swings", "10 push-ups": exerciseName = "KB Swings", sets = 1, reps = "15" (or "10").
-- For time-based (e.g. "45 sec plank"): reps = "45 sec" or use workSeconds if it's interval-style.
-- If format is AMRAP/EMOM/Tabata: include protocol in description; structure exercises in exerciseBlocks.
-- If lifestyle (walk, gardening): create one workout with exercises describing each activity.
-- Ensure every workout has at least one exerciseBlock with at least one exercise.
-- Empty warmupBlocks/finisherBlocks/cooldownBlocks can be [] or omitted.
-- difficulty: infer from intensity terms or default to "intermediate".
+CRITICAL: Put ALL movements, exercises, stretches, and mobility work into exerciseBlocks. Every item the user lists must appear as an exercise in an exerciseBlock. Do NOT leave exerciseBlocks empty.
+
+PHASE-BASED WORKOUTS (e.g. "Phase 1: Neural Priming", "Phase 2: High-Intensity"):
+- Each phase becomes one exerciseBlock. Set block "name" to the phase title (e.g. "Phase 1: Neural Priming & Dynamic Prep").
+- Extract every bullet, numbered item, or named movement under that phase into that block's "exercises" array.
+- Mobility, warm-up, and cool-down phases also go in exerciseBlocks (not warmupBlocks/cooldownBlocks).
+
+EXTRACTING EXERCISES:
+- "Thera Cane First Rib Depress: 60 sec/side" → exerciseName: "Thera Cane First Rib Depress", sets: 1, reps: "60 sec/side"
+- "Quadruped Roller Slides: 2 sets of 8 reps" → exerciseName: "Quadruped Roller Slides", sets: 2, reps: "8"
+- "Volume: 3 sets to failure (aim for 10–15 reps)" → sets: 3, reps: "10-15" or "failure"
+- "TRX Push-Ups" with multi-line setup/execution → exerciseName: "TRX Push-Ups", put setup details in coachNotes
+- Parenthetical notes like "(Palms UP)" or "(Upper Chest Focus)" can stay in exerciseName or go in coachNotes
+- For time holds (e.g. "2 Minutes", "60 sec/side"): reps = "2 min" or "60 sec/side", sets = 1
+
+SIMPLE FORMATS:
+- "15 KB swings", "10 push-ups" → exerciseName, sets: 1, reps from the number
+- "45 sec plank" → reps: "45 sec", sets: 1
+- AMRAP/EMOM/Tabata: include protocol in description; put exercises in exerciseBlocks
+- Lifestyle (walk, gardening): one workout, each activity as an exercise
+
+- difficulty: infer from intensity or default "intermediate".
+- warmupBlocks, finisherBlocks, cooldownBlocks: omit or use [].
 `;
 }

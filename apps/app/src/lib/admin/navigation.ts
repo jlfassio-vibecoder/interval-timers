@@ -20,6 +20,7 @@ import {
   Activity,
   TrendingUp,
   BarChart2,
+  Smartphone,
 } from 'lucide-react';
 import { EXERCISE_LABELS } from '@/lib/labels/exercises';
 
@@ -33,6 +34,7 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
   { path: '/funnel', label: 'Funnel', icon: TrendingUp },
   { path: '/analytics', label: 'Analytics', icon: BarChart2 },
+  { path: '/app-analytics', label: 'APP Analytics', icon: Smartphone },
   { path: '/users', label: 'Users', icon: Users },
   { path: '/programs', label: 'Program Factory', icon: BookOpen },
   { path: '/challenges', label: 'Challenge Factory', icon: Trophy },

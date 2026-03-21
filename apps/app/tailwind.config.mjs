@@ -3,6 +3,7 @@ export default {
   content: [
     './src/**/*.{astro,html,js,jsx,md,mdx,svelte,ts,tsx,vue}',
     '../../packages/auth-ui/src/**/*.{js,ts,jsx,tsx}',
+    '../../packages/schedule-picker/**/*.{ts,tsx}',
   ],
   theme: {
     extend: {

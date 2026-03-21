@@ -316,13 +316,21 @@ const AccountLanding: React.FC = () => {
           <p className="mb-4 text-sm text-white/70">
             Manage workouts and schedule from all your apps in one place.
           </p>
-          <button
-            type="button"
-            onClick={() => window.dispatchEvent(new CustomEvent('showHUD'))}
-            className="border-orange-500 bg-orange-600 hover:bg-orange-500 rounded-xl border-2 px-4 py-2 font-bold text-white"
-          >
-            Open HUD
-          </button>
+          <div className="flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={() => window.dispatchEvent(new CustomEvent('showHUD'))}
+              className="border-orange-500 bg-orange-600 hover:bg-orange-500 rounded-xl border-2 px-4 py-2 font-bold text-white"
+            >
+              Open HUD
+            </button>
+            <a
+              href="/account/saved-workouts"
+              className="rounded-xl border-2 border-white/20 px-4 py-2 font-bold text-white transition-colors hover:border-orange-500/50 hover:bg-orange-500/10"
+            >
+              Your Workouts
+            </a>
+          </div>
         </div>
       </section>
 

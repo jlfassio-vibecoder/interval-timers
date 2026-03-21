@@ -7,13 +7,74 @@
  */
 
 import type { APIRoute } from 'astro';
+import { parseWorkoutSetFromHandoffBody } from '@interval-timers/workout-contract';
 import type { WorkoutInSet, WorkoutSetTemplate } from '@/types/ai-workout';
+import { checkRateLimit } from '@/lib/api-rate-limit';
 import { corsPreflightResponse, getJsonResponseHeaders } from '@/lib/api-cors';
 import { tryParseWorkoutWithGemini } from '@/lib/gemini-server';
 import { parseJSONWithRepair } from '@/lib/json-parser';
+import { get as getParseCache, set as setParseCache } from '@/lib/parse-pasted-cache';
 import { normalizeWorkoutSet } from '@/lib/program-schedule-utils';
 import { buildParsePastedWorkoutPrompt } from '@/lib/prompt-chain/parse-pasted-workout-prompt';
 import { callVertexAI } from '@/lib/vertex-ai-client';
+
+/** Max pasted text length (chars) to cap AI cost and abuse. */
+const MAX_RAW_TEXT_LENGTH = 48_000;
+
+const GENERIC_PARSE_ERROR = 'Could not parse this workout. Try editing the text and pasting again.';
+const GENERIC_SERVER_ERROR = 'Something went wrong. Please try again.';
+
+/** Returns true if workout has no displayable exercises in exerciseBlocks or blocks. */
+function hasNoExercises(w: WorkoutInSet): boolean {
+  if (w.exerciseBlocks?.length) {
+    const total = w.exerciseBlocks.reduce((sum, b) => sum + (b.exercises?.length ?? 0), 0);
+    if (total > 0) return false;
+  }
+  if ((w.blocks?.length ?? 0) > 0) return false;
+  return true;
+}
+
+/** When AI puts content in warmup/cooldown but exerciseBlocks are empty, migrate so preview shows it. */
+function migrateWarmupCooldownToExerciseBlocks(set: WorkoutSetTemplate): void {
+  for (const w of set.workouts) {
+    if (!hasNoExercises(w)) continue;
+    const warmup = (w as { warmupBlocks?: { order: number; exerciseName: string; instructions?: string[] }[] })
+      .warmupBlocks ?? [];
+    const cooldown = (w as { cooldownBlocks?: { order: number; exerciseName: string; instructions?: string[] }[] })
+      .cooldownBlocks ?? [];
+    if (warmup.length === 0 && cooldown.length === 0) continue;
+    const blocks: { order: number; name: string; exercises: { order: number; exerciseName: string; sets: number; reps: string; restSeconds: number; coachNotes: string }[] }[] = [];
+    if (warmup.length > 0) {
+      blocks.push({
+        order: 1,
+        name: 'Warm-up',
+        exercises: warmup.map((item, i) => ({
+          order: i + 1,
+          exerciseName: item.exerciseName || 'Warm-up exercise',
+          sets: 1,
+          reps: '',
+          restSeconds: 0,
+          coachNotes: Array.isArray(item.instructions) ? item.instructions.join(' ') : '',
+        })),
+      });
+    }
+    if (cooldown.length > 0) {
+      blocks.push({
+        order: blocks.length + 1,
+        name: 'Cool-down',
+        exercises: cooldown.map((item, i) => ({
+          order: i + 1,
+          exerciseName: item.exerciseName || 'Cool-down exercise',
+          sets: 1,
+          reps: '',
+          restSeconds: 0,
+          coachNotes: Array.isArray(item.instructions) ? item.instructions.join(' ') : '',
+        })),
+      });
+    }
+    (w as { exerciseBlocks?: unknown }).exerciseBlocks = blocks;
+  }
+}
 
 function jsonError(message: string, status: number): Response {
   return new Response(JSON.stringify({ error: message }), {
@@ -26,6 +87,13 @@ export const OPTIONS: APIRoute = () =>
   corsPreflightResponse() ?? new Response(null, { status: 204 });
 
 export const POST: APIRoute = async ({ request }) => {
+  const limit = checkRateLimit('parse', request);
+  if (!limit.allowed) {
+    const headers: Record<string, string> = { ...getJsonResponseHeaders() };
+    if (limit.retryAfter) headers['Retry-After'] = String(limit.retryAfter);
+    return new Response(JSON.stringify({ error: limit.error }), { status: 429, headers });
+  }
+
   try {
     if (!request.body) {
       return jsonError('Request body is required', 400);
@@ -41,6 +109,17 @@ export const POST: APIRoute = async ({ request }) => {
     const rawText = typeof body.rawText === 'string' ? body.rawText.trim() : '';
     if (!rawText) {
       return jsonError('rawText is required and must be non-empty', 400);
+    }
+    if (rawText.length > MAX_RAW_TEXT_LENGTH) {
+      return jsonError('Text is too long. Please shorten your workout and try again.', 400);
+    }
+
+    const cached = getParseCache(rawText);
+    if (cached) {
+      return new Response(JSON.stringify({ workoutSet: cached }), {
+        status: 200,
+        headers: getJsonResponseHeaders(),
+      });
     }
 
     const userPrompt = buildParsePastedWorkoutPrompt(rawText);
@@ -85,51 +164,24 @@ export const POST: APIRoute = async ({ request }) => {
     }
 
     if (!responseText) {
-      return jsonError(
-        'AI parsing not configured. Set GOOGLE_PROJECT_ID and GOOGLE_APPLICATION_CREDENTIALS_JSON (base64), or gcloud auth application-default login, or GEMINI_API_KEY in .env.local. See apps/app/VERTEX_AI_SETUP.md and .env.example.',
-        503
-      );
+      return jsonError('AI parsing is not available. Please try again later.', 503);
     }
 
     const parsed = parseJSONWithRepair(responseText);
     const data = parsed.data as unknown;
 
     if (!data || typeof data !== 'object' || !('workouts' in data)) {
-      return jsonError('AI did not return a valid WorkoutSetTemplate shape', 500);
+      return jsonError(GENERIC_PARSE_ERROR, 500);
     }
 
-    const raw = data as Record<string, unknown>;
-    const title = typeof raw.title === 'string' ? raw.title : 'Pasted Workout';
-    const description = typeof raw.description === 'string' ? raw.description : '';
-    const difficulty =
-      typeof raw.difficulty === 'string' &&
-      ['beginner', 'intermediate', 'advanced'].includes(raw.difficulty)
-        ? (raw.difficulty as 'beginner' | 'intermediate' | 'advanced')
-        : 'intermediate';
-    // Same workout shape checks as workout-handoff / schedule-workout-handoff (POST validateWorkoutSet).
-    const workouts = Array.isArray(raw.workouts)
-      ? (raw.workouts as unknown[]).filter(
-          (w): w is WorkoutInSet =>
-            Boolean(
-              w &&
-              typeof w === 'object' &&
-              (('exerciseBlocks' in w && Array.isArray((w as WorkoutInSet).exerciseBlocks)) ||
-                ('blocks' in w && Array.isArray((w as WorkoutInSet).blocks)) ||
-                ('title' in w && typeof (w as WorkoutInSet).title === 'string'))
-            )
-        )
-      : [];
-
-    if (workouts.length === 0) {
-      return jsonError('AI returned no valid workouts', 500);
+    const extracted = parseWorkoutSetFromHandoffBody(data);
+    if (!extracted) {
+      return jsonError(GENERIC_PARSE_ERROR, 500);
     }
 
-    const workoutSet: WorkoutSetTemplate = normalizeWorkoutSet({
-      title,
-      description,
-      difficulty,
-      workouts,
-    });
+    migrateWarmupCooldownToExerciseBlocks(extracted);
+    const workoutSet: WorkoutSetTemplate = normalizeWorkoutSet(extracted);
+    setParseCache(rawText, workoutSet);
 
     return new Response(JSON.stringify({ workoutSet }), {
       status: 200,
@@ -137,8 +189,7 @@ export const POST: APIRoute = async ({ request }) => {
     });
   } catch (error) {
     console.error('[parse-pasted-workout] Error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Failed to parse workout';
-    return new Response(JSON.stringify({ error: errorMessage }), {
+    return new Response(JSON.stringify({ error: GENERIC_SERVER_ERROR }), {
       status: 500,
       headers: getJsonResponseHeaders(),
     });

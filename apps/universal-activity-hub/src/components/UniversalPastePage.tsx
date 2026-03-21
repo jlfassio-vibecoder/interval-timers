@@ -1,27 +1,26 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { parsePastedWorkoutViaApi } from '@/lib/parseViaApi';
+import { trackHubFunnelEvent } from '@/lib/hubAnalytics';
 import { SAMPLE_PASTE_TEXT } from '@/lib/samplePasteText';
 import type { WorkoutSetTemplate } from '@/types/workoutSetTemplate';
 import WorkoutSetPreview from './WorkoutSetPreview';
 import UniversalPasteFooter from './UniversalPasteFooter';
 
 type PanelState = 'empty' | 'loading' | 'parsed' | 'error';
+type Tab = 'paste' | 'type';
 
-const DEBOUNCE_MS = 600;
+const PASTE_PLACEHOLDER = 'Paste workout notes, intervals, or a lifestyle log…';
+const TYPE_PLACEHOLDER = 'Type or paste workout notes, intervals, or a lifestyle log…';
 
 export default function UniversalPastePage() {
+  const [tab, setTab] = useState<Tab>('paste');
   const [text, setText] = useState('');
   const [panelState, setPanelState] = useState<PanelState>('empty');
   const [workoutSet, setWorkoutSet] = useState<WorkoutSetTemplate | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   const runParse = useCallback((value: string) => {
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-      debounceRef.current = null;
-    }
     if (abortRef.current) {
       abortRef.current.abort();
       abortRef.current = null;
@@ -33,39 +32,41 @@ export default function UniversalPastePage() {
       setErrorMessage(null);
       return;
     }
-    debounceRef.current = setTimeout(async () => {
-      debounceRef.current = null;
-      const controller = new AbortController();
-      abortRef.current = controller;
-      setPanelState('loading');
-      setWorkoutSet(null);
-      setErrorMessage(null);
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setPanelState('loading');
+    setWorkoutSet(null);
+    setErrorMessage(null);
+    (async () => {
       try {
         const result = await parsePastedWorkoutViaApi(value, controller.signal);
         if (controller.signal.aborted) return;
         setWorkoutSet(result);
         setPanelState('parsed');
+        trackHubFunnelEvent('hub_parse_success');
       } catch (err) {
         if (controller.signal.aborted) return;
         setErrorMessage(err instanceof Error ? err.message : 'Parse failed');
         setPanelState('error');
+        trackHubFunnelEvent('hub_parse_fail');
       } finally {
         if (abortRef.current === controller) abortRef.current = null;
       }
-    }, DEBOUNCE_MS);
+    })();
   }, []);
 
   useEffect(() => {
     return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
       if (abortRef.current) abortRef.current.abort();
     };
   }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const v = e.target.value;
-    setText(v);
-    runParse(v);
+    setText(e.target.value);
+  };
+
+  const handleFormatAndAdd = () => {
+    runParse(text);
   };
 
   const handleLoadSample = () => {
@@ -83,21 +84,38 @@ export default function UniversalPastePage() {
           Paste any workout or day
         </h1>
         <p className="mt-2 max-w-2xl text-sm text-white/55">
-          🤖 Raw text from ChatGPT, Apple Notes, or a photo caption — AI extracts structure for
-          logging, scheduling, or timers. Training Log in the main app stays the home for saved
-          activity.
+          Raw text from ChatGPT, Apple Notes, or a photo caption — AI extracts structure for
+          logging and scheduling. Training Log in the main app stays the home for saved activity.
         </p>
       </header>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8">
         <div className="flex min-h-[320px] flex-col gap-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <label
-              htmlFor="paste-input"
-              className="font-mono text-xs uppercase tracking-wider text-white/50"
-            >
-              📋 Paste here
-            </label>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setTab('paste')}
+                className={`rounded-lg px-3 py-1.5 font-mono text-xs font-bold uppercase tracking-wider transition ${
+                  tab === 'paste'
+                    ? 'border border-amber-500/40 bg-amber-500/20 text-amber-100'
+                    : 'border border-white/10 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white/80'
+                }`}
+              >
+                Paste Here
+              </button>
+              <button
+                type="button"
+                onClick={() => setTab('type')}
+                className={`rounded-lg px-3 py-1.5 font-mono text-xs font-bold uppercase tracking-wider transition ${
+                  tab === 'type'
+                    ? 'border border-amber-500/40 bg-amber-500/20 text-amber-100'
+                    : 'border border-white/10 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white/80'
+                }`}
+              >
+                Type Here
+              </button>
+            </div>
             <button
               type="button"
               onClick={handleLoadSample}
@@ -111,11 +129,19 @@ export default function UniversalPastePage() {
               id="paste-input"
               value={text}
               onChange={handleChange}
-              placeholder="Paste workout notes, intervals, or a lifestyle log…"
+              placeholder={tab === 'paste' ? PASTE_PLACEHOLDER : TYPE_PLACEHOLDER}
               rows={14}
               className="min-h-[280px] w-full resize-y rounded-2xl border-0 bg-neutral-950 px-4 py-3 font-mono text-sm leading-relaxed text-white/90 placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-amber-400/45"
             />
           </div>
+          <button
+            type="button"
+            onClick={handleFormatAndAdd}
+            disabled={!text.trim() || panelState === 'loading'}
+            className="w-full rounded-xl border-2 border-amber-500/50 bg-gradient-to-r from-amber-600/40 to-orange-600/30 px-4 py-3 font-mono text-sm font-bold uppercase tracking-wider text-amber-50 transition-colors hover:from-amber-600/55 hover:to-orange-600/45 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {panelState === 'loading' ? 'Formatting…' : 'Format & add to workout'}
+          </button>
         </div>
 
         <div
@@ -127,10 +153,9 @@ export default function UniversalPastePage() {
               <span className="text-4xl" aria-hidden>
                 ✨
               </span>
-              <p className="font-heading text-lg text-white/70">Awaiting Input</p>
+              <p className="font-heading text-lg text-white/70">Ready when you are</p>
               <p className="max-w-xs font-mono text-xs text-white/40">
-                Type or paste on the left — AI parses after a short pause. Start the app dev server
-                (port 3006) for the parse API.
+                Type or paste your workout, then click Format & add to workout when you&apos;re done.
               </p>
             </div>
           )}

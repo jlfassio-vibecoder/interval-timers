@@ -20,6 +20,7 @@ import { clearAuthCookie } from '@/lib/auth-cookie';
 import DashboardHome from './views/DashboardHome';
 import FunnelView from './views/FunnelView';
 import AnalyticsView from './views/AnalyticsView';
+import AppAnalyticsView from './views/AppAnalyticsView';
 import ManageUsers from './views/ManageUsers';
 import ManagePrograms from './views/ManagePrograms';
 import ManageChallenges from './views/ManageChallenges';
@@ -151,6 +152,7 @@ const AdminDashboard: React.FC = () => {
             <Route index element={<DashboardHome />} />
             <Route path="funnel" element={<FunnelView />} />
             <Route path="analytics" element={<AnalyticsView />} />
+            <Route path="app-analytics" element={<AppAnalyticsView />} />
             <Route path="users" element={<ManageUsers />} />
             <Route path="programs/:id" element={<ProgramEditor />} />
             <Route path="programs" element={<ManagePrograms />} />
