@@ -147,6 +147,22 @@
       "destination": "https://interval-timers-accounts.vercel.app/terms/$1"
     },
     {
+      "source": "/hub",
+      "destination": "/hub/index.html"
+    },
+    {
+      "source": "/hub/",
+      "destination": "/hub/index.html"
+    },
+    {
+      "source": "/hub/assets/(.*)",
+      "destination": "/hub/assets/$1"
+    },
+    {
+      "source": "/hub/(.*)",
+      "destination": "/hub/index.html"
+    },
+    {
       "source": "/amrap",
       "destination": "/amrap/index.html"
     },

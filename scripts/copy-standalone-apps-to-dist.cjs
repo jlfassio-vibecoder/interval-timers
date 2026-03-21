@@ -10,6 +10,7 @@ const repoRoot = path.resolve(__dirname, '..');
 const landingDist = path.join(repoRoot, 'apps', 'landing', 'dist');
 
 const copies = [
+  { src: 'universal-activity-hub', dest: 'hub' },
   { src: 'daily-warmup', dest: 'daily-warm-up' },
   { src: 'tabata', dest: 'tabata-timer' },
   { src: 'japanese-walking', dest: 'japanese-walking' },

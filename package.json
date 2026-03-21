@@ -50,7 +50,7 @@
     "build:aerobic": "npm run build -w aerobic",
     "dev:lactate-threshold": "npm run dev -w lactate-threshold",
     "build:lactate-threshold": "npm run build -w lactate-threshold",
-    "build:deploy": "turbo run build --filter=landing --filter=daily-warmup --filter=tabata --filter=japanese-walking --filter=aerobic --filter=amrap --filter=lactate-threshold --filter=power-intervals --filter=gibala-method --filter=wingate --filter=timmons --filter=emom --filter=ten-twenty-thirty --filter=bio-sync-sixty --filter=master-clock --filter=recovery-pwa && node scripts/copy-standalone-apps-to-dist.cjs",
+    "build:deploy": "turbo run build --filter=landing --filter=universal-activity-hub --filter=daily-warmup --filter=tabata --filter=japanese-walking --filter=aerobic --filter=amrap --filter=lactate-threshold --filter=power-intervals --filter=gibala-method --filter=wingate --filter=timmons --filter=emom --filter=ten-twenty-thirty --filter=bio-sync-sixty --filter=master-clock --filter=recovery-pwa && node scripts/copy-standalone-apps-to-dist.cjs",
     "preview:deploy": "npm run build:deploy && npm run preview -w landing",
     "dev:power-intervals": "npm run dev -w power-intervals",
     "build:power-intervals": "npm run build -w power-intervals",
