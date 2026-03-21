@@ -41,7 +41,8 @@ export default function PastedLibraryWorkoutEditor({
     () =>
       exercises.map((e) => ({
         exerciseName: e.exerciseName,
-        sets: e.sets ?? 0,
+        // WorkoutPlayer uses Array.from({ length: block.sets }) — clamp to 1 to avoid empty sets array
+        sets: Math.max(1, e.sets ?? 1),
         reps: typeof e.reps === 'number' ? String(e.reps) : (e.reps ?? ''),
         restSeconds: e.restSeconds,
         coachNotes: e.coachNotes ?? '',
@@ -218,7 +219,9 @@ export default function PastedLibraryWorkoutEditor({
                         min={1}
                         value={ex.sets || ''}
                         onChange={(e) =>
-                          updateExercise(i, { sets: parseInt(e.target.value, 10) || 0 })
+                          updateExercise(i, {
+                            sets: Math.max(1, parseInt(e.target.value, 10) || 1),
+                          })
                         }
                         className={inputClass}
                       />

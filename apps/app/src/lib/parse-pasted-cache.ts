@@ -32,9 +32,10 @@ function prune(): void {
 }
 
 function evictIfNeeded(): void {
-  if (cache.size <= MAX_ENTRIES) return;
+  // Evict when at or over capacity so set() doesn't exceed MAX_ENTRIES
+  if (cache.size < MAX_ENTRIES) return;
   const entries = [...cache.entries()].sort((a, b) => a[1].expiresAt - b[1].expiresAt);
-  const toDelete = cache.size - MAX_ENTRIES;
+  const toDelete = cache.size - MAX_ENTRIES + 1;
   for (let i = 0; i < toDelete && i < entries.length; i++) {
     cache.delete(entries[i][0]);
   }

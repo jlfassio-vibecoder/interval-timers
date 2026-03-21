@@ -8,6 +8,7 @@
 
 import type { APIRoute } from 'astro';
 import { FUNNEL_EVENTS } from '@interval-timers/analytics';
+import { checkRateLimit } from '@/lib/api-rate-limit';
 import { corsPreflightResponse, getJsonResponseHeaders } from '@/lib/api-cors';
 import { getSupabaseServer } from '@/lib/supabase/server';
 
@@ -31,6 +32,16 @@ export const OPTIONS: APIRoute = () =>
   corsPreflightResponse() ?? new Response(null, { status: 204 });
 
 export const POST: APIRoute = async ({ request }) => {
+  const limit = checkRateLimit('hub-funnel', request);
+  if (!limit.allowed) {
+    const headers: Record<string, string> = { ...getJsonResponseHeaders() };
+    if (limit.retryAfter) headers['Retry-After'] = String(limit.retryAfter);
+    return new Response(JSON.stringify({ error: limit.error }), {
+      status: 429,
+      headers,
+    });
+  }
+
   try {
     let body: HubFunnelBody;
     try {
@@ -54,7 +65,8 @@ export const POST: APIRoute = async ({ request }) => {
       return jsonError('properties exceeds size limit', 400);
     }
 
-    const appId = typeof body.app_id === 'string' ? body.app_id : 'universal_activity_hub';
+    // Ignore client-provided app_id to avoid polluting analytics with arbitrary IDs
+    const appId = 'universal_activity_hub';
 
     const supabase = getSupabaseServer();
     const { error } = await supabase.from('analytics_events').insert({

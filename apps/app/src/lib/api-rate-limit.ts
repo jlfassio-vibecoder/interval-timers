@@ -28,6 +28,7 @@ export interface RateLimitConfig {
 
 const PARSE_CONFIG: RateLimitConfig = { maxRequests: 10, windowMs: 60_000 };
 const HANDOFF_CONFIG: RateLimitConfig = { maxRequests: 30, windowMs: 60_000 };
+const HUB_FUNNEL_CONFIG: RateLimitConfig = { maxRequests: 60, windowMs: 60_000 };
 
 const RATE_LIMIT_ERROR = 'Too many requests. Try again shortly.';
 
@@ -42,11 +43,16 @@ export interface RateLimitResult {
  * Returns { allowed: false, retryAfter } when over limit.
  */
 export function checkRateLimit(
-  routeKey: 'parse' | 'handoff',
+  routeKey: 'parse' | 'handoff' | 'hub-funnel',
   request: Request
 ): RateLimitResult {
   const ip = getClientIp(request);
-  const config = routeKey === 'parse' ? PARSE_CONFIG : HANDOFF_CONFIG;
+  const config =
+    routeKey === 'parse'
+      ? PARSE_CONFIG
+      : routeKey === 'hub-funnel'
+        ? HUB_FUNNEL_CONFIG
+        : HANDOFF_CONFIG;
   const key = `${routeKey}:${ip}`;
 
   const now = Date.now();
@@ -59,6 +65,12 @@ export function checkRateLimit(
   }
 
   entry.timestamps = entry.timestamps.filter((t) => t > cutoff);
+  // Remove entry when empty to prevent unbounded Map growth across many IPs
+  if (entry.timestamps.length === 0) {
+    windows.delete(key);
+    entry = { key, timestamps: [] };
+    windows.set(key, entry);
+  }
   if (entry.timestamps.length >= config.maxRequests) {
     const oldestInWindow = Math.min(...entry.timestamps);
     const retryAfter = Math.ceil((oldestInWindow + config.windowMs - now) / 1000);

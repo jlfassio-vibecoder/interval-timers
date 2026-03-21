@@ -104,8 +104,12 @@ export async function updateSavedWorkout(
   const payload: Record<string, unknown> = {
     updated_at: new Date().toISOString(),
   };
-  if (params.title !== undefined) payload.title = params.title;
-  if (params.workoutSet !== undefined) payload.workout_set = params.workoutSet;
+  if (params.title !== undefined) {
+    payload.title = params.title.trim() || 'Untitled Workout';
+  }
+  if (params.workoutSet !== undefined) {
+    payload.workout_set = toPlainJson(params.workoutSet);
+  }
 
   const { error } = await supabase
     .from('user_saved_workouts')
