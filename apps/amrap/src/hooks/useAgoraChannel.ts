@@ -96,7 +96,8 @@ export function useAgoraChannel(
       tracksRef.current = null
     }
     if (client) {
-      await client.leave()
+      previousLeavePromiseRef.current = client.leave()
+      await previousLeavePromiseRef.current
       client.removeAllListeners()
       clientRef.current = null
     }
