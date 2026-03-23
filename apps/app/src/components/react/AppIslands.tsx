@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import { useAppContext } from '../../contexts/AppContext';
-import { saveWorkoutLog } from '@/lib/supabase/client/workout-logs';
+import { saveWorkoutLog, fetchWorkoutLogsForTraining } from '@/lib/supabase/client/workout-logs';
 import { fetchUserPrograms } from '@/lib/supabase/client/user-programs';
 import type { Artist, Program, WorkoutLog } from '@/types';
 import type { WorkoutInSet } from '@/types/ai-workout';
@@ -83,27 +83,45 @@ const AppIslands: React.FC<AppIslandsProps> = ({ pathname: initialPathname }) =>
   /** Approved exercise slug by normalized name; used for "View full page" link to canonical indexable page. */
   const approvedExerciseSlugByNameRef = useRef<Map<string, string>>(new Map());
 
+  const refetchWorkoutLogs = React.useCallback(async () => {
+    if (!user?.uid) return;
+    const logs = await fetchWorkoutLogsForTraining(user.uid);
+    setWorkoutLogs(logs);
+  }, [user?.uid, setWorkoutLogs]);
+
   useHUDRealtime(user?.uid ?? null, showHUD, {
     onUserWorkoutLogsChange: () => {
       setCalendarRefreshKey((k) => k + 1);
       setHistoryRefreshKey((k) => k + 1);
+      refetchWorkoutLogs();
     },
-    onAmrapResultsChange: () => setHistoryRefreshKey((k) => k + 1),
+    onAmrapResultsChange: () => {
+      setHistoryRefreshKey((k) => k + 1);
+      refetchWorkoutLogs();
+    },
     onAmrapSessionsChange: () => setCalendarRefreshKey((k) => k + 1),
     onWorkoutLogsChange: () => {
       setCalendarRefreshKey((k) => k + 1);
       setHistoryRefreshKey((k) => k + 1);
+      refetchWorkoutLogs();
     },
   });
+
+  useEffect(() => {
+    if (showHUD && user?.uid) {
+      refetchWorkoutLogs();
+    }
+  }, [showHUD, user?.uid, refetchWorkoutLogs]);
 
   useEffect(() => {
     const handler = () => {
       setCalendarRefreshKey((k) => k + 1);
       setHistoryRefreshKey((k) => k + 1);
+      refetchWorkoutLogs();
     };
     window.addEventListener('calendar:refresh', handler);
     return () => window.removeEventListener('calendar:refresh', handler);
-  }, []);
+  }, [refetchWorkoutLogs]);
 
   const stateRef = useRef({
     selectedExercise: null as Exercise | null,

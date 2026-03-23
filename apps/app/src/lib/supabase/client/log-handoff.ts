@@ -72,6 +72,40 @@ export interface LogHandoffResult {
   error?: string;
 }
 
+/** Wait for Supabase session to be ready (OAuth redirect race). Retry with delay. */
+async function ensureSessionAndInsert(
+  row: Record<string, unknown>,
+  maxRetries = 3,
+  delayMs = 300
+): Promise<LogHandoffResult> {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session?.user?.id) {
+      if (attempt < maxRetries - 1) {
+        await new Promise((r) => setTimeout(r, delayMs));
+        continue;
+      }
+      return { ok: false, error: 'Session not ready' };
+    }
+    const { error } = await supabase.from('workout_logs').insert(row);
+    if (error) {
+      if (error.code === '23505') return { ok: true };
+      if (error.code === 'PGRST301' || error.message?.includes('403')) {
+        if (attempt < maxRetries - 1) {
+          await new Promise((r) => setTimeout(r, delayMs));
+          continue;
+        }
+      }
+      if (import.meta.env.DEV) console.error('[logHandoffSession]', error.code, error.message);
+      return { ok: false, error: error.message };
+    }
+    return { ok: true };
+  }
+  return { ok: false, error: 'Session not ready' };
+}
+
 /**
  * Validate handoff and insert one row into workout_logs. Idempotent: duplicate
  * handoff_dedupe_key results in success (no second row).
@@ -114,14 +148,5 @@ export async function logHandoffSession(
     handoff_dedupe_key,
   };
 
-  const { error } = await supabase.from('workout_logs').insert(row);
-
-  if (error) {
-    if (error.code === '23505') {
-      return { ok: true };
-    }
-    if (import.meta.env.DEV) console.error('[logHandoffSession]', error);
-    return { ok: false, error: error.message };
-  }
-  return { ok: true };
+  return ensureSessionAndInsert(row);
 }

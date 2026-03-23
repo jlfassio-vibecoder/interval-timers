@@ -7,7 +7,7 @@
  * showAuthModal/showAuthModalWithSignup for AppIslands' AuthModal.
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, startTransition } from 'react';
 import { useAppContext } from '@/contexts/AppContext';
 import {
   parseHandoffFromUrl,
@@ -97,31 +97,37 @@ const AccountLanding: React.FC = () => {
     }
   }, []);
 
-  // Phase 3: after auth, log handoff session once and clear storage
+  // Phase 3: after auth, log handoff session once and clear storage.
+  // Brief delay lets Supabase client stabilize after OAuth redirect before insert.
   useEffect(() => {
     const uid = user?.uid ?? session?.user?.id;
     if (!handoff || handoff.intent !== 'save_session' || !uid || prefillAttemptedRef.current) {
       return;
     }
     prefillAttemptedRef.current = true;
-    logHandoffSession(handoff, uid).then((result) => {
-      if (result.ok) {
-        try {
-          sessionStorage.removeItem(HANDOFF_STORAGE_KEY);
-        } catch {
-          // ignore
-        }
-        setHandoff(null);
-        window.dispatchEvent(new CustomEvent('calendar:refresh'));
-      }
-      setPrefillResult(result.ok ? { success: true, source: handoff.source } : { success: false });
-      trackEvent(
-        supabase,
-        result.ok ? 'account_session_prefill_success' : 'account_session_prefill_fail',
-        { source: handoff.source },
-        { userId: uid, appId: 'app' }
-      );
-    });
+    const timeoutId = setTimeout(() => {
+      logHandoffSession(handoff, uid).then((result) => {
+        startTransition(() => {
+          if (result.ok) {
+            try {
+              sessionStorage.removeItem(HANDOFF_STORAGE_KEY);
+            } catch {
+              // ignore
+            }
+            setHandoff(null);
+            window.dispatchEvent(new CustomEvent('calendar:refresh'));
+          }
+          setPrefillResult(result.ok ? { success: true, source: handoff.source } : { success: false });
+        });
+        trackEvent(
+          supabase,
+          result.ok ? 'account_session_prefill_success' : 'account_session_prefill_fail',
+          { source: handoff.source },
+          { userId: uid, appId: 'app' }
+        );
+      });
+    }, 150);
+    return () => clearTimeout(timeoutId);
   }, [handoff, user?.uid, session?.user?.id]);
 
   // OAuth return: emit account_login_complete or account_signup_complete when session appears after redirect
