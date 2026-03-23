@@ -74,6 +74,9 @@ export interface AmrapSessionEngine {
   /** When true, finished-state summary and actions are hidden (recap dismissed, ready for next workout). */
   recapDismissed?: boolean;
 
+  /** Free-workout segment: hide LOG ROUND and show host-led copy instead of exercise list. */
+  isFreeWorkoutSegment?: boolean;
+
   /** Loading/error states */
   loading?: boolean;
   error?: string | null;

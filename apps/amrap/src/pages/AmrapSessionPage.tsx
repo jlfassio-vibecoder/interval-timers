@@ -11,6 +11,7 @@ import DailyWarmupSessionOverlay from '@/components/DailyWarmupSessionOverlay';
 import PostWorkoutRecapModal from '@/components/PostWorkoutRecapModal';
 import RecoveryQrModal from '@/components/RecoveryQrModal';
 import ViewResultsModal from '@/components/ViewResultsModal';
+import FreeWorkoutTimerModal from '@/components/FreeWorkoutTimerModal';
 
 export default function AmrapSessionPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -218,6 +219,14 @@ export default function AmrapSessionPage() {
         onClose={pageState.handleCloseNewWorkoutModal}
         onSelect={pageState.handleNewWorkoutSelect}
         isHost={pageState.isHost}
+      />
+
+      <FreeWorkoutTimerModal
+        isOpen={pageState.showFreeWorkoutModal}
+        onClose={pageState.handleCloseFreeWorkoutModal}
+        onStart={async (durationSec) => {
+          await pageState.startFreeWorkout(durationSec);
+        }}
       />
 
       <DailyWarmupSessionOverlay

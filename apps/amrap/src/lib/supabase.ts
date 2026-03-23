@@ -48,6 +48,8 @@ export type AmrapSessionRow = {
   show_new_workout_modal?: boolean;
   show_warmup_overlay?: boolean;
   warmup_started_at?: string | null;
+  /** amrap = structured AMRAP; free_workout = host-led countdown after recap */
+  timer_segment?: 'amrap' | 'free_workout';
 };
 
 /** Session fields safe to expose to all clients; exclude host_token to prevent takeover. */

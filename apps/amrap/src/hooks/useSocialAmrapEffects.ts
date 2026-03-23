@@ -17,7 +17,12 @@ const TIMER_COMPLETE_ROUNDS_GRACE_MS = 1500; // allow late round rows from realt
 export interface UseSocialAmrapEffectsInput {
   participants: AmrapParticipantRow[];
   timerState: SessionTimerState;
-  session: { scheduled_start_at?: string | null; workout_list?: string[]; duration_minutes?: number } | null;
+  session: {
+    scheduled_start_at?: string | null;
+    workout_list?: string[];
+    duration_minutes?: number;
+    timer_segment?: 'amrap' | 'free_workout';
+  } | null;
   isHost: boolean;
   sessionId: string | undefined;
   participantId: string | null;
@@ -155,6 +160,7 @@ export function useSocialAmrapEffects(
     timerCompleteTrackedRef.current = true;
     timerCompleteTimeoutRef.current = setTimeout(() => {
       timerCompleteTimeoutRef.current = null;
+      if (session?.timer_segment === 'free_workout') return;
       const pid = participantIdRef.current;
       const r = roundsRef.current;
       const t = totalTimeRef.current;
@@ -176,14 +182,14 @@ export function useSocialAmrapEffects(
         timerCompleteTimeoutRef.current = null;
       }
     };
-  }, [timerState]);
+  }, [timerState, session?.timer_segment]);
 
   useEffect(() => {
     if (timerState !== 'finished') {
       guestCompletedAtRef.current = null;
       return;
     }
-    if (!user && sessionId && participantId) {
+    if (!user && sessionId && participantId && session?.timer_segment !== 'free_workout') {
       if (!guestCompletedAtRef.current) {
         guestCompletedAtRef.current = new Date().toISOString();
       }
@@ -197,7 +203,16 @@ export function useSocialAmrapEffects(
         guestCompletedAtRef.current
       );
     }
-  }, [timerState, user, sessionId, participantId, rounds, session?.workout_list, session?.duration_minutes]);
+  }, [
+    timerState,
+    user,
+    sessionId,
+    participantId,
+    rounds,
+    session?.workout_list,
+    session?.duration_minutes,
+    session?.timer_segment,
+  ]);
 
   return { animatingIds, countdownSeconds, now };
 }

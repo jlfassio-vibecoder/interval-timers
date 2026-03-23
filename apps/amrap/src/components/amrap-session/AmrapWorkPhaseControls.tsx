@@ -9,6 +9,8 @@ export interface AmrapWorkPhaseControlsProps {
   logRoundError: string | null;
   timerState: 'setup' | 'work' | 'finished';
   onLogRound: () => void;
+  /** When true (free-workout segment), hide rounds count and LOG ROUND */
+  hideAmrapRounds?: boolean;
   /** Optional content between rounds count and LOG ROUND button (e.g. exercise list) */
   children?: React.ReactNode;
 }
@@ -18,10 +20,22 @@ export default function AmrapWorkPhaseControls({
   logRoundError,
   timerState,
   onLogRound,
+  hideAmrapRounds = false,
   children,
 }: AmrapWorkPhaseControlsProps) {
   if (timerState !== 'setup' && timerState !== 'work') {
     return null;
+  }
+
+  if (hideAmrapRounds && timerState === 'work') {
+    return (
+      <div className="mt-8 flex flex-col items-center px-2 text-center">
+        <p className="max-w-md text-lg text-white/85">
+          Host-led exercises — use the remaining time. Follow the host; rounds are not logged in this
+          segment.
+        </p>
+      </div>
+    );
   }
 
   return (

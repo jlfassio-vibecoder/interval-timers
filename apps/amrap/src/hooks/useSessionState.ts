@@ -5,6 +5,8 @@ import type { AmrapSessionPublic } from '@/lib/supabase';
 
 export type SessionTimerState = 'waiting' | 'setup' | 'work' | 'finished';
 
+export type AmrapTimerSegment = 'amrap' | 'free_workout';
+
 const THROTTLE_PUSH_MS = 3000;
 
 export interface UseSessionStateResult {
@@ -20,11 +22,15 @@ export interface UseSessionStateResult {
     time_left_sec: number;
     is_paused: boolean;
     started_at?: string | null;
+    /** When set, updates DB segment; omit or null leaves segment unchanged (COALESCE) */
+    timer_segment?: AmrapTimerSegment | null;
   }) => Promise<boolean>;
   skipSetup: () => void;
   finish: () => void;
   startWork: () => void;
   startSetup: () => void;
+  /** Host only: from finished → work with free_workout segment (synced countdown) */
+  startFreeWorkout: (durationSec: number) => Promise<boolean>;
 }
 
 export function useSessionState(
@@ -49,6 +55,7 @@ export function useSessionState(
       time_left_sec: number;
       is_paused: boolean;
       started_at?: string | null;
+      timer_segment?: AmrapTimerSegment | null;
     }) => {
       if (!sessionId || !hostToken || !isHost) return false;
       const { data, error } = await supabase.rpc('update_session_state', {
@@ -58,6 +65,21 @@ export function useSessionState(
         p_time_left_sec: payload.time_left_sec,
         p_is_paused: payload.is_paused,
         p_started_at: payload.started_at ?? null,
+        p_timer_segment: payload.timer_segment ?? null,
+      });
+      if (error) return false;
+      return (data as number) > 0;
+    },
+    [sessionId, hostToken, isHost]
+  );
+
+  const startFreeWorkout = useCallback(
+    async (durationSec: number) => {
+      if (!sessionId || !hostToken || !isHost) return false;
+      const { data, error } = await supabase.rpc('start_free_workout_timer', {
+        p_session_id: sessionId,
+        p_host_token: hostToken,
+        p_duration_sec: durationSec,
       });
       if (error) return false;
       return (data as number) > 0;
@@ -74,6 +96,7 @@ export function useSessionState(
       time_left_sec: totalTime,
       is_paused: false,
       started_at: new Date().toISOString(),
+      timer_segment: 'amrap',
     });
   }, [totalTime, pushState]);
 
@@ -92,6 +115,7 @@ export function useSessionState(
       time_left_sec: totalTime,
       is_paused: false,
       started_at: new Date().toISOString(),
+      timer_segment: 'amrap',
     });
   }, [totalTime, pushState]);
 
@@ -103,6 +127,7 @@ export function useSessionState(
       state: 'setup',
       time_left_sec: SETUP_DURATION_SECONDS,
       is_paused: false,
+      timer_segment: 'amrap',
     });
   }, [pushState]);
 
@@ -131,6 +156,7 @@ export function useSessionState(
                 time_left_sec: totalTime,
                 is_paused: false,
                 started_at: new Date().toISOString(),
+                timer_segment: 'amrap',
               });
             }
             return totalTime;
@@ -175,5 +201,6 @@ export function useSessionState(
     finish,
     startWork,
     startSetup,
+    startFreeWorkout,
   };
 }
