@@ -224,9 +224,7 @@ export default function AmrapSessionPage() {
       <FreeWorkoutTimerModal
         isOpen={pageState.showFreeWorkoutModal}
         onClose={pageState.handleCloseFreeWorkoutModal}
-        onStart={async (durationSec) => {
-          await pageState.startFreeWorkout(durationSec);
-        }}
+        onStart={(durationSec) => pageState.startFreeWorkout(durationSec)}
       />
 
       <DailyWarmupSessionOverlay

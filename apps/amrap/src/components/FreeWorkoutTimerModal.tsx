@@ -1,7 +1,7 @@
 /**
  * Host-only: pick duration for synced free-workout countdown (post-recap segment).
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 
 const PRESETS_MIN = [5, 10, 15, 20] as const;
@@ -10,7 +10,8 @@ const MAX_MIN = 120;
 export interface FreeWorkoutTimerModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onStart: (durationSec: number) => void | Promise<void>;
+  /** Returns true on success; modal stays open on false so caller can surface error. */
+  onStart: (durationSec: number) => Promise<boolean>;
 }
 
 export default function FreeWorkoutTimerModal({
@@ -21,19 +22,30 @@ export default function FreeWorkoutTimerModal({
   const [customMin, setCustomMin] = useState('');
   const [busy, setBusy] = useState(false);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !busy) onClose();
+    };
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [isOpen, busy, onClose]);
+
   if (!isOpen) return null;
 
   const parseCustom = (): number | null => {
-    const n = parseInt(customMin.trim(), 10);
-    if (Number.isNaN(n) || n < 1 || n > MAX_MIN) return null;
+    const trimmed = customMin.trim();
+    if (trimmed === '' || !/^\d+$/.test(trimmed)) return null;
+    const n = parseInt(trimmed, 10);
+    if (n < 1 || n > MAX_MIN) return null;
     return n;
   };
 
   const handlePreset = async (min: number) => {
     setBusy(true);
     try {
-      await onStart(min * 60);
-      onClose();
+      const ok = await onStart(min * 60);
+      if (ok) onClose();
     } finally {
       setBusy(false);
     }
@@ -44,8 +56,8 @@ export default function FreeWorkoutTimerModal({
     if (min == null) return;
     setBusy(true);
     try {
-      await onStart(min * 60);
-      onClose();
+      const ok = await onStart(min * 60);
+      if (ok) onClose();
     } finally {
       setBusy(false);
     }
@@ -100,6 +112,7 @@ export default function FreeWorkoutTimerModal({
             type="number"
             min={1}
             max={MAX_MIN}
+            step={1}
             value={customMin}
             onChange={(e) => setCustomMin(e.target.value)}
             placeholder="Minutes"

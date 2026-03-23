@@ -82,7 +82,14 @@ export function useSessionState(
         p_duration_sec: durationSec,
       });
       if (error) return false;
-      return (data as number) > 0;
+      const ok = (data as number) > 0;
+      if (ok) {
+        // Optimistic update so host sees countdown immediately (Realtime will confirm)
+        setTimerState('work');
+        setTimeLeft(durationSec);
+        setIsPaused(false);
+      }
+      return ok;
     },
     [sessionId, hostToken, isHost]
   );
