@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { AuthModal } from '@interval-timers/auth-ui';
-import { ACCOUNT_REDIRECT_URL } from '@/lib/account-redirect-url';
+import { ACCOUNT_REDIRECT_URL, HUD_REDIRECT_URL } from '@/lib/account-redirect-url';
 import { useSocialAmrap } from '@/hooks/useSocialAmrap';
 import { getWorkoutTitleAndDuration } from '@/lib/workoutLabel';
 import AmrapSessionShell from '@/components/amrap-session/AmrapSessionShell';
@@ -14,10 +14,16 @@ import ViewResultsModal from '@/components/ViewResultsModal';
 
 export default function AmrapSessionPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
-  const result = useSocialAmrap(sessionId);
+  const result = useSocialAmrap(sessionId, {
+    onDismissFinishedRecap: () => setRecapDismissed(true),
+  });
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authModalSignUp, setAuthModalSignUp] = useState(false);
   const [recapDismissed, setRecapDismissed] = useState(false);
+
+  useEffect(() => {
+    if (result.timerPhase !== 'finished') setRecapDismissed(false);
+  }, [result.timerPhase]);
 
   if (!sessionId) {
     return (
@@ -43,12 +49,41 @@ export default function AmrapSessionPage() {
       <div className="min-h-screen bg-[#0d0500] text-white">
         <div className="px-4 py-4">
           <div className="mb-4 flex items-center justify-between gap-2">
-            <Link
-              to="/with-friends"
-              className="shrink-0 text-sm font-bold text-white/70 hover:text-orange-400"
-            >
-              ← Exit session
-            </Link>
+            {result.timerPhase === 'finished' ? (
+              <div className="flex shrink-0 items-center gap-2">
+                {recapDismissed ? (
+                  <Link
+                    to="/with-friends"
+                    className="rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm font-bold text-white transition-colors hover:bg-white/20"
+                  >
+                    ← Exit session
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setRecapDismissed(true)}
+                    className="rounded-lg border-2 border-orange-500 bg-orange-600 px-3 py-2 text-sm font-bold text-white transition-colors hover:bg-orange-500"
+                  >
+                    Continue
+                  </button>
+                )}
+                <a
+                  href={HUD_REDIRECT_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm font-bold text-white transition-colors hover:bg-white/20"
+                >
+                  View in History
+                </a>
+              </div>
+            ) : (
+              <Link
+                to="/with-friends"
+                className="shrink-0 text-sm font-bold text-white/70 hover:text-orange-400"
+              >
+                ← Exit session
+              </Link>
+            )}
             <span
               className="min-w-0 flex-1 truncate text-center text-sm font-medium text-white/90"
               title={
@@ -134,6 +169,39 @@ export default function AmrapSessionPage() {
         </div>
 
         <AmrapSessionShell engine={result} />
+
+        {result.timerPhase === 'finished' && (
+          <div
+            className="fixed bottom-0 left-0 right-0 z-40 flex gap-3 border-t border-white/10 bg-[#0d0500]/95 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-sm sm:hidden"
+            role="navigation"
+            aria-label="Workout complete actions"
+          >
+            {recapDismissed ? (
+              <Link
+                to="/with-friends"
+                className="flex-1 rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-center font-bold text-white transition-colors hover:bg-white/20"
+              >
+                Exit session
+              </Link>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setRecapDismissed(true)}
+                className="flex-1 rounded-xl border-2 border-orange-500 bg-orange-600 px-4 py-3 text-center font-bold text-white transition-colors hover:bg-orange-500"
+              >
+                Continue
+              </button>
+            )}
+            <a
+              href={HUD_REDIRECT_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-center font-bold text-white transition-colors hover:bg-white/20"
+            >
+              View in History
+            </a>
+          </div>
+        )}
       </div>
 
       <AuthModal
@@ -168,6 +236,16 @@ export default function AmrapSessionPage() {
         onCopyResults={pageState.copyResults}
         onViewResults={pageState.handleOpenViewResults}
         recoveryUrl={pageState.recoveryUrl}
+        showSignInCta={!pageState.user}
+        onSignInClick={
+          !pageState.user
+            ? () => {
+                setRecapDismissed(true);
+                setAuthModalSignUp(false);
+                setShowAuthModal(true);
+              }
+            : undefined
+        }
       />
 
       <ViewResultsModal

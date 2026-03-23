@@ -68,6 +68,9 @@ export interface AmrapSessionEngine {
   /** Duration in minutes (for finished-state summary) */
   durationMinutes?: number;
 
+  /** When true, show visual celebration on transition to finished (Social only). */
+  celebrateFinish?: boolean;
+
   /** Loading/error states */
   loading?: boolean;
   error?: string | null;

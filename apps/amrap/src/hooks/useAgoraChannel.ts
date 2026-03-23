@@ -193,11 +193,15 @@ export function useAgoraChannel(
           hint =
             ' — Enable App Certificate requires a token. Add VITE_AGORA_TOKEN or disable App Certificate for testing.'
         } else if (
-          (msg.includes('CAN_NOT_GET_GATEWAY') || msg.includes('invalid token')) &&
-          msg.toLowerCase().includes('authorized')
+          msg.toLowerCase().includes('invalid token') ||
+          msg.toLowerCase().includes('authorized failed') ||
+          msg.toLowerCase().includes('token rejected') ||
+          (msg.includes('CAN_NOT_GET_GATEWAY') && msg.toLowerCase().includes('authorized'))
         ) {
           hint =
-            ' — Token rejected: ensure VITE_AGORA_APP_ID and VITE_AGORA_APP_CERTIFICATE match in Vercel (build + runtime) and Agora Console.'
+            ' — Check env: VITE_AGORA_APP_ID and VITE_AGORA_APP_CERTIFICATE must match Agora Console. Enable App Certificate. Dev: npm run dev:amrap:video.'
+        } else if (msg.toLowerCase().includes('uid') && (msg.includes('conflict') || msg.includes('duplicate'))) {
+          hint = ' — UID/account conflict: rejoin the session or refresh.'
         }
         setError(msg + hint)
       }

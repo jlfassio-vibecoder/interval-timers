@@ -2,20 +2,25 @@
 
 **Scope:** The real-time collaborative AMRAP session experience: Agora video (host livestream, participant video in leaderboard cards), Supabase Realtime state sync, session flow (create/join → waiting → setup → work → finished), and supporting features (message board, Who's Here, warmup overlay, new workout modal).
 
-**Components:** `useSocialAmrap`, `useAgoraChannel`, `useAmrapSession`, `useSessionState`, `AmrapSessionPage`, `AmrapSessionShell`, `LeaderboardRow`, `VideoTile`, `VideoSourcePlayer`, `SessionMessageBoard`, `DailyWarmupSessionOverlay`, `NewWorkoutModal`, Agora token API
+**Components:** `useSocialAmrap`, `useSocialAmrapEffects`, `socialAmrapUtils`, `AmrapAuthContext`, `useAgoraChannel`, `useAmrapSession`, `useSessionState`, `AmrapSessionPage`, `AmrapSessionShell`, `LeaderboardRow`, `VideoTile`, `VideoSourcePlayer`, `SessionMessageBoard`, `DailyWarmupSessionOverlay`, `NewWorkoutModal`, Agora token API
 
-**Date:** March 23, 2025
+**Date:** March 23, 2026
+
+**Recently shipped (PR #97 / `fixes/amrap`):** `AmrapAuthContext` avoids awaiting `fetchProfile` inside `onAuthStateChange` (defers via `queueMicrotask`) to prevent Supabase auth lock deadlocks; 3s safety timeout and `mountedRef` guards avoid indefinite loading and updates after unmount. Social AMRAP side effects moved to `useSocialAmrapEffects` (animations, scheduled countdown, finish sound, `timer_session_complete` with `source: 'amrap_friends'`, guest result save); pure helpers live in `socialAmrapUtils`.
 
 ---
 
 ## Current Behavior Summary
 
 - **Session flow:** Host creates via RPC (`create_session`), joins via `join_session`; both navigate to `/with-friends/session/:sessionId`
-- **Video:** Agora channel per session; `participant_id` used as uid; host livestream below timer during waiting/setup/work (hidden in finished); participant video as leaderboard card backgrounds
+- **Video:** Agora channel per session; `participant_id` used as uid; host livestream below timer during waiting/setup/work/finished; participant video as leaderboard card backgrounds
 - **State sync:** Supabase Realtime on `amrap_sessions`, `amrap_participants`, `amrap_rounds`; host pushes state via `update_session_state` RPC
 - **Phases:** waiting → setup (10s) → work → finished
 - **Features:** Copy share link, message board, Who's Here, warmup overlay (host video), New Workout modal (host), Post-workout recap, View results, Copy results, Recovery QR (desktop→phone), guest session history
+- **Session as container:** Live session is a container for warmup overlay, first AMRAP, and multiple AMRAPs via host **New Workout** (when finished, host picks next workout and timer returns to setup). **Continue** dismisses recap without leaving; **Exit session** leaves the stream. Future: cooldown interval.
 - **Graceful degradation:** Session works without video; `agoraError` surfaced as banner; VideoSourcePlayer handles both Agora tracks and MediaStream (solo)
+- **Auth (`AmrapAuthContext`):** Session/user updates in `onAuthStateChange` stay synchronous; profile load runs outside the callback; loading clears after profile completes, on sign-out, or after a 3s safety timeout if the profile query stalls.
+- **Social effects (`useSocialAmrapEffects`):** Join animations, waiting-room countdown and host auto-start at `scheduled_start_at`, finish chime (`'finish'` via shared audio context pattern), analytics grace window for late realtime rounds, idempotent guest history save when the session ends.
 
 ---
 
@@ -26,12 +31,14 @@
 | **Unified real-time stack** | Supabase Realtime + Agora provide coordinated state and video. Single source of truth (DB) for timer, rounds, participants; video maps cleanly via `participant_id` as Agora uid. |
 | **Graceful video degradation** | If Agora fails (token, permissions, network), session continues. `agoraError` shown as banner; leaderboard and host slot render without video. No hard dependency on camera. |
 | **Host-centric control model** | Host owns start/skip/pause/finish, New Workout modal, warmup overlay. Clear role separation; participants focus on workout and rounds. |
-| **Video in context** | Host livestream positioned below timer (setup/work) for instruction; participant video embedded in leaderboard cards for accountability. Video serves purpose, not vanity. |
+| **Video in context** | Host livestream positioned below timer (setup/work/finished) for instruction and debrief; participant video embedded in leaderboard cards for accountability. Video serves purpose, not vanity. |
 | **Token security** | Production Agora token API validates participant exists in `amrap_participants` before issuance. Prevents arbitrary channel join. |
 | **Shared shell architecture** | `AmrapSessionShell` + `AmrapSessionEngine` support both Solo and Social; `LeaderboardRow` via `VideoSourcePlayer` handles Agora and MediaStream. Reduces duplication. |
 | **Copy share link** | One-tap copy for host; join flow requires session ID + nickname. Low friction for invite. |
 | **Post-workout flow** | Recap modal, View results, Copy results, Recovery QR. Multiple exit paths; authenticated users get HUD history via `amrap_session_results`. |
 | **Warmup overlay** | Host can run warmup with video before main workout; `DailyWarmupSessionOverlay` reuses host video track. |
+| **Resilient auth init** | Profile fetch is deferred out of `onAuthStateChange` so nested Supabase work does not contend for the same auth lock; safety timeout + mount guards reduce indefinite spinners and stray updates after unmount. |
+| **Composable Social code** | `socialAmrapUtils` centralizes formatting and leaderboard math; `useSocialAmrapEffects` isolates timed/audio/analytics/guest-save behavior so `useSocialAmrap` stays focused on orchestration and UI. |
 
 ---
 
@@ -39,16 +46,12 @@
 
 | Area | Description |
 |------|-------------|
-| **Host livestream hidden in finished** | Host video tile removed when `timerState === 'finished'`. No debrief/celebration on video; abrupt cut from "work" to text-only. |
-| **No post-workout celebration** | Solo AMRAP uses `playSound('finish')`; Social has no sound or visual celebration. Transition feels flat. |
+| **Post-workout celebration is subtle** | Finish sound + particle burst (Social) align with Solo; optional host-led debrief UI remains an opportunity. |
 | **No video/audio toggles** | Users cannot turn camera/mic off in-session. Always-on video may discourage participation (bandwidth, privacy, appearance). |
-| **Token and env fragility** | Agora token requires `VITE_AGORA_APP_ID`, `VITE_AGORA_APP_CERTIFICATE`; "invalid token, authorized failed" often from env mismatch or cert not enabled. Dev needs token server or proxy. |
-| **No explicit exit CTA in finished** | Only "← Exit session" in header. No prominent "Done" or "View in History" in finished state. |
-| **Anonymous users without history** | Guests don't get `amrap_session_results` rows. `saveGuestSessionResult` helps locally, but no cross-device history until account. |
-| **Heavy `useSocialAmrap`** | Hook is ~1000 lines; mixes session, Agora, UI slots, modals, auth. Hard to test and reason about. |
-| **Auth loading blocks create and session flows for signed-in users** | When `fetchProfile` or `onAuthStateChange` never settles (or auth init deadlocks), create/join and session fetch stay blocked. Ties to `authLoading` and `useAmrapSession`'s `startFetch: !authLoading` in AmrapWithFriendsPage and useSocialAmrap. |
+| **Token and env fragility** | Agora token requires `VITE_AGORA_APP_ID`, `VITE_AGORA_APP_CERTIFICATE`; "invalid token, authorized failed" often from env mismatch or cert not enabled. See `docs/ROADMAP_AMRAP_VIDEO_INTEGRATION.md` troubleshooting checklist; client error hints improved. |
+| **Anonymous users without history** | Guests don't get `amrap_session_results` rows. `saveGuestSessionResult` stores locally; Recent sessions (this device) + sign-in CTA after finish improve awareness. Phase B (claim RPC) would enable cross-device sync. |
+| **Large `useSocialAmrap` surface** | Core hook still coordinates Agora, UI slots, modals, and session join/create flows; helpers and effects are extracted but the file remains a dense integration point. |
 | **Message board persistence** | Unclear if messages persist across refreshes; UX may suggest ephemeral chat. |
-| **No analytics for Social finish** | Solo tracks `timer_session_complete`; Social does not emit equivalent for With Friends sessions. |
 
 ---
 
@@ -56,14 +59,12 @@
 
 | Area | Description |
 |------|-------------|
-| **Keep host livestream in finished** | Show host video during debrief so participants can celebrate, ask questions, say goodbye before exiting. |
 | **Video/audio toggles** | Add camera on/off, mic mute in session. `useAgoraChannel` already exposes `muteVideo`, `muteAudio`; wire to UI. |
-| **Post-workout celebration** | Add `playSound('finish')` on transition to finished; optional confetti or pulse. Align with Solo AMRAP. |
-| **Explicit exit CTA** | Add "Done" / "View in History" button in finished state; link to HUD HistoryZone or `/with-friends`. |
-| **Analytics for Social** | Emit `timer_session_complete` with `source: 'amrap_friends'` and session metadata for funnel and retention. |
+| **Richer post-workout celebration** | Optional host-led debrief UI or additional flourish on top of the existing finish sound and particle burst. |
+| **Deeper Social analytics** | Extend `timer_session_complete` (already emitted with `source: 'amrap_friends'`) with session id, participant count, or funnel metadata as needed. |
 | **Scheduled sessions** | `scheduled_start_at` exists on `amrap_sessions`; calendar integration could surface upcoming sessions and reminders. |
 | **Recording/playback** | Agora supports cloud recording; optional "Save replay" for host could drive retention and sharing. |
-| **Refactor `useSocialAmrap`** | Split into `useAmrapSessionData`, `useAgoraVideo`, `useSessionModals`; compose in page. |
+| **Further split `useSocialAmrap`** | Continue extracting Agora wiring, modal state, or join/create RPCs into focused hooks; `socialAmrapUtils` + `useSocialAmrapEffects` are first steps. |
 | **Guest → account handoff** | When guest creates account, merge `saveGuestSessionResult` data into `amrap_session_results` so past sessions appear in HUD. |
 
 ---
@@ -96,3 +97,6 @@
 - **Solo vs Social:** Same `AmrapSessionShell` and `LeaderboardRow`; Social injects `videoTrack` from `useAgoraChannel` via `participantsEngine`.
 - **Host livestream slot:** Rendered in `useSocialAmrap` `hostLivestreamSlot`, passed as `engine.slots.afterTimer`; `AmrapSessionShell` renders it between timer and controls.
 - **Recovery QR:** Desktop users can open PWA on phone via QR when finished; `recoveryUrl` built from `buildRecoveryUrl`.
+- **Auth + session gating:** Pages that gate fetches on `authLoading` (e.g. With Friends create/join) rely on `AmrapAuthProvider` settling promptly; deferred profile fetch keeps that path from deadlocking on the Supabase auth lock.
+- **Social analytics path:** `useSocialAmrapEffects` fires `timer_session_complete` after a short grace period so late `amrap_rounds` rows from Realtime are included in the round count.
+- **Multi-workout follow-ups:** Rounds are cumulative per `session_id`; leaderboard shows totals across all AMRAP segments in the livestream. HUD `amrap_session_results` overwrites per finish; multi-segment aggregation may need schema work later. Cooldown interval planned for future.

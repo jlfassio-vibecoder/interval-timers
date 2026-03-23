@@ -175,6 +175,28 @@ Plan for integrating Agora video streams into the AMRAP With Friends session pag
 
 ---
 
+## Agora token troubleshooting checklist
+
+When video fails to load ("invalid token, authorized failed", "Token rejected", etc.), verify in order:
+
+| Check | Action |
+|-------|--------|
+| **VITE_AGORA_APP_ID** | 32 hex chars. Must match Agora Console exactly. No spaces. Set in `.env` (dev) and Vercel env (prod). |
+| **VITE_AGORA_APP_CERTIFICATE** | 32 hex chars. Enable "App Certificate" in Agora Console; copy the Certificate (not App ID). Set in `.env` (dev) and Vercel env (prod). |
+| **Agora Console** | App Certificate must be **enabled**. Token mode and certificate mode are mutually exclusive. |
+| **Dev: token server** | Run `npm run dev:amrap:video` so Vite + token server both run. Proxy `/api/agora-token` to token server. |
+| **Prod: token endpoint** | `/api/agora-token` must be deployed (Vercel serverless). `AGORA_TOKEN_ALLOWED_ORIGINS` (comma-separated) must include your site origin. |
+| **VITE_AGORA_TOKEN_BASE_URL** | Only if token is served from another origin (e.g. custom domain). Leave unset for same-origin. |
+| **Participant in session** | Token API verifies participant exists in `amrap_participants`. Join the session before video loads. |
+| **CORS** | If `AGORA_TOKEN_ALLOWED_ORIGINS` is set, your site's origin must be in the list. |
+
+Common causes of "invalid token, authorized failed":
+1. App ID or Certificate mismatch between env and Agora Console
+2. Certificate not enabled in Agora Console (project uses "testing" token mode)
+3. Extra spaces or copy-paste errors in env vars
+
+---
+
 ## Out of Scope (For This Roadmap)
 
 - Full trainer-chat UI (grid layout, separate call page)

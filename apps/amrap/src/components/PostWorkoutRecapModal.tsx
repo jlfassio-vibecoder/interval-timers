@@ -1,10 +1,10 @@
 /**
  * Optional recap modal shown once when the workout finishes.
- * Shows summary and actions: Done, View in History, View results (when onViewResults provided), Copy results.
+ * Primary action "Continue" dismisses the recap and keeps the user in the live session.
+ * Other actions: View in History, View results (when onViewResults provided), Copy results.
  * Optionally shows "Continue on phone" QR when recoveryUrl is provided.
  */
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { X } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { HUD_REDIRECT_URL } from '@/lib/account-redirect-url';
@@ -19,6 +19,10 @@ export interface PostWorkoutRecapModalProps {
   onViewResults?: () => void;
   /** When provided, shows "Continue on phone" section with QR code and copy link */
   recoveryUrl?: string | null;
+  /** When true, shows "Sign in to save sessions to your History" CTA for guests */
+  showSignInCta?: boolean;
+  /** Called when guest taps sign-in CTA; use to open auth modal */
+  onSignInClick?: () => void;
 }
 
 export default function PostWorkoutRecapModal({
@@ -29,8 +33,9 @@ export default function PostWorkoutRecapModal({
   onCopyResults,
   onViewResults,
   recoveryUrl = null,
+  showSignInCta = false,
+  onSignInClick,
 }: PostWorkoutRecapModalProps) {
-  const navigate = useNavigate();
   const [recoveryCopyToast, setRecoveryCopyToast] = useState<'success' | 'error' | null>(null);
 
   useEffect(() => {
@@ -44,9 +49,8 @@ export default function PostWorkoutRecapModal({
 
   if (!isOpen) return null;
 
-  const handleDone = () => {
+  const handleContinue = () => {
     onClose();
-    navigate('/with-friends');
   };
 
   const handleViewInHistory = () => {
@@ -106,6 +110,23 @@ export default function PostWorkoutRecapModal({
         <h2 id="recap-modal-title" className="mb-2 pr-8 text-xl font-bold text-white">
           Workout complete!
         </h2>
+        {showSignInCta && onSignInClick && (
+          <div className="mb-4 rounded-xl border border-orange-500/30 bg-orange-600/10 p-4">
+            <p className="mb-2 text-sm text-white/90">
+              Sign in to save sessions to your History across devices.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onSignInClick();
+              }}
+              className="rounded-lg border border-orange-500/50 bg-orange-600/30 px-3 py-2 text-sm font-bold text-orange-200 transition-colors hover:bg-orange-600/50"
+            >
+              Sign in
+            </button>
+          </div>
+        )}
         <p className="mb-6 text-white/80">
           {myRounds > 0
             ? `You did ${myRounds} round${myRounds === 1 ? '' : 's'} in ${durationMinutes} min.`
@@ -151,10 +172,10 @@ export default function PostWorkoutRecapModal({
         <div className="flex flex-col gap-3">
           <button
             type="button"
-            onClick={handleDone}
+            onClick={handleContinue}
             className="rounded-xl border-2 border-orange-500 bg-orange-600 px-4 py-3 font-bold text-white transition-colors hover:bg-orange-500"
           >
-            Done
+            Continue
           </button>
           <button
             type="button"
