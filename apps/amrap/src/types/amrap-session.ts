@@ -71,6 +71,9 @@ export interface AmrapSessionEngine {
   /** When true, show visual celebration on transition to finished (Social only). */
   celebrateFinish?: boolean;
 
+  /** When true, finished-state summary and actions are hidden (recap dismissed, ready for next workout). */
+  recapDismissed?: boolean;
+
   /** Loading/error states */
   loading?: boolean;
   error?: string | null;
