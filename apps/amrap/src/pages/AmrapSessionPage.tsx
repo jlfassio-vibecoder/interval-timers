@@ -19,6 +19,7 @@ export default function AmrapSessionPage() {
   const [recapDismissed, setRecapDismissed] = useState(false);
   const result = useSocialAmrap(sessionId, {
     onDismissFinishedRecap: () => setRecapDismissed(true),
+    recapDismissed,
   });
 
   useEffect(() => {

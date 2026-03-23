@@ -112,7 +112,7 @@ export default function AmrapSessionShell({ engine }: AmrapSessionShellProps) {
             }
             onLogRound={onLogRound}
           />
-          {timerPhase === 'finished' && (
+          {timerPhase === 'finished' && !engine.recapDismissed && (
             <>
               <div className="mt-6 text-lg text-white/80 animate-finished-pulse-once">
                 {engine.myRounds > 0

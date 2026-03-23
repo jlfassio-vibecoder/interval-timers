@@ -44,6 +44,8 @@ const COUNTDOWN_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
 export interface UseSocialAmrapOptions {
   /** Called when user dismisses the post-workout recap; keeps them in the live session */
   onDismissFinishedRecap?: () => void;
+  /** When true, finished-state controls and round counts are hidden (ready for next workout) */
+  recapDismissed?: boolean;
 }
 
 export function useSocialAmrap(
@@ -382,7 +384,11 @@ export function useSocialAmrap(
   const roundDurations = elapsed.map((e, i) =>
     i === 0 ? e : e - (elapsed[i - 1] ?? 0)
   );
-  const leaderboard = buildLeaderboard(participants, rounds);
+  const recapDismissed = options?.recapDismissed ?? false;
+  // When recap dismissed, clear round display for next workout segment
+  const roundsForDisplay =
+    recapDismissed && timerState === 'finished' ? [] : rounds;
+  const leaderboard = buildLeaderboard(participants, roundsForDisplay);
   const hostParticipant = participants.find((p) => p.role === 'host');
 
   const timerStyle = getTimerStyles(timerState);
@@ -525,6 +531,7 @@ export function useSocialAmrap(
     workoutList,
     durationMinutes: session?.duration_minutes,
     celebrateFinish: true,
+    recapDismissed: recapDismissed && timerState === 'finished',
 
     loading: loading,
     error: error ?? null,
@@ -636,7 +643,7 @@ export function useSocialAmrap(
   const onDismissFinishedRecap = options?.onDismissFinishedRecap;
 
   const finishedActionsSlot =
-    timerState === 'finished' ? (
+    timerState === 'finished' && !recapDismissed ? (
       <div className="mt-8 flex flex-col gap-3 border-t border-white/10 pt-6">
         <div className="flex flex-wrap gap-3">
           {onDismissFinishedRecap ? (
