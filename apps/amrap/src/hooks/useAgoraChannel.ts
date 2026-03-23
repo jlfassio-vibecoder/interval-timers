@@ -96,7 +96,8 @@ export function useAgoraChannel(
       tracksRef.current = null
     }
     if (client) {
-      await client.leave()
+      previousLeavePromiseRef.current = client.leave()
+      await previousLeavePromiseRef.current
       client.removeAllListeners()
       clientRef.current = null
     }
@@ -149,6 +150,8 @@ export function useAgoraChannel(
       removeRemoteUser(user.uid)
     })
 
+    let cancelled = false
+
     const run = async () => {
       try {
         setError(null)
@@ -156,21 +159,31 @@ export function useAgoraChannel(
           await previousLeavePromiseRef.current
           previousLeavePromiseRef.current = null
         }
+        if (cancelled) return
         const result = await getTokenOrFetchWithAccount(channelName, participantId)
+        if (cancelled) return
         if ('error' in result) {
           if (typeof window !== 'undefined') console.warn('[Agora] Token fetch failed:', result.error)
           setError(result.error)
           return
         }
         await client.join(appId, channelName, result.token, participantId)
+        if (cancelled) return
 
         const [audioTrack, videoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks()
+        if (cancelled) {
+          try { audioTrack.close() } catch { /* ignore */ }
+          try { videoTrack.close() } catch { /* ignore */ }
+          return
+        }
         tracksRef.current = { video: videoTrack, audio: audioTrack }
         await client.publish([audioTrack, videoTrack])
+        if (cancelled) return
         setLocalVideoTrack(videoTrack)
         setLocalAudioTrack(audioTrack)
         setJoined(true)
       } catch (e) {
+        if (cancelled) return
         const msg = e instanceof Error ? e.message : 'Failed to join channel'
         if (typeof window !== 'undefined') console.warn('[Agora] Join failed:', msg, e)
         let hint = ''
@@ -192,6 +205,7 @@ export function useAgoraChannel(
     void run()
 
     return () => {
+      cancelled = true
       const tracks = tracksRef.current
       if (tracks) {
         try {
