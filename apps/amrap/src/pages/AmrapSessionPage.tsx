@@ -12,6 +12,7 @@ import PostWorkoutRecapModal from '@/components/PostWorkoutRecapModal';
 import RecoveryQrModal from '@/components/RecoveryQrModal';
 import ViewResultsModal from '@/components/ViewResultsModal';
 import FreeWorkoutTimerModal from '@/components/FreeWorkoutTimerModal';
+import { Video, VideoOff, Mic, MicOff } from 'lucide-react';
 
 export default function AmrapSessionPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -105,6 +106,58 @@ export default function AmrapSessionPage() {
                 : ''}
             </span>
             <div className="flex flex-1 items-center justify-end gap-2">
+              {pageState.joined &&
+                pageState.participantId &&
+                !pageState.agoraError && (
+                  <div className="flex shrink-0 items-center gap-1 rounded-lg border border-white/15 bg-white/5 p-0.5">
+                    <button
+                      type="button"
+                      onClick={pageState.toggleLocalCamera}
+                      aria-pressed={pageState.localCameraOff}
+                      title={
+                        pageState.localCameraOff
+                          ? 'Turn camera on'
+                          : 'Turn camera off'
+                      }
+                      className={`rounded-md p-2 transition-colors ${
+                        pageState.localCameraOff
+                          ? 'bg-white/15 text-white'
+                          : 'text-white/80 hover:bg-white/10 hover:text-white'
+                      }`}
+                    >
+                      {pageState.localCameraOff ? (
+                        <VideoOff className="h-4 w-4" aria-hidden />
+                      ) : (
+                        <Video className="h-4 w-4" aria-hidden />
+                      )}
+                      <span className="sr-only">
+                        {pageState.localCameraOff ? 'Turn camera on' : 'Turn camera off'}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={pageState.toggleLocalMic}
+                      aria-pressed={pageState.localMicMuted}
+                      title={
+                        pageState.localMicMuted ? 'Unmute microphone' : 'Mute microphone'
+                      }
+                      className={`rounded-md p-2 transition-colors ${
+                        pageState.localMicMuted
+                          ? 'bg-white/15 text-white'
+                          : 'text-white/80 hover:bg-white/10 hover:text-white'
+                      }`}
+                    >
+                      {pageState.localMicMuted ? (
+                        <MicOff className="h-4 w-4" aria-hidden />
+                      ) : (
+                        <Mic className="h-4 w-4" aria-hidden />
+                      )}
+                      <span className="sr-only">
+                        {pageState.localMicMuted ? 'Unmute microphone' : 'Mute microphone'}
+                      </span>
+                    </button>
+                  </div>
+                )}
               {pageState.isHost && (
                 <button
                   type="button"
@@ -231,6 +284,7 @@ export default function AmrapSessionPage() {
         isOpen={session?.show_warmup_overlay === true}
         onClose={pageState.handleCloseWarmupOverlay}
         onStartWarmup={pageState.handleStartWarmup}
+        onWarmupComplete={pageState.handleWarmupComplete}
         isHost={pageState.isHost}
         hostVideoTrack={hostVideoTrack}
         warmupStartedAt={session?.warmup_started_at}

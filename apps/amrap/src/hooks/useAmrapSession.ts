@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import type {
   AmrapSessionRow,
@@ -88,7 +88,7 @@ export function useAmrapSession(
   const fetchSession = useCallback(async (id: string) => {
     const { data, error: e } = await supabase
       .from('amrap_sessions')
-      .select('id, duration_minutes, workout_list, state, time_left_sec, is_paused, started_at, created_at, scheduled_start_at, show_new_workout_modal, show_warmup_overlay, warmup_started_at, timer_segment')
+      .select('id, duration_minutes, workout_list, state, time_left_sec, is_paused, started_at, created_at, scheduled_start_at, show_new_workout_modal, show_warmup_overlay, warmup_started_at, timer_segment, segment_index')
       .eq('id', id)
       .single();
     if (e) {
@@ -221,10 +221,16 @@ export function useAmrapSession(
     ]);
   }, [sessionId, fetchSession, fetchParticipants, fetchRounds]);
 
+  /** Rounds scoped to current segment; during AMRAP shows only this workout's rounds */
+  const roundsForSegment = useMemo(() => {
+    const seg = session?.segment_index ?? 0;
+    return rounds.filter((r) => (r.segment_index ?? 0) === seg);
+  }, [rounds, session?.segment_index]);
+
   return {
     session,
     participants,
-    rounds,
+    rounds: roundsForSegment,
     isHost,
     participantId,
     error,

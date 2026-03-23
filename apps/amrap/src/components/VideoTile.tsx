@@ -15,11 +15,9 @@ export default function VideoTile({ videoTrack, label, className = '' }: VideoTi
     if (!videoTrack || !containerRef.current) return
     videoTrack.play(containerRef.current, { fit: 'cover' })
     return () => {
-      try {
-        videoTrack.stop()
-      } catch {
-        /* already stopped */
-      }
+      // Do NOT call track.stop() — track lifecycle is owned by useAgoraChannel.
+      // Stopping would release the camera and break other consumers (e.g. main page
+      // host feed when overlay closes). Container removal handles DOM cleanup.
     }
   }, [videoTrack])
 

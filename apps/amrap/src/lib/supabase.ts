@@ -50,6 +50,8 @@ export type AmrapSessionRow = {
   warmup_started_at?: string | null;
   /** amrap = structured AMRAP; free_workout = host-led countdown after recap */
   timer_segment?: 'amrap' | 'free_workout';
+  /** 0-based index of current AMRAP workout; increments when host selects New Workout */
+  segment_index?: number;
 };
 
 /** Session fields safe to expose to all clients; exclude host_token to prevent takeover. */
@@ -69,6 +71,8 @@ export type AmrapRoundRow = {
   participant_id: string;
   round_index: number;
   elapsed_sec_at_round: number;
+  /** 0-based index of AMRAP workout this round belongs to */
+  segment_index?: number;
 };
 
 export type AmrapSessionMessageRow = {

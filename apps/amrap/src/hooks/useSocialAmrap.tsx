@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronDown, ChevronUp } from 'lucide-react';
+import { trackEvent } from '@interval-timers/analytics';
 import { supabase } from '@/lib/supabase';
 import {
   useAmrapSession,
@@ -90,6 +91,8 @@ export function useSocialAmrap(
     handleOpenWarmupOverlay: () => Promise<void>;
     handleCloseWarmupOverlay: () => Promise<void>;
     handleStartWarmup: () => Promise<void>;
+    /** Called when host completes warmup overlay timer; persists to training log for all participants. */
+    handleWarmupComplete: (durationSec: number) => void;
     /** Recovery PWA URL for desktop-to-phone QR flow when finished */
     recoveryUrl: string | null;
     showRecoveryQrModal: boolean;
@@ -99,6 +102,11 @@ export function useSocialAmrap(
     handleOpenFreeWorkoutModal: () => void;
     handleCloseFreeWorkoutModal: () => void;
     startFreeWorkout: (durationSec: number) => Promise<boolean>;
+    /** When Agora is connected, camera/mic can be toggled (privacy / bandwidth). */
+    localCameraOff: boolean;
+    localMicMuted: boolean;
+    toggleLocalCamera: () => void;
+    toggleLocalMic: () => void;
   };
 } {
   const { user, loading: authLoading } = useAmrapAuth();
@@ -125,10 +133,40 @@ export function useSocialAmrap(
     isHost,
     hostToken
   );
-  const { joined, localVideoTrack, remoteUsers, error: agoraError } = useAgoraChannel(
-    sessionId ?? '',
-    participantId ?? null
-  );
+  const {
+    joined,
+    localVideoTrack,
+    remoteUsers,
+    error: agoraError,
+    muteVideo,
+    muteAudio,
+  } = useAgoraChannel(sessionId ?? '', participantId ?? null);
+
+  const [localCameraOff, setLocalCameraOff] = useState(false);
+  const [localMicMuted, setLocalMicMuted] = useState(false);
+
+  useEffect(() => {
+    if (!joined) {
+      setLocalCameraOff(false);
+      setLocalMicMuted(false);
+    }
+  }, [joined]);
+
+  const toggleLocalCamera = useCallback(() => {
+    setLocalCameraOff((prev) => {
+      const next = !prev;
+      muteVideo(next);
+      return next;
+    });
+  }, [muteVideo]);
+
+  const toggleLocalMic = useCallback(() => {
+    setLocalMicMuted((prev) => {
+      const next = !prev;
+      muteAudio(next);
+      return next;
+    });
+  }, [muteAudio]);
 
   const {
     timeLeft,
@@ -259,6 +297,22 @@ export function useSocialAmrap(
       p_host_token: hostToken,
     });
   }, [sessionId, hostToken, isHost]);
+
+  const handleWarmupComplete = useCallback(
+    (durationSec: number) => {
+      if (!sessionId || !hostToken || !isHost) return;
+      trackEvent(supabase, 'timer_session_complete', {
+        source: 'amrap_friends_warmup',
+        duration_seconds: durationSec,
+      }, { appId: 'amrap' });
+      void supabase.rpc('persist_amrap_warmup_completion', {
+        p_session_id: sessionId,
+        p_host_token: hostToken,
+        p_duration_sec: durationSec,
+      });
+    },
+    [sessionId, hostToken, isHost]
+  );
 
   const handleNewWorkoutSelect = useCallback(
     async (workoutList: string[], durationMinutes: number) => {
@@ -735,7 +789,11 @@ export function useSocialAmrap(
           if (!hostTrack) return null;
           return (
             <div className="mt-4 min-h-[10rem] overflow-hidden rounded-2xl border border-white/10 bg-black/30">
-              <VideoTile videoTrack={hostTrack} label="Host" />
+              <VideoTile
+                key={session?.show_warmup_overlay ? 'warmup-open' : 'warmup-closed'}
+                videoTrack={hostTrack}
+                label="Host"
+              />
             </div>
           );
         })()
@@ -831,6 +889,7 @@ export function useSocialAmrap(
     handleOpenWarmupOverlay,
     handleCloseWarmupOverlay,
     handleStartWarmup,
+    handleWarmupComplete,
     recoveryUrl,
     showRecoveryQrModal,
     handleOpenRecoveryQr: () => setShowRecoveryQrModal(true),
@@ -839,6 +898,10 @@ export function useSocialAmrap(
     handleOpenFreeWorkoutModal: () => setShowFreeWorkoutModal(true),
     handleCloseFreeWorkoutModal: () => setShowFreeWorkoutModal(false),
     startFreeWorkout,
+    localCameraOff,
+    localMicMuted,
+    toggleLocalCamera,
+    toggleLocalMic,
   };
 
   return {

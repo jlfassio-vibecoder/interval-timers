@@ -16,7 +16,7 @@
 - **Video:** Agora channel per session; `participant_id` used as uid; host livestream below timer during waiting/setup/work/finished; participant video as leaderboard card backgrounds
 - **State sync:** Supabase Realtime on `amrap_sessions`, `amrap_participants`, `amrap_rounds`; host pushes state via `update_session_state` RPC
 - **Phases:** waiting → setup (10s) → work → finished
-- **Features:** Copy share link, message board, Who's Here, warmup overlay (host video), New Workout modal (host), Post-workout recap, View results, Copy results, Recovery QR (desktop→phone), guest session history
+- **Features:** Copy share link, message board (persisted per session in DB; reload restores history), camera/mic toggles when Agora is connected, Who's Here, warmup overlay (host video), New Workout modal (host), Post-workout recap, View results, Copy results, Recovery QR (desktop→phone), guest session history
 - **Session as container:** Live session is a container for warmup overlay, first AMRAP, and multiple AMRAPs via host **New Workout** (when finished, host picks next workout and timer returns to setup). After **Continue** (recap dismissed), the host can start a **Free workout timer** — a server-synced countdown segment (`timer_segment = free_workout`) with no AMRAP round logging. **Continue** dismisses recap without leaving; **Exit session** leaves the stream. Future: cooldown interval; optional `planned_live_minutes` (or similar) for “remaining stream time” hints vs host-chosen segment length.
 - **Graceful degradation:** Session works without video; `agoraError` surfaced as banner; VideoSourcePlayer handles both Agora tracks and MediaStream (solo)
 - **Auth (`AmrapAuthContext`):** Session/user updates in `onAuthStateChange` stay synchronous; profile load runs outside the callback; loading clears after profile completes, on sign-out, or after a 3s safety timeout if the profile query stalls.
@@ -39,6 +39,8 @@
 | **Warmup overlay** | Host can run warmup with video before main workout; `DailyWarmupSessionOverlay` reuses host video track. |
 | **Resilient auth init** | Profile fetch is deferred out of `onAuthStateChange` so nested Supabase work does not contend for the same auth lock; safety timeout + mount guards reduce indefinite spinners and stray updates after unmount. |
 | **Composable Social code** | `socialAmrapUtils` centralizes formatting and leaderboard math; `useSocialAmrapEffects` isolates timed/audio/analytics/guest-save behavior so `useSocialAmrap` stays focused on orchestration and UI. |
+| **In-session camera/mic** | Header toggles call `useAgoraChannel` `muteVideo` / `muteAudio` when the channel is connected; supports privacy and bandwidth without leaving the session. |
+| **Message board persistence** | Messages live in `amrap_session_messages`; initial fetch + Realtime inserts; UI copy states that history survives refresh for the session. |
 
 ---
 
@@ -47,11 +49,9 @@
 | Area | Description |
 |------|-------------|
 | **Post-workout celebration is subtle** | Finish sound + particle burst (Social) align with Solo; optional host-led debrief UI remains an opportunity. |
-| **No video/audio toggles** | Users cannot turn camera/mic off in-session. Always-on video may discourage participation (bandwidth, privacy, appearance). |
 | **Token and env fragility** | Agora token requires `VITE_AGORA_APP_ID`, `VITE_AGORA_APP_CERTIFICATE`; "invalid token, authorized failed" often from env mismatch or cert not enabled. See `docs/ROADMAP_AMRAP_VIDEO_INTEGRATION.md` troubleshooting checklist; client error hints improved. |
 | **Anonymous users without history** | Guests don't get `amrap_session_results` rows. `saveGuestSessionResult` stores locally; Recent sessions (this device) + sign-in CTA after finish improve awareness. Phase B (claim RPC) would enable cross-device sync. |
 | **Large `useSocialAmrap` surface** | Core hook still coordinates Agora, UI slots, modals, and session join/create flows; helpers and effects are extracted but the file remains a dense integration point. |
-| **Message board persistence** | Unclear if messages persist across refreshes; UX may suggest ephemeral chat. |
 
 ---
 
@@ -59,7 +59,6 @@
 
 | Area | Description |
 |------|-------------|
-| **Video/audio toggles** | Add camera on/off, mic mute in session. `useAgoraChannel` already exposes `muteVideo`, `muteAudio`; wire to UI. |
 | **Richer post-workout celebration** | Optional host-led debrief UI or additional flourish on top of the existing finish sound and particle burst. |
 | **Deeper Social analytics** | Extend `timer_session_complete` (already emitted with `source: 'amrap_friends'`) with session id, participant count, or funnel metadata as needed. |
 | **Scheduled sessions** | `scheduled_start_at` exists on `amrap_sessions`; calendar integration could surface upcoming sessions and reminders. |
@@ -99,4 +98,5 @@
 - **Recovery QR:** Desktop users can open PWA on phone via QR when finished; `recoveryUrl` built from `buildRecoveryUrl`.
 - **Auth + session gating:** Pages that gate fetches on `authLoading` (e.g. With Friends create/join) rely on `AmrapAuthProvider` settling promptly; deferred profile fetch keeps that path from deadlocking on the Supabase auth lock.
 - **Social analytics path:** `useSocialAmrapEffects` fires `timer_session_complete` after a short grace period so late `amrap_rounds` rows from Realtime are included in the round count.
-- **Multi-workout follow-ups:** Rounds are cumulative per `session_id`; leaderboard shows totals across all AMRAP segments in the livestream. HUD `amrap_session_results` overwrites per finish; multi-segment aggregation may need schema work later. Cooldown interval planned for future.
+- **Multi-workout follow-ups:** Rounds are scoped per segment (`segment_index`); each AMRAP workout in a session gets its own `amrap_session_results` row and `workout_logs` entry. Leaderboard during a workout shows only that segment’s rounds. HUD/Training Log shows one row per segment (e.g. "AMRAP With Friends — Burpees", "AMRAP With Friends — Air Squats"). Cooldown interval planned for future.
+- **Training log consistency:** AMRAP main workout → `persist_amrap_session_results` (trigger on `state='finished'`, `timer_segment='amrap'`); uses `segment_index` and dedupe key `amrap_with_friends:{user_id}:{session_id}:{segment_index}`. Daily Warmup overlay → `persist_amrap_warmup_completion` RPC (host-only, on natural completion). Free workout timer → `persist_free_workout_completion` (trigger when `timer_segment='free_workout'`); writes to `workout_logs` with `source='amrap_with_friends_free'`. See `docs/TRAINING_LOG_SOURCES.md`.

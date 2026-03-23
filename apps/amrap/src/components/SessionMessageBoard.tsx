@@ -57,7 +57,10 @@ export default function SessionMessageBoard({
     <div
       className={`flex flex-col rounded-2xl border border-white/10 bg-black/30 p-4 lg:sticky lg:top-4 ${className}`}
     >
-      <h3 className="mb-3 text-lg font-bold text-white">Message board</h3>
+      <h3 className="mb-1 text-lg font-bold text-white">Message board</h3>
+      <p className="mb-3 text-xs text-white/45">
+        Messages are saved for this session and reappear after you refresh.
+      </p>
 
       {isFinished && (
         <p className="mb-3 rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-white/80">

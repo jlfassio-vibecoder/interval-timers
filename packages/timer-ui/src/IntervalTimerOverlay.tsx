@@ -36,6 +36,8 @@ export interface IntervalTimerOverlayTheme {
 interface IntervalTimerOverlayProps {
   timeline: HIITTimelineBlock[];
   onClose: () => void;
+  /** Called when timer naturally completes (last block ends). Use for persist; onClose still runs after. */
+  onComplete?: (durationSec: number) => void;
   theme?: IntervalTimerOverlayTheme;
   /** Enriched warmup exercises (imageUrl, instructions, subtitle, mistakeCorrections). When provided, used for the warmup wheel and sidebar content (image, subtitle, step-by-step, mistakes & corrections). */
   warmupExercises?: WarmupExercise[];
@@ -64,6 +66,7 @@ const DEFAULT_THEME: IntervalTimerOverlayTheme = { workBg: 'bg-red-600' };
 const IntervalTimerOverlay: React.FC<IntervalTimerOverlayProps> = ({
   timeline,
   onClose,
+  onComplete,
   theme = DEFAULT_THEME,
   warmupExercises,
   warmupDurationPerExercise = WARMUP_DURATION_PER_EXERCISE,
@@ -189,6 +192,8 @@ const IntervalTimerOverlay: React.FC<IntervalTimerOverlayProps> = ({
 
   const handlePhaseTransition = useCallback(() => {
     if (currentIndex >= timeline.length - 1) {
+      const totalSec = timeline.reduce((s, b) => s + b.duration, 0);
+      onComplete?.(totalSec);
       onClose();
       return;
     }
@@ -197,7 +202,7 @@ const IntervalTimerOverlay: React.FC<IntervalTimerOverlayProps> = ({
     const next = timeline[nextIdx];
     setCurrentIndex(nextIdx);
     setTimeLeft(next?.duration ?? 0);
-  }, [currentIndex, timeline, onClose]);
+  }, [currentIndex, timeline, onClose, onComplete]);
 
   const handlePrevious = useCallback(() => {
     if (isTransitioningToNext) {

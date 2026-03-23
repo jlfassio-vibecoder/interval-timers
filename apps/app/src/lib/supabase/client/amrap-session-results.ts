@@ -9,6 +9,8 @@ import { supabase } from '../supabase-instance';
 export interface AmrapSessionResult {
   id: string;
   session_id: string;
+  /** Per-segment index; each AMRAP workout in a session gets its own row */
+  segment_index: number;
   total_rounds: number;
   workout_list: string[];
   duration_minutes: number;
@@ -55,6 +57,7 @@ export async function getAmrapSessionResults(
   const rows = (data ?? []) as Array<{
     id: string;
     session_id: string;
+    segment_index: number;
     total_rounds: number;
     workout_list: unknown;
     duration_minutes: number;
@@ -66,6 +69,7 @@ export async function getAmrapSessionResults(
   return rows.map((row) => ({
     id: row.id,
     session_id: row.session_id,
+    segment_index: row.segment_index ?? 0,
     total_rounds: row.total_rounds ?? 0,
     workout_list: normalizeWorkoutList(row.workout_list),
     duration_minutes: row.duration_minutes ?? 0,
