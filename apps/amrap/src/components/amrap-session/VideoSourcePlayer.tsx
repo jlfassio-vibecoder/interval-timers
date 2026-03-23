@@ -46,11 +46,9 @@ export default function VideoSourcePlayer({ source, className }: VideoSourcePlay
     const track = source as ICameraVideoTrack | IRemoteVideoTrack;
     track.play(container, { fit: 'cover' });
     return () => {
-      try {
-        track.stop();
-      } catch {
-        /* already stopped */
-      }
+      // Do NOT call track.stop() — track lifecycle is owned by useAgoraChannel.
+      // Stopping would release the camera (local) and break other consumers
+      // (e.g. host feed when warmup overlay closes). Container removal handles DOM cleanup.
     };
   }, [source]);
 

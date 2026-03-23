@@ -128,14 +128,14 @@ export async function fetchWorkoutLogsForTraining(uid: string): Promise<WorkoutL
 
   const amrapLogs: WorkoutLog[] = amrapResults
     .filter((r) => {
-      const key = `amrap_with_friends:${uid}:${r.session_id}`;
+      const key = `amrap_with_friends:${uid}:${r.session_id}:${r.segment_index}`;
       return !existingDedupeKeys.has(key);
     })
     .map((r) => {
       const dateStr = r.completed_at.slice(0, 10);
       const durationSeconds = (r.duration_minutes ?? 0) * 60;
       return {
-        id: `amrap:${r.session_id}`,
+        id: `amrap:${r.session_id}:${r.segment_index}`,
         userId: uid,
         workoutName: r.workout_name ?? 'AMRAP With Friends',
         date: dateStr,

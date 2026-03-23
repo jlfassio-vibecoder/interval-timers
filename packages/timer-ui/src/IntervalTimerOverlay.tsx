@@ -36,6 +36,8 @@ export interface IntervalTimerOverlayTheme {
 interface IntervalTimerOverlayProps {
   timeline: HIITTimelineBlock[];
   onClose: () => void;
+  /** Called when timer naturally completes (last block ends). Use for persist; onClose still runs after. */
+  onComplete?: (durationSec: number) => void;
   theme?: IntervalTimerOverlayTheme;
   /** Enriched warmup exercises (imageUrl, instructions, subtitle, mistakeCorrections). When provided, used for the warmup wheel and sidebar content (image, subtitle, step-by-step, mistakes & corrections). */
   warmupExercises?: WarmupExercise[];
@@ -64,6 +66,7 @@ const DEFAULT_THEME: IntervalTimerOverlayTheme = { workBg: 'bg-red-600' };
 const IntervalTimerOverlay: React.FC<IntervalTimerOverlayProps> = ({
   timeline,
   onClose,
+  onComplete,
   theme = DEFAULT_THEME,
   warmupExercises,
   warmupDurationPerExercise = WARMUP_DURATION_PER_EXERCISE,
@@ -98,6 +101,8 @@ const IntervalTimerOverlay: React.FC<IntervalTimerOverlayProps> = ({
   });
   const readyPlayedThisRestRef = useRef(false);
   const prevBlockTypeRef = useRef<HIITTimelineBlock['type'] | null>(null);
+  /** Set only when timeLeft hits 0 (natural completion); not set when user clicks Skip. */
+  const completedNaturallyRef = useRef(false);
 
   // Auto-start mirrors manual START: play warmup bell when first block is warmup, then start
   useEffect(() => {
@@ -189,6 +194,12 @@ const IntervalTimerOverlay: React.FC<IntervalTimerOverlayProps> = ({
 
   const handlePhaseTransition = useCallback(() => {
     if (currentIndex >= timeline.length - 1) {
+      // Planned duration (sum of blocks); not wall-clock (transitions/pause add time). Kept for consistency with prescribed workout length.
+      const totalSec = timeline.reduce((s, b) => s + b.duration, 0);
+      if (completedNaturallyRef.current) {
+        completedNaturallyRef.current = false;
+        onComplete?.(totalSec);
+      }
       onClose();
       return;
     }
@@ -197,7 +208,7 @@ const IntervalTimerOverlay: React.FC<IntervalTimerOverlayProps> = ({
     const next = timeline[nextIdx];
     setCurrentIndex(nextIdx);
     setTimeLeft(next?.duration ?? 0);
-  }, [currentIndex, timeline, onClose]);
+  }, [currentIndex, timeline, onClose, onComplete]);
 
   const handlePrevious = useCallback(() => {
     if (isTransitioningToNext) {
@@ -333,8 +344,10 @@ const IntervalTimerOverlay: React.FC<IntervalTimerOverlayProps> = ({
   }, [isTransitioningToNext, transitionCountdown]);
 
   useEffect(() => {
-    if (currentBlock && hasStarted && !isPaused && !isTransitioningToNext && timeLeft === 0)
+    if (currentBlock && hasStarted && !isPaused && !isTransitioningToNext && timeLeft === 0) {
+      completedNaturallyRef.current = true;
       queueMicrotask(() => handlePhaseTransition());
+    }
   }, [currentBlock, hasStarted, isPaused, isTransitioningToNext, timeLeft, handlePhaseTransition]);
 
   // Use same index as WarmUpWheel/counter; clamp only when indexing into warmupList.

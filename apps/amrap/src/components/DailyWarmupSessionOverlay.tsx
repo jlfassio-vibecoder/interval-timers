@@ -21,6 +21,8 @@ interface DailyWarmupSessionOverlayProps {
   isOpen: boolean;
   onClose: () => Promise<void>;
   onStartWarmup: () => Promise<void>;
+  /** Called when timer completes naturally (not on early close). Host only; persists to training log. */
+  onWarmupComplete?: (durationSec: number) => void;
   isHost: boolean;
   hostVideoTrack?: ICameraVideoTrack | IRemoteVideoTrack | null;
   warmupStartedAt?: string | null;
@@ -30,6 +32,7 @@ export default function DailyWarmupSessionOverlay({
   isOpen,
   onClose,
   onStartWarmup,
+  onWarmupComplete,
   isHost,
   hostVideoTrack,
   warmupStartedAt,
@@ -75,6 +78,12 @@ export default function DailyWarmupSessionOverlay({
 
   const handleClose = useCallback(() => onClose(), [onClose]);
   const handleStartWarmup = useCallback(() => onStartWarmup(), [onStartWarmup]);
+  const handleComplete = useCallback(
+    (durationSec: number) => {
+      onWarmupComplete?.(durationSec);
+    },
+    [onWarmupComplete]
+  );
 
   const timerStarted = Boolean(warmupStartedAt);
   const showStartButton = !timerStarted && isHost;
@@ -93,6 +102,7 @@ export default function DailyWarmupSessionOverlay({
         <IntervalTimerOverlay
           timeline={frozenConfig.timeline}
           onClose={handleClose}
+          onComplete={isHost ? handleComplete : undefined}
           hideClose={!isHost}
           theme={{ workBg: WARMUP_ACCENT.workBg }}
           warmupExercises={frozenConfig.exercises}

@@ -19,7 +19,9 @@ Training Log aggregates sessions from **`workout_logs`** and **`user_workout_log
 | `mindful` | Handoff | `sha256(userId\|intent\|source\|timestamp)` | — |
 | `aerobic` | Handoff | `sha256(userId\|intent\|source\|timestamp)` | — |
 | `bio-sync60` | Handoff | `sha256(userId\|intent\|source\|timestamp)` | — |
-| `amrap_with_friends` | DB sync (`persist_amrap_session_results`) | `amrap_with_friends:{user_id}:{session_id}` | `shared.amrap_session_results` |
+| `amrap_with_friends` | DB sync (`persist_amrap_session_results`) | `amrap_with_friends:{user_id}:{session_id}:{segment_index}` | `shared.amrap_session_results` |
+| `amrap_with_friends_warmup` | DB sync (`persist_amrap_warmup_completion`) | `amrap_with_friends_warmup:{user_id}:{session_id}` | — |
+| `amrap_with_friends_free` | DB sync (`persist_free_workout_completion`) | `amrap_with_friends_free:{user_id}:{session_id}:{epoch}` | — |
 | `universal_activity_hub` | Hub Log Past (`PastedQuickLogPage` → `saveWorkoutLog`) | — | — |
 | *(null)* | Manual / summary (`saveWorkoutLog`) | — | — |
 | *(Readiness)* | `readiness.ts` (workout_name='Readiness') | — | — |
@@ -57,7 +59,7 @@ Program gym logs store `exercises` as JSON on `user_workout_logs`. Per-side pres
 
 For timers with their own DB tables (e.g. AMRAP With Friends):
 
-1. **Domain table** stores full session data (rounds, participants, etc.).
+1. **Domain table** stores full session data (rounds, participants, etc.). AMRAP uses `segment_index` so each AMRAP workout and each free workout in a session is persisted as its own row.
 2. **Trigger / RPC** on completion calls `SECURITY DEFINER` function.
 3. Function upserts domain table **and** inserts into `workout_logs` with stable `handoff_dedupe_key`.
 4. Use `completed_at::date` (or session timezone) for `workout_logs.date`, not server `current_date`.
@@ -79,7 +81,7 @@ Use AMRAP With Friends as the reference implementation:
    - Upsert into domain table.
    - Insert/upsert into `workout_logs` with:
      - `source` = stable string (e.g. `amrap_with_friends`).
-     - `handoff_dedupe_key` = `{source}:{user_id}:{session_id}` (matches unique partial index).
+     - `handoff_dedupe_key` = `{source}:{user_id}:{session_id}` (or `...:{segment_index}` for per-segment sources like AMRAP; matches unique partial index).
      - `date` = `(now())::date` (completion date).
      - `duration_seconds`, `rounds`, `workout_name`, etc.
 4. **Backfill** – One-time `INSERT ... SELECT` from domain table into `workout_logs` for existing rows, with `ON CONFLICT DO NOTHING`.
