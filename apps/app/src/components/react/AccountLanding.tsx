@@ -99,13 +99,15 @@ const AccountLanding: React.FC = () => {
 
   // Phase 3: after auth, log handoff session once and clear storage.
   // Brief delay lets Supabase client stabilize after OAuth redirect before insert.
+  // Set prefillAttemptedRef inside timeout so effect re-runs can reschedule if cleanup cleared a prior timeout.
   useEffect(() => {
     const uid = user?.uid ?? session?.user?.id;
     if (!handoff || handoff.intent !== 'save_session' || !uid || prefillAttemptedRef.current) {
       return;
     }
-    prefillAttemptedRef.current = true;
     const timeoutId = setTimeout(() => {
+      if (prefillAttemptedRef.current) return;
+      prefillAttemptedRef.current = true;
       logHandoffSession(handoff, uid).then((result) => {
         startTransition(() => {
           if (result.ok) {

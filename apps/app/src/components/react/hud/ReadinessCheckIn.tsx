@@ -11,8 +11,10 @@ import { getReadiness, saveReadiness } from '@/lib/supabase/client/readiness';
 const EMOJIS = ['😴', '😐', '🙂', '💪', '🔥'];
 const LABELS = ['Poor', 'Okay', 'Good', 'Strong', 'Fire'];
 
-function todayISO(): string {
-  return new Date().toISOString().slice(0, 10);
+/** Return YYYY-MM-DD for today in the user's local timezone. */
+function localTodayISO(): string {
+  const n = new Date();
+  return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`;
 }
 
 export interface ReadinessCheckInProps {
@@ -22,7 +24,7 @@ export interface ReadinessCheckInProps {
 const ReadinessCheckIn: React.FC<ReadinessCheckInProps> = ({ userId }) => {
   const [score, setScore] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
-  const today = todayISO();
+  const today = localTodayISO();
 
   const load = useCallback(async () => {
     const s = await getReadiness(userId, today);

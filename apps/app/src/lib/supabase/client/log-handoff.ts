@@ -58,6 +58,12 @@ function parseTimeToSeconds(time: string | null | undefined): number | null {
   return Number.isFinite(secs) && secs >= 0 ? secs : null;
 }
 
+/** Return YYYY-MM-DD for a timestamp in the user's local timezone. */
+function localDateISO(ms: number): string {
+  const d = new Date(ms);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 /** SHA-256 of input string, hex-encoded (for handoff_dedupe_key). */
 async function sha256Hex(input: string): Promise<string> {
   const buf = new TextEncoder().encode(input);
@@ -127,7 +133,8 @@ export async function logHandoffSession(
   }
 
   const workoutName = SOURCE_TO_WORKOUT_NAME[handoff.source] ?? handoff.source;
-  const dateIso = new Date().toISOString().slice(0, 10);
+  const refTime = handoff.timestamp ?? now;
+  const dateIso = localDateISO(refTime);
   const durationSeconds = parseTimeToSeconds(handoff.time);
   const dedupePayload = `${userId}|${handoff.intent}|${handoff.source}|${handoff.timestamp ?? now}`;
   const handoff_dedupe_key = await sha256Hex(dedupePayload);
