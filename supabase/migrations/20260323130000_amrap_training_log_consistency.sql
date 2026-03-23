@@ -151,3 +151,4 @@ $$;
 
 REVOKE EXECUTE ON FUNCTION public.persist_amrap_warmup_completion(uuid, text, int) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.persist_amrap_warmup_completion(uuid, text, int) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.persist_amrap_warmup_completion(uuid, text, int) TO anon;

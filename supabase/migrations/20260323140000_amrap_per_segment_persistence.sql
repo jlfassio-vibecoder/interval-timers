@@ -9,22 +9,27 @@
 -- 7. persist_amrap_session_results: filter rounds by segment, use segment in dedupe key
 -- 8. persist_free_workout_completion: new RPC, called from trigger when timer_segment='free_workout'
 -- 9. on_amrap_session_finished: branch to persist_free_workout when free_workout
+--
+-- PREREQUISITE: amrap_sessions must exist (from 20250305000000). If this migration fails with
+-- "relation public.amrap_sessions does not exist", run all prior migrations first:
+--   Local:  supabase db reset
+--   Remote: supabase db push (ensure remote has 20250305..2026032313 applied)
 
 -- 1. Add segment_index to amrap_sessions
-ALTER TABLE public.amrap_sessions
+ALTER TABLE amrap_sessions
   ADD COLUMN IF NOT EXISTS segment_index int NOT NULL DEFAULT 0;
 
 -- 2. Add free_workout_duration_sec (set when free workout starts; used by persist on finish)
-ALTER TABLE public.amrap_sessions
+ALTER TABLE amrap_sessions
   ADD COLUMN IF NOT EXISTS free_workout_duration_sec int;
 
 -- Re-grant SELECT to include new columns
-REVOKE ALL ON public.amrap_sessions FROM anon, authenticated;
+REVOKE ALL ON amrap_sessions FROM anon, authenticated;
 GRANT SELECT (
   id, duration_minutes, workout_list, state, time_left_sec, is_paused, started_at,
   created_at, scheduled_start_at, created_by_user_id, show_new_workout_modal,
   show_warmup_overlay, warmup_started_at, timer_segment, segment_index, free_workout_duration_sec
-) ON public.amrap_sessions TO anon, authenticated;
+) ON amrap_sessions TO anon, authenticated;
 
 -- 3. Update start_free_workout_timer to set free_workout_duration_sec
 CREATE OR REPLACE FUNCTION public.start_free_workout_timer(
@@ -44,7 +49,7 @@ BEGIN
     RAISE EXCEPTION 'duration_sec must be between 1 and 7200';
   END IF;
 
-  UPDATE public.amrap_sessions
+  UPDATE amrap_sessions
   SET
     state = 'work',
     time_left_sec = p_duration_sec,
@@ -62,14 +67,17 @@ END;
 $$;
 
 -- 4. Add segment_index to amrap_rounds
-ALTER TABLE public.amrap_rounds
+ALTER TABLE amrap_rounds
   ADD COLUMN IF NOT EXISTS segment_index int NOT NULL DEFAULT 0;
 
 -- 5. Drop old unique constraint, add new one with segment_index
-ALTER TABLE public.amrap_rounds
+ALTER TABLE amrap_rounds
   DROP CONSTRAINT IF EXISTS amrap_rounds_session_participant_round_unique;
 
-ALTER TABLE public.amrap_rounds
+ALTER TABLE amrap_rounds
+  DROP CONSTRAINT IF EXISTS amrap_rounds_session_participant_segment_round_unique;
+
+ALTER TABLE amrap_rounds
   ADD CONSTRAINT amrap_rounds_session_participant_segment_round_unique
   UNIQUE (session_id, participant_id, segment_index, round_index);
 
@@ -132,7 +140,7 @@ BEGIN
     RETURN 0;
   END IF;
 
-  UPDATE public.amrap_sessions
+  UPDATE amrap_sessions
   SET
     workout_list = p_workout_list,
     duration_minutes = p_duration_minutes,
@@ -153,6 +161,9 @@ UPDATE shared.amrap_session_results SET segment_index = 0 WHERE segment_index IS
 -- Drop old unique (user_id, session_id), add new (user_id, session_id, segment_index)
 ALTER TABLE shared.amrap_session_results
   DROP CONSTRAINT IF EXISTS amrap_session_results_user_id_session_id_key;
+
+ALTER TABLE shared.amrap_session_results
+  DROP CONSTRAINT IF EXISTS amrap_session_results_user_session_segment_key;
 
 ALTER TABLE shared.amrap_session_results
   ADD CONSTRAINT amrap_session_results_user_session_segment_key
@@ -277,7 +288,8 @@ BEGIN
     RETURN;
   END IF;
 
-  v_free_index := extract(epoch from now())::bigint;
+  -- Millisecond precision avoids collision when two free workouts finish in same second
+  v_free_index := (extract(epoch from clock_timestamp()) * 1000)::bigint;
 
   FOR v_participant IN
     SELECT p.id, p.user_id FROM amrap_participants p
@@ -357,8 +369,13 @@ $$;
 -- 13. Backfill workout_logs: migrate existing amrap_with_friends rows to segment 0 key format
 -- Old key: amrap_with_friends:{user_id}:{session_id}
 -- New key: amrap_with_friends:{user_id}:{session_id}:0
-UPDATE public.workout_logs
-SET handoff_dedupe_key = handoff_dedupe_key || ':0'
-WHERE source = 'amrap_with_friends'
-  AND handoff_dedupe_key IS NOT NULL
-  AND handoff_dedupe_key !~ ':[0-9]+$';
+-- Skip rows where target key already exists (idempotent for re-runs)
+UPDATE public.workout_logs wl
+SET handoff_dedupe_key = wl.handoff_dedupe_key || ':0'
+WHERE wl.source = 'amrap_with_friends'
+  AND wl.handoff_dedupe_key IS NOT NULL
+  AND wl.handoff_dedupe_key !~ ':[0-9]+$'
+  AND NOT EXISTS (
+    SELECT 1 FROM public.workout_logs w2
+    WHERE w2.handoff_dedupe_key = wl.handoff_dedupe_key || ':0'
+  );
