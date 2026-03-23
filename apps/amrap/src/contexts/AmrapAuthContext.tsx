@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { User, Session } from '@supabase/supabase-js';
 
@@ -37,6 +37,7 @@ export function AmrapAuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<AmrapProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const mountedRef = useRef(true);
 
   const fetchProfile = async (userId: string) => {
     try {
@@ -45,6 +46,7 @@ export function AmrapAuthProvider({ children }: { children: React.ReactNode }) {
         .select('trial_ends_at, amrap_trial_ends_at, purchased_index')
         .eq('id', userId)
         .maybeSingle();
+      if (!mountedRef.current) return;
       if (!error && data) {
         setProfile({
           amrap_trial_ends_at: data.trial_ends_at ?? data.amrap_trial_ends_at ?? null,
@@ -54,9 +56,10 @@ export function AmrapAuthProvider({ children }: { children: React.ReactNode }) {
         setProfile(null);
       }
     } catch {
+      if (!mountedRef.current) return;
       setProfile(null);
     } finally {
-      setLoading(false);
+      if (mountedRef.current) setLoading(false);
     }
   };
 
@@ -64,21 +67,38 @@ export function AmrapAuthProvider({ children }: { children: React.ReactNode }) {
   // both acquire the same navigator.locks auth-token lock; in production (or with StrictMode
   // double-mount) that can cause "Lock was stolen by another request" and break the app when
   // logged in. onAuthStateChange emits INITIAL_SESSION with the current session on subscribe.
+  // Do NOT await fetchProfile inside the callback—Supabase holds locks during the callback;
+  // awaiting nested Supabase calls can deadlock. Defer profile fetch outside the critical path.
   useEffect(() => {
+    mountedRef.current = true;
+
+    // Safety: never hang indefinitely if fetchProfile stalls (e.g. profiles RLS, network).
+    const safetyTimer = setTimeout(() => {
+      if (mountedRef.current) setLoading(false);
+    }, 3000);
+
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, s) => {
+    } = supabase.auth.onAuthStateChange((_event, s) => {
+      if (!mountedRef.current) return;
       setSession(s);
       setUser(s?.user ?? null);
       if (s?.user) {
-        await fetchProfile(s.user.id);
+        const userId = s.user.id;
+        queueMicrotask(() => {
+          void fetchProfile(userId);
+        });
       } else {
         setProfile(null);
         setLoading(false);
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mountedRef.current = false;
+      clearTimeout(safetyTimer);
+      subscription.unsubscribe();
+    };
   }, []);
 
   const hasFullAccess = useMemo(() => {
