@@ -95,6 +95,10 @@ export function useSocialAmrap(
     showRecoveryQrModal: boolean;
     handleOpenRecoveryQr: () => void;
     handleCloseRecoveryQr: () => void;
+    showFreeWorkoutModal: boolean;
+    handleOpenFreeWorkoutModal: () => void;
+    handleCloseFreeWorkoutModal: () => void;
+    startFreeWorkout: (durationSec: number) => Promise<boolean>;
   };
 } {
   const { user, loading: authLoading } = useAmrapAuth();
@@ -136,6 +140,7 @@ export function useSocialAmrap(
     skipSetup,
     finish,
     startSetup,
+    startFreeWorkout,
   } = sessionState;
 
   const [logRoundError, setLogRoundError] = useState<string | null>(null);
@@ -150,6 +155,7 @@ export function useSocialAmrap(
   const [showViewResultsModal, setShowViewResultsModal] = useState(false);
   const [viewResultsText, setViewResultsText] = useState('');
   const [showRecoveryQrModal, setShowRecoveryQrModal] = useState(false);
+  const [showFreeWorkoutModal, setShowFreeWorkoutModal] = useState(false);
 
   const { animatingIds, countdownSeconds, now } = useSocialAmrapEffects({
     participants,
@@ -392,6 +398,8 @@ export function useSocialAmrap(
   const hostParticipant = participants.find((p) => p.role === 'host');
 
   const timerStyle = getTimerStyles(timerState);
+  const isFreeWorkoutWork =
+    timerState === 'work' && session?.timer_segment === 'free_workout';
   const scheduledStartAt = session?.scheduled_start_at ?? null;
   const startAt = scheduledStartAt ? new Date(scheduledStartAt).getTime() : 0;
   const inCountdownWindow =
@@ -451,11 +459,11 @@ export function useSocialAmrap(
   const displayTitle =
     waitingPreStartDisplay?.title ??
     waitingScheduleDisplay?.title ??
-    timerStyle.text;
+    (isFreeWorkoutWork ? 'Free workout' : timerStyle.text);
   const displaySub =
     waitingPreStartDisplay?.sub ??
     waitingScheduleDisplay?.sub ??
-    timerStyle.sub;
+    (isFreeWorkoutWork ? 'Lead by example' : timerStyle.sub);
   const displayValue =
     waitingPreStartDisplay?.value ??
     waitingScheduleDisplay?.value ??
@@ -532,6 +540,7 @@ export function useSocialAmrap(
     durationMinutes: session?.duration_minutes,
     celebrateFinish: true,
     recapDismissed: recapDismissed && timerState === 'finished',
+    isFreeWorkoutSegment: isFreeWorkoutWork,
 
     loading: loading,
     error: error ?? null,
@@ -754,6 +763,15 @@ export function useSocialAmrap(
             >
               Daily Warmup
             </button>
+            {timerState === 'finished' && recapDismissed && (
+              <button
+                type="button"
+                onClick={() => setShowFreeWorkoutModal(true)}
+                className="rounded-xl border border-emerald-500/50 bg-emerald-600/20 px-4 py-2 text-sm font-bold text-emerald-200 transition-colors hover:border-emerald-500 hover:bg-emerald-600/30"
+              >
+                Free workout timer
+              </button>
+            )}
           </div>
         )
       : null;
@@ -817,6 +835,10 @@ export function useSocialAmrap(
     showRecoveryQrModal,
     handleOpenRecoveryQr: () => setShowRecoveryQrModal(true),
     handleCloseRecoveryQr: () => setShowRecoveryQrModal(false),
+    showFreeWorkoutModal,
+    handleOpenFreeWorkoutModal: () => setShowFreeWorkoutModal(true),
+    handleCloseFreeWorkoutModal: () => setShowFreeWorkoutModal(false),
+    startFreeWorkout,
   };
 
   return {

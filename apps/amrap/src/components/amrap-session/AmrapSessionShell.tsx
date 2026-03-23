@@ -111,6 +111,7 @@ export default function AmrapSessionShell({ engine }: AmrapSessionShellProps) {
                 : 'finished'
             }
             onLogRound={onLogRound}
+            hideAmrapRounds={!!engine.isFreeWorkoutSegment && timerPhase === 'work'}
           />
           {timerPhase === 'finished' && !engine.recapDismissed && (
             <>
@@ -174,11 +175,19 @@ export default function AmrapSessionShell({ engine }: AmrapSessionShellProps) {
           <div>
             <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
               <h3 className="text-xl font-bold uppercase tracking-widest text-white/90 sm:text-2xl">
-                This round
+                {engine.isFreeWorkoutSegment && timerPhase === 'work'
+                  ? 'Free workout'
+                  : 'This round'}
               </h3>
               {slots?.exerciseHeader}
             </div>
-            <AmrapExerciseList workoutList={workoutList} />
+            {engine.isFreeWorkoutSegment && timerPhase === 'work' ? (
+              <p className="text-sm text-white/70">
+                No prescribed list for this segment — the host demonstrates movements for the group.
+              </p>
+            ) : (
+              <AmrapExerciseList workoutList={workoutList} />
+            )}
           </div>
         )}
       </div>
