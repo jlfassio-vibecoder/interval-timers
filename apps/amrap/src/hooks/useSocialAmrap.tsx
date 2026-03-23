@@ -41,8 +41,14 @@ import { useSocialAmrapEffects } from '@/hooks/useSocialAmrapEffects';
 
 const COUNTDOWN_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
 
+export interface UseSocialAmrapOptions {
+  /** Called when user dismisses the post-workout recap; keeps them in the live session */
+  onDismissFinishedRecap?: () => void;
+}
+
 export function useSocialAmrap(
-  sessionId: string | null | undefined
+  sessionId: string | null | undefined,
+  options?: UseSocialAmrapOptions
 ): AmrapSessionEngine & {
   /** Additional state for page chrome (header, copy link, auth buttons) */
   pageState: {
@@ -261,7 +267,7 @@ export function useSocialAmrap(
         p_host_token: hostToken,
         p_open: false,
       });
-      if (timerState === 'setup' || timerState === 'work') {
+      if (timerState === 'setup' || timerState === 'work' || timerState === 'finished') {
         startSetup();
       }
     },
@@ -518,6 +524,7 @@ export function useSocialAmrap(
 
     workoutList,
     durationMinutes: session?.duration_minutes,
+    celebrateFinish: true,
 
     loading: loading,
     error: error ?? null,
@@ -626,16 +633,28 @@ export function useSocialAmrap(
         )
       : null;
 
+  const onDismissFinishedRecap = options?.onDismissFinishedRecap;
+
   const finishedActionsSlot =
     timerState === 'finished' ? (
       <div className="mt-8 flex flex-col gap-3 border-t border-white/10 pt-6">
         <div className="flex flex-wrap gap-3">
-          <Link
-            to="/with-friends"
-            className="flex-1 min-w-[8rem] rounded-xl border-2 border-orange-500 bg-orange-600 px-4 py-3 text-center font-bold text-white transition-colors hover:bg-orange-500"
-          >
-            Done
-          </Link>
+          {onDismissFinishedRecap ? (
+            <button
+              type="button"
+              onClick={onDismissFinishedRecap}
+              className="flex-1 min-w-[8rem] rounded-xl border-2 border-orange-500 bg-orange-600 px-4 py-3 font-bold text-white transition-colors hover:bg-orange-500"
+            >
+              Continue
+            </button>
+          ) : (
+            <Link
+              to="/with-friends"
+              className="flex-1 min-w-[8rem] rounded-xl border-2 border-orange-500 bg-orange-600 px-4 py-3 text-center font-bold text-white transition-colors hover:bg-orange-500"
+            >
+              Done
+            </Link>
+          )}
           <a
             href={HUD_REDIRECT_URL}
             target="_blank"

@@ -2,8 +2,17 @@ import AgoraRTC from 'agora-rtc-sdk-ng'
 
 const appId = import.meta.env.VITE_AGORA_APP_ID as string
 
+let _appIdWarned = false
+
 export function getAppId(): string {
-  return appId ?? ''
+  const id = appId ?? ''
+  if (typeof window !== 'undefined' && import.meta.env.DEV && !id && !_appIdWarned) {
+    _appIdWarned = true
+    console.warn(
+      '[Agora] VITE_AGORA_APP_ID is not set. Add it to .env. See docs/ROADMAP_AMRAP_VIDEO_INTEGRATION.md for troubleshooting.'
+    )
+  }
+  return id
 }
 
 export type TokenResult = { token: string } | { error: string }

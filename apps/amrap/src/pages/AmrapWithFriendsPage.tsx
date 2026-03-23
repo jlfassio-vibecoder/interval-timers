@@ -310,11 +310,15 @@ export default function AmrapWithFriendsPage() {
         </div>
 
         {!user && guestResults.length > 0 && (
-          <section className="rounded-2xl border border-white/10 bg-black/30 p-6">
-            <h2 className="mb-3 text-lg font-bold text-white">Recent sessions</h2>
+          <section
+            className="rounded-2xl border border-white/10 bg-black/30 p-6"
+            aria-labelledby="recent-sessions-heading"
+          >
+            <h2 id="recent-sessions-heading" className="mb-3 text-lg font-bold text-white">
+              Recent sessions <span className="font-normal text-white/60">(this device)</span>
+            </h2>
             <p className="mb-4 text-sm text-white/70">
-              Your recent workouts from this device. Create an account to save your history across
-              devices.
+              Saved locally. Sign in to sync your history across devices and the HUD.
             </p>
             <ul className="mb-4 space-y-2">
               {guestResults.map((r) => (
