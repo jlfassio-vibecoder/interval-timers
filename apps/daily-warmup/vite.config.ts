@@ -10,8 +10,8 @@ function warmupConfigFallbackPlugin() {
     name: 'warmup-config-fallback',
     configureServer(server: { middlewares: { use: (fn: (req: any, res: any, next: () => void) => void) => void } }) {
       server.middlewares.use((req: { url: string }, res: { statusCode: number; setHeader: (k: string, v: string) => void; end: (s: string) => void }, next: () => void) => {
-        const path = req.url?.split('?')[0] ?? '';
-        if (path === '/api/warmup-config' || path.endsWith('/api/warmup-config')) {
+        const pathname = req.url?.split('?')[0] ?? '';
+        if (pathname === '/api/warmup-config' || pathname.endsWith('/api/warmup-config')) {
           res.statusCode = 200
           res.setHeader('Content-Type', 'application/json')
           res.end(JSON.stringify({ slots: [] }))

@@ -44,7 +44,7 @@ export class ErrorBoundary extends Component<Props, State> {
         >
           <h2 style={{ color: '#ffbf00', marginBottom: 12 }}>Daily Warm-Up Error</h2>
           <p style={{ marginBottom: 8 }}>{error.message}</p>
-          {error.stack && (
+          {import.meta.env.DEV && error.stack && (
             <pre style={{ fontSize: 12, opacity: 0.9 }}>{error.stack}</pre>
           )}
         </div>
