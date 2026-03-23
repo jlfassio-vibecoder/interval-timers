@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase';
 import { getOrCreateAudioContext, playSoundWithContext } from '@/lib/amrapSounds';
 import { saveGuestSessionResult } from '@/lib/guestSessionHistory';
 import type { AmrapParticipantRow, AmrapRoundRow } from '@/lib/supabase';
+import type { SessionTimerState } from '@/hooks/useSessionState';
 import type { User } from '@supabase/supabase-js';
 
 const COUNTDOWN_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
@@ -15,7 +16,7 @@ const TIMER_COMPLETE_ROUNDS_GRACE_MS = 1500; // allow late round rows from realt
 
 export interface UseSocialAmrapEffectsInput {
   participants: AmrapParticipantRow[];
-  timerState: string;
+  timerState: SessionTimerState;
   session: { scheduled_start_at?: string | null; workout_list?: string[]; duration_minutes?: number } | null;
   isHost: boolean;
   sessionId: string | undefined;
