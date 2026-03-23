@@ -58,6 +58,12 @@ function parseTimeToSeconds(time: string | null | undefined): number | null {
   return Number.isFinite(secs) && secs >= 0 ? secs : null;
 }
 
+/** Return YYYY-MM-DD for a timestamp in the user's local timezone. */
+function localDateISO(ms: number): string {
+  const d = new Date(ms);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 /** SHA-256 of input string, hex-encoded (for handoff_dedupe_key). */
 async function sha256Hex(input: string): Promise<string> {
   const buf = new TextEncoder().encode(input);
@@ -70,6 +76,40 @@ async function sha256Hex(input: string): Promise<string> {
 export interface LogHandoffResult {
   ok: boolean;
   error?: string;
+}
+
+/** Wait for Supabase session to be ready (OAuth redirect race). Retry with delay. */
+async function ensureSessionAndInsert(
+  row: Record<string, unknown>,
+  maxRetries = 3,
+  delayMs = 300
+): Promise<LogHandoffResult> {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session?.user?.id) {
+      if (attempt < maxRetries - 1) {
+        await new Promise((r) => setTimeout(r, delayMs));
+        continue;
+      }
+      return { ok: false, error: 'Session not ready' };
+    }
+    const { error } = await supabase.from('workout_logs').insert(row);
+    if (error) {
+      if (error.code === '23505') return { ok: true };
+      if (error.code === 'PGRST301' || error.message?.includes('403')) {
+        if (attempt < maxRetries - 1) {
+          await new Promise((r) => setTimeout(r, delayMs));
+          continue;
+        }
+      }
+      if (import.meta.env.DEV) console.error('[logHandoffSession]', error.code, error.message);
+      return { ok: false, error: error.message };
+    }
+    return { ok: true };
+  }
+  return { ok: false, error: 'Session not ready' };
 }
 
 /**
@@ -93,7 +133,8 @@ export async function logHandoffSession(
   }
 
   const workoutName = SOURCE_TO_WORKOUT_NAME[handoff.source] ?? handoff.source;
-  const dateIso = new Date().toISOString().slice(0, 10);
+  const refTime = handoff.timestamp ?? now;
+  const dateIso = localDateISO(refTime);
   const durationSeconds = parseTimeToSeconds(handoff.time);
   const dedupePayload = `${userId}|${handoff.intent}|${handoff.source}|${handoff.timestamp ?? now}`;
   const handoff_dedupe_key = await sha256Hex(dedupePayload);
@@ -114,14 +155,5 @@ export async function logHandoffSession(
     handoff_dedupe_key,
   };
 
-  const { error } = await supabase.from('workout_logs').insert(row);
-
-  if (error) {
-    if (error.code === '23505') {
-      return { ok: true };
-    }
-    if (import.meta.env.DEV) console.error('[logHandoffSession]', error);
-    return { ok: false, error: error.message };
-  }
-  return { ok: true };
+  return ensureSessionAndInsert(row);
 }

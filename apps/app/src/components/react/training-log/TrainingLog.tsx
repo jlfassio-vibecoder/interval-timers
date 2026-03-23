@@ -67,7 +67,13 @@ const TrainingLog: React.FC = () => {
     didScrollToCurrentWeek.current = false;
   }, [user?.uid]);
 
-  const { weeks, loading, error } = useTrainingLogWeeks(user?.uid ?? null, 52, filters, 12);
+  const { weeks, loading, error, refetch } = useTrainingLogWeeks(user?.uid ?? null, 52, filters, 12);
+
+  useEffect(() => {
+    const handler = () => refetch();
+    window.addEventListener('calendar:refresh', handler);
+    return () => window.removeEventListener('calendar:refresh', handler);
+  }, [refetch]);
 
   const handleWorkoutClick = useCallback((logs: WorkoutLog[], preferredMinutes?: number) => {
     const log = pickLogForModal(logs, preferredMinutes);

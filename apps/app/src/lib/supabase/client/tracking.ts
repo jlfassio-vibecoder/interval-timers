@@ -6,6 +6,11 @@
 import { supabase } from '../supabase-instance';
 import type { WorkoutLog } from '@/types/tracking';
 
+/** Return YYYY-MM-DD for a Date in the user's local timezone (avoids UTC shift). */
+function toLocalDateISO(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 /** Sanitize exercises to plain JSON-serializable structure (avoids NaN, undefined, etc.). */
 function sanitizeExercises(exercises: WorkoutLog['exercises']): WorkoutLog['exercises'] {
   try {
@@ -25,13 +30,11 @@ export async function saveWorkoutLog(userId: string, log: WorkoutLog): Promise<s
     program_id: String(log.programId ?? ''),
     week_id: String(log.weekId ?? ''),
     workout_id: String(log.workoutId ?? ''),
-    date: log.date.toISOString().slice(0, 10),
+    date: toLocalDateISO(log.date),
     duration_seconds: Math.floor(Number(log.durationSeconds) || 0),
     exercises: sanitizeExercises(log.exercises),
   };
-  if (log.workoutDisplayName != null && log.workoutDisplayName !== '') {
-    payload.workout_display_name = String(log.workoutDisplayName);
-  }
+  // Omit workout_display_name until migration 20250330000000 is applied (column may not exist in prod)
 
   const { data, error } = await supabase
     .from('user_workout_logs')

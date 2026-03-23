@@ -119,10 +119,10 @@ export default defineConfig({
       alias: {
         '@': src
       },
-      dedupe: ['react', 'react-dom']
+      dedupe: ['react', 'react-dom', 'scheduler']
     },
     optimizeDeps: {
-      include: ['node-domexception', 'react', 'react-dom'],
+      include: ['node-domexception', 'react', 'react-dom', 'scheduler', 'sonner'],
       esbuildOptions: {
         mainFields: ['module', 'main']
       }
@@ -131,7 +131,9 @@ export default defineConfig({
       // Bundle ALL dependencies in production to avoid runtime ERR_MODULE_NOT_FOUND errors
       // This is necessary because Firebase App Hosting may not have all transitive dependencies
       // at runtime. We exclude native modules that can't be bundled.
-      noExternal: isProduction ? true : ['piccolore', 'clsx', 'es-module-lexer', 'devalue']
+      noExternal: isProduction ? true : ['piccolore', 'clsx', 'es-module-lexer', 'devalue'],
+      // Dev only: keep React external so Node requires it at runtime (avoids "module is not defined" when CJS is inlined)
+      ...(!isProduction && { external: ['react', 'react-dom', 'scheduler'] })
     },
     build: {
       rollupOptions: {

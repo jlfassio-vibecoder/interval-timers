@@ -10,7 +10,8 @@ function warmupConfigFallbackPlugin() {
     name: 'warmup-config-fallback',
     configureServer(server: { middlewares: { use: (fn: (req: any, res: any, next: () => void) => void) => void } }) {
       server.middlewares.use((req: { url: string }, res: { statusCode: number; setHeader: (k: string, v: string) => void; end: (s: string) => void }, next: () => void) => {
-        if (req.url === '/api/warmup-config' || req.url?.endsWith('/api/warmup-config')) {
+        const pathname = req.url?.split('?')[0] ?? '';
+        if (pathname === '/api/warmup-config' || pathname.endsWith('/api/warmup-config')) {
           res.statusCode = 200
           res.setHeader('Content-Type', 'application/json')
           res.end(JSON.stringify({ slots: [] }))
@@ -32,15 +33,23 @@ export default defineConfig(({ mode }) => {
     plugins: [warmupConfigFallbackPlugin(), react()],
     base: '/daily-warm-up/',
     envDir,
+    resolve: {
+      alias: {
+        '@': path.resolve(__dirname, './src'),
+        // Force single React instance (monorepo override is 18.3.1; avoid "older version" mismatch)
+        react: path.resolve(__dirname, '../../node_modules/react'),
+        'react-dom': path.resolve(__dirname, '../../node_modules/react-dom'),
+        'react/jsx-runtime': path.resolve(__dirname, '../../node_modules/react/jsx-runtime'),
+      },
+      dedupe: ['react', 'react-dom', 'react/jsx-runtime'],
+    },
+    optimizeDeps: {
+      include: ['react', 'react-dom', 'react/jsx-runtime'],
+    },
     define: {
       'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(supabaseUrl),
       'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(supabaseAnonKey),
     },
     server: { port: 5174 },
-    resolve: {
-      alias: {
-        '@': path.resolve(__dirname, './src'),
-      },
-    },
   }
 })
