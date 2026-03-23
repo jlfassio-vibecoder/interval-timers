@@ -64,21 +64,38 @@ export function AmrapAuthProvider({ children }: { children: React.ReactNode }) {
   // both acquire the same navigator.locks auth-token lock; in production (or with StrictMode
   // double-mount) that can cause "Lock was stolen by another request" and break the app when
   // logged in. onAuthStateChange emits INITIAL_SESSION with the current session on subscribe.
+  // Do NOT await fetchProfile inside the callback—Supabase holds locks during the callback;
+  // awaiting nested Supabase calls can deadlock. Defer profile fetch outside the critical path.
   useEffect(() => {
+    let mounted = true;
+
+    // Safety: never hang indefinitely if fetchProfile stalls (e.g. profiles RLS, network).
+    const safetyTimer = setTimeout(() => {
+      if (mounted) setLoading(false);
+    }, 3000);
+
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, s) => {
+    } = supabase.auth.onAuthStateChange((_event, s) => {
+      if (!mounted) return;
       setSession(s);
       setUser(s?.user ?? null);
       if (s?.user) {
-        await fetchProfile(s.user.id);
+        const userId = s.user.id;
+        queueMicrotask(() => {
+          void fetchProfile(userId);
+        });
       } else {
         setProfile(null);
         setLoading(false);
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      clearTimeout(safetyTimer);
+      subscription.unsubscribe();
+    };
   }, []);
 
   const hasFullAccess = useMemo(() => {

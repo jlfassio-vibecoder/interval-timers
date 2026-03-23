@@ -5,7 +5,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronDown, ChevronUp } from 'lucide-react';
-import { trackEvent } from '@interval-timers/analytics';
 import { supabase } from '@/lib/supabase';
 import {
   useAmrapSession,
@@ -15,10 +14,8 @@ import {
 import { useAmrapAuth } from '@/contexts/AmrapAuthContext';
 import { useSessionState } from '@/hooks/useSessionState';
 import { useAgoraChannel } from '@/hooks/useAgoraChannel';
-import { getOrCreateAudioContext, playSoundWithContext } from '@/lib/amrapSounds';
 import { HUD_REDIRECT_URL } from '@/lib/account-redirect-url';
 import { buildRecoveryUrl } from '@/lib/recovery-url';
-import { saveGuestSessionResult } from '@/lib/guestSessionHistory';
 import {
   withLockRetry,
   isLockAbortError,
@@ -26,8 +23,13 @@ import {
 } from '@/lib/lock-retry';
 import { getWorkoutTitle } from '@/lib/workoutLabel';
 import { buildResultsText, computeVolumeLines } from '@/lib/workoutResults';
-import type { AmrapRoundRow, AmrapParticipantRow } from '@/lib/supabase';
-import type { SessionTimerState } from '@/hooks/useSessionState';
+import {
+  formatTime,
+  formatScheduledAt,
+  getTimerStyles,
+  buildLeaderboard,
+} from '@/lib/socialAmrapUtils';
+import type { AmrapParticipantRow } from '@/lib/supabase';
 import type {
   AmrapSessionEngine,
   AmrapParticipantEngine,
@@ -35,71 +37,9 @@ import type {
 } from '@/types/amrap-session';
 import SessionMessageBoard from '@/components/SessionMessageBoard';
 import VideoTile from '@/components/VideoTile';
+import { useSocialAmrapEffects } from '@/hooks/useSocialAmrapEffects';
 
 const COUNTDOWN_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
-const TIMER_COMPLETE_ROUNDS_GRACE_MS = 1500; // allow late round rows from realtime before analytics
-
-function formatTime(seconds: number): string {
-  const m = Math.floor(seconds / 60)
-    .toString()
-    .padStart(2, '0');
-  const s = (seconds % 60).toString().padStart(2, '0');
-  return `${m}:${s}`;
-}
-
-function formatScheduledAt(iso: string): string {
-  return new Date(iso).toLocaleString(undefined, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  });
-}
-
-function getTimerStyles(timerState: SessionTimerState) {
-  switch (timerState) {
-    case 'setup':
-      return { text: 'Setup', sub: 'Get into position' };
-    case 'work':
-      return { text: 'AMRAP', sub: 'Accumulate Volume' };
-    case 'finished':
-      return { text: 'Time Cap', sub: 'Work Complete' };
-    default:
-      return { text: 'Ready', sub: '' };
-  }
-}
-
-function buildLeaderboard(
-  participants: AmrapParticipantRow[],
-  rounds: AmrapRoundRow[]
-): { participantId: string; nickname: string; totalRounds: number; splits: number[] }[] {
-  const byParticipant = new Map<
-    string,
-    { nickname: string; elapsed: number[] }
-  >();
-  for (const p of participants) {
-    byParticipant.set(p.id, { nickname: p.nickname, elapsed: [] });
-  }
-  for (const r of rounds) {
-    const entry = byParticipant.get(r.participant_id);
-    if (entry) {
-      entry.elapsed.push(r.elapsed_sec_at_round);
-    }
-  }
-  return Array.from(byParticipant.entries())
-    .map(([participantId, { nickname, elapsed }]) => {
-      elapsed.sort((a, b) => a - b);
-      const splits: number[] = [];
-      for (let i = 0; i < elapsed.length; i++) {
-        splits.push(i === 0 ? elapsed[0]! : elapsed[i]! - elapsed[i - 1]!);
-      }
-      return {
-        participantId,
-        nickname,
-        totalRounds: elapsed.length,
-        splits,
-      };
-    })
-    .sort((a, b) => b.totalRounds - a.totalRounds);
-}
 
 export function useSocialAmrap(
   sessionId: string | null | undefined
@@ -202,156 +142,19 @@ export function useSocialAmrap(
   const [showViewResultsModal, setShowViewResultsModal] = useState(false);
   const [viewResultsText, setViewResultsText] = useState('');
   const [showRecoveryQrModal, setShowRecoveryQrModal] = useState(false);
-  const [animatingIds, setAnimatingIds] = useState<Set<string>>(new Set());
-  const seenParticipantIdsRef = useRef<Set<string>>(new Set());
-  const [countdownSeconds, setCountdownSeconds] = useState(0);
-  const [now, setNow] = useState(() => Date.now());
-  const hasAutoStartedRef = useRef(false);
-  const hasBeenBeforeScheduledRef = useRef(false);
-  const finishSoundPlayedRef = useRef(false);
-  const guestCompletedAtRef = useRef<string | null>(null);
-  const timerCompleteTrackedRef = useRef(false);
-  const timerCompleteTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const roundsRef = useRef(rounds);
-  const totalTimeRef = useRef(totalTime);
-  const participantIdRef = useRef(participantId);
-  const audioContextRef = useRef<AudioContext | null>(null);
 
-  useEffect(() => {
-    roundsRef.current = rounds;
-    totalTimeRef.current = totalTime;
-    participantIdRef.current = participantId;
-  }, [rounds, totalTime, participantId]);
-
-  useEffect(() => {
-    const currentIds = new Set(participants.map((p) => p.id));
-    const prev = seenParticipantIdsRef.current;
-    if (prev.size === 0 && currentIds.size > 0) {
-      currentIds.forEach((id) => prev.add(id));
-      return;
-    }
-    const newIds = [...currentIds].filter((id) => !prev.has(id));
-    if (newIds.length > 0) {
-      newIds.forEach((id) => prev.add(id));
-      setAnimatingIds((prevSet) => new Set([...prevSet, ...newIds]));
-      const t = setTimeout(() => {
-        setAnimatingIds((prevSet) => {
-          const next = new Set(prevSet);
-          newIds.forEach((id) => next.delete(id));
-          return next;
-        });
-      }, 1500);
-      return () => clearTimeout(t);
-    }
-  }, [participants]);
-
-  useEffect(() => {
-    if (timerState !== 'waiting' || !session?.scheduled_start_at) return;
-    const startAt = new Date(session.scheduled_start_at).getTime();
-    const tick = () => {
-      const n = Date.now();
-      setNow(n);
-      if (n < startAt) hasBeenBeforeScheduledRef.current = true;
-      if (n >= startAt - COUNTDOWN_WINDOW_MS && n < startAt) {
-        setCountdownSeconds(Math.max(0, Math.floor((startAt - n) / 1000)));
-      }
-    };
-    tick();
-    const interval = setInterval(tick, 1000);
-    return () => clearInterval(interval);
-  }, [timerState, session?.scheduled_start_at]);
-
-  useEffect(() => {
-    if (
-      !isHost ||
-      timerState !== 'waiting' ||
-      !session?.scheduled_start_at ||
-      hasAutoStartedRef.current ||
-      !hasBeenBeforeScheduledRef.current
-    )
-      return;
-    const startAt = new Date(session.scheduled_start_at).getTime();
-    if (now < startAt) return;
-    hasAutoStartedRef.current = true;
-    startSetup();
-  }, [isHost, timerState, session?.scheduled_start_at, startSetup, now]);
-
-  useEffect(() => {
-    return () => {
-      if (audioContextRef.current) {
-        audioContextRef.current.close().catch(() => {});
-        audioContextRef.current = null;
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    if (timerState === 'finished' && !finishSoundPlayedRef.current) {
-      finishSoundPlayedRef.current = true;
-      const ctx = getOrCreateAudioContext(audioContextRef);
-      if (ctx) playSoundWithContext(ctx, 'finish');
-    }
-    if (timerState !== 'finished') finishSoundPlayedRef.current = false;
-  }, [timerState]);
-
-  useEffect(() => {
-    if (timerState !== 'finished') {
-      timerCompleteTrackedRef.current = false;
-      if (timerCompleteTimeoutRef.current) {
-        clearTimeout(timerCompleteTimeoutRef.current);
-        timerCompleteTimeoutRef.current = null;
-      }
-      return;
-    }
-    if (timerCompleteTrackedRef.current) return;
-    timerCompleteTrackedRef.current = true;
-    timerCompleteTimeoutRef.current = setTimeout(() => {
-      timerCompleteTimeoutRef.current = null;
-      const pid = participantIdRef.current;
-      const r = roundsRef.current;
-      const t = totalTimeRef.current;
-      const roundsCount = pid ? r.filter((x) => x.participant_id === pid).length : 0;
-      trackEvent(
-        supabase,
-        'timer_session_complete',
-        {
-          source: 'amrap_friends',
-          duration_seconds: t,
-          rounds: roundsCount,
-        },
-        { appId: 'amrap' }
-      );
-    }, TIMER_COMPLETE_ROUNDS_GRACE_MS);
-    return () => {
-      if (timerCompleteTimeoutRef.current) {
-        clearTimeout(timerCompleteTimeoutRef.current);
-        timerCompleteTimeoutRef.current = null;
-      }
-    };
-  }, [timerState]);
-
-  // Save guest result idempotently when finished; rounds may arrive late via realtime subscription.
-  // completedAt is captured once when we first enter finished state, not on each round update.
-  useEffect(() => {
-    if (timerState !== 'finished') {
-      guestCompletedAtRef.current = null;
-      return;
-    }
-    if (!user && sessionId && participantId) {
-      if (!guestCompletedAtRef.current) {
-        guestCompletedAtRef.current = new Date().toISOString();
-      }
-      const totalRounds = rounds.filter((r) => r.participant_id === participantId).length;
-      saveGuestSessionResult(
-        sessionId,
-        participantId,
-        totalRounds,
-        session?.workout_list ?? [],
-        session?.duration_minutes ?? 15,
-        guestCompletedAtRef.current
-      );
-    }
-  }, [timerState, user, sessionId, participantId, rounds, session?.workout_list, session?.duration_minutes]);
+  const { animatingIds, countdownSeconds, now } = useSocialAmrapEffects({
+    participants,
+    timerState,
+    session,
+    isHost,
+    sessionId: sessionId ?? undefined,
+    participantId: participantId ?? null,
+    rounds,
+    totalTime,
+    user: user ?? null,
+    startSetup,
+  });
 
   const handleJoinSession = useCallback(async () => {
     const name = joinNickname.trim();
