@@ -56,7 +56,8 @@ export default function PostWorkoutRecapModal({
   const handleViewInHistory = () => {
     onClose();
     // Append hud=1 so account page opens with HUD visible (HistoryZone + AMRAP results).
-    const url = new URL(HUD_REDIRECT_URL);
+    // Use window.location.origin as base when HUD_REDIRECT_URL is relative (e.g. /account in prod).
+    const url = new URL(HUD_REDIRECT_URL, window.location.origin);
     url.searchParams.set('hud', '1');
     window.open(url.toString(), '_blank', 'noopener,noreferrer');
   };

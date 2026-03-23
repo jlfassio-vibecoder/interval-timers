@@ -14,12 +14,12 @@ import ViewResultsModal from '@/components/ViewResultsModal';
 
 export default function AmrapSessionPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
-  const result = useSocialAmrap(sessionId, {
-    onDismissFinishedRecap: () => setRecapDismissed(true),
-  });
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authModalSignUp, setAuthModalSignUp] = useState(false);
   const [recapDismissed, setRecapDismissed] = useState(false);
+  const result = useSocialAmrap(sessionId, {
+    onDismissFinishedRecap: () => setRecapDismissed(true),
+  });
 
   useEffect(() => {
     if (result.timerPhase !== 'finished') setRecapDismissed(false);

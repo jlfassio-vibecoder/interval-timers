@@ -9,8 +9,16 @@ const PARTICLE_COUNT = 24;
 const COLORS = ['#ffbf00', '#ff8c00', '#ff6b35', '#f7931e', '#ffcc33'];
 
 function usePrefersReducedMotion(): boolean {
-  const [prefersReduced, setPrefersReduced] = useState(false);
+  const [prefersReduced, setPrefersReduced] = useState(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
+    try {
+      return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    } catch {
+      return false;
+    }
+  });
   useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
     const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
     setPrefersReduced(mq.matches);
     const handler = () => setPrefersReduced(mq.matches);
