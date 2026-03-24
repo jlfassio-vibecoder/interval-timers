@@ -142,7 +142,7 @@ const HUDHeader: React.FC<HUDHeaderProps> = ({ onClose, notificationCount = 0, o
                   className="absolute right-0 top-full z-50 mt-2 min-w-[180px] rounded-lg border border-white/10 bg-bg-dark py-1 shadow-xl"
                 >
                   <a
-                    href="/profile"
+                    href="/account/profile"
                     role="menuitem"
                     className="flex items-center gap-2 px-4 py-2 text-sm text-white/90 transition hover:bg-white/10 hover:text-white"
                     onClick={() => setDropdownOpen(false)}

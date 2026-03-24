@@ -5,14 +5,17 @@
  * Analytics dashboard: summary cards, volume chart, distribution charts, insights.
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAppContext } from '@/contexts/AppContext';
 import { HEALTH_GUIDELINE_WEEKLY_MINUTES } from '@/lib/training-log-constants';
 import { useTrainingLogAnalytics } from '@/hooks/useTrainingLogAnalytics';
 import { getTrainingLogLogsForExport } from '@/lib/supabase/client/training-log';
 import { generateInsights } from '@/lib/training-log-insights';
+import { computeTrainingLogEnergyAggregates } from '@/lib/training-log-energy-analytics';
+import { hasBaselineForMET, resolveTotalActiveMultiplier, userProfileToProfileBaseline } from '@/lib/met';
 import type { TrainingLogFilters } from '@/lib/training-log-filters';
 import AnalyticsSummaryCards from './AnalyticsSummaryCards';
+import AnalyticsEnergySection from './AnalyticsEnergySection';
 import WeeklyVolumeChart from './WeeklyVolumeChart';
 import DistributionCharts from './DistributionCharts';
 import InsightsPanel from './InsightsPanel';
@@ -28,10 +31,20 @@ const TrainingLogAnalytics: React.FC<TrainingLogAnalyticsProps> = ({
   filters,
   goalMinutes = HEALTH_GUIDELINE_WEEKLY_MINUTES,
 }) => {
-  const { setWeeklyGoalMinutes } = useAppContext();
+  const { setWeeklyGoalMinutes, user } = useAppContext();
   const { data, loading, error } = useTrainingLogAnalytics(uid, 24, filters, goalMinutes);
 
   const [logs, setLogs] = useState<Awaited<ReturnType<typeof getTrainingLogLogsForExport>>>([]);
+
+  const profileBaseline = useMemo(() => userProfileToProfileBaseline(user), [user]);
+  const hasMetBaseline =
+    profileBaseline != null && hasBaselineForMET(profileBaseline);
+  const energyAggregates = useMemo(
+    () => computeTrainingLogEnergyAggregates(logs, profileBaseline),
+    [logs, profileBaseline]
+  );
+  const weightKg = profileBaseline?.weightKg ?? 0;
+  const tam = profileBaseline ? resolveTotalActiveMultiplier(profileBaseline) : 1.2;
 
   const fetchLogs = useCallback(async () => {
     if (!uid) return;
@@ -76,6 +89,12 @@ const TrainingLogAnalytics: React.FC<TrainingLogAnalyticsProps> = ({
         mostActiveDay={data.mostActiveDay}
         goalMinutes={goalMinutes}
         onEditGoal={setWeeklyGoalMinutes}
+      />
+      <AnalyticsEnergySection
+        hasMetBaseline={hasMetBaseline}
+        aggregates={energyAggregates}
+        weightKg={weightKg}
+        tam={tam}
       />
       <div id="weekly-volume-chart" className="rounded-xl border border-white/10 bg-white/5 p-4">
         <h4 className="mb-3 font-mono text-[10px] uppercase tracking-[0.4em] text-white/60">

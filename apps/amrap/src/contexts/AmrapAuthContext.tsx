@@ -5,6 +5,8 @@ import type { User, Session } from '@supabase/supabase-js';
 export interface AmrapProfile {
   amrap_trial_ends_at: string | null;
   purchased_index: number | null;
+  /** Display name from profile (optional, for header/account link) */
+  full_name?: string | null;
 }
 
 interface AmrapAuthContextValue {
@@ -43,7 +45,7 @@ export function AmrapAuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('trial_ends_at, amrap_trial_ends_at, purchased_index')
+        .select('trial_ends_at, amrap_trial_ends_at, purchased_index, full_name')
         .eq('id', userId)
         .maybeSingle();
       if (!mountedRef.current) return;
@@ -51,6 +53,7 @@ export function AmrapAuthProvider({ children }: { children: React.ReactNode }) {
         setProfile({
           amrap_trial_ends_at: data.trial_ends_at ?? data.amrap_trial_ends_at ?? null,
           purchased_index: data.purchased_index ?? null,
+          full_name: data.full_name ?? null,
         });
       } else {
         setProfile(null);

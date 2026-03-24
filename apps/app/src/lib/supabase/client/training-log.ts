@@ -91,8 +91,8 @@ function passesFilters(log: WorkoutLog, filters: TrainingLogFilters | undefined)
   return true;
 }
 
-/** Get Monday of the week containing the given date. */
-function getWeekMonday(dateStr: string): string {
+/** Get Monday of the week containing the given date (YYYY-MM-DD). */
+export function getTrainingLogWeekMonday(dateStr: string): string {
   const d = new Date(dateStr + 'T12:00:00');
   const day = d.getDay();
   const mondayOffset = day === 0 ? -6 : 1 - day;
@@ -116,7 +116,8 @@ function formatWeekRange(mondayStr: string): string {
   return `${fmt(mon)} – ${fmt(sun)}`;
 }
 
-function localTodayISO(): string {
+/** Local calendar today as YYYY-MM-DD (matches analytics week/month boundaries). */
+export function getTrainingLogLocalTodayISO(): string {
   const n = new Date();
   return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`;
 }
@@ -173,7 +174,7 @@ async function loadProgramsForCalendar(uid: string): Promise<ProgramForCalendar[
 
 /** Export for UI: Monday of the week containing local today. */
 export function getCurrentWeekMondayISO(): string {
-  return getWeekMonday(localTodayISO());
+  return getTrainingLogWeekMonday(getTrainingLogLocalTodayISO());
 }
 
 /**
@@ -187,11 +188,11 @@ export async function getTrainingLogWeeks(
   filters?: TrainingLogFilters,
   weeksForward = 12
 ): Promise<{ weeks: TrainingLogWeek[]; logsByDate: Record<string, WorkoutLog[]> }> {
-  const todayStr = localTodayISO();
+  const todayStr = getTrainingLogLocalTodayISO();
   const tailAnchor = addCalendarDays(todayStr, weeksForward * 7);
   const headAnchor = addCalendarDays(todayStr, -weeksBack * 7);
-  const firstMonday = getWeekMonday(headAnchor);
-  const lastMonday = getWeekMonday(tailAnchor);
+  const firstMonday = getTrainingLogWeekMonday(headAnchor);
+  const lastMonday = getTrainingLogWeekMonday(tailAnchor);
   const rangeStart = firstMonday;
   const rangeEnd = addCalendarDays(lastMonday, 6);
 
@@ -237,7 +238,7 @@ export async function getTrainingLogWeeks(
   const logsByDate: Record<string, WorkoutLog[]> = {};
 
   for (const log of filtered) {
-    const weekMon = getWeekMonday(log.date);
+    const weekMon = getTrainingLogWeekMonday(log.date);
     const dayIdx = getDayIndex(log.date);
     const minutes = Math.round((log.durationSeconds ?? 0) / 60);
 
@@ -356,8 +357,8 @@ export async function getTrainingLogAnalytics(
   const cutoffStr = `${y}-${m}-${d}`;
   const inRange = filtered.filter((log) => log.date >= cutoffStr);
 
-  const thisWeekMon = getWeekMonday(localTodayISO());
-  const today = localTodayISO();
+  const thisWeekMon = getTrainingLogWeekMonday(getTrainingLogLocalTodayISO());
+  const today = getTrainingLogLocalTodayISO();
   const [thisYear, thisMonth] = today.split('-');
   const thisMonthStart = `${thisYear}-${thisMonth}-01`;
 
@@ -372,7 +373,7 @@ export async function getTrainingLogAnalytics(
 
   for (const log of inRange) {
     const minutes = Math.round((log.durationSeconds ?? 0) / 60);
-    const weekMon = getWeekMonday(log.date);
+    const weekMon = getTrainingLogWeekMonday(log.date);
     const dayIdx = getDayIndex(log.date);
     const type = deriveWorkoutType(log);
     const format = deriveWorkoutFormat(log) ?? 'Other';

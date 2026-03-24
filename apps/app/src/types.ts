@@ -3,7 +3,7 @@ export interface UserProfile {
   uid: string;
   email: string | null;
   displayName?: string;
-  role: 'trainer' | 'client' | 'admin';
+  role: 'trainer' | 'client' | 'admin' | 'host' | 'super_admin';
   isAdmin?: boolean;
   purchasedIndex?: number | null;
   createdAt: string;
@@ -24,6 +24,16 @@ export interface UserProfile {
   activityVisitCount?: number;
   /** Training Log: weekly target minutes (Mon–Sun). Default 150. */
   weeklyGoalMinutes?: number | null;
+  /** MET/BMR baseline (from profiles) */
+  dateOfBirth?: string | null;
+  biologicalSex?: string | null;
+  weightKg?: number | null;
+  heightCm?: number | null;
+  activityLevelBaseline?: string | null;
+  /** Daily routine PAL id (bimodal model) */
+  lifestyleBaseline?: string | null;
+  workoutRoutine?: string | null;
+  totalActiveMultiplier?: number | null;
 }
 
 export interface Exercise {

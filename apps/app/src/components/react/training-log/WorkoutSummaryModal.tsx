@@ -5,9 +5,10 @@
  * Modal showing workout log detail: name, date, duration, effort, rating, notes.
  */
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { X } from 'lucide-react';
 import type { WorkoutLog } from '@/types';
+import { getWorkoutMetSessionData, type ProfileBaseline } from '@/lib/met';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 
 const FOCUSABLE_SELECTOR =
@@ -20,12 +21,22 @@ function getFocusableElements(container: HTMLElement): HTMLElement[] {
 export interface WorkoutSummaryModalProps {
   workout: WorkoutLog | null;
   onClose: () => void;
+  profileBaseline: ProfileBaseline | null;
 }
 
-const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({ workout, onClose }) => {
+const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({
+  workout,
+  onClose,
+  profileBaseline,
+}) => {
   const modalRef = useRef<HTMLDivElement>(null);
   const savedFocusRef = useRef<HTMLElement | null>(null);
   const isMobile = useMediaQuery('(max-width: 640px)');
+
+  const metSessionData = useMemo(
+    () => (workout ? getWorkoutMetSessionData(workout, profileBaseline) : null),
+    [workout, profileBaseline]
+  );
 
   function restoreFocus() {
     const el = savedFocusRef.current;
@@ -116,6 +127,7 @@ const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({ workout, onCl
       role="dialog"
       aria-modal="true"
       aria-labelledby="workout-modal-title"
+      data-met-baseline={metSessionData ? '1' : '0'}
       onClick={(e) => e.target === e.currentTarget && handleClose()}
     >
       <div

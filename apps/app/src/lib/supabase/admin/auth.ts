@@ -3,7 +3,8 @@
  * Replaces Firebase Admin verifyAdminRequest for admin routes.
  */
 
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from '@/types/supabase';
 
 // HIIT Workout Timer Supabase (same as AMRAP). Accept SUPABASE_*, VITE_*, PUBLIC_* (injected via astro.config).
 const supabaseUrl =
@@ -52,6 +53,28 @@ export function extractAccessToken(
 }
 
 /**
+ * Authenticated Supabase client (user JWT) for RLS-scoped updates.
+ * Throws UNAUTHENTICATED if no valid session.
+ */
+export async function getSupabaseUserClient(
+  request: Request,
+  cookies?: { get: (name: string) => { value: string } | undefined }
+): Promise<{ supabase: SupabaseClient<Database>; uid: string }> {
+  const token = extractAccessToken(request, cookies);
+  if (!token) throw new Error('UNAUTHENTICATED');
+  if (!supabaseUrl || !supabaseAnonKey) throw new Error('UNAUTHENTICATED');
+  const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+  });
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser(token);
+  if (userError || !user) throw new Error('UNAUTHENTICATED');
+  return { supabase, uid: user.id };
+}
+
+/**
  * Verify request has valid Supabase session and user has admin role.
  * Returns { uid, email } or throws UNAUTHENTICATED / UNAUTHORIZED.
  */
@@ -83,7 +106,8 @@ export async function verifyAdminRequest(
     .eq('id', user.id)
     .single();
 
-  if (profileError || !profile || profile.role !== 'admin') {
+  const role = profile?.role;
+  if (profileError || !profile || (role !== 'admin' && role !== 'super_admin')) {
     throw new Error('UNAUTHORIZED');
   }
 
@@ -93,9 +117,58 @@ export async function verifyAdminRequest(
   };
 }
 
+/** Roles that can access Mission Control (host, trainer, admin, super_admin). */
+const MISSION_CONTROL_ROLES = ['host', 'trainer', 'admin', 'super_admin'] as const;
+
+/**
+ * Verify request has valid Supabase session and user has Mission Control access
+ * (host, trainer, admin, or super_admin).
+ * Returns { uid, email, role } or throws UNAUTHENTICATED / UNAUTHORIZED.
+ */
+export async function verifyMissionControlRequest(
+  request: Request,
+  cookies?: { get: (name: string) => { value: string } | undefined }
+): Promise<{ uid: string; email?: string; role: string }> {
+  const token = extractAccessToken(request, cookies);
+  if (!token) throw new Error('UNAUTHENTICATED');
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error('UNAUTHENTICATED');
+  }
+
+  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+  });
+
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser(token);
+
+  if (userError || !user) throw new Error('UNAUTHENTICATED');
+
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+
+  if (profileError || !profile) throw new Error('UNAUTHORIZED');
+  if (!MISSION_CONTROL_ROLES.includes(profile.role as (typeof MISSION_CONTROL_ROLES)[number])) {
+    throw new Error('UNAUTHORIZED');
+  }
+
+  return {
+    uid: user.id,
+    email: user.email ?? undefined,
+    role: profile.role,
+  };
+}
+
 /**
  * Verify request has valid Supabase session and user has trainer or admin role.
  * Returns { uid, email } or throws UNAUTHENTICATED / UNAUTHORIZED.
+ * Use verifyMissionControlRequest for host-inclusive checks.
  */
 export async function verifyTrainerOrAdminRequest(
   request: Request,
@@ -126,7 +199,8 @@ export async function verifyTrainerOrAdminRequest(
     .single();
 
   if (profileError || !profile) throw new Error('UNAUTHORIZED');
-  if (profile.role !== 'trainer' && profile.role !== 'admin') {
+  const role = profile.role;
+  if (role !== 'trainer' && role !== 'admin' && role !== 'super_admin') {
     throw new Error('UNAUTHORIZED');
   }
 

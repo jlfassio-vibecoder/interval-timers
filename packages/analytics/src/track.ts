@@ -26,6 +26,8 @@ export const FUNNEL_EVENTS = [
   'hub_action_click',
   'hub_handoff_post_ok',
   'hub_handoff_post_fail',
+  'profile_field_updated',
+  'profile_completed',
 ] as const;
 
 export type FunnelEventName = (typeof FUNNEL_EVENTS)[number];
