@@ -513,16 +513,17 @@ const AppIslands: React.FC<AppIslandsProps> = ({ pathname: initialPathname }) =>
             .select('role')
             .eq('id', authUser.id)
             .maybeSingle();
-          const isAdmin = data?.role === 'admin';
-          const isTrainer = data?.role === 'trainer';
+          const role = data?.role;
+          const isAdminElevated = role === 'admin' || role === 'super_admin';
           if (
-            isAdmin &&
+            isAdminElevated &&
             typeof window !== 'undefined' &&
             window.location.pathname.includes(adminPaths.root)
           ) {
             return adminPaths.root;
           }
-          if (isTrainer || isAdmin) return '/trainer';
+          if (role === 'host' || role === 'trainer' || role === 'admin' || role === 'super_admin')
+            return '/trainer';
           return null;
         }}
       />

@@ -7,22 +7,13 @@
 
 import type { TrainingLogAnalytics } from '@/lib/supabase/client/training-log';
 import type { WorkoutLog } from '@/types';
-import { deriveWorkoutType } from '@/lib/supabase/client/training-log';
+import { deriveWorkoutType, getTrainingLogWeekMonday } from '@/lib/supabase/client/training-log';
 
 export interface TrainingLogInsight {
   id: string;
   text: string;
   category: 'volume' | 'balance' | 'recency' | 'consistency';
   link?: { label: string; scrollTo?: string };
-}
-
-/** Get Monday (YYYY-MM-DD) of the week containing the given date. */
-function getWeekMonday(dateStr: string): string {
-  const d = new Date(dateStr + 'T12:00:00');
-  const day = d.getDay();
-  const mondayOffset = day === 0 ? -6 : 1 - day;
-  d.setDate(d.getDate() + mondayOffset);
-  return d.toISOString().slice(0, 10);
 }
 
 /** Check if focus_area matches "legs" (leg, lower, quad, glute). */
@@ -98,7 +89,7 @@ export function generateInsights(
   // --- Type declining: e.g. Cardio down 3 weeks in a row ---
   const typeByWeek = new Map<string, Map<string, number>>();
   for (const log of logs) {
-    const weekMon = getWeekMonday(log.date);
+    const weekMon = getTrainingLogWeekMonday(log.date);
     const type = deriveWorkoutType(log);
     const minutes = Math.round((log.durationSeconds ?? 0) / 60);
     if (!typeByWeek.has(weekMon)) {

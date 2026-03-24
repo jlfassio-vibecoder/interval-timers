@@ -1,0 +1,13 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import AppWrapper from '../../components/react/AppWrapper';
+---
+
+<BaseLayout
+  title="Your Profile | AI Fit Copilot"
+  description="Manage your profile for MET calculations and personalization."
+>
+  <div class="relative min-h-screen overflow-x-hidden text-white selection:bg-orange-light selection:text-black">
+    <AppWrapper client:load pathname={Astro.url.pathname} />
+  </div>
+</BaseLayout>

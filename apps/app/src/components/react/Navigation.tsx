@@ -31,7 +31,7 @@ const Navigation: React.FC<NavigationProps> = ({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [pathname, setPathname] = useState(() => initialPathname ?? getPathname());
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
-  const { user, isTrainer } = useAppContext();
+  const { user, isMissionControlStaff } = useAppContext();
 
   const handleLogoutWithConfirm = () => {
     if (window.confirm('Are you sure you want to sign out?')) {
@@ -193,7 +193,7 @@ const Navigation: React.FC<NavigationProps> = ({
 
   const authBlock = user ? (
     <div className="flex items-center gap-3 border-l border-white/20 pl-4">
-      {isTrainer && (
+      {isMissionControlStaff && (
         <a
           href="/trainer"
           className="bg-orange-light/20 hidden cursor-pointer items-center gap-2 rounded-full px-4 py-2 text-xs font-bold uppercase tracking-wider text-orange-light transition-colors hover:bg-orange-light hover:text-black md:flex"
@@ -373,7 +373,7 @@ const Navigation: React.FC<NavigationProps> = ({
                 ref={scrollContentRef}
                 className="relative flex min-h-0 flex-1 flex-col items-start gap-3 overflow-y-auto pb-6 pl-6 pr-4"
               >
-                {isTrainer && (
+                {isMissionControlStaff && (
                   <a
                     href="/trainer"
                     onClick={() => setMobileMenuOpen(false)}

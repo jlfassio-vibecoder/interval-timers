@@ -9,7 +9,27 @@ export interface Database {
           full_name: string | null;
           avatar_url: string | null;
           website: string | null;
-          role: 'trainer' | 'client' | 'admin';
+          role: 'client' | 'host' | 'trainer' | 'admin' | 'super_admin';
+          date_of_birth?: string | null;
+          biological_sex?: string | null;
+          weight_kg?: number | null;
+          height_cm?: number | null;
+          activity_level_baseline?: string | null;
+          lifestyle_baseline?: string | null;
+          workout_routine?: string | null;
+          total_active_multiplier?: number | null;
+          primary_fitness_goal?: string | null;
+          preferred_hiit_style?: string | null;
+          injury_limitation_tags?: string[] | null;
+          resting_hr_bpm?: number | null;
+          max_hr_bpm?: number | null;
+          units_system?: string | null;
+          timezone?: string | null;
+          social_privacy?: string | null;
+          weekly_goal_minutes?: number | null;
+          profile_completed_at?: string | null;
+          trainer_bio?: string | null;
+          host_tagline?: string | null;
         };
         Insert: {
           id: string;
@@ -18,7 +38,7 @@ export interface Database {
           full_name?: string | null;
           avatar_url?: string | null;
           website?: string | null;
-          role?: 'trainer' | 'client' | 'admin';
+          role?: 'client' | 'host' | 'trainer' | 'admin' | 'super_admin';
         };
         Update: {
           id?: string;
@@ -27,8 +47,29 @@ export interface Database {
           full_name?: string | null;
           avatar_url?: string | null;
           website?: string | null;
-          role?: 'trainer' | 'client' | 'admin';
+          role?: 'client' | 'host' | 'trainer' | 'admin' | 'super_admin';
+          date_of_birth?: string | null;
+          biological_sex?: string | null;
+          weight_kg?: number | null;
+          height_cm?: number | null;
+          activity_level_baseline?: string | null;
+          lifestyle_baseline?: string | null;
+          workout_routine?: string | null;
+          total_active_multiplier?: number | null;
+          primary_fitness_goal?: string | null;
+          preferred_hiit_style?: string | null;
+          injury_limitation_tags?: string[] | null;
+          resting_hr_bpm?: number | null;
+          max_hr_bpm?: number | null;
+          units_system?: string | null;
+          timezone?: string | null;
+          social_privacy?: string | null;
+          weekly_goal_minutes?: number | null;
+          profile_completed_at?: string | null;
+          trainer_bio?: string | null;
+          host_tagline?: string | null;
         };
+        Relationships: [];
       };
       programs: {
         Row: {
@@ -42,6 +83,9 @@ export interface Database {
           is_public: boolean;
           status: 'draft' | 'active' | 'archived';
         };
+        Insert: Record<string, never>;
+        Update: Record<string, never>;
+        Relationships: [];
       };
       workouts: {
         Row: {
@@ -56,6 +100,9 @@ export interface Database {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Supabase JSONB column
           blocks: any;
         };
+        Insert: Record<string, never>;
+        Update: Record<string, never>;
+        Relationships: [];
       };
       assignments: {
         Row: {
@@ -70,6 +117,9 @@ export interface Database {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Supabase JSON column
           completion_data: any;
         };
+        Insert: Record<string, never>;
+        Update: Record<string, never>;
+        Relationships: [];
       };
     };
   };

@@ -338,6 +338,12 @@ const AccountLanding: React.FC = () => {
             >
               Your Workouts
             </a>
+            <a
+              href="/account/profile"
+              className="rounded-xl border-2 border-white/20 px-4 py-2 font-bold text-white transition-colors hover:border-orange-500/50 hover:bg-orange-500/10"
+            >
+              Profile
+            </a>
           </div>
         </div>
       </section>

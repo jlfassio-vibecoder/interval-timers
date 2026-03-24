@@ -5,7 +5,18 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Activity, Target, Star } from 'lucide-react';
+import { ArrowLeft, Activity, Target, Star, User } from 'lucide-react';
+
+interface MissionControlProfile {
+  id: string;
+  full_name: string | null;
+  primary_fitness_goal: string | null;
+  preferred_hiit_style: string | null;
+  injury_limitation_tags: string[] | null;
+  units_system: string | null;
+  weekly_goal_minutes: number | null;
+  profile_completed_at: string | null;
+}
 
 interface ClientStats {
   userId: string;
@@ -27,6 +38,7 @@ const ClientDetailView: React.FC = () => {
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
   const [stats, setStats] = useState<ClientStats | null>(null);
+  const [profile, setProfile] = useState<MissionControlProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,16 +47,25 @@ const ClientDetailView: React.FC = () => {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    fetch(`/api/trainer/clients/${userId}/stats`, { credentials: 'include' })
-      .then((res) => {
-        if (!res.ok) {
-          if (res.status === 404) throw new Error('Client not found or not in your roster.');
+    Promise.all([
+      fetch(`/api/trainer/clients/${userId}/stats`, { credentials: 'include' }),
+      fetch(`/api/mission-control/profile/${userId}`, { credentials: 'include' }),
+    ])
+      .then(([statsRes, profileRes]) => {
+        if (!statsRes.ok) {
+          if (statsRes.status === 404) throw new Error('Client not found or not in your roster.');
           throw new Error('Failed to load client stats');
         }
-        return res.json();
+        return Promise.all([
+          statsRes.json() as Promise<ClientStats>,
+          profileRes.ok ? profileRes.json() as Promise<MissionControlProfile> : null,
+        ]);
       })
-      .then((data) => {
-        if (!cancelled) setStats(data);
+      .then(([statsData, profileData]) => {
+        if (!cancelled) {
+          setStats(statsData);
+          setProfile(profileData ?? null);
+        }
       })
       .catch((err) => {
         if (!cancelled) {
@@ -118,6 +139,44 @@ const ClientDetailView: React.FC = () => {
       </div>
 
       {stats.email && <p className="text-white/60">{stats.email}</p>}
+
+      {profile && (
+        <div className="rounded-lg border border-white/10 bg-black/20 backdrop-blur-sm">
+          <h2 className="flex items-center gap-2 border-b border-white/10 px-6 py-4 font-heading text-xl font-bold">
+            <User className="h-5 w-5 text-orange-light" />
+            Profile
+          </h2>
+          <div className="grid grid-cols-1 gap-4 p-6 sm:grid-cols-2 lg:grid-cols-4">
+            {profile.primary_fitness_goal && (
+              <div>
+                <p className="text-sm text-white/60">Fitness goal</p>
+                <p className="font-medium capitalize">{profile.primary_fitness_goal.replace(/_/g, ' ')}</p>
+              </div>
+            )}
+            {profile.preferred_hiit_style && (
+              <div>
+                <p className="text-sm text-white/60">Preferred style</p>
+                <p className="font-medium capitalize">{profile.preferred_hiit_style.replace(/_/g, ' ')}</p>
+              </div>
+            )}
+            {profile.weekly_goal_minutes != null && (
+              <div>
+                <p className="text-sm text-white/60">Weekly goal</p>
+                <p className="font-medium">{profile.weekly_goal_minutes} min</p>
+              </div>
+            )}
+            {profile.injury_limitation_tags && profile.injury_limitation_tags.length > 0 && (
+              <div>
+                <p className="text-sm text-white/60">Considerations</p>
+                <p className="font-medium">{profile.injury_limitation_tags.join(', ')}</p>
+              </div>
+            )}
+            {!profile.primary_fitness_goal && !profile.preferred_hiit_style && !profile.weekly_goal_minutes && !(profile.injury_limitation_tags && profile.injury_limitation_tags.length > 0) && (
+              <p className="text-white/60">Profile not yet completed.</p>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
         <div className="rounded-lg border border-white/10 bg-black/20 p-6 backdrop-blur-sm">

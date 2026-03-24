@@ -26,8 +26,10 @@ function formatProviderIds(providerIds?: string[]): string {
 }
 
 const ROLE_LABELS: Record<string, string> = {
+  super_admin: 'Super Admin',
   admin: 'Admin',
   trainer: 'Trainer',
+  host: 'Host',
   client: 'User',
 };
 
@@ -36,8 +38,23 @@ function getRoleDisplay(role: UserProfile['role'] | undefined): {
   className: string;
 } {
   const r = role ?? 'client';
-  const label = ROLE_LABELS[r] ?? (r === 'admin' ? 'Admin' : r === 'trainer' ? 'Trainer' : 'User');
+  const label =
+    ROLE_LABELS[r] ??
+    (r === 'super_admin'
+      ? 'Super Admin'
+      : r === 'admin'
+        ? 'Admin'
+        : r === 'trainer'
+          ? 'Trainer'
+          : r === 'host'
+            ? 'Host'
+            : 'User');
   switch (r) {
+    case 'super_admin':
+      return {
+        label,
+        className: 'rounded-full bg-red-500/20 px-3 py-1 text-xs font-medium text-red-300',
+      };
     case 'admin':
       return {
         label,
@@ -47,6 +64,11 @@ function getRoleDisplay(role: UserProfile['role'] | undefined): {
       return {
         label,
         className: 'rounded-full bg-amber-500/20 px-3 py-1 text-xs font-medium text-amber-300',
+      };
+    case 'host':
+      return {
+        label,
+        className: 'rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-medium text-emerald-300',
       };
     default:
       return {

@@ -11,6 +11,7 @@ import { Download, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAppContext } from '@/contexts/AppContext';
 import { warnIfBelowGuideline } from '@/lib/training-log-utils';
+import { hasBaselineForMET, userProfileToProfileBaseline } from '@/lib/met';
 import { useTrainingLogWeeks } from '@/hooks/useTrainingLogWeeks';
 import {
   getCurrentWeekMondayISO,
@@ -81,6 +82,10 @@ const TrainingLog: React.FC = () => {
   }, []);
 
   const goalMinutes = user?.weeklyGoalMinutes ?? HEALTH_GUIDELINE_WEEKLY_MINUTES;
+
+  const profileBaseline = userProfileToProfileBaseline(user);
+  const showProfileNudge =
+    user?.uid && profileBaseline && !hasBaselineForMET(profileBaseline);
 
   const handleOpenGoalModal = useCallback(() => {
     setDraftGoal(String(goalMinutes));
@@ -256,6 +261,17 @@ const TrainingLog: React.FC = () => {
         </div>
       )}
 
+      {showProfileNudge && activeTab === 'log' && (
+        <div className="mb-4 rounded-lg border border-orange-500/30 bg-orange-500/10 px-4 py-3">
+          <p className="text-sm text-white/90">
+            <a href="/account/profile" className="font-medium text-orange-400 underline hover:text-orange-300">
+              Complete your profile
+            </a>
+            {' '}— add date of birth, sex, weight, and height to unlock MET-based calorie estimates and a unified Total Work view.
+          </p>
+        </div>
+      )}
+
       <FilterBar filters={filters} onFiltersChange={setFilters} />
 
       {activeTab === 'analytics' ? (
@@ -330,7 +346,11 @@ const TrainingLog: React.FC = () => {
         </>
       )}
 
-      <WorkoutSummaryModal workout={selectedWorkout} onClose={() => setSelectedWorkout(null)} />
+      <WorkoutSummaryModal
+        workout={selectedWorkout}
+        onClose={() => setSelectedWorkout(null)}
+        profileBaseline={profileBaseline}
+      />
 
       {/* Weekly goal edit modal */}
       {goalModalOpen && (

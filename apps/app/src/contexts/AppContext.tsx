@@ -3,6 +3,7 @@ import { HEALTH_GUIDELINE_WEEKLY_MINUTES } from '@/lib/training-log-constants';
 import { supabase } from '@/lib/supabase/supabase-instance';
 import { getTrainerForUser } from '@/lib/supabase/client/trainer-resolver';
 import { updateWeeklyGoalMinutes } from '@/lib/supabase/client/profiles';
+import { setAuthCookie, clearAuthCookie } from '@/lib/auth-cookie';
 import type { Session } from '@supabase/supabase-js';
 import type { UserProfile, WorkoutLog } from '@/types';
 
@@ -19,6 +20,8 @@ interface AppContextType {
   trainerProfile: { uid: string; displayName: string; avatarUrl?: string } | null;
   activeProgramId: string | null;
   isTrainer: boolean;
+  /** True if user can access Mission Control (host, trainer, admin, super_admin). */
+  isMissionControlStaff: boolean;
   isAdmin: boolean;
   workoutLogs: WorkoutLog[];
   completedWorkouts: Set<string>;
@@ -52,6 +55,7 @@ function getSSRStub(): AppContextType {
     trainerProfile: null,
     activeProgramId: null,
     isTrainer: false,
+    isMissionControlStaff: false,
     isAdmin: false,
     workoutLogs: [],
     completedWorkouts: new Set(),
@@ -167,6 +171,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         } = await supabase.auth.getSession();
         if (mounted) {
           setSession(s);
+          setAuthCookie(s);
           if (s?.user) {
             await fetchProfile(s.user.id, s.user.email || undefined);
           }
@@ -187,6 +192,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!mounted) return;
       setSession(session);
+      setAuthCookie(session);
       if (session?.user) {
         fetchProfile(session.user.id, session.user.email || undefined);
       } else {
@@ -232,6 +238,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         purchasedIndex: null,
         trialEndsAt: null,
         weeklyGoalMinutes: HEALTH_GUIDELINE_WEEKLY_MINUTES,
+        lifestyleBaseline: null,
+        workoutRoutine: null,
+        totalActiveMultiplier: null,
       });
     };
 
@@ -243,7 +252,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         .maybeSingle();
 
       if (error) {
-        console.error('Error fetching profile:', error);
+        if (import.meta.env.DEV || import.meta.env.PUBLIC_ENABLE_ERROR_LOGGING === 'true') {
+          console.error('Error fetching profile:', error);
+        }
         // Fallback: session exists but profile fetch failed (406, RLS, network). Set minimal user so account page can render.
         setMinimalUser();
         return;
@@ -255,21 +266,32 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           uid: data.id,
           email: email || null,
           displayName: data.full_name || undefined,
-          role: (data.role as 'trainer' | 'client' | 'admin') || 'client',
+          role: (data.role as 'trainer' | 'client' | 'admin' | 'host' | 'super_admin') || 'client',
           avatarUrl: data.avatar_url || undefined,
-          isAdmin: data.role === 'admin',
+          isAdmin: data.role === 'admin' || data.role === 'super_admin',
           createdAt: data.created_at || new Date().toISOString(),
           purchasedIndex: null, // Populate from subscription table later
           trialEndsAt: data.trial_ends_at ?? null,
           weeklyGoalMinutes:
             typeof goal === 'number' && goal > 0 ? goal : HEALTH_GUIDELINE_WEEKLY_MINUTES,
+          dateOfBirth: data.date_of_birth ?? null,
+          biologicalSex: data.biological_sex ?? null,
+          weightKg: data.weight_kg != null ? Number(data.weight_kg) : null,
+          heightCm: data.height_cm != null ? Number(data.height_cm) : null,
+          activityLevelBaseline: data.activity_level_baseline ?? null,
+          lifestyleBaseline: data.lifestyle_baseline ?? null,
+          workoutRoutine: data.workout_routine ?? null,
+          totalActiveMultiplier:
+            data.total_active_multiplier != null ? Number(data.total_active_multiplier) : null,
         });
       } else {
         // Session exists but no profile row (0 rows; e.g. RLS blocks, or trigger hasn't created it yet)
         setMinimalUser();
       }
     } catch (err) {
-      console.error('Profile fetch failed', err);
+      if (import.meta.env.DEV || import.meta.env.PUBLIC_ENABLE_ERROR_LOGGING === 'true') {
+        console.error('Profile fetch failed', err);
+      }
       setMinimalUser();
     }
   };
@@ -285,6 +307,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   );
 
   const handleLogout = async () => {
+    clearAuthCookie();
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);
@@ -304,7 +327,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   };
 
-  const isTrainer = user?.role === 'trainer' || user?.role === 'admin';
+  const isTrainer =
+    user?.role === 'trainer' || user?.role === 'admin' || user?.role === 'super_admin';
+  const isMissionControlStaff =
+    isTrainer || user?.role === 'host';
   const isPaid = !!user?.isAdmin || purchasedIndex !== null;
 
   const trialEndsAt = user?.trialEndsAt ?? null;
@@ -323,6 +349,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         trainerProfile,
         activeProgramId,
         isTrainer,
+        isMissionControlStaff,
         isAdmin: !!user?.isAdmin,
         workoutLogs,
         completedWorkouts,
