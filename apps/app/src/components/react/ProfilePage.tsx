@@ -273,8 +273,8 @@ const ProfilePage: React.FC = () => {
   const handleSaveField = useCallback(
     async (field: keyof ProfileForm, value: unknown) => {
       if (!user?.uid) return;
-      const prev = { ...form, [field]: value };
-      setForm(prev);
+      const next = { ...form, [field]: value };
+      setForm(next);
 
       const payload: Record<string, unknown> = {};
       if (field === 'injury_limitation_tags') {
@@ -287,7 +287,7 @@ const ProfilePage: React.FC = () => {
         const { error } = await supabase.from('profiles').update(payload).eq('id', user.uid);
         if (error) throw error;
         void trackEvent(supabase, 'profile_field_updated', { field }, { appId: 'app' });
-        const coreFilled = countFilledCore(prev);
+        const coreFilled = countFilledCore(next);
         if (coreFilled >= 3 && !profileCompletedAt) {
           const { error: updErr } = await supabase
             .from('profiles')
@@ -295,7 +295,7 @@ const ProfilePage: React.FC = () => {
             .eq('id', user.uid);
           if (!updErr) {
             setProfileCompletedAt(new Date().toISOString());
-            const fieldsFilled = Object.values(prev).filter((v) => {
+            const fieldsFilled = Object.values(next).filter((v) => {
               if (Array.isArray(v)) return v.length > 0;
               return v != null && String(v).trim() !== '';
             }).length;
@@ -318,7 +318,6 @@ const ProfilePage: React.FC = () => {
   const handleSave = useCallback(async () => {
     if (!user?.uid) return;
     setSaving(true);
-    const prev = form;
     try {
       const payload = formToUpdate(form);
       const { error } = await supabase.from('profiles').update(payload).eq('id', user.uid);
