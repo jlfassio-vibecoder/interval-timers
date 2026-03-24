@@ -53,7 +53,8 @@ SET total_active_multiplier = LEAST(
 )
 WHERE total_active_multiplier IS NULL;
 
--- Mirror lifestyle into legacy activity_level_baseline for old enum-based readers
+-- Mirror lifestyle into legacy activity_level_baseline for old enum-based readers.
+-- Only fill missing legacy values so we do not overwrite existing non-empty activity_level_baseline.
 UPDATE public.profiles
 SET activity_level_baseline = CASE lifestyle_baseline
   WHEN 'sedentary' THEN 'sedentary'
@@ -61,4 +62,5 @@ SET activity_level_baseline = CASE lifestyle_baseline
   WHEN 'active' THEN 'moderately_active'
   WHEN 'highly_active' THEN 'very_active'
   ELSE 'sedentary'
-END;
+END
+WHERE activity_level_baseline IS NULL OR btrim(activity_level_baseline) = '';

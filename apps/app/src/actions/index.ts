@@ -35,8 +35,12 @@ export const server = {
             input.lifestyle_baseline
           ),
         };
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Local Database type incomplete vs supabase-js Table inference
-        const { error } = await (supabase as any).from('profiles').update(patch).eq('id', uid);
+        // createClient<Database> infers profiles.update as `never` with our partial schema; browser
+        // supabase instance stays untyped and accepts the same payload (ProfilePage).
+        const { error } = await supabase
+          .from('profiles')
+          .update(patch as never)
+          .eq('id', uid);
         if (error) {
           throw new ActionError({
             code: 'INTERNAL_SERVER_ERROR',

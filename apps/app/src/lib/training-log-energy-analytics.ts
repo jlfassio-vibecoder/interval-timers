@@ -32,6 +32,11 @@ export function computeTrainingLogEnergyAggregates(
   const thisWeekMon = getTrainingLogWeekMonday(today);
   const [thisYear, thisMonth] = today.split('-');
   const thisMonthStart = `${thisYear}-${thisMonth}-01`;
+  const y = Number(thisYear);
+  const m = Number(thisMonth);
+  const nextYear = m === 12 ? y + 1 : y;
+  const nextMonth = m === 12 ? 1 : m + 1;
+  const nextMonthStart = `${nextYear}-${String(nextMonth).padStart(2, '0')}-01`;
 
   let weekEstimatedKcal = 0;
   let monthEstimatedKcal = 0;
@@ -40,7 +45,8 @@ export function computeTrainingLogEnergyAggregates(
 
   for (const log of logs) {
     const weekMon = getTrainingLogWeekMonday(log.date);
-    const inMonth = log.date >= thisMonthStart;
+    // Calendar month only (YYYY-MM-DD lexicographic compare); exclude next month and beyond.
+    const inMonth = log.date >= thisMonthStart && log.date < nextMonthStart;
 
     if (inMonth) {
       monthSessionCount += 1;

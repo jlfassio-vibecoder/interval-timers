@@ -81,4 +81,15 @@ describe('computeTrainingLogEnergyAggregates', () => {
     expect(result!.monthSessionsWithEstimate).toBe(0);
     expect(result!.monthAvgEstimatedKcal).toBeNull();
   });
+
+  it('excludes logs dated in the next calendar month from month totals', () => {
+    const logs = [
+      log({ id: 'a', date: '2025-03-10', durationSeconds: 600 }),
+      log({ id: 'next', date: '2025-04-01', durationSeconds: 600 }),
+    ];
+    const result = computeTrainingLogEnergyAggregates(logs, fullBaseline);
+    expect(result!.monthSessionCount).toBe(1);
+    expect(result!.monthEstimatedKcal).toBe(107);
+    expect(result!.monthSessionsWithEstimate).toBe(1);
+  });
 });

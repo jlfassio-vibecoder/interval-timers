@@ -49,7 +49,8 @@ const AnalyticsEnergySection: React.FC<AnalyticsEnergySectionProps> = ({
   return (
     <div className="space-y-3">
       <p className="font-mono text-[10px] uppercase tracking-[0.35em] text-white/45">
-        Estimates use your profile weight ({weightKg} kg) and activity multiplier ({tam.toFixed(2)}).
+        Session kcal here uses MET × weight ({weightKg} kg) × duration; TAM ({tam.toFixed(2)}) is for daily
+        activity context (e.g. TDEE), not the per-session formula.
         Values reflect your current profile, not past snapshots.
       </p>
       <div>

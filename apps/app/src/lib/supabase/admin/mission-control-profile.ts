@@ -55,40 +55,58 @@ export async function fetchMissionControlProfile(
   }
 
   const supabase = getSupabaseServer();
-  const { data, error } = await supabase
-    .from('profiles')
-    .select(
-      'id, email, full_name, avatar_url, role, weekly_goal_minutes, primary_fitness_goal, preferred_hiit_style, injury_limitation_tags, units_system, profile_completed_at, date_of_birth, biological_sex, weight_kg, height_cm, activity_level_baseline, lifestyle_baseline, workout_routine, total_active_multiplier, resting_hr_bpm, max_hr_bpm, created_at'
-    )
-    .eq('id', targetUserId)
-    .maybeSingle();
-
-  if (error) {
+  const logError = (err: unknown) => {
     if (import.meta.env.DEV || import.meta.env.PUBLIC_ENABLE_ERROR_LOGGING === 'true') {
-      console.warn('[mission-control-profile]', error);
+      console.warn('[mission-control-profile]', err);
     }
-    return null;
-  }
-  if (!data) return null;
-
-  const base: MissionControlProfileDto = {
-    id: data.id,
-    email: data.email ?? null,
-    full_name: data.full_name ?? null,
-    avatar_url: data.avatar_url ?? null,
-    role: data.role ?? 'client',
-    primary_fitness_goal: data.primary_fitness_goal ?? null,
-    preferred_hiit_style: data.preferred_hiit_style ?? null,
-    injury_limitation_tags: Array.isArray(data.injury_limitation_tags)
-      ? data.injury_limitation_tags
-      : null,
-    units_system: data.units_system ?? null,
-    weekly_goal_minutes:
-      typeof data.weekly_goal_minutes === 'number' ? data.weekly_goal_minutes : null,
-    profile_completed_at: data.profile_completed_at ?? null,
   };
 
+  const toBaseDto = (row: {
+    id: string;
+    email: string | null;
+    full_name: string | null;
+    avatar_url: string | null;
+    role: string | null;
+    primary_fitness_goal: string | null;
+    preferred_hiit_style: string | null;
+    injury_limitation_tags: unknown;
+    units_system: string | null;
+    weekly_goal_minutes: number | null;
+    profile_completed_at: string | null;
+  }): MissionControlProfileDto => ({
+    id: row.id,
+    email: row.email ?? null,
+    full_name: row.full_name ?? null,
+    avatar_url: row.avatar_url ?? null,
+    role: row.role ?? 'client',
+    primary_fitness_goal: row.primary_fitness_goal ?? null,
+    preferred_hiit_style: row.preferred_hiit_style ?? null,
+    injury_limitation_tags: Array.isArray(row.injury_limitation_tags)
+      ? row.injury_limitation_tags
+      : null,
+    units_system: row.units_system ?? null,
+    weekly_goal_minutes:
+      typeof row.weekly_goal_minutes === 'number' ? row.weekly_goal_minutes : null,
+    profile_completed_at: row.profile_completed_at ?? null,
+  });
+
+  // Separate branches so each .select() list is typed; trainers/hosts do not fetch admin-only columns.
   if (isAdminElevated) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select(
+        'id, email, full_name, avatar_url, role, weekly_goal_minutes, primary_fitness_goal, preferred_hiit_style, injury_limitation_tags, units_system, profile_completed_at, date_of_birth, biological_sex, weight_kg, height_cm, activity_level_baseline, lifestyle_baseline, workout_routine, total_active_multiplier, resting_hr_bpm, max_hr_bpm, created_at'
+      )
+      .eq('id', targetUserId)
+      .maybeSingle();
+
+    if (error) {
+      logError(error);
+      return null;
+    }
+    if (!data) return null;
+
+    const base = toBaseDto(data);
     return {
       ...base,
       date_of_birth: data.date_of_birth ?? null,
@@ -106,5 +124,19 @@ export async function fetchMissionControlProfile(
     };
   }
 
-  return base;
+  const { data, error } = await supabase
+    .from('profiles')
+    .select(
+      'id, email, full_name, avatar_url, role, weekly_goal_minutes, primary_fitness_goal, preferred_hiit_style, injury_limitation_tags, units_system, profile_completed_at'
+    )
+    .eq('id', targetUserId)
+    .maybeSingle();
+
+  if (error) {
+    logError(error);
+    return null;
+  }
+  if (!data) return null;
+
+  return toBaseDto(data);
 }

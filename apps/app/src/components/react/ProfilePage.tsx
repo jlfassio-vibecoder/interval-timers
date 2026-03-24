@@ -187,6 +187,26 @@ function countFilledCore(form: ProfileForm): number {
   }).length;
 }
 
+/** Avoid sending '' to numeric/date columns (Postgres rejects implicit cast). */
+function normalizeProfileFieldForDb(field: keyof ProfileForm, value: unknown): unknown {
+  if (field === 'injury_limitation_tags') {
+    return Array.isArray(value) ? value : [];
+  }
+  if (value === '') {
+    if (
+      field === 'weight_kg' ||
+      field === 'height_cm' ||
+      field === 'resting_hr_bpm' ||
+      field === 'max_hr_bpm' ||
+      field === 'date_of_birth' ||
+      field === 'biological_sex'
+    ) {
+      return null;
+    }
+  }
+  return value;
+}
+
 const ProfilePage: React.FC = () => {
   const { user, profile: contextProfile, setProfile } = useAppContext();
   const [form, setForm] = useState<ProfileForm>(emptyForm);
@@ -273,14 +293,15 @@ const ProfilePage: React.FC = () => {
   const handleSaveField = useCallback(
     async (field: keyof ProfileForm, value: unknown) => {
       if (!user?.uid) return;
-      const next = { ...form, [field]: value };
+      const normalized = normalizeProfileFieldForDb(field, value);
+      const next = { ...form, [field]: normalized } as ProfileForm;
       setForm(next);
 
       const payload: Record<string, unknown> = {};
       if (field === 'injury_limitation_tags') {
-        payload.injury_limitation_tags = Array.isArray(value) ? value : [];
+        payload.injury_limitation_tags = Array.isArray(normalized) ? normalized : [];
       } else {
-        payload[field] = value;
+        payload[field] = normalized;
       }
 
       try {
