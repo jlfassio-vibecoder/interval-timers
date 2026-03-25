@@ -190,7 +190,7 @@ export async function fetchClientStats(
   const { data: logs, error } = await supabase
     .from('workout_logs')
     .select(
-      'id, workout_name, date, effort, rating, duration_seconds, workout_type, workout_format, intensity, is_active_rest, goal_snapshot'
+      'id, workout_name, date, effort, rating, notes, duration_seconds, workout_type, workout_format, intensity, is_active_rest, goal_snapshot'
     )
     .eq('user_id', userId)
     .order('date', { ascending: false });
@@ -212,6 +212,7 @@ export async function fetchClientStats(
     date: l.date,
     effort: l.effort,
     rating: l.rating,
+    notes: l.notes ?? '',
     durationSeconds: l.duration_seconds ?? null,
     workoutType: l.workout_type ?? null,
     workoutFormat: l.workout_format ?? null,
