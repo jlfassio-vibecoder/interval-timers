@@ -10,6 +10,7 @@ import { supabase } from '@/lib/supabase';
 import {
   useAmrapSession,
   getStoredHostToken,
+  setStoredGuestClaimToken,
   setStoredParticipantId,
 } from '@/hooks/useAmrapSession';
 import { useAmrapAuth } from '@/contexts/AmrapAuthContext';
@@ -47,6 +48,10 @@ export interface UseSocialAmrapOptions {
   onDismissFinishedRecap?: () => void;
   /** When true, finished-state controls and round counts are hidden (ready for next workout) */
   recapDismissed?: boolean;
+  /** Optional guest gate intercept for "View in History" actions. Return true to stop default behavior. */
+  onAttemptViewHistory?: () => boolean;
+  /** Optional guest gate intercept for opening results. Return true to stop default behavior. */
+  onAttemptViewResults?: () => boolean;
 }
 
 export function useSocialAmrap(
@@ -249,8 +254,11 @@ export function useSocialAmrap(
       );
       return;
     }
-    const result = data as { participant_id: string };
+    const result = data as { participant_id: string; claim_token?: string | null };
     setStoredParticipantId(sessionId, result.participant_id);
+    if (typeof result.claim_token === 'string' && result.claim_token.trim()) {
+      setStoredGuestClaimToken(sessionId, result.claim_token.trim());
+    }
     await refetch();
   }, [sessionId, joinNickname, refetch, user?.id]);
 
@@ -725,17 +733,22 @@ export function useSocialAmrap(
               Done
             </Link>
           )}
-          <a
-            href={HUD_REDIRECT_URL}
-            target="_blank"
-            rel="noopener noreferrer"
+          <button
+            type="button"
+            onClick={() => {
+              if (options?.onAttemptViewHistory?.()) return;
+              window.open(HUD_REDIRECT_URL, '_blank', 'noopener,noreferrer');
+            }}
             className="flex-1 min-w-[8rem] rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-center font-bold text-white transition-colors hover:bg-white/20"
           >
             View in History
-          </a>
+          </button>
           <button
             type="button"
-            onClick={handleOpenViewResults}
+            onClick={() => {
+              if (options?.onAttemptViewResults?.()) return;
+              handleOpenViewResults();
+            }}
             className="flex-1 min-w-[8rem] rounded-xl border border-white/20 bg-white/10 px-4 py-3 font-bold text-white transition-colors hover:bg-white/20"
           >
             View results

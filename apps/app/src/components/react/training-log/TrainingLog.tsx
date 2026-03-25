@@ -9,9 +9,11 @@ import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { HEALTH_GUIDELINE_WEEKLY_MINUTES } from '@/lib/training-log-constants';
 import { Download, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
+import { trackEvent } from '@interval-timers/analytics';
 import { useAppContext } from '@/contexts/AppContext';
 import { warnIfBelowGuideline } from '@/lib/training-log-utils';
 import { hasBaselineForMET, userProfileToProfileBaseline } from '@/lib/met';
+import { getProfileHealthSummary } from '@/lib/profile-health-taxonomy';
 import { useTrainingLogWeeks } from '@/hooks/useTrainingLogWeeks';
 import {
   getCurrentWeekMondayISO,
@@ -20,6 +22,7 @@ import {
 import { exportTrainingLogToCsv } from '@/lib/training-log-export';
 import type { TrainingLogFilters } from '@/lib/training-log-filters';
 import type { WorkoutLog } from '@/types';
+import { supabase } from '@/lib/supabase/supabase-instance';
 import FilterBar from './FilterBar';
 import WeekRow, { DAY_LABELS } from './WeekRow';
 import WorkoutSummaryModal from './WorkoutSummaryModal';
@@ -56,6 +59,7 @@ const TrainingLog: React.FC = () => {
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
   const [focusedWeekIndex, setFocusedWeekIndex] = useState(0);
   const [exportingCsv, setExportingCsv] = useState(false);
+  const alignmentViewedTrackedRef = useRef(false);
   const weekCardRefs = useRef<(HTMLDivElement | null)[]>([]);
   const didScrollToCurrentWeek = useRef(false);
 
@@ -66,6 +70,7 @@ const TrainingLog: React.FC = () => {
 
   useEffect(() => {
     didScrollToCurrentWeek.current = false;
+    alignmentViewedTrackedRef.current = false;
   }, [user?.uid]);
 
   const { weeks, loading, error, refetch } = useTrainingLogWeeks(user?.uid ?? null, 52, filters, 12);
@@ -86,6 +91,8 @@ const TrainingLog: React.FC = () => {
   const profileBaseline = userProfileToProfileBaseline(user);
   const showProfileNudge =
     user?.uid && profileBaseline && !hasBaselineForMET(profileBaseline);
+
+  const healthSummary = useMemo(() => getProfileHealthSummary(user), [user]);
 
   const handleOpenGoalModal = useCallback(() => {
     setDraftGoal(String(goalMinutes));
@@ -186,6 +193,17 @@ const TrainingLog: React.FC = () => {
     setFocusedWeekIndex((prev) => (weeks.length > 0 ? Math.min(prev, weeks.length - 1) : 0));
   }, [weeks.length]);
 
+  useEffect(() => {
+    if (activeTab !== 'analytics' || !user?.uid || alignmentViewedTrackedRef.current) return;
+    alignmentViewedTrackedRef.current = true;
+    void trackEvent(
+      supabase,
+      'training_log_alignment_viewed',
+      { source: 'training_log_analytics' },
+      { appId: 'app' }
+    );
+  }, [activeTab, user?.uid]);
+
   const focusedWeek = weeks[focusedWeekIndex];
   const liveRegionText = focusedWeek ? `Viewing week of ${focusedWeek.range}` : '';
 
@@ -268,6 +286,21 @@ const TrainingLog: React.FC = () => {
               Complete your profile
             </a>
             {' '}— add date of birth, sex, weight, and height to unlock MET-based calorie estimates and a unified Total Work view.
+          </p>
+        </div>
+      )}
+
+      {healthSummary.showHealthReminder && activeTab === 'log' && user?.uid && (
+        <div className="mb-4 rounded-lg border border-white/15 bg-white/5 px-4 py-3">
+          <p className="text-sm text-white/80">
+            Your profile includes health considerations. Use them as a reminder to choose appropriate
+            intensity and modifications.{' '}
+            <a
+              href="/account/profile"
+              className="font-medium text-orange-400 underline hover:text-orange-300"
+            >
+              Update profile
+            </a>
           </p>
         </div>
       )}

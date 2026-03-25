@@ -31,8 +31,9 @@ export function buildAuthRedirectUrl(
  */
 export function buildOAuthRedirectUrl(
   redirectBaseUrl: string,
-  fromAppId?: string
+  options?: { fromAppId?: string; returnUrl?: string }
 ): string {
+  const { fromAppId, returnUrl } = options ?? {};
   const base =
     redirectBaseUrl.startsWith('http')
       ? redirectBaseUrl
@@ -40,6 +41,7 @@ export function buildOAuthRedirectUrl(
   const url = new URL(base);
   const params = new URLSearchParams(url.search);
   if (fromAppId) params.set('from', fromAppId);
+  if (returnUrl) params.set('returnUrl', returnUrl);
   try {
     if (typeof window !== 'undefined') {
       const raw = sessionStorage.getItem(HANDOFF_STORAGE_KEY);

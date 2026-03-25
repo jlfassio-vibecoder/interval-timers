@@ -1,9 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { AuthModal } from '@interval-timers/auth-ui';
-import { ACCOUNT_REDIRECT_URL, HUD_REDIRECT_URL } from '@/lib/account-redirect-url';
+import {
+  ACCOUNT_REDIRECT_URL,
+  HUD_REDIRECT_URL,
+  buildMinimalOnboardingRedirectUrl,
+} from '@/lib/account-redirect-url';
 import { useSocialAmrap } from '@/hooks/useSocialAmrap';
+import { getStoredGuestClaimToken } from '@/hooks/useAmrapSession';
 import { getWorkoutTitleAndDuration } from '@/lib/workoutLabel';
 import AmrapSessionShell from '@/components/amrap-session/AmrapSessionShell';
 import NewWorkoutModal from '@/components/NewWorkoutModal';
@@ -13,15 +18,68 @@ import RecoveryQrModal from '@/components/RecoveryQrModal';
 import ViewResultsModal from '@/components/ViewResultsModal';
 import FreeWorkoutTimerModal from '@/components/FreeWorkoutTimerModal';
 import { Video, VideoOff, Mic, MicOff } from 'lucide-react';
+import { useAmrapAuth } from '@/contexts/AmrapAuthContext';
+import { trackEvent } from '@interval-timers/analytics';
 
 export default function AmrapSessionPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
+  const { user } = useAmrapAuth();
+  const isGuest = !user;
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authModalSignUp, setAuthModalSignUp] = useState(false);
   const [recapDismissed, setRecapDismissed] = useState(false);
+  const [showGuestSavePrompt, setShowGuestSavePrompt] = useState(false);
+
+  const openAuth = (signUp: boolean) => {
+    setRecapDismissed(true);
+    setShowGuestSavePrompt(false);
+    if (signUp) {
+      void trackEvent(
+        supabase,
+        'guest_save_prompt_signup',
+        { source: 'amrap', surface: 'session' },
+        { appId: 'amrap' }
+      );
+    }
+    setAuthModalSignUp(signUp);
+    setShowAuthModal(true);
+  };
+
+  const openGuestSavePrompt = () => {
+    void trackEvent(
+      supabase,
+      'guest_save_prompt_shown',
+      { source: 'amrap', surface: 'session' },
+      { appId: 'amrap' }
+    );
+    setShowGuestSavePrompt(true);
+  };
+
+  const openHistory = () => {
+    const url = new URL(HUD_REDIRECT_URL, window.location.origin);
+    url.searchParams.set('hud', '1');
+    window.open(url.toString(), '_blank', 'noopener,noreferrer');
+  };
+
+  const maybeGate = (): boolean => {
+    if (!isGuest) return false;
+    openGuestSavePrompt();
+    return true;
+  };
+
   const result = useSocialAmrap(sessionId, {
     onDismissFinishedRecap: () => setRecapDismissed(true),
     recapDismissed,
+    onAttemptViewHistory: () => {
+      if (!isGuest) return false;
+      openGuestSavePrompt();
+      return true;
+    },
+    onAttemptViewResults: () => {
+      if (!isGuest) return false;
+      openGuestSavePrompt();
+      return true;
+    },
   });
 
   useEffect(() => {
@@ -38,6 +96,16 @@ export default function AmrapSessionPage() {
 
   const { pageState } = result;
   const session = pageState.session;
+  const claimAwareReturnUrl = useMemo(() => {
+    const sid = sessionId ?? null;
+    const participant = pageState.participantId ?? null;
+    const claimToken = sid ? getStoredGuestClaimToken(sid) : null;
+    return buildMinimalOnboardingRedirectUrl({
+      sessionId: sid,
+      participantId: participant,
+      claimToken,
+    });
+  }, [sessionId, pageState.participantId]);
   const hostParticipant = pageState.hostParticipant;
   const hostVideoTrack =
     pageState.isHost
@@ -64,20 +132,28 @@ export default function AmrapSessionPage() {
                 ) : (
                   <button
                     type="button"
-                    onClick={() => setRecapDismissed(true)}
+                    onClick={() => {
+                      if (isGuest) {
+                        openGuestSavePrompt();
+                        return;
+                      }
+                      setRecapDismissed(true);
+                    }}
                     className="rounded-lg border-2 border-orange-500 bg-orange-600 px-3 py-2 text-sm font-bold text-white transition-colors hover:bg-orange-500"
                   >
                     Continue
                   </button>
                 )}
-                <a
-                  href={HUD_REDIRECT_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (maybeGate()) return;
+                    openHistory();
+                  }}
                   className="rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm font-bold text-white transition-colors hover:bg-white/20"
                 >
                   View in History
-                </a>
+                </button>
               </div>
             ) : (
               <Link
@@ -177,7 +253,7 @@ export default function AmrapSessionPage() {
                     }}
                     className="text-sm font-bold text-white/70 hover:text-orange-400"
                   >
-                    Log in
+                    Sign in
                   </button>
                   <span className="text-white/40">/</span>
                   <button
@@ -188,7 +264,7 @@ export default function AmrapSessionPage() {
                     }}
                     className="text-sm font-bold text-white/70 hover:text-orange-400"
                   >
-                    Create account
+                    Sign up
                   </button>
                 </>
               )}
@@ -247,14 +323,16 @@ export default function AmrapSessionPage() {
                 Continue
               </button>
             )}
-            <a
-              href={HUD_REDIRECT_URL}
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              type="button"
+              onClick={() => {
+                if (maybeGate()) return;
+                openHistory();
+              }}
               className="flex-1 rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-center font-bold text-white transition-colors hover:bg-white/20"
             >
               View in History
-            </a>
+            </button>
           </div>
         )}
       </div>
@@ -265,6 +343,8 @@ export default function AmrapSessionPage() {
         supabase={supabase}
         redirectBaseUrl={ACCOUNT_REDIRECT_URL}
         defaultSignUp={authModalSignUp}
+        returnUrl={claimAwareReturnUrl}
+        fromAppId="amrap"
       />
 
       <NewWorkoutModal
@@ -292,32 +372,100 @@ export default function AmrapSessionPage() {
 
       <PostWorkoutRecapModal
         isOpen={result.timerPhase === 'finished' && !recapDismissed}
-        onClose={() => setRecapDismissed(true)}
+        onClose={() => {
+          if (isGuest) {
+            openGuestSavePrompt();
+            return;
+          }
+          setRecapDismissed(true);
+        }}
         myRounds={result.myRounds}
         durationMinutes={result.durationMinutes ?? 15}
         onCopyResults={pageState.copyResults}
-        onViewResults={pageState.handleOpenViewResults}
+        onViewResults={() => {
+          if (maybeGate()) return;
+          pageState.handleOpenViewResults();
+        }}
+        onViewInHistory={() => {
+          if (maybeGate()) return;
+          setRecapDismissed(true);
+          openHistory();
+        }}
         recoveryUrl={pageState.recoveryUrl}
-        showSignInCta={!pageState.user}
+        showSignInCta={isGuest}
         onSignInClick={
-          !pageState.user
+          isGuest
             ? () => {
-                setRecapDismissed(true);
-                setAuthModalSignUp(false);
-                setShowAuthModal(true);
+                openAuth(false);
               }
             : undefined
         }
+        onSignUpClick={isGuest ? () => openAuth(true) : undefined}
       />
 
       <ViewResultsModal
         isOpen={pageState.showViewResultsModal}
-        onClose={pageState.handleCloseViewResults}
+        onClose={() => {
+          if (isGuest) {
+            openGuestSavePrompt();
+            return;
+          }
+          pageState.handleCloseViewResults();
+        }}
         resultsText={pageState.viewResultsText}
         onCopy={pageState.copyResults}
+        onSaveResults={() => {
+          if (isGuest) {
+            openGuestSavePrompt();
+            return;
+          }
+          pageState.handleCloseViewResults();
+          openHistory();
+        }}
         copyToast={pageState.copyResultsToast}
         roundDurations={pageState.roundDurations}
+        showAccountCta={isGuest}
+        onSignIn={isGuest ? () => openAuth(false) : undefined}
+        onSignUp={isGuest ? () => openAuth(true) : undefined}
       />
+
+      {showGuestSavePrompt && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4">
+          <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-[#0d0500] p-5">
+            <h3 className="text-lg font-bold text-white">Save and track this workout</h3>
+            <p className="mt-2 text-sm text-white/75">
+              Create an account to save this AMRAP to your history across devices.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => openAuth(false)}
+                className="rounded-lg border border-orange-500/50 bg-orange-600/30 px-3 py-2 text-sm font-bold text-orange-200 transition-colors hover:bg-orange-600/50"
+              >
+                Sign in
+              </button>
+              <button
+                type="button"
+                onClick={() => openAuth(true)}
+                className="rounded-lg border border-orange-500/50 bg-orange-600/30 px-3 py-2 text-sm font-bold text-orange-200 transition-colors hover:bg-orange-600/50"
+              >
+                Sign up
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowGuestSavePrompt(false);
+                  setRecapDismissed(true);
+                  if (pageState.showViewResultsModal) pageState.handleCloseViewResults();
+                }}
+                className="rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm font-bold text-white transition-colors hover:bg-white/20"
+              >
+                Not now
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {pageState.recoveryUrl && (
         <RecoveryQrModal

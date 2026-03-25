@@ -1,4 +1,5 @@
 import type { WebsiteOnboardingData } from '@/types/onboarding';
+import { mapOnboardingGoalsToRanking } from '@/lib/onboarding-fitness-goal-map';
 
 const APP_BASE = (import.meta.env.PUBLIC_APP_URL || 'https://app.aiworkoutgenerator.com').replace(
   /\/$/,
@@ -16,6 +17,10 @@ export function buildSignupUrl(data: WebsiteOnboardingData, tenantId?: string): 
   params.set('fitness_level', data.fitness_level);
   params.set('activity_level', data.current_activity_level);
   params.set('fitness_goals', data.fitness_goals.join(','));
+  const ranking = mapOnboardingGoalsToRanking(data.fitness_goals);
+  if (ranking.length > 0) {
+    params.set('fitness_goal_ranking', ranking.join(','));
+  }
   params.set('equipment_access', data.equipment_access.join(','));
 
   params.set('units_weight', data.preferred_units.weight);

@@ -7,6 +7,7 @@ import { trackEvent } from '@interval-timers/analytics';
 import { supabase } from '@/lib/supabase';
 import { getOrCreateAudioContext, playSoundWithContext } from '@/lib/amrapSounds';
 import { saveGuestSessionResult } from '@/lib/guestSessionHistory';
+import { getStoredGuestClaimToken } from '@/hooks/useAmrapSession';
 import type { AmrapParticipantRow, AmrapRoundRow } from '@/lib/supabase';
 import type { SessionTimerState } from '@/hooks/useSessionState';
 import type { User } from '@supabase/supabase-js';
@@ -200,7 +201,8 @@ export function useSocialAmrapEffects(
         totalRounds,
         session?.workout_list ?? [],
         session?.duration_minutes ?? 15,
-        guestCompletedAtRef.current
+        guestCompletedAtRef.current,
+        getStoredGuestClaimToken(sessionId)
       );
     }
   }, [

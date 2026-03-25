@@ -8,6 +8,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAppContext } from '@/contexts/AppContext';
+import { normalizeFitnessGoalRanking } from '@/lib/fitness-goal-taxonomy';
 import { saveWorkoutLog } from '@/lib/supabase/client/workout-logs';
 import type { WorkoutSetTemplate } from '@/types/ai-workout';
 
@@ -77,6 +78,7 @@ export default function PastedQuickLogPage() {
     setSubmitting(true);
     setSubmitError(null);
     try {
+      const ranked = normalizeFitnessGoalRanking(user?.fitnessGoalRanking ?? []);
       await saveWorkoutLog({
         userId: user.uid,
         workoutId: undefined,
@@ -86,6 +88,7 @@ export default function PastedQuickLogPage() {
         rating,
         notes: notes.trim(),
         source: 'universal_activity_hub',
+        goalSnapshot: ranked.length > 0 ? ranked : null,
       });
       setState({ status: 'saved' });
     } catch (err) {
@@ -93,7 +96,7 @@ export default function PastedQuickLogPage() {
     } finally {
       setSubmitting(false);
     }
-  }, [state, user?.uid, date, effort, rating, notes]);
+  }, [state, user?.uid, user?.fitnessGoalRanking, date, effort, rating, notes]);
 
   const returnUrl =
     typeof window !== 'undefined'

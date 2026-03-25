@@ -34,6 +34,12 @@ export interface UserProfile {
   lifestyleBaseline?: string | null;
   workoutRoutine?: string | null;
   totalActiveMultiplier?: number | null;
+  /** Engine-aligned physical limitation ids + optional explicit `none`. */
+  physicalLimitations?: string[] | null;
+  medicalConditions?: string[] | null;
+  pregnancyPostpartum?: string[] | null;
+  /** Ordered fitness goal ids (priority 1 first), max 3. */
+  fitnessGoalRanking?: string[] | null;
 }
 
 export interface Exercise {
@@ -81,6 +87,8 @@ export interface WorkoutLog {
   intensity?: string;
   focusArea?: string;
   isActiveRest?: boolean;
+  /** Ranked goal ids from profile at save time (`workout_logs.goal_snapshot`). */
+  goalSnapshot?: string[] | null;
 }
 
 export interface Artist {

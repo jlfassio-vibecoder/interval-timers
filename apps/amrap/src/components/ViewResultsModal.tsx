@@ -11,8 +11,12 @@ export interface ViewResultsModalProps {
   onClose: () => void;
   resultsText: string;
   onCopy: () => void;
+  onSaveResults?: () => void;
   copyToast?: 'success' | 'error' | null;
   roundDurations?: number[];
+  showAccountCta?: boolean;
+  onSignIn?: () => void;
+  onSignUp?: () => void;
 }
 
 export default function ViewResultsModal({
@@ -20,8 +24,12 @@ export default function ViewResultsModal({
   onClose,
   resultsText,
   onCopy,
+  onSaveResults,
   copyToast,
   roundDurations = [],
+  showAccountCta = false,
+  onSignIn,
+  onSignUp,
 }: ViewResultsModalProps) {
   useEffect(() => {
     if (!isOpen) return;
@@ -47,7 +55,7 @@ export default function ViewResultsModal({
       onClick={handleBackdropClick}
     >
       <div
-        className="relative w-full max-w-md rounded-2xl border border-white/10 bg-[#0d0500] p-6 shadow-xl"
+        className="relative w-full max-w-2xl rounded-2xl border border-white/10 bg-[#0d0500] p-6 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         <button
@@ -62,9 +70,32 @@ export default function ViewResultsModal({
         <h2 id="view-results-modal-title" className="mb-3 pr-8 text-xl font-bold text-white">
           Your results
         </h2>
-        <p className="mb-4 text-sm text-white/70">
-          Share or save this summary. Use Copy to add it to your clipboard.
-        </p>
+        <p className="mb-4 text-sm text-white/70">Share, copy, or save this summary.</p>
+        {showAccountCta && (
+          <div className="mb-4 rounded-xl border border-orange-500/30 bg-orange-600/10 p-3">
+            <p className="mb-2 text-sm text-white/90">
+              Create an account to save and track results in your history.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={onSignIn}
+                className="rounded-lg border border-orange-500/50 bg-orange-600/30 px-3 py-2 text-sm font-bold text-orange-200 transition-colors hover:bg-orange-600/50"
+              >
+                Sign in
+              </button>
+              {onSignUp && (
+                <button
+                  type="button"
+                  onClick={onSignUp}
+                  className="rounded-lg border border-orange-500/50 bg-orange-600/30 px-3 py-2 text-sm font-bold text-orange-200 transition-colors hover:bg-orange-600/50"
+                >
+                  Sign up
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
         {roundDurations.length > 0 && (
           <RoundConsistencyChart roundDurations={roundDurations} />
@@ -89,18 +120,27 @@ export default function ViewResultsModal({
           </p>
         )}
 
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 rounded-xl border border-white/20 px-4 py-3 font-bold text-white/80 transition-colors hover:bg-white/10"
+            className="min-w-[8rem] flex-1 rounded-xl border border-white/20 px-4 py-3 font-bold text-white/80 transition-colors hover:bg-white/10"
           >
             Close
           </button>
+          {onSaveResults && (
+            <button
+              type="button"
+              onClick={onSaveResults}
+              className="min-w-[10rem] flex-1 rounded-xl border-2 border-white/20 bg-white/10 px-4 py-3 font-bold text-white transition-colors hover:bg-white/20"
+            >
+              Save results
+            </button>
+          )}
           <button
             type="button"
             onClick={onCopy}
-            className="flex-1 rounded-xl border-2 border-orange-500 bg-orange-600 px-4 py-3 font-bold text-white transition-colors hover:bg-orange-500"
+            className="min-w-[10rem] flex-1 rounded-xl border-2 border-orange-500 bg-orange-600 px-4 py-3 font-bold text-white transition-colors hover:bg-orange-500"
           >
             Copy results
           </button>

@@ -241,6 +241,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         lifestyleBaseline: null,
         workoutRoutine: null,
         totalActiveMultiplier: null,
+        physicalLimitations: null,
+        medicalConditions: null,
+        pregnancyPostpartum: null,
+        fitnessGoalRanking: null,
       });
     };
 
@@ -283,6 +287,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           workoutRoutine: data.workout_routine ?? null,
           totalActiveMultiplier:
             data.total_active_multiplier != null ? Number(data.total_active_multiplier) : null,
+          physicalLimitations: Array.isArray(data.physical_limitations)
+            ? data.physical_limitations
+            : null,
+          medicalConditions: Array.isArray(data.medical_conditions) ? data.medical_conditions : null,
+          pregnancyPostpartum: Array.isArray(data.pregnancy_postpartum)
+            ? data.pregnancy_postpartum
+            : null,
+          fitnessGoalRanking: Array.isArray(data.fitness_goal_ranking)
+            ? data.fitness_goal_ranking
+            : null,
         });
       } else {
         // Session exists but no profile row (0 rows; e.g. RLS blocks, or trigger hasn't created it yet)
