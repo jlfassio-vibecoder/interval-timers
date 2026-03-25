@@ -15,15 +15,15 @@ describe('calculateAgeYears', () => {
     expect(calculateAgeYears('')).toBeNull();
   });
 
-  it('computes age at UTC calendar boundary', () => {
-    const ref = new Date(Date.UTC(2025, 2, 15));
+  it('computes age at local calendar boundary', () => {
+    const ref = new Date(2025, 2, 15);
     expect(calculateAgeYears('1990-03-14', ref)).toBe(35);
     expect(calculateAgeYears('1990-03-15', ref)).toBe(35);
     expect(calculateAgeYears('1990-03-16', ref)).toBe(34);
   });
 
   it('returns null for future birth', () => {
-    const ref = new Date(Date.UTC(2025, 0, 1));
+    const ref = new Date(2025, 0, 1);
     expect(calculateAgeYears('2030-01-01', ref)).toBeNull();
   });
 });
@@ -130,7 +130,7 @@ describe('buildPhysiologicalCalibration', () => {
       dateOfBirth: '1990-01-15',
       manualMaxHrBpm: null,
       restingHrBpm: null,
-      referenceDate: new Date(Date.UTC(2025, 0, 15)),
+      referenceDate: new Date(2025, 0, 15),
     });
     expect(c.tier).toBe('max_only');
     expect(c.effectiveMaxHrBpm).toBe(estimateMaxHrTanaka(35));

@@ -52,7 +52,7 @@ describe('computeGoalAlignment', () => {
   });
 
   it('full physiological calibration increases cardio goal score when effort matches format', () => {
-    const ref = new Date(Date.UTC(2025, 0, 1));
+    const ref = new Date(2025, 0, 1);
     const cal = buildPhysiologicalCalibration({
       dateOfBirth: '1990-05-01',
       manualMaxHrBpm: 192,

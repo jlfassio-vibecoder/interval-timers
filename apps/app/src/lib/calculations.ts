@@ -20,8 +20,11 @@ function isFinitePositive(n: unknown): n is number {
 /**
  * Parse birth date from ISO `YYYY-MM-DD` string or Date.
  * @param birthdate - Calendar date of birth (no time-of-day semantics required for age).
- * @param referenceDate - Defaults to now; use for deterministic tests.
+ * @param referenceDate - Defaults to now; use for deterministic tests (local calendar).
  * @returns Whole years elapsed, or `null` if missing/invalid/birth in the future.
+ *
+ * Age uses the **local** calendar for both parsed `YYYY-MM-DD` and `referenceDate`, so
+ * birthdays align with the user’s timezone (consistent with HTML date inputs).
  */
 export function calculateAgeYears(
   birthdate: string | Date | null | undefined,
@@ -39,24 +42,31 @@ export function calculateAgeYears(
   const ref = referenceDate;
   if (Number.isNaN(ref.getTime())) return null;
 
-  let y = ref.getUTCFullYear() - birth.getUTCFullYear();
-  const m = ref.getUTCMonth() - birth.getUTCMonth();
-  if (m < 0 || (m === 0 && ref.getUTCDate() < birth.getUTCDate())) {
+  const refYear = ref.getFullYear();
+  const refMonth = ref.getMonth();
+  const refDay = ref.getDate();
+  const birthYear = birth.getFullYear();
+  const birthMonth = birth.getMonth();
+  const birthDay = birth.getDate();
+
+  let y = refYear - birthYear;
+  const m = refMonth - birthMonth;
+  if (m < 0 || (m === 0 && refDay < birthDay)) {
     y -= 1;
   }
   if (y < 0) return null;
   return y;
 }
 
-/** Parse `YYYY-MM-DD` as UTC midnight. */
+/** Parse `YYYY-MM-DD` as local calendar date at local midnight. */
 function parseIsoDateOnly(iso: string): Date | null {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso.trim());
   if (!m) return null;
   const y = Number(m[1]);
   const mo = Number(m[2]) - 1;
   const d = Number(m[3]);
-  const dt = new Date(Date.UTC(y, mo, d));
-  if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== mo || dt.getUTCDate() !== d) {
+  const dt = new Date(y, mo, d);
+  if (dt.getFullYear() !== y || dt.getMonth() !== mo || dt.getDate() !== d) {
     return null;
   }
   return dt;

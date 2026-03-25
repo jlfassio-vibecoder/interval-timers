@@ -6,7 +6,7 @@
  * Optimistic updates with Supabase; trackEvent for profile_completed and profile_field_updated.
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { ArrowLeft, X } from 'lucide-react';
 import { actions } from 'astro:actions';
 import { useAppContext } from '@/contexts/AppContext';
@@ -264,6 +264,13 @@ function normalizeProfileFieldForDb(field: keyof ProfileForm, value: unknown): u
   return value;
 }
 
+const RESTING_HR_GUIDE_FOCUSABLE_SELECTOR =
+  'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+function getRestingHrGuideFocusable(container: HTMLElement): HTMLElement[] {
+  return Array.from(container.querySelectorAll<HTMLElement>(RESTING_HR_GUIDE_FOCUSABLE_SELECTOR));
+}
+
 const ProfilePage: React.FC = () => {
   const { user, profile: contextProfile, setProfile } = useAppContext();
   const [form, setForm] = useState<ProfileForm>(emptyForm);
@@ -272,6 +279,17 @@ const ProfilePage: React.FC = () => {
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [profileCompletedAt, setProfileCompletedAt] = useState<string | null>(null);
   const [restingHrGuideOpen, setRestingHrGuideOpen] = useState(false);
+  const restingHrGuidePanelRef = useRef<HTMLDivElement>(null);
+  const restingHrGuideSavedFocusRef = useRef<HTMLElement | null>(null);
+
+  const closeRestingHrGuide = useCallback(() => {
+    const el = restingHrGuideSavedFocusRef.current;
+    restingHrGuideSavedFocusRef.current = null;
+    setRestingHrGuideOpen(false);
+    if (el && typeof el.focus === 'function' && document.contains(el)) {
+      el.focus();
+    }
+  }, []);
 
   const showToast = useCallback((type: 'success' | 'error', message: string) => {
     setToast({ type, message });
@@ -309,12 +327,47 @@ const ProfilePage: React.FC = () => {
 
   useEffect(() => {
     if (!restingHrGuideOpen) return;
+    restingHrGuideSavedFocusRef.current = document.activeElement as HTMLElement | null;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const t = window.setTimeout(() => {
+      const root = restingHrGuidePanelRef.current;
+      if (!root) return;
+      const focusable = getRestingHrGuideFocusable(root);
+      focusable[0]?.focus();
+    }, 100);
+
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setRestingHrGuideOpen(false);
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        closeRestingHrGuide();
+        return;
+      }
+      if (e.key !== 'Tab') return;
+      const root = restingHrGuidePanelRef.current;
+      if (!root) return;
+      const focusable = getRestingHrGuideFocusable(root);
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement;
+      if (e.shiftKey) {
+        if (active === first) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else if (active === last) {
+        e.preventDefault();
+        first.focus();
+      }
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [restingHrGuideOpen]);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      window.clearTimeout(t);
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [restingHrGuideOpen, closeRestingHrGuide]);
 
   const persistBimodalActivity = useCallback(
     async (lifestyle: LifestyleBaselineId, workout: WorkoutRoutineId) => {
@@ -659,9 +712,10 @@ const ProfilePage: React.FC = () => {
         <div
           className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 px-4 py-8"
           role="presentation"
-          onClick={() => setRestingHrGuideOpen(false)}
+          onClick={() => closeRestingHrGuide()}
         >
           <div
+            ref={restingHrGuidePanelRef}
             role="dialog"
             aria-modal="true"
             aria-labelledby="resting-hr-guide-title"
@@ -670,7 +724,7 @@ const ProfilePage: React.FC = () => {
           >
             <button
               type="button"
-              onClick={() => setRestingHrGuideOpen(false)}
+              onClick={() => closeRestingHrGuide()}
               className="absolute right-4 top-4 rounded-lg p-1 text-white/60 transition hover:bg-white/10 hover:text-white"
               aria-label="Close"
             >
@@ -716,7 +770,7 @@ const ProfilePage: React.FC = () => {
             </ul>
             <button
               type="button"
-              onClick={() => setRestingHrGuideOpen(false)}
+              onClick={() => closeRestingHrGuide()}
               className="mt-6 w-full rounded-lg bg-orange-500 px-4 py-2.5 text-sm font-bold text-black transition hover:bg-orange-400"
             >
               Got it
@@ -1013,7 +1067,7 @@ const ProfilePage: React.FC = () => {
                 onClick={() => setRestingHrGuideOpen(true)}
                 className="mt-2 w-full rounded-lg border border-orange-500/50 px-3 py-2 text-sm font-medium text-orange-300 transition hover:border-orange-400 hover:bg-orange-500/10"
               >
-                Calculate Resting HR
+                How to measure resting HR
               </button>
             </div>
             <div>
