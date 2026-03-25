@@ -7,7 +7,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, X } from 'lucide-react';
 import { actions } from 'astro:actions';
 import { useAppContext } from '@/contexts/AppContext';
 import { supabase } from '@/lib/supabase/supabase-instance';
@@ -44,6 +44,7 @@ import {
   toggleFitnessGoalRanking,
   type FitnessGoalId,
 } from '@/lib/fitness-goal-taxonomy';
+import { calculateAgeYears, estimateMaxHrTanaka } from '@/lib/calculations';
 
 const DAILY_ROUTINE_OPTIONS: { id: LifestyleBaselineId; label: string }[] = [
   { id: 'sedentary', label: 'Mostly Sitting' },
@@ -270,6 +271,7 @@ const ProfilePage: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [profileCompletedAt, setProfileCompletedAt] = useState<string | null>(null);
+  const [restingHrGuideOpen, setRestingHrGuideOpen] = useState(false);
 
   const showToast = useCallback((type: 'success' | 'error', message: string) => {
     setToast({ type, message });
@@ -304,6 +306,15 @@ const ProfilePage: React.FC = () => {
       cancelled = true;
     };
   }, [user?.uid, showToast]);
+
+  useEffect(() => {
+    if (!restingHrGuideOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setRestingHrGuideOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [restingHrGuideOpen]);
 
   const persistBimodalActivity = useCallback(
     async (lifestyle: LifestyleBaselineId, workout: WorkoutRoutineId) => {
@@ -364,6 +375,37 @@ const ProfilePage: React.FC = () => {
         const { error } = await supabase.from('profiles').update(payload).eq('id', user.uid);
         if (error) throw error;
         void trackEvent(supabase, 'profile_field_updated', { field }, { appId: 'app' });
+        if (
+          contextProfile &&
+          (field === 'date_of_birth' || field === 'resting_hr_bpm' || field === 'max_hr_bpm')
+        ) {
+          setProfile({
+            ...contextProfile,
+            ...(field === 'date_of_birth'
+              ? {
+                  dateOfBirth: normalized
+                    ? String(normalized).slice(0, 10)
+                    : null,
+                }
+              : {}),
+            ...(field === 'resting_hr_bpm'
+              ? {
+                  restingHrBpm:
+                    normalized != null && String(normalized).trim() !== ''
+                      ? parseInt(String(normalized), 10)
+                      : null,
+                }
+              : {}),
+            ...(field === 'max_hr_bpm'
+              ? {
+                  maxHrBpm:
+                    normalized != null && String(normalized).trim() !== ''
+                      ? parseInt(String(normalized), 10)
+                      : null,
+                }
+              : {}),
+          });
+        }
         const coreFilled = countFilledCore(next);
         if (coreFilled >= 3 && !profileCompletedAt) {
           const { error: updErr } = await supabase
@@ -389,8 +431,27 @@ const ProfilePage: React.FC = () => {
         showToast('error', err instanceof Error ? err.message : 'Failed to save');
       }
     },
-    [user?.uid, form, profileCompletedAt, showToast]
+    [user?.uid, form, profileCompletedAt, showToast, contextProfile, setProfile]
   );
+
+  const handleCalculateMaxHrFromBirthdate = useCallback(() => {
+    if (!user?.uid) return;
+    if (!form.date_of_birth?.trim()) {
+      showToast('error', 'Birthdate Required to Calculate Max HR');
+      return;
+    }
+    const age = calculateAgeYears(form.date_of_birth);
+    if (age == null) {
+      showToast('error', 'Enter a valid birthdate to calculate max HR');
+      return;
+    }
+    const bpm = estimateMaxHrTanaka(age);
+    if (bpm == null) {
+      showToast('error', 'Max HR cannot be estimated for this age (use ages 10–100)');
+      return;
+    }
+    void handleSaveField('max_hr_bpm', String(bpm));
+  }, [user?.uid, form.date_of_birth, showToast, handleSaveField]);
 
   const persistHiitStyles = useCallback(
     async (next: string[]) => {
@@ -508,6 +569,9 @@ const ProfilePage: React.FC = () => {
         setProfile({
           ...contextProfile,
           displayName: form.full_name || contextProfile.displayName,
+          dateOfBirth: form.date_of_birth ? form.date_of_birth.slice(0, 10) : null,
+          restingHrBpm: form.resting_hr_bpm ? parseInt(form.resting_hr_bpm, 10) : null,
+          maxHrBpm: form.max_hr_bpm ? parseInt(form.max_hr_bpm, 10) : null,
           lifestyleBaseline: form.lifestyle_baseline || 'sedentary',
           workoutRoutine: form.workout_routine || 'none',
           totalActiveMultiplier: computeTotalActiveMultiplier(
@@ -588,6 +652,76 @@ const ProfilePage: React.FC = () => {
           }`}
         >
           {toast.message}
+        </div>
+      )}
+
+      {restingHrGuideOpen && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 px-4 py-8"
+          role="presentation"
+          onClick={() => setRestingHrGuideOpen(false)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="resting-hr-guide-title"
+            className="relative max-h-[min(90vh,32rem)] w-full max-w-lg overflow-y-auto rounded-2xl border border-white/15 bg-zinc-950 p-6 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setRestingHrGuideOpen(false)}
+              className="absolute right-4 top-4 rounded-lg p-1 text-white/60 transition hover:bg-white/10 hover:text-white"
+              aria-label="Close"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <h2
+              id="resting-hr-guide-title"
+              className="pr-10 font-heading text-xl font-bold text-white"
+            >
+              How to measure resting heart rate
+            </h2>
+            <p className="mt-3 text-sm leading-relaxed text-white/70">
+              Use these steps to get a value you can enter above. This is guidance only—not a medical
+              diagnosis.
+            </p>
+            <ol className="mt-5 list-decimal space-y-3 pl-5 text-sm leading-relaxed text-white/85">
+              <li>
+                Download a <strong className="font-semibold text-white">free resting heart rate app</strong>{' '}
+                from your phone&apos;s app store (camera-based or sensor-based is fine).
+              </li>
+              <li>
+                Take your reading{' '}
+                <strong className="font-semibold text-white">right after you wake up</strong>, while you
+                are still <strong className="font-semibold text-white">lying in bed</strong>, before you
+                get up or start moving around.
+              </li>
+            </ol>
+            <p className="mt-5 text-xs font-semibold uppercase tracking-wide text-orange-300/90">
+              For best accuracy
+            </p>
+            <ul className="mt-2 list-disc space-y-2 pl-5 text-sm leading-relaxed text-white/75">
+              <li>
+                Repeat on several mornings and use a typical value rather than a single reading.
+              </li>
+              <li>
+                Prefer mornings when you had <strong className="text-white/90">no alcohol</strong> the
+                night before.
+              </li>
+              <li>
+                Prefer when you got roughly <strong className="text-white/90">average to ideal</strong>{' '}
+                sleep for you and you <strong className="text-white/90">feel rested</strong>.
+              </li>
+            </ul>
+            <button
+              type="button"
+              onClick={() => setRestingHrGuideOpen(false)}
+              className="mt-6 w-full rounded-lg bg-orange-500 px-4 py-2.5 text-sm font-bold text-black transition hover:bg-orange-400"
+            >
+              Got it
+            </button>
+          </div>
         </div>
       )}
 
@@ -874,6 +1008,13 @@ const ProfilePage: React.FC = () => {
                 onChange={(e) => handleSaveField('resting_hr_bpm', e.target.value)}
                 className="w-full rounded-lg border border-white/10 bg-black/40 px-4 py-2 text-white"
               />
+              <button
+                type="button"
+                onClick={() => setRestingHrGuideOpen(true)}
+                className="mt-2 w-full rounded-lg border border-orange-500/50 px-3 py-2 text-sm font-medium text-orange-300 transition hover:border-orange-400 hover:bg-orange-500/10"
+              >
+                Calculate Resting HR
+              </button>
             </div>
             <div>
               <label className="mb-1 block text-sm text-white/70">Max HR (bpm)</label>
@@ -885,6 +1026,14 @@ const ProfilePage: React.FC = () => {
                 onChange={(e) => handleSaveField('max_hr_bpm', e.target.value)}
                 className="w-full rounded-lg border border-white/10 bg-black/40 px-4 py-2 text-white"
               />
+              <button
+                type="button"
+                disabled={!user?.uid}
+                onClick={() => handleCalculateMaxHrFromBirthdate()}
+                className="mt-2 w-full rounded-lg border border-orange-500/50 px-3 py-2 text-sm font-medium text-orange-300 transition hover:border-orange-400 hover:bg-orange-500/10 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Calculate Max HR
+              </button>
             </div>
           </div>
         </section>

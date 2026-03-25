@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { WorkoutLog } from '@/types';
+import { buildPhysiologicalCalibration } from '@/lib/calculations';
 import type { FitnessGoalId } from '@/lib/fitness-goal-taxonomy';
 import {
   ALIGNMENT_SCORER_VERSION,
@@ -50,6 +51,33 @@ describe('computeGoalAlignment', () => {
     expect(r!.composite).toBe(75);
   });
 
+  it('full physiological calibration increases cardio goal score when effort matches format', () => {
+    const ref = new Date(Date.UTC(2025, 0, 1));
+    const cal = buildPhysiologicalCalibration({
+      dateOfBirth: '1990-05-01',
+      manualMaxHrBpm: 192,
+      restingHrBpm: 58,
+      referenceDate: ref,
+    });
+    expect(cal.tier).toBe('full');
+    const log = baseLog({ effort: 9 });
+    const without = computeGoalAlignment(log, ['fat_loss'])!.byGoalId.fat_loss!;
+    const withCal = computeGoalAlignment(log, ['fat_loss'], cal)!.byGoalId.fat_loss!;
+    expect(withCal).toBe(without + 2);
+  });
+
+  it('scores extended goal ids for mobility-style warmup', () => {
+    const r = computeGoalAlignment(
+      baseLog({ source: 'daily-warmup', durationSeconds: 15 * 60, effort: 5 }),
+      ['mobility_flexibility']
+    );
+    expect(r).not.toBeNull();
+    const v = r!.byGoalId.mobility_flexibility!;
+    expect(v).toBeGreaterThanOrEqual(0);
+    expect(v).toBeLessThanOrEqual(100);
+    expect(v).toBeGreaterThan(70);
+  });
+
   it('golden: active rest caps scores', () => {
     const r = computeGoalAlignment(
       baseLog({ isActiveRest: true, effort: 9 }),
@@ -70,6 +98,8 @@ describe('computeGoalAlignment', () => {
       ['fat_loss'],
       ['muscle_hypertrophy', 'longevity'],
       ['cardiovascular_endurance', 'fat_loss', 'longevity'],
+      ['power_speed', 'athletic_performance', 'functional_strength'],
+      ['stress_management', 'weight_maintenance'],
     ];
     for (const snap of snapshots) {
       for (let d = 0; d <= 120; d += 20) {

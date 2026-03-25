@@ -8,25 +8,29 @@ If your PR changes another workspace (e.g. `apps/amrap`, `packages/*`), run that
 
 ## Automated checks (run in `apps/app`)
 
-From the repo root:
+From the repo root, **before every PR** (tests **and** Astro/Vite build):
 
 ```bash
-cd apps/app && npm run verify:quick
+cd apps/app && npm run verify:quick && npm run build
 ```
 
-That runs **ESLint** (`.ts`, `.tsx`, `.astro`), **`tsc --noEmit`**, and **Vitest** (`vitest run`).
+`verify:quick` runs **ESLint** (`.ts`, `.tsx`, `.astro`), **`tsc --noEmit`**, and **Vitest** (`vitest run`). `build` runs **Astro** + **Vite** production output and catches bundling issues that lint/tsc alone can miss.
+
+Equivalent lint/typecheck/build without tests first: `npm run verify:all` (same as `lint` + `type-check` + `build`). **Do not use `verify:all` alone**—it does not run Vitest; always include **`npm run test`** (e.g. via `verify:quick`) before opening a PR.
 
 | Step            | Command (in `apps/app`) | Notes |
 |-----------------|-------------------------|--------|
 | Lint            | `npm run lint`          | `eslint . --ext .ts,.tsx,.astro` |
 | Typecheck       | `npm run type-check`    | `tsc --noEmit` |
 | Tests           | `npm run test`          | Full suite; use `npm run test -- --run <path>` to scope |
+| Build (required for PR) | `npm run build` | Astro/Vite; required with `verify:quick` |
 | Format (optional) | `npm run format:check` | Prettier on TS/TSX/Astro/JSON/MD/CSS |
-| Build (optional)  | `npm run build`        | Catches Astro/Vite issues lint/tsc may miss |
 
-Stricter / deploy-oriented: `npm run verify:all` (lint + type-check + build). CI or release flows may also use `verify:deploy` / `security:scan` — follow team norms.
+`npm run verify:all` is lint + type-check + build only (no tests). A full PR gate is still **`verify:quick && npm run build`**.
 
-**Before PR:** at minimum **`verify:quick`** (or equivalent lint + typecheck + tests) should pass on a clean tree.
+Deploy-oriented: `npm run verify:deploy` / `security:scan` — follow team norms.
+
+**Before PR:** **`verify:quick` and `npm run build`** must pass on a clean tree.
 
 ---
 
@@ -82,7 +86,7 @@ Review **changed lines** only. **Do not explain what the code does.** Flag only:
 **Automation (`apps/app`)**
 
 - [ ] `npm run verify:quick` (or lint + `type-check` + `test`) passes
-- [ ] Optional: `npm run build` if the change touches Astro config, routing, or bundling edge cases
+- [ ] `npm run build` passes (Astro/Vite)
 
 **Boundaries**
 

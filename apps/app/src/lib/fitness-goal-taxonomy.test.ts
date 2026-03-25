@@ -33,6 +33,14 @@ describe('normalizeFitnessGoalRanking', () => {
         'cardiovascular_endurance',
       ])
     ).toEqual(['fat_loss', 'longevity', 'muscle_hypertrophy']);
+    expect(
+      normalizeFitnessGoalRanking([
+        'power_speed',
+        'mobility_flexibility',
+        'stress_management',
+        'weight_maintenance',
+      ])
+    ).toEqual(['power_speed', 'mobility_flexibility', 'stress_management']);
   });
 
   it('returns empty for empty', () => {

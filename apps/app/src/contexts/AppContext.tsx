@@ -245,6 +245,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         medicalConditions: null,
         pregnancyPostpartum: null,
         fitnessGoalRanking: null,
+        restingHrBpm: null,
+        maxHrBpm: null,
       });
     };
 
@@ -279,6 +281,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           weeklyGoalMinutes:
             typeof goal === 'number' && goal > 0 ? goal : HEALTH_GUIDELINE_WEEKLY_MINUTES,
           dateOfBirth: data.date_of_birth ?? null,
+          restingHrBpm: data.resting_hr_bpm != null ? Number(data.resting_hr_bpm) : null,
+          maxHrBpm: data.max_hr_bpm != null ? Number(data.max_hr_bpm) : null,
           biologicalSex: data.biological_sex ?? null,
           weightKg: data.weight_kg != null ? Number(data.weight_kg) : null,
           heightCm: data.height_cm != null ? Number(data.height_cm) : null,

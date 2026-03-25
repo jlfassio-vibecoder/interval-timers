@@ -11,6 +11,7 @@ import type { WorkoutLog } from '@/types';
 import { getWorkoutMetSessionData, type ProfileBaseline } from '@/lib/met';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useAppContext } from '@/contexts/AppContext';
+import { buildPhysiologicalCalibration } from '@/lib/calculations';
 import { computeGoalAlignment, ALIGNMENT_SCORER_VERSION } from '@/lib/fitness-goal-alignment';
 import {
   labelForFitnessGoalId,
@@ -53,9 +54,26 @@ const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({
     return normalizeFitnessGoalRanking(workout.goalSnapshot);
   }, [workout?.goalSnapshot]);
 
+  const physiologicalCalibration = useMemo(
+    () =>
+      buildPhysiologicalCalibration({
+        dateOfBirth: user?.dateOfBirth ?? null,
+        manualMaxHrBpm: user?.maxHrBpm ?? null,
+        restingHrBpm: user?.restingHrBpm ?? null,
+      }),
+    [user?.dateOfBirth, user?.maxHrBpm, user?.restingHrBpm]
+  );
+
   const goalAlignment = useMemo(
-    () => (workout ? computeGoalAlignment(workout, workout.goalSnapshot ?? null) : null),
-    [workout]
+    () =>
+      workout
+        ? computeGoalAlignment(
+            workout,
+            workout.goalSnapshot ?? null,
+            physiologicalCalibration
+          )
+        : null,
+    [workout, physiologicalCalibration]
   );
 
   function restoreFocus() {

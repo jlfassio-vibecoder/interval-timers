@@ -11,6 +11,12 @@ export const FITNESS_GOAL_IDS = [
   'cardiovascular_endurance',
   'muscle_hypertrophy',
   'longevity',
+  'athletic_performance',
+  'functional_strength',
+  'mobility_flexibility',
+  'stress_management',
+  'weight_maintenance',
+  'power_speed',
 ] as const;
 
 export type FitnessGoalId = (typeof FITNESS_GOAL_IDS)[number];
@@ -20,6 +26,12 @@ export const FITNESS_GOAL_BADGES: { id: FitnessGoalId; label: string }[] = [
   { id: 'cardiovascular_endurance', label: 'Cardiovascular endurance' },
   { id: 'muscle_hypertrophy', label: 'Muscle hypertrophy' },
   { id: 'longevity', label: 'Longevity' },
+  { id: 'athletic_performance', label: 'Athletic performance' },
+  { id: 'functional_strength', label: 'Functional strength' },
+  { id: 'mobility_flexibility', label: 'Mobility & flexibility' },
+  { id: 'stress_management', label: 'Stress management' },
+  { id: 'weight_maintenance', label: 'Weight maintenance' },
+  { id: 'power_speed', label: 'Power & speed' },
 ];
 
 export function isFitnessGoalId(s: string): s is FitnessGoalId {

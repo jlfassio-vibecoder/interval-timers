@@ -26,6 +26,10 @@ export interface UserProfile {
   weeklyGoalMinutes?: number | null;
   /** MET/BMR baseline (from profiles) */
   dateOfBirth?: string | null;
+  /** Resting HR (bpm); Karvonen / zone display when set. */
+  restingHrBpm?: number | null;
+  /** Manual max HR (bpm); Tanaka from DOB used when unset. */
+  maxHrBpm?: number | null;
   biologicalSex?: string | null;
   weightKg?: number | null;
   heightCm?: number | null;
