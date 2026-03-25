@@ -18,7 +18,7 @@ CREATE OR REPLACE FUNCTION public.join_session(
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = pg_catalog, public
 AS $$
 DECLARE
   v_count int;
@@ -67,6 +67,64 @@ BEGIN
 END;
 $$;
 
+-- Keep create_session behavior compatible while returning claim_token for guest hosts.
+DROP FUNCTION IF EXISTS public.create_session(int, text, jsonb, timestamptz, uuid);
+
+CREATE OR REPLACE FUNCTION public.create_session(
+  p_duration_minutes int,
+  p_host_nickname text DEFAULT 'Host',
+  p_workout_list jsonb DEFAULT '[]',
+  p_scheduled_start_at timestamptz DEFAULT NULL,
+  p_user_id uuid DEFAULT NULL
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, public
+AS $$
+DECLARE
+  v_session_id uuid;
+  v_host_token text;
+  v_participant_id uuid;
+  v_user_id uuid;
+  v_claim_token text;
+  v_claim_hash text;
+BEGIN
+  -- Derive from auth.uid(); never trust client-provided p_user_id (prevents identity spoofing)
+  v_user_id := auth.uid();
+
+  v_host_token := gen_random_uuid()::text;
+  IF v_user_id IS NULL THEN
+    v_claim_token := replace(gen_random_uuid()::text, '-', '') || replace(gen_random_uuid()::text, '-', '');
+    v_claim_hash := encode(digest(v_claim_token, 'sha256'), 'hex');
+  ELSE
+    v_claim_token := NULL;
+    v_claim_hash := NULL;
+  END IF;
+
+  INSERT INTO amrap_sessions (host_token, duration_minutes, workout_list, state, time_left_sec, scheduled_start_at, created_by_user_id)
+  VALUES (v_host_token, p_duration_minutes, p_workout_list, 'waiting', 10, p_scheduled_start_at, v_user_id)
+  RETURNING id INTO v_session_id;
+
+  INSERT INTO amrap_participants (session_id, nickname, role, user_id, guest_claim_token_hash)
+  VALUES (
+    v_session_id,
+    COALESCE(NULLIF(trim(p_host_nickname), ''), 'Host'),
+    'host',
+    v_user_id,
+    v_claim_hash
+  )
+  RETURNING id INTO v_participant_id;
+
+  RETURN jsonb_build_object(
+    'session_id', v_session_id,
+    'host_token', v_host_token,
+    'participant_id', v_participant_id,
+    'claim_token', v_claim_token
+  );
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION public.claim_amrap_guest_session(
   p_session_id uuid,
   p_participant_id uuid,
@@ -75,7 +133,7 @@ CREATE OR REPLACE FUNCTION public.claim_amrap_guest_session(
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, shared
+SET search_path = pg_catalog, public, shared
 AS $$
 DECLARE
   v_uid uuid;

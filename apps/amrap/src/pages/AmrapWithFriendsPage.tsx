@@ -133,12 +133,16 @@ export default function AmrapWithFriendsPage() {
       const sessionId = typeof raw.session_id === 'string' ? raw.session_id.trim() : '';
       const hostToken = typeof raw.host_token === 'string' ? raw.host_token.trim() : '';
       const participantId = typeof raw.participant_id === 'string' ? raw.participant_id.trim() : '';
+      const claimToken = typeof raw.claim_token === 'string' ? raw.claim_token.trim() : '';
       if (!sessionId || !hostToken || !participantId) {
         setCreateError('Something went wrong. Please try again.');
         return;
       }
       setStoredHostToken(sessionId, hostToken);
       setStoredParticipantId(sessionId, participantId);
+      if (claimToken) {
+        setStoredGuestClaimToken(sessionId, claimToken);
+      }
       if (scheduledDateTime) {
         setNewlyScheduledSession({
           id: sessionId,

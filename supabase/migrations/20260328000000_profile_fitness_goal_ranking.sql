@@ -12,7 +12,7 @@ BEGIN
 END $$;
 
 COMMENT ON COLUMN public.profiles.fitness_goal_ranking IS
-  'Ordered fitness goal ids (max 3): index 0 = priority 1. Allowlist: fat_loss, cardiovascular_endurance, muscle_hypertrophy, longevity.';
+  'Ordered fitness goal ids (max 3): first element = priority 1. Allowlist: fat_loss, cardiovascular_endurance, muscle_hypertrophy, longevity.';
 
 ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS profiles_fitness_goal_ranking_cardinality;
 ALTER TABLE public.profiles ADD CONSTRAINT profiles_fitness_goal_ranking_cardinality

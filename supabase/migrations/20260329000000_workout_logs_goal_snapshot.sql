@@ -13,7 +13,7 @@ AS $$
 DECLARE
   v_ranking text[];
 BEGIN
-  IF NEW.goal_snapshot IS NOT NULL THEN
+  IF NEW.goal_snapshot IS NOT NULL AND cardinality(NEW.goal_snapshot) > 0 THEN
     RETURN NEW;
   END IF;
 

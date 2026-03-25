@@ -3,7 +3,11 @@ import { actions } from 'astro:actions';
 import { useAppContext } from '@/contexts/AppContext';
 import { supabase } from '@/lib/supabase/supabase-instance';
 import { trackEvent } from '@interval-timers/analytics';
-import { FITNESS_GOAL_BADGES, type FitnessGoalId } from '@/lib/fitness-goal-taxonomy';
+import {
+  FITNESS_GOAL_BADGES,
+  normalizeFitnessGoalRanking,
+  type FitnessGoalId,
+} from '@/lib/fitness-goal-taxonomy';
 import { mapOnboardingGoalsToRanking } from '@/lib/onboarding-fitness-goal-map';
 import type { FitnessGoal } from '@/types/onboarding';
 
@@ -28,11 +32,7 @@ function rankingFromUrl(): FitnessGoalId[] {
   if (typeof window === 'undefined') return [];
   const raw = new URLSearchParams(window.location.search).get('fitness_goal_ranking');
   if (raw) {
-    return raw
-      .split(',')
-      .map((s) => s.trim())
-      .filter((s): s is FitnessGoalId => FITNESS_GOAL_BADGES.some((b) => b.id === s))
-      .slice(0, 3);
+    return normalizeFitnessGoalRanking(raw.split(',').map((s) => s.trim()));
   }
   const labelsRaw = new URLSearchParams(window.location.search).get('fitness_goals');
   if (!labelsRaw) return [];
@@ -54,7 +54,15 @@ export default function MinimalOnboardingPage() {
   const returnUrl = useMemo(() => {
     if (typeof window === 'undefined') return '/account?hud=1';
     const value = new URLSearchParams(window.location.search).get('return');
-    return value && value.trim() ? value : '/account?hud=1';
+    const trimmed = value?.trim();
+    if (!trimmed) return '/account?hud=1';
+    try {
+      const nextUrl = new URL(trimmed, window.location.origin);
+      if (nextUrl.origin !== window.location.origin) return '/account?hud=1';
+      return `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`;
+    } catch {
+      return '/account?hud=1';
+    }
   }, []);
   const guestClaim = useMemo(() => {
     if (typeof window === 'undefined') {

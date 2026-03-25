@@ -161,46 +161,65 @@ const AccountLanding: React.FC = () => {
   // show account content, not sign-in.
   const isLoggedIn = !!user?.uid || !!session?.user;
 
+  // returnUrl redirect and AMRAP guest claim must not run as separate effects: the redirect
+  // calls location.replace synchronously and tears down the page before claim_amrap_guest_session
+  // can finish when both returnUrl and guest_* params are present.
   useEffect(() => {
     if (!isLoggedIn || typeof window === 'undefined') return;
-    const returnUrl = new URLSearchParams(window.location.search).get('returnUrl');
-    if (!returnUrl) return;
-    const trimmed = returnUrl.trim();
-    if (!trimmed || trimmed === window.location.href) return;
-    window.location.replace(trimmed);
-  }, [isLoggedIn]);
 
-  useEffect(() => {
-    if (!isLoggedIn || typeof window === 'undefined' || guestClaimAttemptedRef.current) return;
     const params = new URLSearchParams(window.location.search);
     const sessionId = params.get('guest_session');
     const participantId = params.get('guest_participant');
     const claimToken = params.get('guest_claim');
-    if (!sessionId || !participantId || !claimToken) return;
-    guestClaimAttemptedRef.current = true;
-    void (async () => {
-      const uid = user?.uid ?? session?.user?.id ?? null;
-      const { error } = await supabase.rpc('claim_amrap_guest_session', {
-        p_session_id: sessionId,
-        p_participant_id: participantId,
-        p_claim_token: claimToken,
-      });
-      await trackEvent(
-        supabase,
-        error ? 'guest_amrap_claim_failed' : 'guest_amrap_claim_succeeded',
-        error ? { source: 'amrap', error: error.message, surface: 'account' } : { source: 'amrap', surface: 'account' },
-        { userId: uid, appId: 'app' }
-      );
-      params.delete('guest_session');
-      params.delete('guest_participant');
-      params.delete('guest_claim');
-      const nextQuery = params.toString();
-      window.history.replaceState(
-        {},
-        '',
-        `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ''}${window.location.hash}`
-      );
-    })();
+    const needsGuestClaim = !!(sessionId && participantId && claimToken);
+
+    const redirectToReturnUrlIfAllowed = (sp: URLSearchParams) => {
+      const trimmed = sp.get('returnUrl')?.trim();
+      if (!trimmed) return;
+      try {
+        const nextUrl = new URL(trimmed, window.location.origin);
+        if (nextUrl.origin !== window.location.origin) return;
+        if (nextUrl.href === window.location.href) return;
+        window.location.replace(nextUrl.href);
+      } catch {
+        // Ignore malformed redirect values.
+      }
+    };
+
+    if (needsGuestClaim) {
+      if (guestClaimAttemptedRef.current) return;
+      guestClaimAttemptedRef.current = true;
+      void (async () => {
+        const uid = user?.uid ?? session?.user?.id ?? null;
+        const { error } = await supabase.rpc('claim_amrap_guest_session', {
+          p_session_id: sessionId,
+          p_participant_id: participantId,
+          p_claim_token: claimToken,
+        });
+        await trackEvent(
+          supabase,
+          error ? 'guest_amrap_claim_failed' : 'guest_amrap_claim_succeeded',
+          error
+            ? { source: 'amrap', error: error.message, surface: 'account' }
+            : { source: 'amrap', surface: 'account' },
+          { userId: uid, appId: 'app' }
+        );
+        const p = new URLSearchParams(window.location.search);
+        p.delete('guest_session');
+        p.delete('guest_participant');
+        p.delete('guest_claim');
+        const nextQuery = p.toString();
+        window.history.replaceState(
+          {},
+          '',
+          `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ''}${window.location.hash}`
+        );
+        redirectToReturnUrlIfAllowed(p);
+      })();
+      return;
+    }
+
+    redirectToReturnUrlIfAllowed(params);
   }, [isLoggedIn, user?.uid, session?.user?.id]);
 
   // Wait for auth to resolve before deciding signed-in vs signed-out; avoids flashing
