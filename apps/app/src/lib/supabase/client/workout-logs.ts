@@ -23,6 +23,11 @@ export async function saveWorkoutLog(log: Omit<WorkoutLog, 'id'>): Promise<strin
   if (log.focusArea !== undefined) payload.focus_area = log.focusArea;
   if (log.isActiveRest !== undefined) payload.is_active_rest = log.isActiveRest;
   if (log.source !== undefined) payload.source = log.source;
+  if (log.goalSnapshot !== undefined) {
+    const snap = log.goalSnapshot;
+    payload.goal_snapshot =
+      snap != null && snap.length > 0 ? snap : null;
+  }
 
   const { data, error } = await supabase.from('workout_logs').insert(payload).select('id').single();
 
@@ -176,6 +181,11 @@ function mapRowToWorkoutLog(row: Record<string, unknown>): WorkoutLog {
     intensity: (row.intensity as string | null) ?? undefined,
     focusArea: (row.focus_area as string | null) ?? undefined,
     isActiveRest: (row.is_active_rest as boolean | null) ?? undefined,
+    goalSnapshot: (() => {
+      const g = row.goal_snapshot as string[] | null | undefined;
+      if (g == null || !Array.isArray(g) || g.length === 0) return null;
+      return g;
+    })(),
   };
 }
 

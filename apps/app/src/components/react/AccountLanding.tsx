@@ -32,6 +32,7 @@ const AccountLanding: React.FC = () => {
   );
   const prefillAttemptedRef = useRef(false);
   const oauthEventEmittedRef = useRef(false);
+  const guestClaimAttemptedRef = useRef(false);
   const [loadingTimedOut, setLoadingTimedOut] = useState(false);
 
   // Escape hatch: if AppContext loading never resolves (e.g. Supabase/proxy stall in prod),
@@ -155,6 +156,53 @@ const AccountLanding: React.FC = () => {
     );
   }, [loading, user?.uid, session?.user?.id, session?.user, user]);
 
+  // Authorized if we have user (profile) OR session (auth). Session can be set before profile
+  // fetch completes; after login redirect, profile may lag. Treat session as logged-in so we
+  // show account content, not sign-in.
+  const isLoggedIn = !!user?.uid || !!session?.user;
+
+  useEffect(() => {
+    if (!isLoggedIn || typeof window === 'undefined') return;
+    const returnUrl = new URLSearchParams(window.location.search).get('returnUrl');
+    if (!returnUrl) return;
+    const trimmed = returnUrl.trim();
+    if (!trimmed || trimmed === window.location.href) return;
+    window.location.replace(trimmed);
+  }, [isLoggedIn]);
+
+  useEffect(() => {
+    if (!isLoggedIn || typeof window === 'undefined' || guestClaimAttemptedRef.current) return;
+    const params = new URLSearchParams(window.location.search);
+    const sessionId = params.get('guest_session');
+    const participantId = params.get('guest_participant');
+    const claimToken = params.get('guest_claim');
+    if (!sessionId || !participantId || !claimToken) return;
+    guestClaimAttemptedRef.current = true;
+    void (async () => {
+      const uid = user?.uid ?? session?.user?.id ?? null;
+      const { error } = await supabase.rpc('claim_amrap_guest_session', {
+        p_session_id: sessionId,
+        p_participant_id: participantId,
+        p_claim_token: claimToken,
+      });
+      await trackEvent(
+        supabase,
+        error ? 'guest_amrap_claim_failed' : 'guest_amrap_claim_succeeded',
+        error ? { source: 'amrap', error: error.message, surface: 'account' } : { source: 'amrap', surface: 'account' },
+        { userId: uid, appId: 'app' }
+      );
+      params.delete('guest_session');
+      params.delete('guest_participant');
+      params.delete('guest_claim');
+      const nextQuery = params.toString();
+      window.history.replaceState(
+        {},
+        '',
+        `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ''}${window.location.hash}`
+      );
+    })();
+  }, [isLoggedIn, user?.uid, session?.user?.id]);
+
   // Wait for auth to resolve before deciding signed-in vs signed-out; avoids flashing
   // sign-in card to logged-in users while getSession() is still in flight.
   // loadingTimedOut: escape hatch when loading stalls (e.g. prod proxy/Supabase).
@@ -165,11 +213,6 @@ const AccountLanding: React.FC = () => {
       </div>
     );
   }
-
-  // Authorized if we have user (profile) OR session (auth). Session can be set before profile
-  // fetch completes; after login redirect, profile may lag. Treat session as logged-in so we
-  // show account content, not sign-in.
-  const isLoggedIn = !!user?.uid || !!session?.user;
 
   if (!isLoggedIn) {
     const copy = getAccountCopy(handoff, fromAppId);

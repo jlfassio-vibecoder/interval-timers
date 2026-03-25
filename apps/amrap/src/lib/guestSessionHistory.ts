@@ -13,6 +13,7 @@ export interface GuestSessionResult {
   workoutList: string[];
   durationMinutes: number;
   completedAt: string;
+  claimToken?: string;
 }
 
 function getStored(): GuestSessionResult[] {
@@ -30,7 +31,9 @@ function getStored(): GuestSessionResult[] {
         typeof (item as GuestSessionResult).totalRounds === 'number' &&
         Array.isArray((item as GuestSessionResult).workoutList) &&
         typeof (item as GuestSessionResult).durationMinutes === 'number' &&
-        typeof (item as GuestSessionResult).completedAt === 'string'
+        typeof (item as GuestSessionResult).completedAt === 'string' &&
+        (typeof (item as GuestSessionResult).claimToken === 'undefined' ||
+          typeof (item as GuestSessionResult).claimToken === 'string')
     );
   } catch {
     return [];
@@ -54,7 +57,8 @@ export function saveGuestSessionResult(
   totalRounds: number,
   workoutList: string[],
   durationMinutes: number,
-  completedAt: string
+  completedAt: string,
+  claimToken?: string | null
 ): void {
   const list = getStored();
   const existing = list.findIndex(
@@ -67,6 +71,7 @@ export function saveGuestSessionResult(
     workoutList,
     durationMinutes,
     completedAt,
+    ...(claimToken && claimToken.trim() ? { claimToken: claimToken.trim() } : {}),
   };
   if (existing >= 0) {
     list[existing] = entry;

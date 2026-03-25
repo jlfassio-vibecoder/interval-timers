@@ -10,6 +10,7 @@ import type {
 const SESSION_STORAGE_KEYS = {
   hostToken: 'amrap_friends_host_token',
   participantId: 'amrap_friends_participant_id',
+  guestClaimToken: 'amrap_friends_guest_claim_token',
 } as const;
 
 export function getStoredHostToken(sessionId: string): string | null {
@@ -43,6 +44,24 @@ export function setStoredParticipantId(sessionId: string, participantId: string)
   try {
     const key = `${SESSION_STORAGE_KEYS.participantId}_${sessionId}`;
     sessionStorage.setItem(key, participantId);
+  } catch {
+    /* sessionStorage unavailable */
+  }
+}
+
+export function getStoredGuestClaimToken(sessionId: string): string | null {
+  try {
+    const key = `${SESSION_STORAGE_KEYS.guestClaimToken}_${sessionId}`;
+    return sessionStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+export function setStoredGuestClaimToken(sessionId: string, claimToken: string): void {
+  try {
+    const key = `${SESSION_STORAGE_KEYS.guestClaimToken}_${sessionId}`;
+    sessionStorage.setItem(key, claimToken);
   } catch {
     /* sessionStorage unavailable */
   }

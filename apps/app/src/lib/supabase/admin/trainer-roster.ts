@@ -7,6 +7,8 @@
  */
 
 import { getSupabaseServer } from '@/lib/supabase/server';
+import { averageAlignmentComposite } from '@/lib/fitness-goal-alignment';
+import type { WorkoutLog } from '@/types';
 
 export interface RosterItem {
   id: string;
@@ -162,7 +164,15 @@ export interface ClientStats {
     date: string;
     effort: number;
     rating: number;
+    durationSeconds?: number | null;
+    workoutType?: string | null;
+    workoutFormat?: string | null;
+    intensity?: string | null;
+    isActiveRest?: boolean | null;
+    goalSnapshot?: string[] | null;
   }>;
+  alignmentAverage: number | null;
+  alignmentScoredSessions: number;
 }
 
 /**
@@ -179,7 +189,9 @@ export async function fetchClientStats(
   const supabase = getSupabaseServer();
   const { data: logs, error } = await supabase
     .from('workout_logs')
-    .select('id, workout_name, date, effort, rating')
+    .select(
+      'id, workout_name, date, effort, rating, duration_seconds, workout_type, workout_format, intensity, is_active_rest, goal_snapshot'
+    )
     .eq('user_id', userId)
     .order('date', { ascending: false });
 
@@ -192,6 +204,22 @@ export async function fetchClientStats(
     avgEffort = logList.reduce((sum, l) => sum + l.effort, 0) / logList.length;
     avgRating = logList.reduce((sum, l) => sum + l.rating, 0) / logList.length;
   }
+
+  const alignmentInputLogs: WorkoutLog[] = logList.map((l) => ({
+    id: l.id,
+    userId,
+    workoutName: l.workout_name,
+    date: l.date,
+    effort: l.effort,
+    rating: l.rating,
+    durationSeconds: l.duration_seconds ?? null,
+    workoutType: l.workout_type ?? null,
+    workoutFormat: l.workout_format ?? null,
+    intensity: l.intensity ?? null,
+    isActiveRest: l.is_active_rest ?? null,
+    goalSnapshot: l.goal_snapshot ?? null,
+  }));
+  const alignmentAverageStats = averageAlignmentComposite(alignmentInputLogs);
 
   return {
     userId: client.id,
@@ -206,6 +234,14 @@ export async function fetchClientStats(
       date: l.date,
       effort: l.effort,
       rating: l.rating,
+      durationSeconds: l.duration_seconds ?? null,
+      workoutType: l.workout_type ?? null,
+      workoutFormat: l.workout_format ?? null,
+      intensity: l.intensity ?? null,
+      isActiveRest: l.is_active_rest ?? null,
+      goalSnapshot: l.goal_snapshot ?? null,
     })),
+    alignmentAverage: alignmentAverageStats.averageComposite,
+    alignmentScoredSessions: alignmentAverageStats.scoredSessions,
   };
 }

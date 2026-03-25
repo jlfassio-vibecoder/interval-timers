@@ -29,3 +29,26 @@ export const ACCOUNT_BASE = ACCOUNT_BASE_INTERNAL;
 export const HUD_REDIRECT_URL =
   (hudIsWrong ? undefined : hudRedirect) ??
   (import.meta.env.DEV ? 'http://localhost:3006/account' : '/account');
+
+interface GuestClaimParams {
+  sessionId?: string | null;
+  participantId?: string | null;
+  claimToken?: string | null;
+}
+
+/** Main app minimal onboarding URL for AMRAP handoff. */
+export function buildMinimalOnboardingRedirectUrl(params?: GuestClaimParams): string {
+  const onboardingBase = import.meta.env.DEV
+    ? 'http://localhost:3006/account/onboarding/minimal'
+    : '/account/onboarding/minimal';
+  const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
+  const onboarding = new URL(onboardingBase, origin);
+  onboarding.searchParams.set('from', 'amrap');
+  onboarding.searchParams.set('return', HUD_REDIRECT_URL);
+  if (params?.sessionId) onboarding.searchParams.set('guest_session', params.sessionId);
+  if (params?.participantId) onboarding.searchParams.set('guest_participant', params.participantId);
+  if (params?.claimToken) onboarding.searchParams.set('guest_claim', params.claimToken);
+  return onboarding.toString();
+}
+
+export const MINIMAL_ONBOARDING_REDIRECT_URL = buildMinimalOnboardingRedirectUrl();

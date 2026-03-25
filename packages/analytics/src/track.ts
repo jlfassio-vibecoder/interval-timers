@@ -28,6 +28,12 @@ export const FUNNEL_EVENTS = [
   'hub_handoff_post_fail',
   'profile_field_updated',
   'profile_completed',
+  'training_log_alignment_viewed',
+  'guest_save_prompt_shown',
+  'guest_save_prompt_signup',
+  'guest_amrap_claim_succeeded',
+  'guest_amrap_claim_failed',
+  'minimal_onboarding_complete',
 ] as const;
 
 export type FunnelEventName = (typeof FUNNEL_EVENTS)[number];

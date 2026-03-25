@@ -5,8 +5,13 @@
  * Single week row for Training Log: range label + 7 ActivityDots (Mon–Sun).
  */
 
-import React, { forwardRef, useCallback } from 'react';
+import React, { forwardRef, useCallback, useMemo } from 'react';
 import { HEALTH_GUIDELINE_WEEKLY_MINUTES } from '@/lib/training-log-constants';
+import {
+  alignmentCompositeForLog,
+  alignmentTierFromComposite,
+  type GoalAlignmentTier,
+} from '@/lib/fitness-goal-alignment';
 import ActivityDot from './ActivityDot';
 import type { TrainingLogWeek } from '@/lib/supabase/client/training-log';
 import type { WorkoutLog } from '@/types';
@@ -77,6 +82,24 @@ const WeekRowInner = forwardRef<HTMLDivElement, WeekRowProps>(function WeekRowIn
       }
     },
     [firstDayWithLogs, onWorkoutClick]
+  );
+
+  const alignmentTiersByDay = useMemo<(GoalAlignmentTier | null)[]>(
+    () =>
+      week.days.map((day) => {
+        if (day.minutes <= 0 || day.logs.length === 0) return null;
+        let sum = 0;
+        let count = 0;
+        for (const log of day.logs) {
+          const composite = alignmentCompositeForLog(log);
+          if (composite == null) continue;
+          sum += composite;
+          count += 1;
+        }
+        if (count === 0) return null;
+        return alignmentTierFromComposite(Math.round(sum / count));
+      }),
+    [week.days]
   );
 
   return (
@@ -177,6 +200,7 @@ const WeekRowInner = forwardRef<HTMLDivElement, WeekRowProps>(function WeekRowIn
                 dateISO={day.dateISO}
                 todayISO={todayISO}
                 plannedMinutes={day.plannedMinutes}
+                alignmentTier={alignmentTiersByDay[dayIndex] ?? null}
               />
             </div>
           ))}

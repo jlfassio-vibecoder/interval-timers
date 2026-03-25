@@ -10,6 +10,14 @@ import { X } from 'lucide-react';
 import type { WorkoutLog } from '@/types';
 import { getWorkoutMetSessionData, type ProfileBaseline } from '@/lib/met';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { useAppContext } from '@/contexts/AppContext';
+import { computeGoalAlignment, ALIGNMENT_SCORER_VERSION } from '@/lib/fitness-goal-alignment';
+import {
+  labelForFitnessGoalId,
+  normalizeFitnessGoalRanking,
+  type FitnessGoalId,
+} from '@/lib/fitness-goal-taxonomy';
+import { getProfileHealthSummary } from '@/lib/profile-health-taxonomy';
 
 const FOCUSABLE_SELECTOR =
   'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -29,6 +37,8 @@ const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({
   onClose,
   profileBaseline,
 }) => {
+  const { user } = useAppContext();
+  const healthSummary = getProfileHealthSummary(user);
   const modalRef = useRef<HTMLDivElement>(null);
   const savedFocusRef = useRef<HTMLElement | null>(null);
   const isMobile = useMediaQuery('(max-width: 640px)');
@@ -36,6 +46,16 @@ const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({
   const metSessionData = useMemo(
     () => (workout ? getWorkoutMetSessionData(workout, profileBaseline) : null),
     [workout, profileBaseline]
+  );
+
+  const orderedSnapshotGoals = useMemo((): FitnessGoalId[] => {
+    if (!workout?.goalSnapshot?.length) return [];
+    return normalizeFitnessGoalRanking(workout.goalSnapshot);
+  }, [workout?.goalSnapshot]);
+
+  const goalAlignment = useMemo(
+    () => (workout ? computeGoalAlignment(workout, workout.goalSnapshot ?? null) : null),
+    [workout]
   );
 
   function restoreFocus() {
@@ -199,6 +219,86 @@ const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({
               </div>
             )}
           </div>
+
+          {goalAlignment && orderedSnapshotGoals.length > 0 ? (
+            <section
+              className="rounded-xl border border-white/10 bg-white/5 p-4"
+              aria-labelledby="workout-goal-fit-heading"
+            >
+              <h4
+                id="workout-goal-fit-heading"
+                className="mb-1 text-sm font-semibold text-white/90"
+              >
+                Goal fit (estimate)
+              </h4>
+              <p className="mb-4 text-xs leading-relaxed text-white/50">
+                Heuristic match to the goals stored with this session—not medical advice. Numbers may
+                change when the model updates (v{ALIGNMENT_SCORER_VERSION}).
+              </p>
+              <div className="mb-4 flex items-center justify-between gap-3 text-sm">
+                <span className="text-white/70">Overall alignment</span>
+                <span className="font-semibold tabular-nums text-white" aria-live="polite">
+                  {goalAlignment.composite}%
+                </span>
+              </div>
+              <div
+                className="mb-5 h-2 w-full overflow-hidden rounded-full bg-white/15"
+                role="progressbar"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={goalAlignment.composite}
+                aria-label={`Overall goal alignment ${goalAlignment.composite} percent`}
+              >
+                <div
+                  className="h-full rounded-full bg-orange-500/80"
+                  style={{ width: `${goalAlignment.composite}%` }}
+                />
+              </div>
+              <ul className="space-y-4">
+                {orderedSnapshotGoals.map((goalId, index) => {
+                  const value = goalAlignment.byGoalId[goalId] ?? 0;
+                  const rank = index + 1;
+                  const label = labelForFitnessGoalId(goalId);
+                  return (
+                    <li key={goalId}>
+                      <div className="mb-1 flex items-center justify-between gap-2 text-xs">
+                        <span className="text-white/80">
+                          <span className="sr-only">Priority {rank}. </span>
+                          {label}
+                        </span>
+                        <span className="tabular-nums text-white/90">{value}%</span>
+                      </div>
+                      <div
+                        className="h-2 w-full overflow-hidden rounded-full bg-white/15"
+                        role="progressbar"
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-valuenow={value}
+                        aria-label={`${label}, priority ${rank}, ${value} percent match`}
+                      >
+                        <div
+                          className="h-full rounded-full bg-orange-400/70"
+                          style={{ width: `${value}%` }}
+                        />
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          ) : (
+            <p className="text-center text-xs text-white/45">
+              No goal snapshot for this session—older logs, or no ranked goals on your profile when it
+              was saved.
+            </p>
+          )}
+
+          {healthSummary.showHealthReminder && (
+            <p className="text-center text-xs text-white/50">
+              Reminder: adjust intensity and exercise choices to match the health filters on your
+              profile.
+            </p>
+          )}
 
           {workout.notes && workout.notes.trim() && (
             <div className="border-orange-light/20 bg-orange-light/5 rounded-xl border p-4">

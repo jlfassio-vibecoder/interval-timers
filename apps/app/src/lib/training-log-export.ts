@@ -10,6 +10,7 @@ import {
   deriveWorkoutFormat,
   deriveWorkoutType,
 } from '@/lib/supabase/client/training-log';
+import { alignmentCompositeForLog } from '@/lib/fitness-goal-alignment';
 
 /** Escape a CSV field: wrap in quotes if it contains comma, quote, or newline. */
 function escapeCsvField(value: string | number | undefined | null): string {
@@ -33,6 +34,8 @@ export function exportTrainingLogToCsv(logs: WorkoutLog[]): string {
     'notes',
     'intensity',
     'focus_area',
+    'goal_snapshot',
+    'goal_alignment_composite',
   ];
   const lines = [headers.join(',')];
 
@@ -40,6 +43,8 @@ export function exportTrainingLogToCsv(logs: WorkoutLog[]): string {
     const durationMin = log.durationSeconds != null ? Math.round(log.durationSeconds / 60) : '';
     const type = deriveWorkoutType(log);
     const format = deriveWorkoutFormat(log) ?? '';
+    const goalSnapshot = log.goalSnapshot?.length ? log.goalSnapshot.join('|') : '';
+    const goalAlignmentComposite = alignmentCompositeForLog(log) ?? '';
     const row = [
       escapeCsvField(log.date),
       escapeCsvField(durationMin),
@@ -51,6 +56,8 @@ export function exportTrainingLogToCsv(logs: WorkoutLog[]): string {
       escapeCsvField(log.notes),
       escapeCsvField(log.intensity),
       escapeCsvField(log.focusArea),
+      escapeCsvField(goalSnapshot),
+      escapeCsvField(goalAlignmentComposite),
     ];
     lines.push(row.join(','));
   }

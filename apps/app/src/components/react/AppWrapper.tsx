@@ -11,6 +11,7 @@ import FluidBackground from './FluidBackground';
 import AccountLanding from './AccountLanding';
 import SavedWorkoutsPage from './SavedWorkoutsPage';
 import ProfilePage from './ProfilePage';
+import MinimalOnboardingPage from './MinimalOnboardingPage';
 import { TrainingLogPage } from './training-log';
 import PastedWorkoutPlayerPage from './PastedWorkoutPlayerPage';
 import PastedSaveWorkoutPage from './PastedSaveWorkoutPage';
@@ -91,6 +92,7 @@ const AppWrapper: React.FC<AppWrapperProps> = ({ children, pathname }) => {
   const isAccountPage = pathname === '/account';
   const isAccountProfilePage = pathname === '/account/profile';
   const isSavedWorkoutsPage = pathname === '/account/saved-workouts';
+  const isMinimalOnboardingPage = pathname === '/account/onboarding/minimal';
   const isTrainingLogPage = pathname === '/training-log';
   const isLogPastedPage = pathname === '/workout/log-pasted';
   const isSavePastedPage = pathname === '/workout/save-pasted';
@@ -99,6 +101,8 @@ const AppWrapper: React.FC<AppWrapperProps> = ({ children, pathname }) => {
 
   const mainContent = isAccountPage ? (
     <AccountLanding />
+  ) : isMinimalOnboardingPage ? (
+    <MinimalOnboardingPage />
   ) : isAccountProfilePage ? (
     <ProfilePage />
   ) : isSavedWorkoutsPage ? (

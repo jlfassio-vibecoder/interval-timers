@@ -3,13 +3,17 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import {
   setStoredHostToken,
+  setStoredGuestClaimToken,
   setStoredParticipantId,
 } from '@/hooks/useAmrapSession';
 import { useAmrapAuth, useAmrapPermissions } from '@/contexts/AmrapAuthContext';
 import AccountLink from '@/components/AccountLink';
 import AmrapCtaButton from '@/components/AmrapCtaButton';
 import { AuthModal } from '@interval-timers/auth-ui';
-import { ACCOUNT_REDIRECT_URL } from '@/lib/account-redirect-url';
+import {
+  ACCOUNT_REDIRECT_URL,
+  MINIMAL_ONBOARDING_REDIRECT_URL,
+} from '@/lib/account-redirect-url';
 import WeekCalendar from '@/components/WeekCalendar';
 import CreateFlowSchedulePicker from '@interval-timers/schedule-picker';
 import WorkoutPicker from '@/components/WorkoutPicker';
@@ -198,11 +202,20 @@ export default function AmrapWithFriendsPage() {
       typeof (data as { participant_id?: unknown }).participant_id === 'string'
         ? ((data as { participant_id: string }).participant_id || '').trim()
         : '';
+    const claimToken =
+      data &&
+      typeof data === 'object' &&
+      typeof (data as { claim_token?: unknown }).claim_token === 'string'
+        ? ((data as { claim_token: string }).claim_token || '').trim()
+        : '';
     if (!participantId) {
       setJoinError('Something went wrong. Please try again.');
       return;
     }
     setStoredParticipantId(sid, participantId);
+    if (claimToken) {
+      setStoredGuestClaimToken(sid, claimToken);
+    }
     navigate(`/with-friends/session/${sid}`);
   }, [joinSessionId, joinNickname, navigate, user?.id]);
 
@@ -249,7 +262,7 @@ export default function AmrapWithFriendsPage() {
                 }}
                 className="text-sm font-medium text-white/70 hover:text-orange-400"
               >
-                Log in
+                Sign in
               </button>
               <span className="text-white/40">/</span>
               <button
@@ -260,7 +273,7 @@ export default function AmrapWithFriendsPage() {
                 }}
                 className="text-sm font-medium text-white/70 hover:text-orange-400"
               >
-                Create account
+                Sign up
               </button>
             </div>
           )}
@@ -508,6 +521,8 @@ export default function AmrapWithFriendsPage() {
         supabase={supabase}
         redirectBaseUrl={ACCOUNT_REDIRECT_URL}
         defaultSignUp={authModalSignUp}
+        returnUrl={MINIMAL_ONBOARDING_REDIRECT_URL}
+        fromAppId="amrap"
       />
     </div>
   );

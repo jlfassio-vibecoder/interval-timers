@@ -14,8 +14,13 @@ export interface MissionControlProfileDto {
   avatar_url: string | null;
   role: string;
   primary_fitness_goal: string | null;
+  fitness_goal_ranking: string[] | null;
   preferred_hiit_style: string | null;
+  preferred_hiit_styles: string[] | null;
   injury_limitation_tags: string[] | null;
+  physical_limitations: string[] | null;
+  medical_conditions: string[] | null;
+  pregnancy_postpartum: string[] | null;
   units_system: string | null;
   weekly_goal_minutes: number | null;
   profile_completed_at: string | null;
@@ -68,8 +73,13 @@ export async function fetchMissionControlProfile(
     avatar_url: string | null;
     role: string | null;
     primary_fitness_goal: string | null;
+    fitness_goal_ranking?: unknown;
     preferred_hiit_style: string | null;
+    preferred_hiit_styles: unknown;
     injury_limitation_tags: unknown;
+    physical_limitations: unknown;
+    medical_conditions: unknown;
+    pregnancy_postpartum: unknown;
     units_system: string | null;
     weekly_goal_minutes: number | null;
     profile_completed_at: string | null;
@@ -80,10 +90,19 @@ export async function fetchMissionControlProfile(
     avatar_url: row.avatar_url ?? null,
     role: row.role ?? 'client',
     primary_fitness_goal: row.primary_fitness_goal ?? null,
+    fitness_goal_ranking: Array.isArray(row.fitness_goal_ranking)
+      ? row.fitness_goal_ranking
+      : null,
     preferred_hiit_style: row.preferred_hiit_style ?? null,
+    preferred_hiit_styles: Array.isArray(row.preferred_hiit_styles)
+      ? row.preferred_hiit_styles
+      : null,
     injury_limitation_tags: Array.isArray(row.injury_limitation_tags)
       ? row.injury_limitation_tags
       : null,
+    physical_limitations: Array.isArray(row.physical_limitations) ? row.physical_limitations : null,
+    medical_conditions: Array.isArray(row.medical_conditions) ? row.medical_conditions : null,
+    pregnancy_postpartum: Array.isArray(row.pregnancy_postpartum) ? row.pregnancy_postpartum : null,
     units_system: row.units_system ?? null,
     weekly_goal_minutes:
       typeof row.weekly_goal_minutes === 'number' ? row.weekly_goal_minutes : null,
@@ -95,7 +114,7 @@ export async function fetchMissionControlProfile(
     const { data, error } = await supabase
       .from('profiles')
       .select(
-        'id, email, full_name, avatar_url, role, weekly_goal_minutes, primary_fitness_goal, preferred_hiit_style, injury_limitation_tags, units_system, profile_completed_at, date_of_birth, biological_sex, weight_kg, height_cm, activity_level_baseline, lifestyle_baseline, workout_routine, total_active_multiplier, resting_hr_bpm, max_hr_bpm, created_at'
+        'id, email, full_name, avatar_url, role, weekly_goal_minutes, primary_fitness_goal, fitness_goal_ranking, preferred_hiit_style, preferred_hiit_styles, injury_limitation_tags, physical_limitations, medical_conditions, pregnancy_postpartum, units_system, profile_completed_at, date_of_birth, biological_sex, weight_kg, height_cm, activity_level_baseline, lifestyle_baseline, workout_routine, total_active_multiplier, resting_hr_bpm, max_hr_bpm, created_at'
       )
       .eq('id', targetUserId)
       .maybeSingle();
@@ -127,7 +146,7 @@ export async function fetchMissionControlProfile(
   const { data, error } = await supabase
     .from('profiles')
     .select(
-      'id, email, full_name, avatar_url, role, weekly_goal_minutes, primary_fitness_goal, preferred_hiit_style, injury_limitation_tags, units_system, profile_completed_at'
+      'id, email, full_name, avatar_url, role, weekly_goal_minutes, primary_fitness_goal, fitness_goal_ranking, preferred_hiit_style, preferred_hiit_styles, injury_limitation_tags, physical_limitations, medical_conditions, pregnancy_postpartum, units_system, profile_completed_at'
     )
     .eq('id', targetUserId)
     .maybeSingle();

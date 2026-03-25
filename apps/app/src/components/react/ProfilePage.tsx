@@ -19,6 +19,31 @@ import {
   type LifestyleBaselineId,
   type WorkoutRoutineId,
 } from '@/lib/met';
+import {
+  legacyInjuryTagsToPhysicalLimitations,
+  MEDICAL_BADGES,
+  physicalLimitationsToLegacyInjuryTags,
+  PHYSICAL_BADGES,
+  PREGNANCY_BADGES,
+  toggleMedicalCondition,
+  togglePhysicalLimitation,
+  togglePregnancyPostpartum,
+  type MedicalConditionId,
+  type PhysicalLimitationId,
+  type PregnancyPostpartumId,
+} from '@/lib/profile-health-taxonomy';
+import {
+  HIIT_STYLE_BADGES,
+  toggleHiitStyle,
+  type HiitStyleId,
+} from '@/lib/profile-hiit-style-badges';
+import {
+  FITNESS_GOAL_BADGES,
+  isFitnessGoalId,
+  normalizeFitnessGoalRanking,
+  toggleFitnessGoalRanking,
+  type FitnessGoalId,
+} from '@/lib/fitness-goal-taxonomy';
 
 const DAILY_ROUTINE_OPTIONS: { id: LifestyleBaselineId; label: string }[] = [
   { id: 'sedentary', label: 'Mostly Sitting' },
@@ -34,9 +59,6 @@ const WORKOUT_ROUTINE_OPTIONS: { id: WorkoutRoutineId; label: string; descriptio
   { id: 'hard', label: 'Hard (6–7 days/wk)', description: 'Dedicated daily training or high-intensity sport.' },
   { id: 'pro', label: 'Professional / 2x Daily', description: 'Training multiple times a day or elite level.' },
 ];
-const FITNESS_GOALS = ['fat_loss', 'cardiovascular_endurance', 'muscle_hypertrophy', 'longevity'] as const;
-const HIIT_STYLES = ['tabata', 'emom', 'amrap', 'wood'] as const;
-const INJURY_TAGS = ['knee', 'lower_back', 'shoulder', 'none'] as const;
 const UNITS = ['metric', 'imperial'] as const;
 const SOCIAL_PRIVACY = ['ghost', 'friends_only', 'public'] as const;
 
@@ -84,9 +106,11 @@ interface ProfileForm {
   height_cm: string;
   lifestyle_baseline: string;
   workout_routine: string;
-  primary_fitness_goal: string;
-  preferred_hiit_style: string;
-  injury_limitation_tags: string[];
+  fitness_goal_ranking: string[];
+  preferred_hiit_styles: string[];
+  physical_limitations: string[];
+  medical_conditions: string[];
+  pregnancy_postpartum: string[];
   resting_hr_bpm: string;
   max_hr_bpm: string;
   units_system: string;
@@ -104,9 +128,11 @@ const emptyForm: ProfileForm = {
   height_cm: '',
   lifestyle_baseline: 'sedentary',
   workout_routine: 'none',
-  primary_fitness_goal: '',
-  preferred_hiit_style: '',
-  injury_limitation_tags: [],
+  fitness_goal_ranking: [],
+  preferred_hiit_styles: [],
+  physical_limitations: [],
+  medical_conditions: [],
+  pregnancy_postpartum: [],
   resting_hr_bpm: '',
   max_hr_bpm: '',
   units_system: 'imperial',
@@ -132,10 +158,38 @@ function parseForm(data: Record<string, unknown>): ProfileForm {
       return fromLegacy || 'sedentary';
     })(),
     workout_routine: String(data.workout_routine ?? '').trim() || 'none',
-    primary_fitness_goal: String(data.primary_fitness_goal ?? ''),
-    preferred_hiit_style: String(data.preferred_hiit_style ?? ''),
-    injury_limitation_tags: Array.isArray(data.injury_limitation_tags)
-      ? (data.injury_limitation_tags as string[]).filter((t) => t && t !== 'none')
+    fitness_goal_ranking: (() => {
+      const fromCol = Array.isArray(data.fitness_goal_ranking)
+        ? normalizeFitnessGoalRanking(data.fitness_goal_ranking as string[])
+        : [];
+      if (fromCol.length > 0) return fromCol;
+      const legacy = String(data.primary_fitness_goal ?? '').trim();
+      if (legacy && isFitnessGoalId(legacy)) return [legacy];
+      return [];
+    })(),
+    preferred_hiit_styles: (() => {
+      const fromArr = Array.isArray(data.preferred_hiit_styles)
+        ? (data.preferred_hiit_styles as string[]).filter(Boolean)
+        : [];
+      if (fromArr.length > 0) return [...new Set(fromArr)];
+      const legacy = String(data.preferred_hiit_style ?? '').trim();
+      return legacy ? [legacy] : [];
+    })(),
+    physical_limitations: (() => {
+      const fromCol = Array.isArray(data.physical_limitations)
+        ? (data.physical_limitations as string[])
+        : [];
+      if (fromCol.length > 0) return fromCol;
+      const legacy = Array.isArray(data.injury_limitation_tags)
+        ? (data.injury_limitation_tags as string[]).filter(Boolean)
+        : [];
+      return legacyInjuryTagsToPhysicalLimitations(legacy);
+    })(),
+    medical_conditions: Array.isArray(data.medical_conditions)
+      ? (data.medical_conditions as string[])
+      : [],
+    pregnancy_postpartum: Array.isArray(data.pregnancy_postpartum)
+      ? (data.pregnancy_postpartum as string[])
       : [],
     resting_hr_bpm: data.resting_hr_bpm != null ? String(data.resting_hr_bpm) : '',
     max_hr_bpm: data.max_hr_bpm != null ? String(data.max_hr_bpm) : '',
@@ -163,9 +217,14 @@ function formToUpdate(form: ProfileForm): Record<string, unknown> {
     activity_level_baseline: legacyActivityLevelFromLifestyle(
       form.lifestyle_baseline || 'sedentary'
     ),
-    primary_fitness_goal: form.primary_fitness_goal || null,
-    preferred_hiit_style: form.preferred_hiit_style || null,
-    injury_limitation_tags: form.injury_limitation_tags.length ? form.injury_limitation_tags : null,
+    fitness_goal_ranking: form.fitness_goal_ranking,
+    primary_fitness_goal: form.fitness_goal_ranking[0] ?? null,
+    preferred_hiit_styles: form.preferred_hiit_styles,
+    preferred_hiit_style: form.preferred_hiit_styles[0] ?? null,
+    physical_limitations: form.physical_limitations,
+    medical_conditions: form.medical_conditions,
+    pregnancy_postpartum: form.pregnancy_postpartum,
+    injury_limitation_tags: physicalLimitationsToLegacyInjuryTags(form.physical_limitations),
     resting_hr_bpm: form.resting_hr_bpm ? parseInt(form.resting_hr_bpm, 10) : null,
     max_hr_bpm: form.max_hr_bpm ? parseInt(form.max_hr_bpm, 10) : null,
     units_system: form.units_system || 'imperial',
@@ -189,9 +248,6 @@ function countFilledCore(form: ProfileForm): number {
 
 /** Avoid sending '' to numeric/date columns (Postgres rejects implicit cast). */
 function normalizeProfileFieldForDb(field: keyof ProfileForm, value: unknown): unknown {
-  if (field === 'injury_limitation_tags') {
-    return Array.isArray(value) ? value : [];
-  }
   if (value === '') {
     if (
       field === 'weight_kg' ||
@@ -283,7 +339,11 @@ const ProfilePage: React.FC = () => {
           }
         }
       } catch (err) {
-        setForm(snapshot);
+        setForm((current) => ({
+          ...current,
+          lifestyle_baseline: snapshot.lifestyle_baseline,
+          workout_routine: snapshot.workout_routine,
+        }));
         showToast('error', err instanceof Error ? err.message : 'Failed to save activity');
       }
     },
@@ -294,15 +354,11 @@ const ProfilePage: React.FC = () => {
     async (field: keyof ProfileForm, value: unknown) => {
       if (!user?.uid) return;
       const normalized = normalizeProfileFieldForDb(field, value);
+      const previousValue = form[field];
       const next = { ...form, [field]: normalized } as ProfileForm;
       setForm(next);
 
-      const payload: Record<string, unknown> = {};
-      if (field === 'injury_limitation_tags') {
-        payload.injury_limitation_tags = Array.isArray(normalized) ? normalized : [];
-      } else {
-        payload[field] = normalized;
-      }
+      const payload: Record<string, unknown> = { [field]: normalized };
 
       try {
         const { error } = await supabase.from('profiles').update(payload).eq('id', user.uid);
@@ -329,11 +385,116 @@ const ProfilePage: React.FC = () => {
           }
         }
       } catch (err) {
-        setForm(form);
+        setForm((current) => ({ ...current, [field]: previousValue }));
         showToast('error', err instanceof Error ? err.message : 'Failed to save');
       }
     },
     [user?.uid, form, profileCompletedAt, showToast]
+  );
+
+  const persistHiitStyles = useCallback(
+    async (next: string[]) => {
+      if (!user?.uid) return;
+      const snapshot = [...form.preferred_hiit_styles];
+      setForm((current) => ({ ...current, preferred_hiit_styles: next }));
+      try {
+        const { error } = await supabase
+          .from('profiles')
+          .update({
+            preferred_hiit_styles: next,
+            preferred_hiit_style: next[0] ?? null,
+          })
+          .eq('id', user.uid);
+        if (error) throw error;
+        void trackEvent(
+          supabase,
+          'profile_field_updated',
+          { field: 'preferred_hiit_styles' },
+          { appId: 'app' }
+        );
+      } catch (err) {
+        setForm((current) => ({ ...current, preferred_hiit_styles: snapshot }));
+        showToast('error', err instanceof Error ? err.message : 'Failed to save HIIT preferences');
+      }
+    },
+    [user?.uid, form.preferred_hiit_styles, showToast]
+  );
+
+  const persistFitnessGoalRanking = useCallback(
+    async (next: string[]) => {
+      if (!user?.uid) return;
+      const snapshot = [...form.fitness_goal_ranking];
+      setForm((current) => ({ ...current, fitness_goal_ranking: next }));
+      try {
+        const { error } = await actions.updateProfileFitnessGoalRanking({
+          fitness_goal_ranking: next as FitnessGoalId[],
+        });
+        if (error) throw new Error(error.message);
+        void trackEvent(
+          supabase,
+          'profile_field_updated',
+          { field: 'fitness_goal_ranking' },
+          { appId: 'app' }
+        );
+        if (contextProfile) {
+          setProfile({
+            ...contextProfile,
+            fitnessGoalRanking: next,
+          });
+        }
+      } catch (err) {
+        setForm((current) => ({ ...current, fitness_goal_ranking: snapshot }));
+        showToast(
+          'error',
+          err instanceof Error ? err.message : 'Failed to save fitness goals'
+        );
+      }
+    },
+    [user?.uid, form.fitness_goal_ranking, contextProfile, setProfile, showToast]
+  );
+
+  const persistHealthFilters = useCallback(
+    async (next: {
+      physical_limitations: string[];
+      medical_conditions: string[];
+      pregnancy_postpartum: string[];
+    }) => {
+      if (!user?.uid) return;
+      const snapshot = form;
+      const merged = {
+        ...form,
+        physical_limitations: next.physical_limitations,
+        medical_conditions: next.medical_conditions,
+        pregnancy_postpartum: next.pregnancy_postpartum,
+      };
+      setForm(merged);
+      try {
+        const { error } = await actions.updateProfileHealthFilters({
+          physical_limitations: next.physical_limitations as PhysicalLimitationId[],
+          medical_conditions: next.medical_conditions as MedicalConditionId[],
+          pregnancy_postpartum: next.pregnancy_postpartum as PregnancyPostpartumId[],
+        });
+        if (error) throw new Error(error.message);
+        void trackEvent(supabase, 'profile_field_updated', { field: 'health_filters' }, { appId: 'app' });
+        if (contextProfile) {
+          setProfile({
+            ...contextProfile,
+            physicalLimitations: next.physical_limitations,
+            medicalConditions: next.medical_conditions,
+            pregnancyPostpartum: next.pregnancy_postpartum,
+          });
+        }
+      } catch (err) {
+        setForm((current) => ({
+          ...current,
+          physical_limitations: snapshot.physical_limitations,
+          medical_conditions: snapshot.medical_conditions,
+          pregnancy_postpartum: snapshot.pregnancy_postpartum,
+        }));
+        showToast('error', err instanceof Error ? err.message : 'Failed to save health filters');
+      }
+    },
+    [user?.uid, form, contextProfile, setProfile, showToast]
   );
 
   const handleSave = useCallback(async () => {
@@ -356,6 +517,10 @@ const ProfilePage: React.FC = () => {
           activityLevelBaseline: legacyActivityLevelFromLifestyle(
             form.lifestyle_baseline || 'sedentary'
           ),
+          physicalLimitations: form.physical_limitations,
+          medicalConditions: form.medical_conditions,
+          pregnancyPostpartum: form.pregnancy_postpartum,
+          fitnessGoalRanking: form.fitness_goal_ranking,
         });
       }
       const coreFilled = countFilledCore(form);
@@ -641,58 +806,64 @@ const ProfilePage: React.FC = () => {
         {/* Personalization */}
         <section className="rounded-2xl border border-white/10 bg-black/20 p-6">
           <h2 className="mb-4 font-heading text-xl font-bold text-white">Personalization</h2>
+          <div className="mb-6 sm:col-span-2">
+            <h3 className="mb-1 text-sm font-semibold text-white/90">Fitness goals (priority)</h3>
+            <p className="mb-4 text-sm text-white/60">
+              Choose up to three goals in order of importance. Tap a tag to add or remove it. The first
+              one is your top priority and syncs to legacy &quot;primary goal&quot; fields elsewhere.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => void persistFitnessGoalRanking([])}
+                className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${
+                  form.fitness_goal_ranking.length === 0
+                    ? 'border-orange-500 bg-orange-500/20 text-white'
+                    : 'border-white/10 bg-black/40 text-white/70 hover:border-white/20 hover:text-white'
+                }`}
+              >
+                None
+              </button>
+              {FITNESS_GOAL_BADGES.map(({ id, label }) => {
+                const rankIndex = form.fitness_goal_ranking.indexOf(id);
+                const selected = rankIndex >= 0;
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => {
+                      const { next, rejectedMax } = toggleFitnessGoalRanking(
+                        form.fitness_goal_ranking,
+                        id
+                      );
+                      if (rejectedMax) {
+                        showToast('error', 'You can select up to three goals');
+                        return;
+                      }
+                      void persistFitnessGoalRanking(next);
+                    }}
+                    className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${
+                      selected
+                        ? 'border-orange-500 bg-orange-500/20 text-white'
+                        : 'border-white/10 bg-black/40 text-white/70 hover:border-white/20 hover:text-white'
+                    }`}
+                  >
+                    {selected ? (
+                      <span className="inline-flex items-center gap-2">
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-orange-500/40 text-xs font-bold text-white">
+                          {rankIndex + 1}
+                        </span>
+                        {label}
+                      </span>
+                    ) : (
+                      label
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
           <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label className="mb-1 block text-sm text-white/70">Primary fitness goal</label>
-              <select
-                value={form.primary_fitness_goal}
-                onChange={(e) => handleSaveField('primary_fitness_goal', e.target.value)}
-                className="w-full rounded-lg border border-white/10 bg-black/40 px-4 py-2 text-white"
-              >
-                <option value="">—</option>
-                {FITNESS_GOALS.map((g) => (
-                  <option key={g} value={g}>
-                    {g.replace(/_/g, ' ')}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="mb-1 block text-sm text-white/70">Preferred HIIT style</label>
-              <select
-                value={form.preferred_hiit_style}
-                onChange={(e) => handleSaveField('preferred_hiit_style', e.target.value)}
-                className="w-full rounded-lg border border-white/10 bg-black/40 px-4 py-2 text-white"
-              >
-                <option value="">—</option>
-                {HIIT_STYLES.map((s) => (
-                  <option key={s} value={s}>
-                    {s.toUpperCase()}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="sm:col-span-2">
-              <label className="mb-1 block text-sm text-white/70">Injury / limitations</label>
-              <div className="flex flex-wrap gap-2">
-                {INJURY_TAGS.filter((t) => t !== 'none').map((t) => (
-                  <label key={t} className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={form.injury_limitation_tags.includes(t)}
-                      onChange={(e) => {
-                        const next = e.target.checked
-                          ? [...form.injury_limitation_tags, t]
-                          : form.injury_limitation_tags.filter((x) => x !== t);
-                        handleSaveField('injury_limitation_tags', next);
-                      }}
-                      className="rounded"
-                    />
-                    <span className="text-sm text-white/90">{t.replace(/_/g, ' ')}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
             <div>
               <label className="mb-1 block text-sm text-white/70">Resting HR (bpm)</label>
               <input
@@ -714,6 +885,161 @@ const ProfilePage: React.FC = () => {
                 onChange={(e) => handleSaveField('max_hr_bpm', e.target.value)}
                 className="w-full rounded-lg border border-white/10 bg-black/40 px-4 py-2 text-white"
               />
+            </div>
+          </div>
+        </section>
+
+        {/* Preferred HIIT styles — multi-select badges */}
+        <section className="rounded-2xl border border-white/10 bg-black/20 p-6">
+          <h2 className="mb-2 font-heading text-xl font-bold text-white">Preferred HIIT styles</h2>
+          <p className="mb-6 text-sm text-white/60">
+            Pick any formats you use. This helps tailor program and timer suggestions. Tap a tag to add
+            or remove it.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => void persistHiitStyles([])}
+              className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${
+                form.preferred_hiit_styles.length === 0
+                  ? 'border-orange-500 bg-orange-500/20 text-white'
+                  : 'border-white/10 bg-black/40 text-white/70 hover:border-white/20 hover:text-white'
+              }`}
+            >
+              No preference
+            </button>
+            {HIIT_STYLE_BADGES.map(({ id, label }) => {
+              const selected = form.preferred_hiit_styles.includes(id);
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => {
+                    const next = toggleHiitStyle(form.preferred_hiit_styles, id as HiitStyleId);
+                    void persistHiitStyles(next);
+                  }}
+                  className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${
+                    selected
+                      ? 'border-orange-500 bg-orange-500/20 text-white'
+                      : 'border-white/10 bg-black/40 text-white/70 hover:border-white/20 hover:text-white'
+                  }`}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* Physical considerations — health filters (saved via Astro action + Zod) */}
+        <section className="rounded-2xl border border-white/10 bg-black/20 p-6">
+          <h2 className="mb-2 font-heading text-xl font-bold text-white">Physical considerations</h2>
+          <p className="mb-6 text-sm text-white/60">
+            These selections help tailor suggestions. They are not a medical diagnosis. Tap a tag to
+            turn it on or off.
+          </p>
+
+          <div className="mb-8">
+            <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-white/50">
+              Physical limitations
+            </h3>
+            <div className="flex flex-wrap gap-2">
+              {PHYSICAL_BADGES.map(({ id, label }) => {
+                const selected = form.physical_limitations.includes(id);
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => {
+                      const next = togglePhysicalLimitation(form.physical_limitations, id);
+                      void persistHealthFilters({
+                        physical_limitations: next,
+                        medical_conditions: form.medical_conditions,
+                        pregnancy_postpartum: form.pregnancy_postpartum,
+                      });
+                    }}
+                    className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${
+                      selected
+                        ? 'border-orange-500 bg-orange-500/20 text-white'
+                        : 'border-white/10 bg-black/40 text-white/70 hover:border-white/20 hover:text-white'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="mb-8">
+            <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-white/50">
+              Medical conditions
+            </h3>
+            <div className="flex flex-wrap gap-2">
+              {MEDICAL_BADGES.map(({ id, label }) => {
+                const selected = form.medical_conditions.includes(id);
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => {
+                      const next = toggleMedicalCondition(form.medical_conditions, id);
+                      void persistHealthFilters({
+                        physical_limitations: form.physical_limitations,
+                        medical_conditions: next,
+                        pregnancy_postpartum: form.pregnancy_postpartum,
+                      });
+                    }}
+                    className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${
+                      selected
+                        ? 'border-orange-500 bg-orange-500/20 text-white'
+                        : 'border-white/10 bg-black/40 text-white/70 hover:border-white/20 hover:text-white'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+            {form.medical_conditions.includes('heart_condition') && (
+              <p className="mt-3 text-sm text-amber-200/90">
+                Always consult a physician before high-intensity training.
+              </p>
+            )}
+          </div>
+
+          <div>
+            <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-white/50">
+              Pregnancy / postpartum
+            </h3>
+            <p className="mb-3 text-xs text-white/50">
+              Optional. Leave unselected if not applicable.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {PREGNANCY_BADGES.map(({ id, label }) => {
+                const selected = form.pregnancy_postpartum.includes(id);
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => {
+                      const next = togglePregnancyPostpartum(form.pregnancy_postpartum, id);
+                      void persistHealthFilters({
+                        physical_limitations: form.physical_limitations,
+                        medical_conditions: form.medical_conditions,
+                        pregnancy_postpartum: next,
+                      });
+                    }}
+                    className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${
+                      selected
+                        ? 'border-orange-500 bg-orange-500/20 text-white'
+                        : 'border-white/10 bg-black/40 text-white/70 hover:border-white/20 hover:text-white'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </section>

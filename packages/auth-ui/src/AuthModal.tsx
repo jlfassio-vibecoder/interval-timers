@@ -100,7 +100,7 @@ export default function AuthModal({
 
   const handleGoogleSignIn = async () => {
     if (isSignUp) onSignupStart?.();
-    const redirectTo = buildOAuthRedirectUrl(redirectBaseUrl, fromAppId);
+    const redirectTo = buildOAuthRedirectUrl(redirectBaseUrl, { fromAppId, returnUrl });
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo },

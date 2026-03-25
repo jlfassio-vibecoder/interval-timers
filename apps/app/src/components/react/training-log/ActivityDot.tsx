@@ -12,6 +12,7 @@ import {
   getTextSize,
   splitWorkoutTime,
 } from '@/lib/training-log-display';
+import type { GoalAlignmentTier } from '@/lib/fitness-goal-alignment';
 import type { WorkoutLog } from '@/types';
 
 const LIGHT_COLOR_MAP: Record<string, string> = {
@@ -55,6 +56,8 @@ export interface ActivityDotProps {
   todayISO: string;
   /** Planned minutes from calendar (scheduled); shown as outline when no completed minutes. */
   plannedMinutes?: number;
+  /** Precomputed per-day alignment tier from parent row (do not compute in dot). */
+  alignmentTier?: GoalAlignmentTier | null;
 }
 
 const ActivityDotInner: React.FC<ActivityDotProps> = ({
@@ -71,6 +74,7 @@ const ActivityDotInner: React.FC<ActivityDotProps> = ({
   dateISO,
   todayISO,
   plannedMinutes = 0,
+  alignmentTier = null,
 }) => {
   const uniqueKey = `${weekIndex}-${dayIndex}`;
   const isHovered = hoveredKey === uniqueKey;
@@ -90,12 +94,22 @@ const ActivityDotInner: React.FC<ActivityDotProps> = ({
   /** Planned-only: today or future, no completed volume for that day. */
   const showPlannedOutline = minutes === 0 && plannedMinutes > 0 && dateISO >= todayISO;
 
+  const alignmentTierLabel =
+    alignmentTier === 'high'
+      ? 'high'
+      : alignmentTier === 'mid'
+        ? 'moderate'
+        : alignmentTier === 'low'
+          ? 'low'
+          : null;
   const ariaLabel =
     isEmpty || (minutes === 0 && !showPlannedOutline)
       ? undefined
       : showPlannedOutline
         ? `Planned ${plannedMinutes} minutes on ${dayLabel}`
-        : `View ${minutes} minute workout${count > 1 ? 's' : ''} on ${dayLabel}`;
+        : `View ${minutes} minute workout${count > 1 ? 's' : ''} on ${dayLabel}${
+            alignmentTierLabel ? `. Goal alignment: ${alignmentTierLabel}` : ''
+          }`;
 
   if (isEmpty && !showPlannedOutline) {
     return (
@@ -211,6 +225,18 @@ const ActivityDotInner: React.FC<ActivityDotProps> = ({
           <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-white/20 text-xs font-bold text-white">
             {count}
           </span>
+        )}
+        {alignmentTier && (
+          <span
+            className={`absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full border border-black/50 ${
+              alignmentTier === 'high'
+                ? 'bg-emerald-300'
+                : alignmentTier === 'mid'
+                  ? 'bg-amber-300'
+                  : 'bg-rose-300'
+            }`}
+            aria-hidden
+          />
         )}
       </div>
     </div>

@@ -10,12 +10,21 @@ import { useAppContext } from '@/contexts/AppContext';
 import { HEALTH_GUIDELINE_WEEKLY_MINUTES } from '@/lib/training-log-constants';
 import { useTrainingLogAnalytics } from '@/hooks/useTrainingLogAnalytics';
 import { getTrainingLogLogsForExport } from '@/lib/supabase/client/training-log';
+import {
+  getTrainingLogLocalTodayISO,
+  getTrainingLogWeekMonday,
+} from '@/lib/supabase/client/training-log';
 import { generateInsights } from '@/lib/training-log-insights';
 import { computeTrainingLogEnergyAggregates } from '@/lib/training-log-energy-analytics';
 import { hasBaselineForMET, resolveTotalActiveMultiplier, userProfileToProfileBaseline } from '@/lib/met';
+import {
+  ALIGNMENT_SCORER_VERSION,
+  averageAlignmentComposite,
+} from '@/lib/fitness-goal-alignment';
 import type { TrainingLogFilters } from '@/lib/training-log-filters';
 import AnalyticsSummaryCards from './AnalyticsSummaryCards';
 import AnalyticsEnergySection from './AnalyticsEnergySection';
+import AnalyticsGoalAlignmentCard from './AnalyticsGoalAlignmentCard';
 import WeeklyVolumeChart from './WeeklyVolumeChart';
 import DistributionCharts from './DistributionCharts';
 import InsightsPanel from './InsightsPanel';
@@ -63,6 +72,14 @@ const TrainingLogAnalytics: React.FC<TrainingLogAnalyticsProps> = ({
   }, [fetchLogs]);
 
   const insights = data && logs.length > 0 ? generateInsights(data, logs, goalMinutes) : [];
+  const alignmentStats = useMemo(() => {
+    const thisWeekMon = getTrainingLogWeekMonday(getTrainingLogLocalTodayISO());
+    const thisWeekLogs = logs.filter((log) => getTrainingLogWeekMonday(log.date) === thisWeekMon);
+    return {
+      thisWeek: averageAlignmentComposite(thisWeekLogs),
+      allFiltered: averageAlignmentComposite(logs),
+    };
+  }, [logs]);
 
   if (error) {
     return (
@@ -95,6 +112,11 @@ const TrainingLogAnalytics: React.FC<TrainingLogAnalyticsProps> = ({
         aggregates={energyAggregates}
         weightKg={weightKg}
         tam={tam}
+      />
+      <AnalyticsGoalAlignmentCard
+        thisWeek={alignmentStats.thisWeek}
+        allFiltered={alignmentStats.allFiltered}
+        scorerVersion={ALIGNMENT_SCORER_VERSION}
       />
       <div id="weekly-volume-chart" className="rounded-xl border border-white/10 bg-white/5 p-4">
         <h4 className="mb-3 font-mono text-[10px] uppercase tracking-[0.4em] text-white/60">

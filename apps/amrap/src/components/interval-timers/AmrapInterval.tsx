@@ -5,7 +5,10 @@ import AmrapCtaButton from '@/components/AmrapCtaButton';
 import { AuthModal } from '@interval-timers/auth-ui';
 import { getRecentCustomWorkouts } from '@/lib/recentCustomWorkouts';
 import { supabase } from '@/lib/supabase';
-import { ACCOUNT_REDIRECT_URL } from '@/lib/account-redirect-url';
+import {
+  ACCOUNT_REDIRECT_URL,
+  MINIMAL_ONBOARDING_REDIRECT_URL,
+} from '@/lib/account-redirect-url';
 import { useAmrapAuth } from '@/contexts/AmrapAuthContext';
 import { IntervalTimerLanding, IntervalTimerSetupModal } from '@interval-timers/timer-ui';
 import type { IntervalTimerPage } from '@interval-timers/timer-core';
@@ -260,7 +263,7 @@ const AmrapInterval: React.FC<AmrapIntervalProps> = ({ onNavigate, onNavigateToL
                   }}
                   className="text-xs font-bold text-white/70 transition-colors hover:text-[#ffbf00] md:text-sm"
                 >
-                  Log in
+                  Sign in
                 </button>
                 <span className="text-white/40">/</span>
                 <button
@@ -271,7 +274,7 @@ const AmrapInterval: React.FC<AmrapIntervalProps> = ({ onNavigate, onNavigateToL
                   }}
                   className="text-xs font-bold text-white/70 transition-colors hover:text-[#ffbf00] md:text-sm"
                 >
-                  Create account
+                  Sign up
                 </button>
               </>
             ) : null}
@@ -600,6 +603,8 @@ const AmrapInterval: React.FC<AmrapIntervalProps> = ({ onNavigate, onNavigateToL
         supabase={supabase}
         redirectBaseUrl={ACCOUNT_REDIRECT_URL}
         defaultSignUp={authModalSignUp}
+        returnUrl={MINIMAL_ONBOARDING_REDIRECT_URL}
+        fromAppId="amrap"
       />
     </>
   );

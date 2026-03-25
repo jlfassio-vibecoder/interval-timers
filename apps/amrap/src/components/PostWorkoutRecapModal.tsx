@@ -17,12 +17,15 @@ export interface PostWorkoutRecapModalProps {
   onCopyResults: () => void;
   /** When provided, shows "View results" button that closes recap and opens the results modal */
   onViewResults?: () => void;
+  onViewInHistory?: () => void;
   /** When provided, shows "Continue on phone" section with QR code and copy link */
   recoveryUrl?: string | null;
-  /** When true, shows "Sign in to save sessions to your History" CTA for guests */
+  /** When true, shows save-account CTA for guests */
   showSignInCta?: boolean;
   /** Called when guest taps sign-in CTA; use to open auth modal */
   onSignInClick?: () => void;
+  /** Called when guest taps sign-up CTA; use to open auth modal in signup mode */
+  onSignUpClick?: () => void;
 }
 
 export default function PostWorkoutRecapModal({
@@ -32,9 +35,11 @@ export default function PostWorkoutRecapModal({
   durationMinutes,
   onCopyResults,
   onViewResults,
+  onViewInHistory,
   recoveryUrl = null,
   showSignInCta = false,
   onSignInClick,
+  onSignUpClick,
 }: PostWorkoutRecapModalProps) {
   const [recoveryCopyToast, setRecoveryCopyToast] = useState<'success' | 'error' | null>(null);
 
@@ -54,9 +59,11 @@ export default function PostWorkoutRecapModal({
   };
 
   const handleViewInHistory = () => {
+    if (onViewInHistory) {
+      onViewInHistory();
+      return;
+    }
     onClose();
-    // Append hud=1 so account page opens with HUD visible (HistoryZone + AMRAP results).
-    // Use window.location.origin as base when HUD_REDIRECT_URL is relative (e.g. /account in prod).
     const url = new URL(HUD_REDIRECT_URL, window.location.origin);
     url.searchParams.set('hud', '1');
     window.open(url.toString(), '_blank', 'noopener,noreferrer');
@@ -114,18 +121,32 @@ export default function PostWorkoutRecapModal({
         {showSignInCta && onSignInClick && (
           <div className="mb-4 rounded-xl border border-orange-500/30 bg-orange-600/10 p-4">
             <p className="mb-2 text-sm text-white/90">
-              Sign in to save sessions to your History across devices.
+              Create an account to save and track sessions across devices.
             </p>
-            <button
-              type="button"
-              onClick={() => {
-                onClose();
-                onSignInClick();
-              }}
-              className="rounded-lg border border-orange-500/50 bg-orange-600/30 px-3 py-2 text-sm font-bold text-orange-200 transition-colors hover:bg-orange-600/50"
-            >
-              Sign in
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onSignInClick();
+                }}
+                className="rounded-lg border border-orange-500/50 bg-orange-600/30 px-3 py-2 text-sm font-bold text-orange-200 transition-colors hover:bg-orange-600/50"
+              >
+                Sign in
+              </button>
+              {onSignUpClick && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onSignUpClick();
+                  }}
+                  className="rounded-lg border border-orange-500/50 bg-orange-600/30 px-3 py-2 text-sm font-bold text-orange-200 transition-colors hover:bg-orange-600/50"
+                >
+                  Sign up
+                </button>
+              )}
+            </div>
           </div>
         )}
         <p className="mb-6 text-white/80">

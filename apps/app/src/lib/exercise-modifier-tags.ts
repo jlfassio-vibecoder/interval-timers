@@ -65,6 +65,14 @@ export const CONDITION_TO_MODIFIER_TAGS: Record<string, string[]> = {
   'heart-condition': ['explosive', 'valsalva', 'high-impact'],
   'obesity-metabolic': ['high-impact', 'high-complexity-floor'],
   'vertigo-dizziness': ['rapid-head-change', 'rotational-swing'],
+  /** Conservative: reduce explosive and high-impact stress on breathing. */
+  asthma: ['explosive', 'high-impact'],
+  /** Foot/complexity caution aligned with metabolic stress model. */
+  diabetes: ['high-impact', 'high-complexity-floor'],
+  /** Heavy load, impact, and complex floor work — conservative until content is pregnancy-specific. */
+  prenatal: ['valsalva', 'explosive', 'high-impact', 'high-complexity-floor'],
+  /** Slightly narrower than prenatal; still avoids max effort and heavy impact early on. */
+  postnatal: ['valsalva', 'explosive', 'high-impact'],
 };
 
 /**
@@ -86,6 +94,10 @@ export const INTENSITY_MODIFIER_CONDITION_IDS = new Set<string>([
   'heart-condition',
   'obesity-metabolic',
   'vertigo-dizziness',
+  'asthma',
+  'diabetes',
+  'prenatal',
+  'postnatal',
 ]);
 
 function buildCombinedText(
