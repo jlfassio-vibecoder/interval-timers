@@ -62,6 +62,8 @@ const TrainingLog: React.FC = () => {
   const alignmentViewedTrackedRef = useRef(false);
   const weekCardRefs = useRef<(HTMLDivElement | null)[]>([]);
   const didScrollToCurrentWeek = useRef(false);
+  /** Tracks tab for detecting Log remount after Analytics (timeline unmount resets scroll). */
+  const prevActiveTabRef = useRef<TabId>('log');
 
   const todayISO = useMemo(() => {
     const n = new Date();
@@ -71,9 +73,15 @@ const TrainingLog: React.FC = () => {
   useEffect(() => {
     didScrollToCurrentWeek.current = false;
     alignmentViewedTrackedRef.current = false;
+    prevActiveTabRef.current = 'log';
   }, [user?.uid]);
 
-  const { weeks, loading, error, refetch } = useTrainingLogWeeks(user?.uid ?? null, 52, filters, 12);
+  const { weeks, loading, error, refetch } = useTrainingLogWeeks(
+    user?.uid ?? null,
+    52,
+    filters,
+    12
+  );
 
   useEffect(() => {
     const handler = () => refetch();
@@ -89,8 +97,7 @@ const TrainingLog: React.FC = () => {
   const goalMinutes = user?.weeklyGoalMinutes ?? HEALTH_GUIDELINE_WEEKLY_MINUTES;
 
   const profileBaseline = userProfileToProfileBaseline(user);
-  const showProfileNudge =
-    user?.uid && profileBaseline && !hasBaselineForMET(profileBaseline);
+  const showProfileNudge = user?.uid && profileBaseline && !hasBaselineForMET(profileBaseline);
 
   const healthSummary = useMemo(() => getProfileHealthSummary(user), [user]);
 
@@ -139,22 +146,41 @@ const TrainingLog: React.FC = () => {
     weekCardRefs.current = weekCardRefs.current.slice(0, weeks.length);
   }, [weeks.length]);
 
-  /** Initial scroll to current calendar week (once per user session until uid changes). */
+  /**
+   * Scroll timeline to the current calendar week on first load. When the user switches to
+   * Analytics, the week strip unmounts and the horizontal scroller resets (typically to the
+   * oldest week, which looks blank). Re-scroll when returning to Log.
+   */
   useEffect(() => {
-    if (weeks.length === 0 || didScrollToCurrentWeek.current) return;
+    const prevTab = prevActiveTabRef.current;
+    const returnedToLogFromAnalytics = prevTab === 'analytics' && activeTab === 'log';
+    prevActiveTabRef.current = activeTab;
+
+    if (activeTab !== 'log' || weeks.length === 0) return;
+
+    const shouldScroll = !didScrollToCurrentWeek.current || returnedToLogFromAnalytics;
+
+    if (!shouldScroll) return;
+
+    if (!didScrollToCurrentWeek.current) {
+      didScrollToCurrentWeek.current = true;
+    }
+
     const curMon = getCurrentWeekMondayISO();
     const idx = weeks.findIndex((w) => w.weekMonday === curMon);
     const targetIdx = idx >= 0 ? idx : Math.max(0, weeks.length - 1);
-    didScrollToCurrentWeek.current = true;
     setFocusedWeekIndex(targetIdx);
+
     requestAnimationFrame(() => {
-      weekCardRefs.current[targetIdx]?.scrollIntoView({
-        behavior: 'auto',
-        inline: 'center',
-        block: 'nearest',
+      requestAnimationFrame(() => {
+        weekCardRefs.current[targetIdx]?.scrollIntoView({
+          behavior: 'auto',
+          inline: 'center',
+          block: 'nearest',
+        });
       });
     });
-  }, [weeks]);
+  }, [activeTab, weeks]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -280,12 +306,16 @@ const TrainingLog: React.FC = () => {
       )}
 
       {showProfileNudge && activeTab === 'log' && (
-        <div className="mb-4 rounded-lg border border-orange-500/30 bg-orange-500/10 px-4 py-3">
+        <div className="border-orange-500/30 bg-orange-500/10 mb-4 rounded-lg border px-4 py-3">
           <p className="text-sm text-white/90">
-            <a href="/account/profile" className="font-medium text-orange-400 underline hover:text-orange-300">
+            <a
+              href="/account/profile"
+              className="text-orange-400 hover:text-orange-300 font-medium underline"
+            >
               Complete your profile
-            </a>
-            {' '}— add date of birth, sex, weight, and height to unlock MET-based calorie estimates and a unified Total Work view.
+            </a>{' '}
+            — add date of birth, sex, weight, and height to unlock MET-based calorie estimates and a
+            unified Total Work view.
           </p>
         </div>
       )}
@@ -293,11 +323,11 @@ const TrainingLog: React.FC = () => {
       {healthSummary.showHealthReminder && activeTab === 'log' && user?.uid && (
         <div className="mb-4 rounded-lg border border-white/15 bg-white/5 px-4 py-3">
           <p className="text-sm text-white/80">
-            Your profile includes health considerations. Use them as a reminder to choose appropriate
-            intensity and modifications.{' '}
+            Your profile includes health considerations. Use them as a reminder to choose
+            appropriate intensity and modifications.{' '}
             <a
               href="/account/profile"
-              className="font-medium text-orange-400 underline hover:text-orange-300"
+              className="text-orange-400 hover:text-orange-300 font-medium underline"
             >
               Update profile
             </a>

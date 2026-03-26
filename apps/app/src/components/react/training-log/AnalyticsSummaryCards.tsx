@@ -9,6 +9,7 @@ import React, { useState, useCallback } from 'react';
 import { Pencil, Check, X } from 'lucide-react';
 import { HEALTH_GUIDELINE_WEEKLY_MINUTES } from '@/lib/training-log-constants';
 import { warnIfBelowGuideline } from '@/lib/training-log-utils';
+import { getProgressBgColorClass, getProgressTextColorClass } from '@/lib/progress-color-ramp';
 
 export interface AnalyticsSummaryCardsProps {
   thisWeek: { totalMinutes: number; sessionCount: number };
@@ -34,6 +35,10 @@ const AnalyticsSummaryCards: React.FC<AnalyticsSummaryCardsProps> = ({
 
   const weekPct = Math.min(100, Math.round((thisWeek.totalMinutes / goalMinutes) * 100));
   const monthPct = Math.min(100, Math.round((thisMonth.totalMinutes / (goalMinutes * 4)) * 100));
+  const weekProgressTextColorClass = getProgressTextColorClass(weekPct);
+  const monthProgressTextColorClass = getProgressTextColorClass(monthPct);
+  const weekProgressBarColorClass = getProgressBgColorClass(weekPct);
+  const monthProgressBarColorClass = getProgressBgColorClass(monthPct);
 
   const handleStartEdit = useCallback(() => {
     setDraftGoal(String(goalMinutes));
@@ -77,11 +82,13 @@ const AnalyticsSummaryCards: React.FC<AnalyticsSummaryCardsProps> = ({
         </p>
         <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10">
           <div
-            className="bg-orange-light/80 h-full rounded-full transition-all"
+            className={`h-full rounded-full transition-all ${weekProgressBarColorClass}`}
             style={{ width: `${weekPct}%` }}
           />
         </div>
-        <div className="mt-1 flex items-center gap-1.5 font-mono text-[10px] text-white/50">
+        <div
+          className={`mt-1 flex items-center gap-1.5 font-mono text-[10px] ${weekProgressTextColorClass}`}
+        >
           {editingGoal ? (
             <>
               <input
@@ -144,11 +151,13 @@ const AnalyticsSummaryCards: React.FC<AnalyticsSummaryCardsProps> = ({
         </p>
         <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10">
           <div
-            className="bg-orange-light/80 h-full rounded-full transition-all"
+            className={`h-full rounded-full transition-all ${monthProgressBarColorClass}`}
             style={{ width: `${monthPct}%` }}
           />
         </div>
-        <p className="mt-1 font-mono text-[10px] text-white/50">~{monthPct}% of monthly target</p>
+        <p className={`mt-1 font-mono text-[10px] ${monthProgressTextColorClass}`}>
+          ~{monthPct}% of monthly target
+        </p>
       </div>
 
       <div className="rounded-xl border border-white/10 bg-white/5 p-4">

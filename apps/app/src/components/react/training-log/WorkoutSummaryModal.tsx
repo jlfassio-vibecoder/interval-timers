@@ -67,11 +67,7 @@ const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({
   const goalAlignment = useMemo(
     () =>
       workout
-        ? computeGoalAlignment(
-            workout,
-            workout.goalSnapshot ?? null,
-            physiologicalCalibration
-          )
+        ? computeGoalAlignment(workout, workout.goalSnapshot ?? null, physiologicalCalibration)
         : null,
     [workout, physiologicalCalibration]
   );
@@ -250,8 +246,8 @@ const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({
                 Goal fit (estimate)
               </h4>
               <p className="mb-4 text-xs leading-relaxed text-white/50">
-                Heuristic match to the goals stored with this session—not medical advice. Numbers may
-                change when the model updates (v{ALIGNMENT_SCORER_VERSION}).
+                Heuristic match to the goals stored with this session—not medical advice. Numbers
+                may change when the model updates (v{ALIGNMENT_SCORER_VERSION}).
               </p>
               <div className="mb-4 flex items-center justify-between gap-3 text-sm">
                 <span className="text-white/70">Overall alignment</span>
@@ -268,8 +264,12 @@ const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({
                 aria-label={`Overall goal alignment ${goalAlignment.composite} percent`}
               >
                 <div
-                  className="h-full rounded-full bg-orange-500/80"
-                  style={{ width: `${goalAlignment.composite}%` }}
+                  className="h-full max-w-full rounded-full"
+                  style={{
+                    width: `${goalAlignment.composite}%`,
+                    // Solid var: Tailwind `bg-accent/85` does not apply when `accent` is a hex CSS variable.
+                    backgroundColor: 'var(--color-accent)',
+                  }}
                 />
               </div>
               <ul className="space-y-4">
@@ -295,8 +295,11 @@ const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({
                         aria-label={`${label}, priority ${rank}, ${value} percent match`}
                       >
                         <div
-                          className="h-full rounded-full bg-orange-400/70"
-                          style={{ width: `${value}%` }}
+                          className="h-full max-w-full rounded-full opacity-90"
+                          style={{
+                            width: `${value}%`,
+                            backgroundColor: 'var(--color-accent)',
+                          }}
                         />
                       </div>
                     </li>
@@ -306,8 +309,8 @@ const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({
             </section>
           ) : (
             <p className="text-center text-xs text-white/45">
-              No goal snapshot for this session—older logs, or no ranked goals on your profile when it
-              was saved.
+              No goal snapshot for this session—older logs, or no ranked goals on your profile when
+              it was saved.
             </p>
           )}
 

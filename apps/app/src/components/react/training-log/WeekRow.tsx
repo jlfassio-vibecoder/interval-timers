@@ -8,6 +8,11 @@
 import React, { forwardRef, useCallback, useMemo } from 'react';
 import { HEALTH_GUIDELINE_WEEKLY_MINUTES } from '@/lib/training-log-constants';
 import {
+  getProgressBgColorClassForValue,
+  getProgressSoftBgColorClassForValue,
+  getProgressTextColorClassForValue,
+} from '@/lib/progress-color-ramp';
+import {
   alignmentCompositeForLog,
   alignmentTierFromComposite,
   type GoalAlignmentTier,
@@ -18,13 +23,6 @@ import type { WorkoutLog } from '@/types';
 
 const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-
-/** Weekly total color: red <100, orange 100-149, green 150+ (health guideline) */
-function getWeekTotalColor(totalMinutes: number): string {
-  if (totalMinutes < 100) return 'bg-red-500/80 text-white';
-  if (totalMinutes < HEALTH_GUIDELINE_WEEKLY_MINUTES) return 'bg-orange-500/80 text-white';
-  return 'bg-green-600/80 text-white';
-}
 
 export interface WeekRowProps {
   week: TrainingLogWeek;
@@ -59,7 +57,6 @@ const WeekRowInner = forwardRef<HTMLDivElement, WeekRowProps>(function WeekRowIn
   },
   ref
 ) {
-  const totalColor = getWeekTotalColor(week.totalMinutes);
   const showPlannedWeekTotal = week.plannedWeekMinutes > 0;
   const G = Math.max(1, goalMinutes);
   const H = HEALTH_GUIDELINE_WEEKLY_MINUTES;
@@ -72,6 +69,9 @@ const WeekRowInner = forwardRef<HTMLDivElement, WeekRowProps>(function WeekRowIn
   const unplannedPct = Math.max(0, 100 - completedPct - plannedPct);
   const ghostPct = showGhost ? (H / G) * 100 : 0;
   const remainingMinutes = Math.max(0, G - completed - planned);
+  const completedBarColorClass = getProgressBgColorClassForValue(completed, G);
+  const progressTextClass = getProgressTextColorClassForValue(completed, G);
+  const totalBadgeClass = `${getProgressSoftBgColorClassForValue(completed, G)} text-white`;
 
   const firstDayWithLogs = week.days.find((d) => d.logs.length > 0);
   const handleKeyDown = useCallback(
@@ -118,7 +118,7 @@ const WeekRowInner = forwardRef<HTMLDivElement, WeekRowProps>(function WeekRowIn
         <div className="flex w-24 shrink-0 flex-col items-end pr-2">
           {!hideRangeLabel && <span className="font-mono text-xs text-white/70">{week.range}</span>}
           <span
-            className={`${hideRangeLabel ? '' : 'mt-0.5 '}rounded px-1.5 py-0.5 font-mono text-sm font-bold ${totalColor}`}
+            className={`${hideRangeLabel ? '' : 'mt-0.5 '}rounded px-1.5 py-0.5 font-mono text-sm font-bold ${totalBadgeClass}`}
           >
             {week.totalMinutes} min
           </span>
@@ -155,7 +155,7 @@ const WeekRowInner = forwardRef<HTMLDivElement, WeekRowProps>(function WeekRowIn
             >
               <div className="flex h-full w-full">
                 <div
-                  className={`h-full shrink-0 ${totalColor.split(' ')[0]}`}
+                  className={`h-full shrink-0 ${completedBarColorClass}`}
                   style={{ width: `${completedPct}%` }}
                 />
                 <div className="h-full shrink-0 bg-white/30" style={{ width: `${plannedPct}%` }} />
@@ -177,7 +177,7 @@ const WeekRowInner = forwardRef<HTMLDivElement, WeekRowProps>(function WeekRowIn
               )}
             </div>
             {remainingMinutes > 0 && (
-              <p className="text-orange-400/90 mt-1 font-mono text-[9px]">
+              <p className={`mt-1 font-mono text-[9px] ${progressTextClass}`}>
                 {remainingMinutes} min needed to reach {G} min goal
               </p>
             )}

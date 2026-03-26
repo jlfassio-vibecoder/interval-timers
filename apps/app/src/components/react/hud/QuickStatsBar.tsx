@@ -2,63 +2,65 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  *
- * Quick Stats Bar for Zone 3: week streak, workouts this month, current phase.
+ * Quick Stats Bar for Zone 3: time streak, workouts this month, day streak, week-to-date minutes.
  */
 
-import React, { useState, useEffect } from 'react';
-import { getStreakData } from '@/lib/supabase/client/progress-analytics';
-import { getCurrentWeek } from '@/lib/supabase/client/user-programs';
-import { fetchUserPrograms } from '@/lib/supabase/client/user-programs';
+import React, { useMemo } from 'react';
+import { useAppContext } from '@/contexts/AppContext';
+import {
+  computeTimeStreakWeeks,
+  computeTrainingLogQuickStats,
+} from '@/lib/training-log-quick-stats';
+import { HEALTH_GUIDELINE_WEEKLY_MINUTES } from '@/lib/training-log-constants';
+import { getMinutesThisWeek } from '@/lib/training-log-utils';
+import { getProgressTextColorClassForValue } from '@/lib/progress-color-ramp';
 
 export interface QuickStatsBarProps {
   userId: string;
   activeProgramId: string | null;
 }
 
-const QuickStatsBar: React.FC<QuickStatsBarProps> = ({ userId, activeProgramId }) => {
-  const [weekStreak, setWeekStreak] = useState(0);
-  const [monthlyCount, setMonthlyCount] = useState(0);
-  const [currentPhase, setCurrentPhase] = useState<number | null>(null);
-
-  useEffect(() => {
-    getStreakData(userId).then(({ weekStreak: ws, monthlyCount: mc }) => {
-      setWeekStreak(ws);
-      setMonthlyCount(mc);
-    });
-  }, [userId]);
-
-  useEffect(() => {
-    if (!activeProgramId) {
-      setCurrentPhase(null);
-      return;
-    }
-    fetchUserPrograms(userId)
-      .then((list) => {
-        const program = list.find((p) => p.programId === activeProgramId);
-        if (!program) {
-          setCurrentPhase(null);
-          return;
-        }
-        const { current } = getCurrentWeek(program.startDate ?? null, program.durationWeeks ?? 1);
-        setCurrentPhase(current);
-      })
-      .catch(() => setCurrentPhase(null));
-  }, [userId, activeProgramId]);
+const QuickStatsBar: React.FC<QuickStatsBarProps> = ({
+  userId: _userId,
+  activeProgramId: _activeProgramId,
+}) => {
+  const { workoutLogs, user } = useAppContext();
+  const quickStats = useMemo(() => computeTrainingLogQuickStats(workoutLogs), [workoutLogs]);
+  const weeklyTargetMinutes = Math.max(
+    1,
+    user?.weeklyGoalMinutes ?? HEALTH_GUIDELINE_WEEKLY_MINUTES
+  );
+  const weekToDateMinutes = useMemo(
+    () => Math.round(getMinutesThisWeek(workoutLogs)),
+    [workoutLogs]
+  );
+  const weekToDateColorClass = useMemo(
+    () => getProgressTextColorClassForValue(weekToDateMinutes, weeklyTargetMinutes),
+    [weekToDateMinutes, weeklyTargetMinutes]
+  );
+  const timeStreak = useMemo(
+    () => computeTimeStreakWeeks(workoutLogs, weeklyTargetMinutes),
+    [workoutLogs, weeklyTargetMinutes]
+  );
 
   return (
     <div className="flex flex-wrap gap-3">
       <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-2">
-        <span className="font-mono text-[10px] uppercase text-white/50">Week streak</span>
-        <p className="font-heading text-lg font-bold text-white">{weekStreak}</p>
+        <span className="font-mono text-[10px] uppercase text-white/50">Time streak</span>
+        <p className="font-heading text-lg font-bold text-white">{timeStreak}</p>
       </div>
       <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-2">
         <span className="font-mono text-[10px] uppercase text-white/50">This month</span>
-        <p className="font-heading text-lg font-bold text-white">{monthlyCount}</p>
+        <p className="font-heading text-lg font-bold text-white">{quickStats.sessionsThisMonth}</p>
       </div>
       <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-2">
-        <span className="font-mono text-[10px] uppercase text-white/50">Current phase</span>
-        <p className="font-heading text-lg font-bold text-white">
-          {currentPhase !== null ? `Week ${currentPhase}` : '—'}
+        <span className="font-mono text-[10px] uppercase text-white/50">Day streak</span>
+        <p className="font-heading text-lg font-bold text-white">{quickStats.dayStreak}</p>
+      </div>
+      <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-2">
+        <span className="font-mono text-[10px] uppercase text-white/50">Week to date</span>
+        <p className={`font-heading text-lg font-bold ${weekToDateColorClass}`}>
+          {weekToDateMinutes}/{weeklyTargetMinutes} min
         </p>
       </div>
     </div>
