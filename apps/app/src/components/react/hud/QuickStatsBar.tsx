@@ -5,7 +5,7 @@
  * Quick Stats Bar for Zone 3: time streak, workouts this month, day streak, week-to-date minutes.
  */
 
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useAppContext } from '@/contexts/AppContext';
 import {
   computeTimeStreakWeeks,
@@ -14,6 +14,7 @@ import {
 import { HEALTH_GUIDELINE_WEEKLY_MINUTES } from '@/lib/training-log-constants';
 import { getMinutesThisWeek } from '@/lib/training-log-utils';
 import { getProgressTextColorClassForValue } from '@/lib/progress-color-ramp';
+import { getTrainingLogLocalTodayISO } from '@/lib/supabase/client/training-log';
 
 export interface QuickStatsBarProps {
   userId: string;
@@ -25,22 +26,49 @@ const QuickStatsBar: React.FC<QuickStatsBarProps> = ({
   activeProgramId: _activeProgramId,
 }) => {
   const { workoutLogs, user } = useAppContext();
-  const quickStats = useMemo(() => computeTrainingLogQuickStats(workoutLogs), [workoutLogs]);
+  const [todayISO, setTodayISO] = useState(() => getTrainingLogLocalTodayISO());
+
+  useEffect(() => {
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    const scheduleNextLocalMidnightTick = () => {
+      const now = new Date();
+      const nextMidnight = new Date(now);
+      nextMidnight.setDate(now.getDate() + 1);
+      nextMidnight.setHours(0, 0, 0, 50); // small buffer after midnight boundary
+      const delayMs = Math.max(1000, nextMidnight.getTime() - now.getTime());
+
+      timeoutId = setTimeout(() => {
+        setTodayISO(getTrainingLogLocalTodayISO());
+        scheduleNextLocalMidnightTick();
+      }, delayMs);
+    };
+
+    scheduleNextLocalMidnightTick();
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, []);
+
+  const quickStats = useMemo(
+    () => computeTrainingLogQuickStats(workoutLogs, todayISO),
+    [workoutLogs, todayISO]
+  );
   const weeklyTargetMinutes = Math.max(
     1,
     user?.weeklyGoalMinutes ?? HEALTH_GUIDELINE_WEEKLY_MINUTES
   );
   const weekToDateMinutes = useMemo(
     () => Math.round(getMinutesThisWeek(workoutLogs)),
-    [workoutLogs]
+    [workoutLogs, todayISO]
   );
   const weekToDateColorClass = useMemo(
     () => getProgressTextColorClassForValue(weekToDateMinutes, weeklyTargetMinutes),
     [weekToDateMinutes, weeklyTargetMinutes]
   );
   const timeStreak = useMemo(
-    () => computeTimeStreakWeeks(workoutLogs, weeklyTargetMinutes),
-    [workoutLogs, weeklyTargetMinutes]
+    () => computeTimeStreakWeeks(workoutLogs, weeklyTargetMinutes, todayISO),
+    [workoutLogs, weeklyTargetMinutes, todayISO]
   );
 
   return (
