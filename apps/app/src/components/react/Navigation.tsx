@@ -202,7 +202,7 @@ const Navigation: React.FC<NavigationProps> = ({
         </a>
       )}
       <a
-        href="/interval-timers"
+        href="/interval-timers?hud=1"
         className="hidden items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-white transition-colors hover:bg-white/15 hover:text-orange-light md:flex"
         aria-label="Calendar"
       >
@@ -404,7 +404,7 @@ const Navigation: React.FC<NavigationProps> = ({
                 {user ? (
                   <>
                     <a
-                      href="/interval-timers"
+                      href="/interval-timers?hud=1"
                       onClick={() => setMobileMenuOpen(false)}
                       className="rounded-full bg-white/10 px-4 py-2.5 font-semibold text-white transition-colors hover:bg-white/15 hover:text-orange-light"
                     >

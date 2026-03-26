@@ -10,22 +10,14 @@
 import React from 'react';
 import { ArrowRight, CheckCircle2 } from 'lucide-react';
 import { HEALTH_GUIDELINE_WEEKLY_MINUTES } from '@/lib/training-log-constants';
+import {
+  getProgressBgColorClassForValue,
+  getProgressTextColorClassForValue,
+} from '@/lib/progress-color-ramp';
 
 export interface TrainingLogPreviewProps {
   minutesThisWeek: number;
   goalMinutes?: number;
-}
-
-function getColorClass(minutes: number, goal: number): string {
-  if (minutes >= goal) return 'text-green-400';
-  if (minutes >= goal * 0.67) return 'text-orange-400';
-  return 'text-red-400';
-}
-
-function getBarColorClass(minutes: number, goal: number): string {
-  if (minutes >= goal) return 'bg-green-500';
-  if (minutes >= goal * 0.67) return 'bg-orange-500';
-  return 'bg-red-500';
 }
 
 const TrainingLogPreview: React.FC<TrainingLogPreviewProps> = ({
@@ -40,8 +32,8 @@ const TrainingLogPreview: React.FC<TrainingLogPreviewProps> = ({
   const cappedPercent = Math.min(100, Math.round((minutesThisWeek / scaleMax) * 100));
   const goalReached = minutesThisWeek >= G;
   const remainingMinutes = Math.max(0, G - Math.round(minutesThisWeek));
-  const colorClass = getColorClass(minutesThisWeek, G);
-  const barColorClass = getBarColorClass(minutesThisWeek, G);
+  const colorClass = getProgressTextColorClassForValue(minutesThisWeek, G);
+  const barColorClass = getProgressBgColorClassForValue(minutesThisWeek, G);
   const ghostPct = showGhost ? (H / scaleMax) * 100 : 0;
 
   return (
@@ -80,7 +72,7 @@ const TrainingLogPreview: React.FC<TrainingLogPreviewProps> = ({
         </div>
         {goalReached ? (
           <span
-            className="flex shrink-0 items-center gap-1 font-mono text-[10px] font-bold uppercase tracking-wider text-green-400"
+            className={`flex shrink-0 items-center gap-1 font-mono text-[10px] font-bold uppercase tracking-wider ${colorClass}`}
             aria-label={percent > 100 ? `Weekly goal exceeded: ${percent}%` : 'Weekly goal reached'}
           >
             <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
@@ -88,7 +80,7 @@ const TrainingLogPreview: React.FC<TrainingLogPreviewProps> = ({
           </span>
         ) : (
           <span
-            className="text-orange-400/90 shrink-0 font-mono text-[10px]"
+            className={`shrink-0 font-mono text-[10px] ${colorClass}`}
             aria-label={`${remainingMinutes} minutes needed to reach ${G} minute goal`}
           >
             {remainingMinutes} min needed to reach goal

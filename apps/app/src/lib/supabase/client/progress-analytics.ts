@@ -7,6 +7,8 @@
  */
 
 import { supabase } from '../supabase-instance';
+import { computeTrainingLogQuickStats } from '@/lib/training-log-quick-stats';
+import { getAmrapSessionResults } from './amrap-session-results';
 
 function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
@@ -59,63 +61,39 @@ export async function getStreakData(userId: string): Promise<{
   start.setDate(start.getDate() - STREAK_QUERY_DAYS);
   const startStr = start.toISOString().slice(0, 10);
 
-  const { data: rows, error } = await supabase
-    .from('user_workout_logs')
-    .select('date')
-    .eq('user_id', userId)
-    .gte('date', startStr)
-    .order('date', { ascending: false });
+  const [workoutLogsRes, userWorkoutLogsRes, amrapResults] = await Promise.all([
+    supabase
+      .from('workout_logs')
+      .select('date')
+      .eq('user_id', userId)
+      .gte('date', startStr)
+      .order('date', { ascending: false }),
+    supabase
+      .from('user_workout_logs')
+      .select('date')
+      .eq('user_id', userId)
+      .gte('date', startStr)
+      .order('date', { ascending: false }),
+    getAmrapSessionResults(userId, 100).catch(() => []),
+  ]);
 
-  if (error) return { weekStreak: 0, monthlyCount: 0 };
+  if (workoutLogsRes.error || userWorkoutLogsRes.error) return { weekStreak: 0, monthlyCount: 0 };
 
-  const dates = (rows ?? []).map((r) => r.date as string);
-  const uniqueDates = [...new Set(dates)];
+  const logsLike = [
+    ...((workoutLogsRes.data ?? []) as Array<{ date: string }>),
+    ...((userWorkoutLogsRes.data ?? []) as Array<{ date: string }>),
+    ...amrapResults
+      .map((r) => ({ date: (r.completed_at ?? '').slice(0, 10) }))
+      .filter((r) => r.date >= startStr),
+  ];
 
-  const now = new Date();
-  const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const monthlyCount = dates.filter((d) => new Date(d) >= thisMonthStart).length;
-
-  const weeksWithWork = new Set<string>();
-  for (const d of uniqueDates) {
-    weeksWithWork.add(getISOWeek(d));
-  }
-
-  const currentWeekKey = getISOWeek(now.toISOString().slice(0, 10));
-  let weekStreak = 0;
-  let check = currentWeekKey;
-  while (weeksWithWork.has(check)) {
-    weekStreak++;
-    check = getPrevWeek(check);
-  }
-
-  return { weekStreak, monthlyCount };
+  const stats = computeTrainingLogQuickStats(logsLike);
+  return { weekStreak: stats.weekStreak, monthlyCount: stats.sessionsThisMonth };
 }
 
-/** Return ISO week key (YYYY-Www) for the week containing the given UTC date. */
-function getISOWeekKeyFromUTCDate(d: Date): string {
-  const thu = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
-  const day = thu.getUTCDay();
-  const thuOffset = (4 - day + 7) % 7;
-  thu.setUTCDate(thu.getUTCDate() + thuOffset);
-  const y = thu.getUTCFullYear();
-  const jan4 = new Date(Date.UTC(y, 0, 4));
-  const week1Thu = new Date(jan4);
-  week1Thu.setUTCDate(jan4.getUTCDate() + ((4 - jan4.getUTCDay() + 7) % 7));
-  const weekNo = 1 + Math.floor((thu.getTime() - week1Thu.getTime()) / (7 * 24 * 60 * 60 * 1000));
-  return `${y}-W${String(weekNo).padStart(2, '0')}`;
-}
-
-/** Previous ISO week by subtracting 7 days (handles 53-week years). */
-function getPrevWeek(weekKey: string): string {
-  const [y, w] = weekKey.split('-W').map((s) => parseInt(s, 10));
-  const jan4 = new Date(Date.UTC(y, 0, 4));
-  const week1Mon = new Date(jan4);
-  week1Mon.setUTCDate(jan4.getUTCDate() - ((jan4.getUTCDay() + 6) % 7));
-  const mondayOfWeek = new Date(week1Mon);
-  mondayOfWeek.setUTCDate(week1Mon.getUTCDate() + (w - 1) * 7);
-  const prevMonday = new Date(mondayOfWeek);
-  prevMonday.setUTCDate(mondayOfWeek.getUTCDate() - 7);
-  return getISOWeekKeyFromUTCDate(prevMonday);
+export interface WeeklyVolume {
+  weekKey: string;
+  setsCount: number;
 }
 
 function getISOWeek(dateStr: string): string {
@@ -128,11 +106,6 @@ function getISOWeek(dateStr: string): string {
     ((thursday.getTime() - jan1.getTime()) / 86400000 + jan1.getDay() + 1) / 7
   );
   return `${thursday.getFullYear()}-W${String(weekNo).padStart(2, '0')}`;
-}
-
-export interface WeeklyVolume {
-  weekKey: string;
-  setsCount: number;
 }
 
 /**

@@ -209,8 +209,8 @@ const LandingPage: React.FC = () => {
                       (typeof window !== 'undefined'
                         ? `${window.location.protocol}//${window.location.hostname}:3006`
                         : 'http://localhost:3006')
-                    }/interval-timers`
-                  : '/interval-timers'
+                    }/interval-timers?hud=1`
+                  : '/interval-timers?hud=1'
               }
               className="flex items-center gap-2 rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm font-bold text-white transition-colors hover:bg-white/10 hover:border-white/30"
             >
