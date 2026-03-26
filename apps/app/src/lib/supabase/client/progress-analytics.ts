@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  *
  * Progress analytics for Zone 3 (Quick Stats) and Zone 4.
- * Uses user_workout_logs (set-level logs from WorkoutPlayer).
+ * Uses user_workout_logs, workout_logs (excluding readiness rows), and AMRAP results.
  */
 
 import { supabase } from '../supabase-instance';
@@ -66,6 +66,7 @@ export async function getStreakData(userId: string): Promise<{
       .from('workout_logs')
       .select('date')
       .eq('user_id', userId)
+      .neq('workout_name', 'Readiness')
       .gte('date', startStr)
       .order('date', { ascending: false }),
     supabase

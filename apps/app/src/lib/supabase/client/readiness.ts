@@ -48,7 +48,8 @@ async function getReadinessRow(userId: string, date: string): Promise<ReadinessR
     .eq('date', date)
     .eq('workout_name', READINESS_WORKOUT_NAME)
     .limit(1);
-  if (error || !rows?.[0]) return null;
+  if (error) throw error;
+  if (!rows?.[0]) return null;
   return rows[0] as ReadinessRow;
 }
 

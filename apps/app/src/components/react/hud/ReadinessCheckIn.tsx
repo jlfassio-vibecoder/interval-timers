@@ -5,7 +5,7 @@
  * HUD Daily readiness check-in with sliders, checkboxes, and optional context fields.
  */
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { getProgressTextColorClass } from '@/lib/progress-color-ramp';
 import {
@@ -68,7 +68,7 @@ const ReadinessCheckIn: React.FC<ReadinessCheckInProps> = ({ userId }) => {
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState<DailyCheckInFormState>(DEFAULT_DAILY_CHECKIN);
   const [cycleSymptomsText, setCycleSymptomsText] = useState('');
-  const today = useMemo(() => localTodayISO(), []);
+  const today = localTodayISO();
   const energyPercent = sliderPercent(form.energy_level);
   const sleepPercent = sliderPercent(form.sleep_quality);
   const stressPercent = sliderPercent(form.stress_level, true);
