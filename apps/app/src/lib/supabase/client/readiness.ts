@@ -133,3 +133,32 @@ export async function getDailyReadinessCheckIn(
   if (!row) return null;
   return parseDailyCheckInNotes(row.notes);
 }
+
+/** True when `notes` stores the daily readiness JSON payload (not user freeform notes). */
+export function isReadinessNotesPayload(notes: string | null | undefined): boolean {
+  return Boolean(notes?.trimStart().startsWith(READINESS_NOTES_PREFIX));
+}
+
+/**
+ * Latest readiness check-in on or before `targetDate` (Training Log workout date).
+ * Used by WorkoutSummaryModal when no check-in exists for the exact date.
+ */
+export async function getMostRecentReadinessCheckIn(
+  userId: string,
+  targetDate: string
+): Promise<{ form: DailyCheckInFormState; readinessDate: string } | null> {
+  const { data: rows, error } = await supabase
+    .from('workout_logs')
+    .select('date, notes')
+    .eq('user_id', userId)
+    .eq('workout_name', READINESS_WORKOUT_NAME)
+    .lte('date', targetDate)
+    .order('date', { ascending: false })
+    .limit(1);
+  if (error) throw error;
+  const row = rows?.[0] as { date: string; notes: string | null } | undefined;
+  if (!row) return null;
+  const form = parseDailyCheckInNotes(row.notes);
+  if (!form) return null;
+  return { form, readinessDate: row.date };
+}
