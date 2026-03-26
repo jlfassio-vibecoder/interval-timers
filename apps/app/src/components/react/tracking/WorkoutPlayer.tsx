@@ -122,8 +122,7 @@ const WorkoutPlayer: React.FC<WorkoutPlayerProps> = ({
               actualWeight: last?.actualWeight ?? 0,
               actualRepsLeft: last?.actualRepsLeft ?? def,
               actualRepsRight: last?.actualRepsRight ?? def,
-              actualReps:
-                (last?.actualRepsLeft ?? def) + (last?.actualRepsRight ?? def),
+              actualReps: (last?.actualRepsLeft ?? def) + (last?.actualRepsRight ?? def),
               actualRPE: 0,
               completed: false,
             }
@@ -142,9 +141,7 @@ const WorkoutPlayer: React.FC<WorkoutPlayerProps> = ({
   }, []);
 
   const updateExerciseNotes = useCallback((exIndex: number, notes: string) => {
-    setLogs((prev) =>
-      prev.map((ex, ei) => (ei === exIndex ? { ...ex, notes } : ex))
-    );
+    setLogs((prev) => prev.map((ex, ei) => (ei === exIndex ? { ...ex, notes } : ex)));
   }, []);
 
   const hasAtLeastOneCompletedSet = useCallback(() => {
@@ -204,10 +201,7 @@ const WorkoutPlayer: React.FC<WorkoutPlayerProps> = ({
   const canNext = activeExerciseIndex < exercises.length - 1;
   const perSideExercise =
     current != null &&
-    isPerSidePrescription(
-      current.sets[0]?.targetReps ?? '',
-      current.exerciseName
-    );
+    isPerSidePrescription(current.sets[0]?.targetReps ?? '', current.exerciseName);
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-black/95 text-white">
@@ -306,17 +300,13 @@ const WorkoutPlayer: React.FC<WorkoutPlayerProps> = ({
                               inputMode="numeric"
                               min={0}
                               value={
-                                typeof set.actualRepsLeft === 'number'
-                                  ? set.actualRepsLeft
-                                  : ''
+                                typeof set.actualRepsLeft === 'number' ? set.actualRepsLeft : ''
                               }
                               onChange={(e) => {
                                 const v = e.target.value;
                                 const left = v === '' ? 0 : parseInt(v, 10) || 0;
                                 const right =
-                                  typeof set.actualRepsRight === 'number'
-                                    ? set.actualRepsRight
-                                    : 0;
+                                  typeof set.actualRepsRight === 'number' ? set.actualRepsRight : 0;
                                 updateSet(activeExerciseIndex, setIndex, {
                                   actualRepsLeft: left,
                                   actualReps: left + right,
@@ -332,17 +322,13 @@ const WorkoutPlayer: React.FC<WorkoutPlayerProps> = ({
                               inputMode="numeric"
                               min={0}
                               value={
-                                typeof set.actualRepsRight === 'number'
-                                  ? set.actualRepsRight
-                                  : ''
+                                typeof set.actualRepsRight === 'number' ? set.actualRepsRight : ''
                               }
                               onChange={(e) => {
                                 const v = e.target.value;
                                 const right = v === '' ? 0 : parseInt(v, 10) || 0;
                                 const left =
-                                  typeof set.actualRepsLeft === 'number'
-                                    ? set.actualRepsLeft
-                                    : 0;
+                                  typeof set.actualRepsLeft === 'number' ? set.actualRepsLeft : 0;
                                 updateSet(activeExerciseIndex, setIndex, {
                                   actualRepsRight: right,
                                   actualReps: left + right,
@@ -376,9 +362,7 @@ const WorkoutPlayer: React.FC<WorkoutPlayerProps> = ({
                           min={1}
                           max={10}
                           step={0.5}
-                          value={
-                            set.actualRPE != null && set.actualRPE > 0 ? set.actualRPE : ''
-                          }
+                          value={set.actualRPE != null && set.actualRPE > 0 ? set.actualRPE : ''}
                           onChange={(e) => {
                             const v = e.target.value;
                             if (v === '') {
@@ -422,7 +406,7 @@ const WorkoutPlayer: React.FC<WorkoutPlayerProps> = ({
             <button
               type="button"
               onClick={() => addSet(activeExerciseIndex)}
-              className="mt-3 flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg border border-dashed border-white/25 bg-white/5 px-4 text-sm font-medium text-white/80 transition hover:border-orange-light/50 hover:bg-white/10 hover:text-white"
+              className="hover:border-orange-light/50 mt-3 flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg border border-dashed border-white/25 bg-white/5 px-4 text-sm font-medium text-white/80 transition hover:bg-white/10 hover:text-white"
             >
               <Plus className="h-4 w-4" aria-hidden />
               Add set

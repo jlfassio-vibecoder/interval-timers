@@ -48,8 +48,7 @@ function formatDate(iso: string): string {
 function SetRow({ set }: { set: SetLog }) {
   const weight = set.actualWeight > 0 ? `${set.actualWeight} lb` : '—';
   const reps = formatSetRepsDisplay(set);
-  const rpe =
-    set.actualRPE != null && set.actualRPE > 0 ? ` @ RPE ${set.actualRPE}` : '';
+  const rpe = set.actualRPE != null && set.actualRPE > 0 ? ` @ RPE ${set.actualRPE}` : '';
   return (
     <tr className="border-b border-white/5 last:border-0">
       <td className="py-1.5 pr-3 font-mono text-[10px] text-white/50">{set.setNumber}</td>

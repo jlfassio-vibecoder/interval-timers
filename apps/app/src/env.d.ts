@@ -6,7 +6,7 @@
  * runs `tsc` without `astro sync`, so we mirror the shape from `src/actions`.
  */
 declare module 'astro:actions' {
-  type AppActions = typeof import('./actions/index')['server'];
+  type AppActions = (typeof import('./actions/index'))['server'];
   export const actions: AppActions;
 }
 

@@ -17,9 +17,7 @@ export interface VertexAuthOptions {
  * when set (base64 or raw JSON string), otherwise falls back to Application
  * Default Credentials (gcloud auth or GOOGLE_APPLICATION_CREDENTIALS file path).
  */
-export async function getVertexAccessToken(
-  options: VertexAuthOptions
-): Promise<string | null> {
+export async function getVertexAccessToken(options: VertexAuthOptions): Promise<string | null> {
   const credentialsJson =
     typeof process !== 'undefined' ? process.env?.GOOGLE_APPLICATION_CREDENTIALS_JSON : undefined;
 

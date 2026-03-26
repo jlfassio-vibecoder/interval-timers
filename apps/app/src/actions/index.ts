@@ -73,21 +73,13 @@ export const server = {
     }),
     handler: async (input, context) => {
       try {
-        const { supabase, uid } = await getSupabaseUserClient(
-          context.request,
-          context.cookies
-        );
-        const tam = computeTotalActiveMultiplier(
-          input.lifestyle_baseline,
-          input.workout_routine
-        );
+        const { supabase, uid } = await getSupabaseUserClient(context.request, context.cookies);
+        const tam = computeTotalActiveMultiplier(input.lifestyle_baseline, input.workout_routine);
         const patch = {
           lifestyle_baseline: input.lifestyle_baseline,
           workout_routine: input.workout_routine,
           total_active_multiplier: tam,
-          activity_level_baseline: legacyActivityLevelFromLifestyle(
-            input.lifestyle_baseline
-          ),
+          activity_level_baseline: legacyActivityLevelFromLifestyle(input.lifestyle_baseline),
         };
         // createClient<Database> infers profiles.update as `never` with our partial schema; browser
         // supabase instance stays untyped and accepts the same payload (ProfilePage).
@@ -123,17 +115,12 @@ export const server = {
     }),
     handler: async (input, context) => {
       try {
-        const { supabase, uid } = await getSupabaseUserClient(
-          context.request,
-          context.cookies
-        );
+        const { supabase, uid } = await getSupabaseUserClient(context.request, context.cookies);
         const patch = {
           physical_limitations: input.physical_limitations,
           medical_conditions: input.medical_conditions,
           pregnancy_postpartum: input.pregnancy_postpartum,
-          injury_limitation_tags: physicalLimitationsToLegacyInjuryTags(
-            input.physical_limitations
-          ),
+          injury_limitation_tags: physicalLimitationsToLegacyInjuryTags(input.physical_limitations),
         };
         const { error } = await supabase
           .from('profiles')
@@ -165,10 +152,7 @@ export const server = {
     }),
     handler: async (input, context) => {
       try {
-        const { supabase, uid } = await getSupabaseUserClient(
-          context.request,
-          context.cookies
-        );
+        const { supabase, uid } = await getSupabaseUserClient(context.request, context.cookies);
         const ranking = input.fitness_goal_ranking;
         const patch = {
           fitness_goal_ranking: ranking,

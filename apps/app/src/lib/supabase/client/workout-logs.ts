@@ -25,8 +25,7 @@ export async function saveWorkoutLog(log: Omit<WorkoutLog, 'id'>): Promise<strin
   if (log.source !== undefined) payload.source = log.source;
   if (log.goalSnapshot !== undefined) {
     const snap = log.goalSnapshot;
-    payload.goal_snapshot =
-      snap != null && snap.length > 0 ? snap : null;
+    payload.goal_snapshot = snap != null && snap.length > 0 ? snap : null;
   }
 
   const { data, error } = await supabase.from('workout_logs').insert(payload).select('id').single();

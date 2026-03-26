@@ -10,15 +10,15 @@ Design for surfacing **how numbers are derived** in `WorkoutSummaryModal.tsx` an
 
 ## Source of truth (today)
 
-| Concept | Implementation | Notes |
-|--------|----------------|--------|
-| BMR | `computeBMR` | Mifflin–St Jeor; needs DOB, sex, weight, height. |
-| TAM | `resolveTotalActiveMultiplier` | Stored `total_active_multiplier`, or lifestyle + workout, or legacy `activity_level_baseline`. |
-| TDEE | `computeTDEE` | `BMR × TAM`. Daily context, not a single session. |
-| Session MET | `inferMETFromWorkout(source, workoutFormat)` | Coarse table (`MET_VALUES` + string heuristics). |
-| Session kcal (estimate) | `estimateCalorieBurn(met, weightKg, durationMinutes)` | `MET × weight_kg × (min/60)`. |
-| Logged kcal | `WorkoutLog.calories` | Optional; may come from devices or manual entry. |
-| Effort | `WorkoutLog.effort` (1–10) | Documented as RPE-like; **not** yet applied in `estimateCalorieBurn`. |
+| Concept                 | Implementation                                        | Notes                                                                                          |
+| ----------------------- | ----------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| BMR                     | `computeBMR`                                          | Mifflin–St Jeor; needs DOB, sex, weight, height.                                               |
+| TAM                     | `resolveTotalActiveMultiplier`                        | Stored `total_active_multiplier`, or lifestyle + workout, or legacy `activity_level_baseline`. |
+| TDEE                    | `computeTDEE`                                         | `BMR × TAM`. Daily context, not a single session.                                              |
+| Session MET             | `inferMETFromWorkout(source, workoutFormat)`          | Coarse table (`MET_VALUES` + string heuristics).                                               |
+| Session kcal (estimate) | `estimateCalorieBurn(met, weightKg, durationMinutes)` | `MET × weight_kg × (min/60)`.                                                                  |
+| Logged kcal             | `WorkoutLog.calories`                                 | Optional; may come from devices or manual entry.                                               |
+| Effort                  | `WorkoutLog.effort` (1–10)                            | Documented as RPE-like; **not** yet applied in `estimateCalorieBurn`.                          |
 
 ## Non-goals (this design pass)
 
@@ -45,11 +45,11 @@ Design for surfacing **how numbers are derived** in `WorkoutSummaryModal.tsx` an
 2. **Energy estimate** (new section), only if `hasBaselineForMET(baseline)`:
    - **Headline:** `Estimated burn` — **N kcal** (rounded to nearest integer).
    - **Subline:** `Based on ~X MET · Y min · your profile weight` (X = `inferMETFromWorkout`, Y = duration in minutes from `durationSeconds`).
-   - **If `workout.calories` is set:** show two lines — `Logged: N kcal` and `Estimated: M kcal` with short note: *Estimates use typical intensity for this format; logged values override for your records.*
+   - **If `workout.calories` is set:** show two lines — `Logged: N kcal` and `Estimated: M kcal` with short note: _Estimates use typical intensity for this format; logged values override for your records._
 3. **“How this is calculated”** — collapsible `<details>` or chevron disclosure (mobile-friendly):
-   - Formula text: *kcal ≈ MET × body weight (kg) × (duration in hours)*.
-   - MET source: *Format-based default (e.g. HIIT ~8 MET). Not a lab measurement.*
-   - Effort: *Effort 1–10 is shown above; optional future use to adjust the estimate.*
+   - Formula text: _kcal ≈ MET × body weight (kg) × (duration in hours)_.
+   - MET source: _Format-based default (e.g. HIIT ~8 MET). Not a lab measurement._
+   - Effort: _Effort 1–10 is shown above; optional future use to adjust the estimate._
 
 ### 1.3 Baseline missing
 
@@ -57,8 +57,8 @@ Design for surfacing **how numbers are derived** in `WorkoutSummaryModal.tsx` an
 
 ### 1.4 Optional: TDEE snippet
 
-- One muted line under the estimate: *Your estimated daily burn (TDEE) is about **Z kcal/day** using your activity profile.*  
-- Use `computeTDEE(baseline)` only when BMR is valid (same gate as MET).  
+- One muted line under the estimate: _Your estimated daily burn (TDEE) is about **Z kcal/day** using your activity profile._
+- Use `computeTDEE(baseline)` only when BMR is valid (same gate as MET).
 - **Copy guardrail:** Clarify TDEE is **not** added to session kcal (avoid double-counting narrative).
 
 ### 1.5 Accessibility
@@ -89,21 +89,21 @@ Design for surfacing **how numbers are derived** in `WorkoutSummaryModal.tsx` an
 
 **When baseline incomplete:**
 
-- Single card: *Complete profile to see estimated calorie burn trends* + link.
+- Single card: _Complete profile to see estimated calorie burn trends_ + link.
 
 ### 2.3 Chart (phase 2, optional)
 
-- **Weekly estimated kcal** line or bar series parallel to `WeeklyVolumeChart` (second axis or small multiples).  
+- **Weekly estimated kcal** line or bar series parallel to `WeeklyVolumeChart` (second axis or small multiples).
 - Same `weekKey` buckets as `data.weeklyVolume` — either extend `getTrainingLogAnalytics` return type or derive client-side from `logs` to avoid duplicate SQL paths initially.
 
 ### 2.4 Profile context strip
 
-- Subtle banner: *Estimates use weight **X kg** and activity multiplier **TAM Y** (from profile).*  
+- Subtle banner: _Estimates use weight **X kg** and activity multiplier **TAM Y** (from profile)._
 - If weight or TAM changes, next fetch reflects new values — no historical recompute unless we snapshot later (out of scope).
 
 ### 2.5 Insights (`generateInsights`)
 
-- Optional new rules (phase 2): e.g. *Estimated burn up/down vs last month* — only if product wants parity with volume insights; avoid noise if MET table is coarse.
+- Optional new rules (phase 2): e.g. _Estimated burn up/down vs last month_ — only if product wants parity with volume insights; avoid noise if MET table is coarse.
 
 ---
 

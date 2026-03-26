@@ -29,11 +29,10 @@ const AnalyticsEnergySection: React.FC<AnalyticsEnergySectionProps> = ({
         <p className="text-sm text-white/80">
           <a
             href="/account/profile"
-            className="font-medium text-orange-400 underline hover:text-orange-300"
+            className="text-orange-400 hover:text-orange-300 font-medium underline"
           >
             Complete your profile
-          </a>
-          {' '}
+          </a>{' '}
           — add date of birth, sex, weight, and height to see estimated calorie burn trends for your
           filtered sessions.
         </p>
@@ -42,16 +41,14 @@ const AnalyticsEnergySection: React.FC<AnalyticsEnergySectionProps> = ({
   }
 
   const avgLabel =
-    aggregates.monthAvgEstimatedKcal != null
-      ? `${aggregates.monthAvgEstimatedKcal} kcal`
-      : '—';
+    aggregates.monthAvgEstimatedKcal != null ? `${aggregates.monthAvgEstimatedKcal} kcal` : '—';
 
   return (
     <div className="space-y-3">
       <p className="font-mono text-[10px] uppercase tracking-[0.35em] text-white/45">
-        Session kcal here uses MET × weight ({weightKg} kg) × duration; TAM ({tam.toFixed(2)}) is for daily
-        activity context (e.g. TDEE), not the per-session formula.
-        Values reflect your current profile, not past snapshots.
+        Session kcal here uses MET × weight ({weightKg} kg) × duration; TAM ({tam.toFixed(2)}) is
+        for daily activity context (e.g. TDEE), not the per-session formula. Values reflect your
+        current profile, not past snapshots.
       </p>
       <div>
         <h4 className="mb-3 font-mono text-[10px] uppercase tracking-[0.4em] text-white/60">
@@ -66,7 +63,9 @@ const AnalyticsEnergySection: React.FC<AnalyticsEnergySectionProps> = ({
               {aggregates.weekEstimatedKcal}{' '}
               <span className="text-base font-normal text-white/60">kcal</span>
             </p>
-            <p className="mt-1 font-mono text-[10px] text-white/45">About · typical intensity by format</p>
+            <p className="mt-1 font-mono text-[10px] text-white/45">
+              About · typical intensity by format
+            </p>
           </div>
           <div className="rounded-xl border border-white/10 bg-white/5 p-4">
             <p className="font-mono text-[10px] uppercase tracking-[0.4em] text-white/50">

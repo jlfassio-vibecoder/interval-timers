@@ -9,10 +9,7 @@ import React, { useState, useCallback } from 'react';
 import { X, Pencil, Check } from 'lucide-react';
 import { useAppContext } from '@/contexts/AppContext';
 import { getExercisesFromWorkout, normalizeWorkoutSet } from '@/lib/program-schedule-utils';
-import {
-  insertSavedWorkout,
-  updateSavedWorkout,
-} from '@/lib/supabase/client/user-saved-workouts';
+import { insertSavedWorkout, updateSavedWorkout } from '@/lib/supabase/client/user-saved-workouts';
 import type { WorkoutSetTemplate } from '@/types/ai-workout';
 import type { Exercise } from '@/types/ai-program';
 
@@ -36,25 +33,28 @@ export default function PastedLibraryWorkoutEditor({
   const [isEditing, setIsEditing] = useState(Boolean(savedId));
   const [title, setTitle] = useState(normalized.title);
   const [exerciseEdits, setExerciseEdits] = useState<
-    Array<{ exerciseName: string; sets: number; reps: string; restSeconds?: number; coachNotes?: string }>
-  >(
-    () =>
-      exercises.map((e) => ({
-        exerciseName: e.exerciseName,
-        // WorkoutPlayer uses Array.from({ length: block.sets }) — clamp to 1 to avoid empty sets array
-        sets: Math.max(1, e.sets ?? 1),
-        reps: typeof e.reps === 'number' ? String(e.reps) : (e.reps ?? ''),
-        restSeconds: e.restSeconds,
-        coachNotes: e.coachNotes ?? '',
-      }))
+    Array<{
+      exerciseName: string;
+      sets: number;
+      reps: string;
+      restSeconds?: number;
+      coachNotes?: string;
+    }>
+  >(() =>
+    exercises.map((e) => ({
+      exerciseName: e.exerciseName,
+      // WorkoutPlayer uses Array.from({ length: block.sets }) — clamp to 1 to avoid empty sets array
+      sets: Math.max(1, e.sets ?? 1),
+      reps: typeof e.reps === 'number' ? String(e.reps) : (e.reps ?? ''),
+      restSeconds: e.restSeconds,
+      coachNotes: e.coachNotes ?? '',
+    }))
   );
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const updateExercise = useCallback((index: number, patch: Partial<(typeof exerciseEdits)[0]>) => {
-    setExerciseEdits((prev) =>
-      prev.map((e, i) => (i === index ? { ...e, ...patch } : e))
-    );
+    setExerciseEdits((prev) => prev.map((e, i) => (i === index ? { ...e, ...patch } : e)));
   }, []);
 
   const handleSave = useCallback(async () => {
@@ -82,7 +82,7 @@ export default function PastedLibraryWorkoutEditor({
                   sets: e.sets,
                   reps: e.reps,
                   restSeconds: e.restSeconds,
-                  coachNotes: (e.coachNotes?.trim()) || undefined,
+                  coachNotes: e.coachNotes?.trim() || undefined,
                 })) as Exercise[],
               },
             ],
@@ -169,7 +169,10 @@ export default function PastedLibraryWorkoutEditor({
         <div className="mb-4">
           {isEditing ? (
             <div>
-              <label htmlFor="workout-title" className="mb-1 block text-xs font-medium uppercase tracking-wider text-white/50">
+              <label
+                htmlFor="workout-title"
+                className="mb-1 block text-xs font-medium uppercase tracking-wider text-white/50"
+              >
                 Workout title
               </label>
               <input
@@ -182,20 +185,22 @@ export default function PastedLibraryWorkoutEditor({
               />
             </div>
           ) : (
-            <h1 className="font-heading text-xl font-bold md:text-2xl">{title || normalized.title}</h1>
+            <h1 className="font-heading text-xl font-bold md:text-2xl">
+              {title || normalized.title}
+            </h1>
           )}
         </div>
 
         <div className="space-y-3">
           {exerciseEdits.map((ex, i) => (
-            <div
-              key={i}
-              className="rounded-xl border border-white/10 bg-black/20 p-4"
-            >
+            <div key={i} className="rounded-xl border border-white/10 bg-black/20 p-4">
               {isEditing ? (
                 <div className="space-y-3">
                   <div>
-                    <label htmlFor={`ex-name-${i}`} className="mb-1 block text-xs font-medium uppercase tracking-wider text-white/50">
+                    <label
+                      htmlFor={`ex-name-${i}`}
+                      className="mb-1 block text-xs font-medium uppercase tracking-wider text-white/50"
+                    >
                       Exercise name
                     </label>
                     <input
@@ -209,7 +214,10 @@ export default function PastedLibraryWorkoutEditor({
                   </div>
                   <div className="flex flex-wrap gap-3">
                     <div className="w-20 shrink-0">
-                      <label htmlFor={`ex-sets-${i}`} className="mb-1 block text-xs font-medium uppercase tracking-wider text-white/50">
+                      <label
+                        htmlFor={`ex-sets-${i}`}
+                        className="mb-1 block text-xs font-medium uppercase tracking-wider text-white/50"
+                      >
                         Sets
                       </label>
                       <input
@@ -227,7 +235,10 @@ export default function PastedLibraryWorkoutEditor({
                       />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <label htmlFor={`ex-reps-${i}`} className="mb-1 block text-xs font-medium uppercase tracking-wider text-white/50">
+                      <label
+                        htmlFor={`ex-reps-${i}`}
+                        className="mb-1 block text-xs font-medium uppercase tracking-wider text-white/50"
+                      >
                         Reps
                       </label>
                       <input
@@ -240,7 +251,10 @@ export default function PastedLibraryWorkoutEditor({
                       />
                     </div>
                     <div className="w-24 shrink-0">
-                      <label htmlFor={`ex-rest-${i}`} className="mb-1 block text-xs font-medium uppercase tracking-wider text-white/50">
+                      <label
+                        htmlFor={`ex-rest-${i}`}
+                        className="mb-1 block text-xs font-medium uppercase tracking-wider text-white/50"
+                      >
                         Rest (sec)
                       </label>
                       <input
@@ -251,7 +265,8 @@ export default function PastedLibraryWorkoutEditor({
                         value={ex.restSeconds ?? ''}
                         onChange={(e) =>
                           updateExercise(i, {
-                            restSeconds: e.target.value === '' ? undefined : parseInt(e.target.value, 10) || 0,
+                            restSeconds:
+                              e.target.value === '' ? undefined : parseInt(e.target.value, 10) || 0,
                           })
                         }
                         placeholder="0"
@@ -260,7 +275,10 @@ export default function PastedLibraryWorkoutEditor({
                     </div>
                   </div>
                   <div>
-                    <label htmlFor={`ex-notes-${i}`} className="mb-1 block text-xs font-medium uppercase tracking-wider text-white/50">
+                    <label
+                      htmlFor={`ex-notes-${i}`}
+                      className="mb-1 block text-xs font-medium uppercase tracking-wider text-white/50"
+                    >
                       Form cues / notes
                     </label>
                     <textarea

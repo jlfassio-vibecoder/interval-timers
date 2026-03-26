@@ -42,45 +42,33 @@ describe('estimateMaxHrTanaka', () => {
 
 describe('getEffectiveMaxHrBpm', () => {
   it('prefers manual in valid range', () => {
-    expect(
-      getEffectiveMaxHrBpm({ manualMaxHrBpm: 175, estimatedMaxHrBpm: 180 })
-    ).toBe(175);
+    expect(getEffectiveMaxHrBpm({ manualMaxHrBpm: 175, estimatedMaxHrBpm: 180 })).toBe(175);
   });
 
   it('falls back to estimate when manual invalid', () => {
-    expect(
-      getEffectiveMaxHrBpm({ manualMaxHrBpm: 50, estimatedMaxHrBpm: 180 })
-    ).toBe(180);
-    expect(
-      getEffectiveMaxHrBpm({ manualMaxHrBpm: null, estimatedMaxHrBpm: 180 })
-    ).toBe(180);
+    expect(getEffectiveMaxHrBpm({ manualMaxHrBpm: 50, estimatedMaxHrBpm: 180 })).toBe(180);
+    expect(getEffectiveMaxHrBpm({ manualMaxHrBpm: null, estimatedMaxHrBpm: 180 })).toBe(180);
   });
 });
 
 describe('getHeartRateAtIntensity', () => {
   it('uses percent of max without resting', () => {
-    expect(
-      getHeartRateAtIntensity({ maxHrBpm: 200, restingHrBpm: null, intensity: 0.75 })
-    ).toBe(150);
+    expect(getHeartRateAtIntensity({ maxHrBpm: 200, restingHrBpm: null, intensity: 0.75 })).toBe(
+      150
+    );
   });
 
   it('uses Karvonen when resting is valid', () => {
     // (200 - 60) * 0.75 + 60 = 105 + 60 = 165
-    expect(
-      getHeartRateAtIntensity({ maxHrBpm: 200, restingHrBpm: 60, intensity: 0.75 })
-    ).toBe(165);
+    expect(getHeartRateAtIntensity({ maxHrBpm: 200, restingHrBpm: 60, intensity: 0.75 })).toBe(165);
   });
 
   it('ignores resting when resting >= max', () => {
-    expect(
-      getHeartRateAtIntensity({ maxHrBpm: 200, restingHrBpm: 200, intensity: 0.5 })
-    ).toBe(100);
+    expect(getHeartRateAtIntensity({ maxHrBpm: 200, restingHrBpm: 200, intensity: 0.5 })).toBe(100);
   });
 
   it('clamps intensity', () => {
-    expect(
-      getHeartRateAtIntensity({ maxHrBpm: 100, restingHrBpm: null, intensity: 2 })
-    ).toBe(100);
+    expect(getHeartRateAtIntensity({ maxHrBpm: 100, restingHrBpm: null, intensity: 2 })).toBe(100);
   });
 });
 

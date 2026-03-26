@@ -38,12 +38,25 @@ function hasNoExercises(w: WorkoutInSet): boolean {
 function migrateWarmupCooldownToExerciseBlocks(set: WorkoutSetTemplate): void {
   for (const w of set.workouts) {
     if (!hasNoExercises(w)) continue;
-    const warmup = (w as { warmupBlocks?: { order: number; exerciseName: string; instructions?: string[] }[] })
-      .warmupBlocks ?? [];
-    const cooldown = (w as { cooldownBlocks?: { order: number; exerciseName: string; instructions?: string[] }[] })
-      .cooldownBlocks ?? [];
+    const warmup =
+      (w as { warmupBlocks?: { order: number; exerciseName: string; instructions?: string[] }[] })
+        .warmupBlocks ?? [];
+    const cooldown =
+      (w as { cooldownBlocks?: { order: number; exerciseName: string; instructions?: string[] }[] })
+        .cooldownBlocks ?? [];
     if (warmup.length === 0 && cooldown.length === 0) continue;
-    const blocks: { order: number; name: string; exercises: { order: number; exerciseName: string; sets: number; reps: string; restSeconds: number; coachNotes: string }[] }[] = [];
+    const blocks: {
+      order: number;
+      name: string;
+      exercises: {
+        order: number;
+        exerciseName: string;
+        sets: number;
+        reps: string;
+        restSeconds: number;
+        coachNotes: string;
+      }[];
+    }[] = [];
     if (warmup.length > 0) {
       blocks.push({
         order: 1,

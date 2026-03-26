@@ -7,7 +7,9 @@ import AppWrapper from '../../components/react/AppWrapper';
   title="Your Workouts | AI Fitcopilot"
   description="View and manage your saved workouts."
 >
-  <div class="relative min-h-screen overflow-x-hidden text-white selection:bg-orange-light selection:text-black">
+  <div
+    class="relative min-h-screen overflow-x-hidden text-white selection:bg-orange-light selection:text-black"
+  >
     <AppWrapper client:load pathname={Astro.url.pathname} />
   </div>
 </BaseLayout>

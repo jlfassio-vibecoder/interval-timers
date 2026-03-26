@@ -66,7 +66,9 @@ export async function insertSavedWorkout(
   userId: string,
   params: { title: string; workoutSet: WorkoutSetTemplate }
 ): Promise<string> {
-  const { data: { session } } = await supabase.auth.getSession();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
   if (!session?.user) {
     throw new Error('You must be signed in to save workouts.');
   }
@@ -111,10 +113,7 @@ export async function updateSavedWorkout(
     payload.workout_set = toPlainJson(params.workoutSet);
   }
 
-  const { error } = await supabase
-    .from('user_saved_workouts')
-    .update(payload)
-    .eq('id', id);
+  const { error } = await supabase.from('user_saved_workouts').update(payload).eq('id', id);
   if (error) {
     const err = error as { code?: string; message?: string };
     const msg =

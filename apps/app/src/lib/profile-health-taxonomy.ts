@@ -172,7 +172,9 @@ function normalizeArr(a: string[] | null | undefined): string[] {
  * Whether to surface a non-clinical reminder in Training Log / workout summary.
  * True when there is any physical limitation (other than none), medical condition (other than none), or pregnancy tag.
  */
-export function getProfileHealthSummary(user: UserProfile | null | undefined): ProfileHealthSummary {
+export function getProfileHealthSummary(
+  user: UserProfile | null | undefined
+): ProfileHealthSummary {
   const physical = normalizeArr(user?.physicalLimitations);
   const medical = normalizeArr(user?.medicalConditions);
   const pregnancy = normalizeArr(user?.pregnancyPostpartum);

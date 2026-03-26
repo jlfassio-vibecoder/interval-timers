@@ -21,7 +21,9 @@ const LoadingPlaceholder = () => (
 
 export default function PastedWorkoutPlayerPage() {
   const { user } = useAppContext();
-  const [params, setParams] = useState<{ hid: string | null; savedId: string | null } | 'pending'>('pending');
+  const [params, setParams] = useState<{ hid: string | null; savedId: string | null } | 'pending'>(
+    'pending'
+  );
 
   useEffect(() => {
     const search = new URLSearchParams(window.location.search);
@@ -53,7 +55,8 @@ export default function PastedWorkoutPlayerPage() {
         setSavedWorkout({ workoutSet: row.workout_set });
       })
       .catch((err) => {
-        if (!cancelled) setSavedError(err instanceof Error ? err.message : 'Failed to load workout.');
+        if (!cancelled)
+          setSavedError(err instanceof Error ? err.message : 'Failed to load workout.');
       });
     return () => {
       cancelled = true;
@@ -86,7 +89,7 @@ export default function PastedWorkoutPlayerPage() {
           <p className="text-white/70">Sign in to open this workout.</p>
           <a
             href={`/account?returnUrl=${encodeURIComponent(`/workout/log-pasted?savedId=${savedId}`)}`}
-            className="rounded-lg bg-orange-500 px-4 py-2 font-medium text-black hover:bg-orange-400"
+            className="bg-orange-500 hover:bg-orange-400 rounded-lg px-4 py-2 font-medium text-black"
           >
             Sign in
           </a>

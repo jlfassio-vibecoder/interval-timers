@@ -15,12 +15,7 @@ describe('normalizeFitnessGoalRanking', () => {
 
   it('dedupes preserving first order', () => {
     expect(
-      normalizeFitnessGoalRanking([
-        'fat_loss',
-        'longevity',
-        'fat_loss',
-        'muscle_hypertrophy',
-      ])
+      normalizeFitnessGoalRanking(['fat_loss', 'longevity', 'fat_loss', 'muscle_hypertrophy'])
     ).toEqual(['fat_loss', 'longevity', 'muscle_hypertrophy']);
   });
 

@@ -31,7 +31,9 @@ const AnalyticsGoalAlignmentCard: React.FC<AnalyticsGoalAlignmentCardProps> = ({
       </h4>
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
         <div>
-          <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-white/45">This week</p>
+          <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-white/45">
+            This week
+          </p>
           <p className="mt-1 text-2xl font-bold text-white">
             {thisWeek.averageComposite == null ? '—' : `${thisWeek.averageComposite}%`}
           </p>

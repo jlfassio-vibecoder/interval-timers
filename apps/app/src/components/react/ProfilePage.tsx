@@ -54,11 +54,31 @@ const DAILY_ROUTINE_OPTIONS: { id: LifestyleBaselineId; label: string }[] = [
 ];
 
 const WORKOUT_ROUTINE_OPTIONS: { id: WorkoutRoutineId; label: string; description: string }[] = [
-  { id: 'none', label: 'No regular exercise', description: 'Mainly focusing on daily movement for now.' },
-  { id: 'light', label: 'Light (1–2 days/wk)', description: 'Occasional HIIT, yoga, or light cardio.' },
-  { id: 'moderate', label: 'Moderate (3–5 days/wk)', description: 'Consistent training sessions most days.' },
-  { id: 'hard', label: 'Hard (6–7 days/wk)', description: 'Dedicated daily training or high-intensity sport.' },
-  { id: 'pro', label: 'Professional / 2x Daily', description: 'Training multiple times a day or elite level.' },
+  {
+    id: 'none',
+    label: 'No regular exercise',
+    description: 'Mainly focusing on daily movement for now.',
+  },
+  {
+    id: 'light',
+    label: 'Light (1–2 days/wk)',
+    description: 'Occasional HIIT, yoga, or light cardio.',
+  },
+  {
+    id: 'moderate',
+    label: 'Moderate (3–5 days/wk)',
+    description: 'Consistent training sessions most days.',
+  },
+  {
+    id: 'hard',
+    label: 'Hard (6–7 days/wk)',
+    description: 'Dedicated daily training or high-intensity sport.',
+  },
+  {
+    id: 'pro',
+    label: 'Professional / 2x Daily',
+    description: 'Training multiple times a day or elite level.',
+  },
 ];
 const UNITS = ['metric', 'imperial'] as const;
 const SOCIAL_PRIVACY = ['ghost', 'friends_only', 'public'] as const;
@@ -237,7 +257,13 @@ function formToUpdate(form: ProfileForm): Record<string, unknown> {
   return u;
 }
 
-const CORE_FIELDS = ['date_of_birth', 'biological_sex', 'weight_kg', 'height_cm', 'lifestyle_baseline'];
+const CORE_FIELDS = [
+  'date_of_birth',
+  'biological_sex',
+  'weight_kg',
+  'height_cm',
+  'lifestyle_baseline',
+];
 
 function countFilledCore(form: ProfileForm): number {
   return CORE_FIELDS.filter((f) => {
@@ -381,7 +407,12 @@ const ProfilePage: React.FC = () => {
           workout_routine: workout,
         });
         if (error) throw new Error(error.message);
-        void trackEvent(supabase, 'profile_field_updated', { field: 'activity_bimodal' }, { appId: 'app' });
+        void trackEvent(
+          supabase,
+          'profile_field_updated',
+          { field: 'activity_bimodal' },
+          { appId: 'app' }
+        );
         const coreFilled = countFilledCore(next);
         if (coreFilled >= 3 && !profileCompletedAt) {
           const { error: updErr } = await supabase
@@ -436,9 +467,7 @@ const ProfilePage: React.FC = () => {
             ...contextProfile,
             ...(field === 'date_of_birth'
               ? {
-                  dateOfBirth: normalized
-                    ? String(normalized).slice(0, 10)
-                    : null,
+                  dateOfBirth: normalized ? String(normalized).slice(0, 10) : null,
                 }
               : {}),
             ...(field === 'resting_hr_bpm'
@@ -558,10 +587,7 @@ const ProfilePage: React.FC = () => {
         }
       } catch (err) {
         setForm((current) => ({ ...current, fitness_goal_ranking: snapshot }));
-        showToast(
-          'error',
-          err instanceof Error ? err.message : 'Failed to save fitness goals'
-        );
+        showToast('error', err instanceof Error ? err.message : 'Failed to save fitness goals');
       }
     },
     [user?.uid, form.fitness_goal_ranking, contextProfile, setProfile, showToast]
@@ -589,7 +615,12 @@ const ProfilePage: React.FC = () => {
           pregnancy_postpartum: next.pregnancy_postpartum as PregnancyPostpartumId[],
         });
         if (error) throw new Error(error.message);
-        void trackEvent(supabase, 'profile_field_updated', { field: 'health_filters' }, { appId: 'app' });
+        void trackEvent(
+          supabase,
+          'profile_field_updated',
+          { field: 'health_filters' },
+          { appId: 'app' }
+        );
         if (contextProfile) {
           setProfile({
             ...contextProfile,
@@ -668,8 +699,7 @@ const ProfilePage: React.FC = () => {
 
   const isTrainerOrAdmin =
     user?.role === 'trainer' || user?.role === 'admin' || user?.role === 'super_admin';
-  const isHostOrAbove =
-    isTrainerOrAdmin || user?.role === 'host';
+  const isHostOrAbove = isTrainerOrAdmin || user?.role === 'host';
 
   if (!user) {
     return (
@@ -680,7 +710,7 @@ const ProfilePage: React.FC = () => {
           onClick={() =>
             window.dispatchEvent(new CustomEvent('showAuthModal', { detail: { fromAppId: 'app' } }))
           }
-          className="mt-4 rounded-xl bg-orange-500 px-4 py-2 font-bold text-black hover:bg-orange-400"
+          className="bg-orange-500 hover:bg-orange-400 mt-4 rounded-xl px-4 py-2 font-bold text-black"
         >
           Sign in
         </button>
@@ -700,7 +730,7 @@ const ProfilePage: React.FC = () => {
     <main className="relative z-10 mx-auto max-w-3xl px-4 pb-16 pt-24">
       {toast && (
         <div
-          className={`fixed top-4 right-4 z-50 rounded-lg px-4 py-3 ${
+          className={`fixed right-4 top-4 z-50 rounded-lg px-4 py-3 ${
             toast.type === 'success' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
           }`}
         >
@@ -737,22 +767,23 @@ const ProfilePage: React.FC = () => {
               How to measure resting heart rate
             </h2>
             <p className="mt-3 text-sm leading-relaxed text-white/70">
-              Use these steps to get a value you can enter above. This is guidance only—not a medical
-              diagnosis.
+              Use these steps to get a value you can enter above. This is guidance only—not a
+              medical diagnosis.
             </p>
             <ol className="mt-5 list-decimal space-y-3 pl-5 text-sm leading-relaxed text-white/85">
               <li>
-                Download a <strong className="font-semibold text-white">free resting heart rate app</strong>{' '}
+                Download a{' '}
+                <strong className="font-semibold text-white">free resting heart rate app</strong>{' '}
                 from your phone&apos;s app store (camera-based or sensor-based is fine).
               </li>
               <li>
                 Take your reading{' '}
-                <strong className="font-semibold text-white">right after you wake up</strong>, while you
-                are still <strong className="font-semibold text-white">lying in bed</strong>, before you
-                get up or start moving around.
+                <strong className="font-semibold text-white">right after you wake up</strong>, while
+                you are still <strong className="font-semibold text-white">lying in bed</strong>,
+                before you get up or start moving around.
               </li>
             </ol>
-            <p className="mt-5 text-xs font-semibold uppercase tracking-wide text-orange-300/90">
+            <p className="text-orange-300/90 mt-5 text-xs font-semibold uppercase tracking-wide">
               For best accuracy
             </p>
             <ul className="mt-2 list-disc space-y-2 pl-5 text-sm leading-relaxed text-white/75">
@@ -760,18 +791,19 @@ const ProfilePage: React.FC = () => {
                 Repeat on several mornings and use a typical value rather than a single reading.
               </li>
               <li>
-                Prefer mornings when you had <strong className="text-white/90">no alcohol</strong> the
-                night before.
+                Prefer mornings when you had <strong className="text-white/90">no alcohol</strong>{' '}
+                the night before.
               </li>
               <li>
-                Prefer when you got roughly <strong className="text-white/90">average to ideal</strong>{' '}
-                sleep for you and you <strong className="text-white/90">feel rested</strong>.
+                Prefer when you got roughly{' '}
+                <strong className="text-white/90">average to ideal</strong> sleep for you and you{' '}
+                <strong className="text-white/90">feel rested</strong>.
               </li>
             </ul>
             <button
               type="button"
               onClick={() => closeRestingHrGuide()}
-              className="mt-6 w-full rounded-lg bg-orange-500 px-4 py-2.5 text-sm font-bold text-black transition hover:bg-orange-400"
+              className="bg-orange-500 hover:bg-orange-400 mt-6 w-full rounded-lg px-4 py-2.5 text-sm font-bold text-black transition"
             >
               Got it
             </button>
@@ -872,7 +904,9 @@ const ProfilePage: React.FC = () => {
                 min="0"
                 value={
                   form.units_system === 'imperial'
-                    ? (form.weight_kg ? kgToLb(parseFloat(form.weight_kg)) : '')
+                    ? form.weight_kg
+                      ? kgToLb(parseFloat(form.weight_kg))
+                      : ''
                     : form.weight_kg
                 }
                 onChange={(e) => {
@@ -893,9 +927,10 @@ const ProfilePage: React.FC = () => {
               <select
                 value={(() => {
                   if (!form.height_cm) return '';
-                  const raw = form.units_system === 'imperial'
-                    ? Math.round(cmToIn(parseFloat(form.height_cm)))
-                    : Math.round(parseFloat(form.height_cm));
+                  const raw =
+                    form.units_system === 'imperial'
+                      ? Math.round(cmToIn(parseFloat(form.height_cm)))
+                      : Math.round(parseFloat(form.height_cm));
                   const [min, max] = form.units_system === 'imperial' ? [54, 84] : [137, 213];
                   return raw >= min && raw <= max ? raw : '';
                 })()}
@@ -969,16 +1004,13 @@ const ProfilePage: React.FC = () => {
                 ))}
               </select>
               <p className="mt-1 text-sm text-white/50">
-                {
-                  WORKOUT_ROUTINE_OPTIONS.find((o) => o.id === form.workout_routine)
-                    ?.description
-                }
+                {WORKOUT_ROUTINE_OPTIONS.find((o) => o.id === form.workout_routine)?.description}
               </p>
             </div>
-            <div className="sm:col-span-2 rounded-lg border border-white/10 bg-black/30 px-4 py-3">
+            <div className="rounded-lg border border-white/10 bg-black/30 px-4 py-3 sm:col-span-2">
               <p className="text-sm text-white/80">
                 Your current activity profile is calibrated at{' '}
-                <span className="font-semibold text-orange-300">
+                <span className="text-orange-300 font-semibold">
                   {computeTotalActiveMultiplier(
                     form.lifestyle_baseline || 'sedentary',
                     form.workout_routine || 'none'
@@ -997,8 +1029,9 @@ const ProfilePage: React.FC = () => {
           <div className="mb-6 sm:col-span-2">
             <h3 className="mb-1 text-sm font-semibold text-white/90">Fitness goals (priority)</h3>
             <p className="mb-4 text-sm text-white/60">
-              Choose up to three goals in order of importance. Tap a tag to add or remove it. The first
-              one is your top priority and syncs to legacy &quot;primary goal&quot; fields elsewhere.
+              Choose up to three goals in order of importance. Tap a tag to add or remove it. The
+              first one is your top priority and syncs to legacy &quot;primary goal&quot; fields
+              elsewhere.
             </p>
             <div className="flex flex-wrap gap-2">
               <button
@@ -1038,7 +1071,7 @@ const ProfilePage: React.FC = () => {
                   >
                     {selected ? (
                       <span className="inline-flex items-center gap-2">
-                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-orange-500/40 text-xs font-bold text-white">
+                        <span className="bg-orange-500/40 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white">
                           {rankIndex + 1}
                         </span>
                         {label}
@@ -1065,7 +1098,7 @@ const ProfilePage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setRestingHrGuideOpen(true)}
-                className="mt-2 w-full rounded-lg border border-orange-500/50 px-3 py-2 text-sm font-medium text-orange-300 transition hover:border-orange-400 hover:bg-orange-500/10"
+                className="border-orange-500/50 text-orange-300 hover:border-orange-400 hover:bg-orange-500/10 mt-2 w-full rounded-lg border px-3 py-2 text-sm font-medium transition"
               >
                 How to measure resting HR
               </button>
@@ -1084,7 +1117,7 @@ const ProfilePage: React.FC = () => {
                 type="button"
                 disabled={!user?.uid}
                 onClick={() => handleCalculateMaxHrFromBirthdate()}
-                className="mt-2 w-full rounded-lg border border-orange-500/50 px-3 py-2 text-sm font-medium text-orange-300 transition hover:border-orange-400 hover:bg-orange-500/10 disabled:cursor-not-allowed disabled:opacity-50"
+                className="border-orange-500/50 text-orange-300 hover:border-orange-400 hover:bg-orange-500/10 mt-2 w-full rounded-lg border px-3 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Calculate Max HR
               </button>
@@ -1096,8 +1129,8 @@ const ProfilePage: React.FC = () => {
         <section className="rounded-2xl border border-white/10 bg-black/20 p-6">
           <h2 className="mb-2 font-heading text-xl font-bold text-white">Preferred HIIT styles</h2>
           <p className="mb-6 text-sm text-white/60">
-            Pick any formats you use. This helps tailor program and timer suggestions. Tap a tag to add
-            or remove it.
+            Pick any formats you use. This helps tailor program and timer suggestions. Tap a tag to
+            add or remove it.
           </p>
           <div className="flex flex-wrap gap-2">
             <button
@@ -1136,7 +1169,9 @@ const ProfilePage: React.FC = () => {
 
         {/* Physical considerations — health filters (saved via Astro action + Zod) */}
         <section className="rounded-2xl border border-white/10 bg-black/20 p-6">
-          <h2 className="mb-2 font-heading text-xl font-bold text-white">Physical considerations</h2>
+          <h2 className="mb-2 font-heading text-xl font-bold text-white">
+            Physical considerations
+          </h2>
           <p className="mb-6 text-sm text-white/60">
             These selections help tailor suggestions. They are not a medical diagnosis. Tap a tag to
             turn it on or off.
@@ -1329,7 +1364,7 @@ const ProfilePage: React.FC = () => {
           <button
             type="submit"
             disabled={saving}
-            className="rounded-xl border-2 border-orange-500 bg-orange-500/20 px-8 py-3 font-bold text-white transition-colors hover:bg-orange-500/40 hover:border-orange-400 disabled:opacity-50"
+            className="border-orange-500 bg-orange-500/20 hover:bg-orange-500/40 hover:border-orange-400 rounded-xl border-2 px-8 py-3 font-bold text-white transition-colors disabled:opacity-50"
           >
             {saving ? 'Saving…' : 'Save profile'}
           </button>

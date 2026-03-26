@@ -8,12 +8,12 @@
 
 ## Executive summary
 
-| Phase | Epic title | Focus | Depends on | Suggested milestone |
-|-------|------------|--------|------------|---------------------|
-| **0** | Data & profile ranking | `fitness_goal_ranking`, types, AppContext, profile UI, trainer read-only display | None | Schema + user can rank 1–3 goals |
-| **1** | Snapshot + scorer + modal | `goal_snapshot`, `computeGoalAlignment`, all log writes, `WorkoutSummaryModal` “Goal fit” | Phase 0 | New logs show alignment bars |
-| **2** | Surfaces & distribution | Analytics, CSV, week-row composite (memoized), analytics events | Phase 1 | Alignment visible in log + exports |
-| **3** | Ecosystem & depth | Onboarding ↔ id mapping, trainer aggregates, optional `fitness_goal_metadata` | Phase 0 (partial), Phase 1 for aggregates | One vocabulary + optional metadata |
+| Phase | Epic title                | Focus                                                                                     | Depends on                                | Suggested milestone                |
+| ----- | ------------------------- | ----------------------------------------------------------------------------------------- | ----------------------------------------- | ---------------------------------- |
+| **0** | Data & profile ranking    | `fitness_goal_ranking`, types, AppContext, profile UI, trainer read-only display          | None                                      | Schema + user can rank 1–3 goals   |
+| **1** | Snapshot + scorer + modal | `goal_snapshot`, `computeGoalAlignment`, all log writes, `WorkoutSummaryModal` “Goal fit” | Phase 0                                   | New logs show alignment bars       |
+| **2** | Surfaces & distribution   | Analytics, CSV, week-row composite (memoized), analytics events                           | Phase 1                                   | Alignment visible in log + exports |
+| **3** | Ecosystem & depth         | Onboarding ↔ id mapping, trainer aggregates, optional `fitness_goal_metadata`             | Phase 0 (partial), Phase 1 for aggregates | One vocabulary + optional metadata |
 
 **Planning tool tips**
 
@@ -193,12 +193,12 @@ These are spec call-outs that do not block Phases 0–3.
 
 ## Traceability
 
-| Roadmap phase | Spec sections |
-|---------------|----------------|
-| 0 | §3.1, §5, §9 (read), §13 (profile files) |
-| 1 | §3.2, §4, §6 (modal), §7, §13 (logs + modal + new lib) |
-| 2 | §6 (list), §8, §10 (analytics package), §12 (copy) |
-| 3 | §9 (aggregates), §10 (onboarding), §3.1 metadata |
+| Roadmap phase | Spec sections                                          |
+| ------------- | ------------------------------------------------------ |
+| 0             | §3.1, §5, §9 (read), §13 (profile files)               |
+| 1             | §3.2, §4, §6 (modal), §7, §13 (logs + modal + new lib) |
+| 2             | §6 (list), §8, §10 (analytics package), §12 (copy)     |
+| 3             | §9 (aggregates), §10 (onboarding), §3.1 metadata       |
 
 ---
 

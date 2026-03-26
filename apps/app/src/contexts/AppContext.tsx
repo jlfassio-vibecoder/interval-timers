@@ -294,7 +294,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           physicalLimitations: Array.isArray(data.physical_limitations)
             ? data.physical_limitations
             : null,
-          medicalConditions: Array.isArray(data.medical_conditions) ? data.medical_conditions : null,
+          medicalConditions: Array.isArray(data.medical_conditions)
+            ? data.medical_conditions
+            : null,
           pregnancyPostpartum: Array.isArray(data.pregnancy_postpartum)
             ? data.pregnancy_postpartum
             : null,
@@ -347,8 +349,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const isTrainer =
     user?.role === 'trainer' || user?.role === 'admin' || user?.role === 'super_admin';
-  const isMissionControlStaff =
-    isTrainer || user?.role === 'host';
+  const isMissionControlStaff = isTrainer || user?.role === 'host';
   const isPaid = !!user?.isAdmin || purchasedIndex !== null;
 
   const trialEndsAt = user?.trialEndsAt ?? null;

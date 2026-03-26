@@ -1,8 +1,5 @@
 import type { FitnessGoal } from '@/types/onboarding';
-import {
-  normalizeFitnessGoalRanking,
-  type FitnessGoalId,
-} from '@/lib/fitness-goal-taxonomy';
+import { normalizeFitnessGoalRanking, type FitnessGoalId } from '@/lib/fitness-goal-taxonomy';
 
 const ONBOARDING_FITNESS_GOAL_MAP: Record<FitnessGoal, FitnessGoalId[]> = {
   'Build muscle': ['muscle_hypertrophy'],

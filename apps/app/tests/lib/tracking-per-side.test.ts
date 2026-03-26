@@ -25,7 +25,10 @@ describe('isPerSidePrescription', () => {
 });
 
 describe('formatSetRepsDisplay', () => {
-  const base: Pick<SetLog, 'setNumber' | 'targetReps' | 'targetRPE' | 'actualWeight' | 'completed'> = {
+  const base: Pick<
+    SetLog,
+    'setNumber' | 'targetReps' | 'targetRPE' | 'actualWeight' | 'completed'
+  > = {
     setNumber: 1,
     targetReps: '10',
     targetRPE: 0,

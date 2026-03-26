@@ -18,10 +18,7 @@ const TTL_MS = 30 * 60 * 1000; // 30 minutes
 /** Delay before deleting after GET so React Strict Mode double-fetch both succeed. */
 const DELETE_DELAY_MS = 5000;
 
-const store = new Map<
-  string,
-  { payload: WorkoutSetTemplate; expiresAt: number }
->();
+const store = new Map<string, { payload: WorkoutSetTemplate; expiresAt: number }>();
 
 const pendingDeletes = new Map<string, ReturnType<typeof setTimeout>>();
 
@@ -86,10 +83,7 @@ export const POST: APIRoute = async ({ request }) => {
     return jsonResponse({ handoffId: id }, 200);
   } catch (err) {
     console.error('[workout-handoff] POST error:', err);
-    return jsonResponse(
-      { error: err instanceof Error ? err.message : 'Internal error' },
-      500
-    );
+    return jsonResponse({ error: err instanceof Error ? err.message : 'Internal error' }, 500);
   }
 };
 
