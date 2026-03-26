@@ -6,15 +6,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import {
-  TrendingUp,
-  MousePointer,
-  UserPlus,
-  LogIn,
-  CheckCircle,
-  XCircle,
-  Zap,
-} from 'lucide-react';
+import { TrendingUp, MousePointer, UserPlus, LogIn, CheckCircle, XCircle, Zap } from 'lucide-react';
 
 interface FunnelStats {
   from: string;

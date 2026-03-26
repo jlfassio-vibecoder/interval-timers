@@ -88,7 +88,10 @@ export default function PastedWorkoutFromHandoff({
   }, []);
 
   const effectiveReturnPath =
-    returnPath ?? (typeof window !== 'undefined' ? `/workout/log-pasted${window.location.search}` : '/workout/log-pasted');
+    returnPath ??
+    (typeof window !== 'undefined'
+      ? `/workout/log-pasted${window.location.search}`
+      : '/workout/log-pasted');
 
   if (state.status === 'loading') {
     return (
@@ -118,7 +121,7 @@ export default function PastedWorkoutFromHandoff({
         <p className="text-white/70">Sign in to log this workout.</p>
         <a
           href={`/account?returnUrl=${encodeURIComponent(effectiveReturnPath)}`}
-          className="rounded-lg bg-orange-500 px-4 py-2 font-medium text-black hover:bg-orange-400"
+          className="bg-orange-500 hover:bg-orange-400 rounded-lg px-4 py-2 font-medium text-black"
         >
           Sign in
         </a>

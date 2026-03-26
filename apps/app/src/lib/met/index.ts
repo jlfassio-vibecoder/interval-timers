@@ -125,13 +125,7 @@ export function legacyActivityLevelFromLifestyle(lifestyleId?: string | null): s
  */
 export function computeBMR(baseline: ProfileBaseline): number | null {
   const { biologicalSex, weightKg, heightCm, dateOfBirth } = baseline;
-  if (
-    weightKg == null ||
-    weightKg <= 0 ||
-    heightCm == null ||
-    heightCm <= 0 ||
-    !biologicalSex
-  ) {
+  if (weightKg == null || weightKg <= 0 || heightCm == null || heightCm <= 0 || !biologicalSex) {
     return null;
   }
   const age = dateOfBirth ? getAgeYears(dateOfBirth) : null;
@@ -175,8 +169,7 @@ export function resolveTotalActiveMultiplier(baseline: ProfileBaseline): number 
   }
   const lifestyle = baseline.lifestyleBaseline;
   const workout = baseline.workoutRoutine;
-  const hasBimodal =
-    (lifestyle != null && lifestyle !== '') || (workout != null && workout !== '');
+  const hasBimodal = (lifestyle != null && lifestyle !== '') || (workout != null && workout !== '');
   if (hasBimodal) {
     return computeTotalActiveMultiplier(
       lifestyle && lifestyle !== '' ? lifestyle : 'sedentary',
@@ -255,10 +248,14 @@ function getAgeYears(dateOfBirth: string): number | null {
  */
 export function hasBaselineForMET(baseline: ProfileBaseline): boolean {
   return (
-    (baseline.dateOfBirth != null && baseline.dateOfBirth !== '') &&
-    (baseline.biologicalSex != null && baseline.biologicalSex !== '') &&
-    (baseline.weightKg != null && baseline.weightKg > 0) &&
-    (baseline.heightCm != null && baseline.heightCm > 0)
+    baseline.dateOfBirth != null &&
+    baseline.dateOfBirth !== '' &&
+    baseline.biologicalSex != null &&
+    baseline.biologicalSex !== '' &&
+    baseline.weightKg != null &&
+    baseline.weightKg > 0 &&
+    baseline.heightCm != null &&
+    baseline.heightCm > 0
   );
 }
 

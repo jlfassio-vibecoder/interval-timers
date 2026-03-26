@@ -106,9 +106,7 @@ export async function getHubPasteStats(daysInput: number): Promise<HubPasteStats
   });
 
   const sessionRows = sessionResult.data ?? [];
-  const distinctSessions = new Set(
-    sessionRows.map((r) => r.session_id as string).filter(Boolean)
-  );
+  const distinctSessions = new Set(sessionRows.map((r) => r.session_id as string).filter(Boolean));
   const distinctSessionsCapped = sessionRows.length >= HUB_PASTE_SESSION_FETCH_LIMIT;
 
   const actionClicks: Record<string, number> = {};

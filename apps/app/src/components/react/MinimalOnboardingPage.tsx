@@ -220,7 +220,7 @@ export default function MinimalOnboardingPage() {
                 setSaving(false);
               }
             }}
-            className="rounded-xl border-2 border-orange-500 bg-orange-600 px-4 py-3 font-bold text-white transition-colors hover:bg-orange-500 disabled:opacity-60"
+            className="border-orange-500 bg-orange-600 hover:bg-orange-500 rounded-xl border-2 px-4 py-3 font-bold text-white transition-colors disabled:opacity-60"
           >
             {saving ? 'Saving...' : 'Save and continue'}
           </button>

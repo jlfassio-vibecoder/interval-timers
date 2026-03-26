@@ -40,7 +40,10 @@ export default function PastedQuickLogPage() {
     let cancelled = false;
     const hid = getHandoffId();
     if (!hid) {
-      setState({ status: 'error', message: 'Missing handoff ID. Log from the Universal Activity Hub.' });
+      setState({
+        status: 'error',
+        message: 'Missing handoff ID. Log from the Universal Activity Hub.',
+      });
       return;
     }
     fetch(`/api/quick-log-workout-handoff?id=${encodeURIComponent(hid)}`)
@@ -115,7 +118,10 @@ export default function PastedQuickLogPage() {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-black/95 px-4 text-center text-white">
         <p className="text-red-300">{state.message}</p>
-        <a href="/training-log" className="rounded-lg border border-white/20 px-4 py-2 font-medium hover:bg-white/10">
+        <a
+          href="/training-log"
+          className="rounded-lg border border-white/20 px-4 py-2 font-medium hover:bg-white/10"
+        >
           Go to Training Log
         </a>
       </div>
@@ -128,7 +134,7 @@ export default function PastedQuickLogPage() {
         <p className="text-white/70">Sign in to log this workout.</p>
         <a
           href={`/account?returnUrl=${encodeURIComponent(returnUrl)}`}
-          className="rounded-lg bg-orange-500 px-4 py-2 font-medium text-black hover:bg-orange-400"
+          className="bg-orange-500 hover:bg-orange-400 rounded-lg px-4 py-2 font-medium text-black"
         >
           Sign in
         </a>
@@ -140,7 +146,10 @@ export default function PastedQuickLogPage() {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-black/95 px-4 text-center text-white">
         <p className="text-lg font-medium text-white/90">Workout logged.</p>
-        <a href="/training-log" className="rounded-lg bg-orange-500 px-4 py-2 font-medium text-black hover:bg-orange-400">
+        <a
+          href="/training-log"
+          className="bg-orange-500 hover:bg-orange-400 rounded-lg px-4 py-2 font-medium text-black"
+        >
           View Training Log
         </a>
       </div>
@@ -154,12 +163,14 @@ export default function PastedQuickLogPage() {
 
       <div className="space-y-6">
         <div>
-          <label className="mb-2 block font-mono text-xs uppercase tracking-wider text-white/50">Date</label>
+          <label className="mb-2 block font-mono text-xs uppercase tracking-wider text-white/50">
+            Date
+          </label>
           <input
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            className="w-full rounded-lg border border-white/20 bg-white/5 px-4 py-3 text-white focus:border-orange-500 focus:outline-none"
+            className="focus:border-orange-500 w-full rounded-lg border border-white/20 bg-white/5 px-4 py-3 text-white focus:outline-none"
           />
         </div>
 
@@ -173,7 +184,7 @@ export default function PastedQuickLogPage() {
             max={10}
             value={effort}
             onChange={(e) => setEffort(parseInt(e.target.value, 10))}
-            className="w-full accent-orange-500"
+            className="accent-orange-500 w-full"
           />
         </div>
 
@@ -188,7 +199,9 @@ export default function PastedQuickLogPage() {
                 type="button"
                 onClick={() => setRating(n)}
                 className={`flex-1 rounded-lg border px-3 py-2 font-mono text-sm ${
-                  rating >= n ? 'border-orange-500 bg-orange-500/20 text-orange-400' : 'border-white/20 text-white/60'
+                  rating >= n
+                    ? 'border-orange-500 bg-orange-500/20 text-orange-400'
+                    : 'border-white/20 text-white/60'
                 }`}
               >
                 {n}
@@ -198,13 +211,15 @@ export default function PastedQuickLogPage() {
         </div>
 
         <div>
-          <label className="mb-2 block font-mono text-xs uppercase tracking-wider text-white/50">Notes</label>
+          <label className="mb-2 block font-mono text-xs uppercase tracking-wider text-white/50">
+            Notes
+          </label>
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="Optional notes…"
             rows={3}
-            className="w-full resize-none rounded-lg border border-white/20 bg-white/5 px-4 py-3 text-white placeholder-white/30 focus:border-orange-500 focus:outline-none"
+            className="focus:border-orange-500 w-full resize-none rounded-lg border border-white/20 bg-white/5 px-4 py-3 text-white placeholder-white/30 focus:outline-none"
           />
         </div>
 
@@ -214,7 +229,7 @@ export default function PastedQuickLogPage() {
           type="button"
           onClick={handleSubmit}
           disabled={submitting}
-          className="w-full rounded-xl bg-orange-500 py-4 font-bold text-black transition-colors hover:bg-orange-400 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="bg-orange-500 hover:bg-orange-400 w-full rounded-xl py-4 font-bold text-black transition-colors disabled:cursor-not-allowed disabled:opacity-50"
         >
           {submitting ? 'Saving…' : 'Save to Training Log'}
         </button>

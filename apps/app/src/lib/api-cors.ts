@@ -32,7 +32,7 @@ export function corsPreflightResponse(): Response | null {
     status: 204,
     headers: {
       'Access-Control-Allow-Origin': HUB_ORIGIN,
-      'Vary': 'Origin',
+      Vary: 'Origin',
       'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, Authorization',
       'Access-Control-Allow-Credentials': 'true',

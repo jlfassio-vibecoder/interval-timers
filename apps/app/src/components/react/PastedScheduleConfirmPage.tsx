@@ -53,7 +53,9 @@ export default function PastedScheduleConfirmPage() {
       .catch((err) => {
         if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load schedule.');
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Omit `saving` from deps: after a failed save, setSaving(false) would re-run this effect and
@@ -77,7 +79,9 @@ export default function PastedScheduleConfirmPage() {
           setSaving(false);
         }
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [handoff, user?.uid]);
 
   if (!handoff && !error) {
@@ -99,7 +103,7 @@ export default function PastedScheduleConfirmPage() {
         {isSignInRequired ? (
           <a
             href={`/account?returnUrl=${encodeURIComponent(returnUrl)}`}
-            className="rounded-lg bg-orange-500 px-4 py-2 font-medium text-black hover:bg-orange-400"
+            className="bg-orange-500 hover:bg-orange-400 rounded-lg px-4 py-2 font-medium text-black"
           >
             Sign in
           </a>
@@ -122,7 +126,7 @@ export default function PastedScheduleConfirmPage() {
         <p className="text-white/70">Sign in to save this scheduled workout.</p>
         <a
           href={`/account?returnUrl=${encodeURIComponent(returnUrl)}`}
-          className="rounded-lg bg-orange-500 px-4 py-2 font-medium text-black hover:bg-orange-400"
+          className="bg-orange-500 hover:bg-orange-400 rounded-lg px-4 py-2 font-medium text-black"
         >
           Sign in
         </a>

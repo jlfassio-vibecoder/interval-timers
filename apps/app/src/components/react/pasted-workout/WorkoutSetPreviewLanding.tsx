@@ -97,10 +97,7 @@ export default function WorkoutSetPreviewLanding({
   return (
     <div className="flex min-h-screen flex-col bg-black/95 text-white">
       <header className="shrink-0 border-b border-white/10 px-4 py-3">
-        <a
-          href={backHref}
-          className="text-sm text-white/70 transition hover:text-white"
-        >
+        <a href={backHref} className="text-sm text-white/70 transition hover:text-white">
           ← {backLabel}
         </a>
       </header>
@@ -113,9 +110,7 @@ export default function WorkoutSetPreviewLanding({
         <h1 className="font-heading text-xl font-bold tracking-tight text-white sm:text-2xl">
           {title}
         </h1>
-        {description?.trim() && (
-          <p className="text-sm text-white/70">{description}</p>
-        )}
+        {description?.trim() && <p className="text-sm text-white/70">{description}</p>}
         {firstWorkout?.title && firstWorkout.title !== title && (
           <p className="font-mono text-xs text-white/50">{firstWorkout.title}</p>
         )}
@@ -138,11 +133,7 @@ export default function WorkoutSetPreviewLanding({
                 <button type="button" className={btnClass} onClick={onLogPast}>
                   Log Past
                 </button>
-                <button
-                  type="button"
-                  className={`${btnClass} col-span-2`}
-                  onClick={onSave}
-                >
+                <button type="button" className={`${btnClass} col-span-2`} onClick={onSave}>
                   Save Workout
                 </button>
               </div>
@@ -154,7 +145,7 @@ export default function WorkoutSetPreviewLanding({
             <button
               type="button"
               onClick={onStartWorkout}
-              className="w-full rounded-xl border-2 border-orange-500 bg-orange-600 px-4 py-4 font-bold text-white transition hover:bg-orange-500 sm:w-auto sm:min-w-[200px]"
+              className="border-orange-500 bg-orange-600 hover:bg-orange-500 w-full rounded-xl border-2 px-4 py-4 font-bold text-white transition sm:w-auto sm:min-w-[200px]"
             >
               Start Workout
             </button>

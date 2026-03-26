@@ -6,14 +6,14 @@ Design outline for replacing single **Primary fitness goal** with a **ranked mul
 
 ## 1. Current state (codebase)
 
-| Area | Today |
-|------|--------|
-| **Profile** | `profiles.primary_fitness_goal` (`text`, single value). UI: `<select>` with `FITNESS_GOALS` in [`ProfilePage.tsx`](../../src/components/react/ProfilePage.tsx): `fat_loss`, `cardiovascular_endurance`, `muscle_hypertrophy`, `longevity`. |
-| **Onboarding / Plan builder** | Separate vocabulary: human-readable `FitnessGoal[]` in [`types/onboarding.ts`](../../src/types/onboarding.ts) (`'Lose fat'`, `'Build muscle'`, …). Not the same ids as the profile column. |
-| **Workout logs** | `workout_logs` has enrichment: `workout_type`, `workout_format`, `intensity`, `focus_area`, `is_active_rest`, plus `source`, `duration_seconds`, etc. ([`00067` handoff](../../supabase/migrations/00067_workout_logs_handoff.sql), [enrichment migration](../../../../supabase/migrations/20250327000000_workout_logs_training_log_enrichment.sql)). |
-| **Derivations** | [`training-log.ts`](../../src/lib/supabase/client/training-log.ts): `deriveWorkoutType`, `deriveWorkoutFormat` from `source` when columns null. |
-| **Training Log UI** | [`WorkoutSummaryModal`](../../src/components/react/training-log/WorkoutSummaryModal.tsx), week grid, filters ([`training-log-filters.ts`](../../src/lib/training-log-filters.ts)). MET/calorie transparency is documented in [`calculations-display-design.md`](./training-log/calculations-display-design.md). |
-| **Consumers of profile goal** | Mission Control DTO + [`ClientDetailView`](../../src/components/react/trainer/views/ClientDetailView.tsx), analytics copy (if any). No central “goal fit” engine exists yet. |
+| Area                          | Today                                                                                                                                                                                                                                                                                                                                                 |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Profile**                   | `profiles.primary_fitness_goal` (`text`, single value). UI: `<select>` with `FITNESS_GOALS` in [`ProfilePage.tsx`](../../src/components/react/ProfilePage.tsx): `fat_loss`, `cardiovascular_endurance`, `muscle_hypertrophy`, `longevity`.                                                                                                            |
+| **Onboarding / Plan builder** | Separate vocabulary: human-readable `FitnessGoal[]` in [`types/onboarding.ts`](../../src/types/onboarding.ts) (`'Lose fat'`, `'Build muscle'`, …). Not the same ids as the profile column.                                                                                                                                                            |
+| **Workout logs**              | `workout_logs` has enrichment: `workout_type`, `workout_format`, `intensity`, `focus_area`, `is_active_rest`, plus `source`, `duration_seconds`, etc. ([`00067` handoff](../../supabase/migrations/00067_workout_logs_handoff.sql), [enrichment migration](../../../../supabase/migrations/20250327000000_workout_logs_training_log_enrichment.sql)). |
+| **Derivations**               | [`training-log.ts`](../../src/lib/supabase/client/training-log.ts): `deriveWorkoutType`, `deriveWorkoutFormat` from `source` when columns null.                                                                                                                                                                                                       |
+| **Training Log UI**           | [`WorkoutSummaryModal`](../../src/components/react/training-log/WorkoutSummaryModal.tsx), week grid, filters ([`training-log-filters.ts`](../../src/lib/training-log-filters.ts)). MET/calorie transparency is documented in [`calculations-display-design.md`](./training-log/calculations-display-design.md).                                       |
+| **Consumers of profile goal** | Mission Control DTO + [`ClientDetailView`](../../src/components/react/trainer/views/ClientDetailView.tsx), analytics copy (if any). No central “goal fit” engine exists yet.                                                                                                                                                                          |
 
 **Implication:** Any scoring layer should use **one canonical goal id set** (recommend: keep profile snake_case ids as source of truth) and optionally map onboarding strings later.
 
@@ -32,11 +32,11 @@ Design outline for replacing single **Primary fitness goal** with a **ranked mul
 
 ## 3. Data model (decided)
 
-| Approach | What you store | What you compute at read time | Trade-off (one line) |
-|----------|----------------|-------------------------------|----------------------|
-| **Frozen** | Full alignment (e.g. per-goal % + composite) at save time | Nothing (display stored numbers) | History matches “old math” forever; heuristic improvements need backfill or mixed eras. |
-| **Dynamic** | Only workout + enrichment | Re-score against **current** profile goals every view | Past logs “change meaning” when goals change; great for “what supports me *now*?” |
-| **Hybrid (chosen)** | **`goal_snapshot text[]`** (ranked goals at log time) | Per-goal % + composite from **snapshot** + current scorer code | Preserves **intent**; improving tables updates all history **without** DB migrations. Optional later: “evaluate with current goals” toggle. |
+| Approach            | What you store                                            | What you compute at read time                                  | Trade-off (one line)                                                                                                                        |
+| ------------------- | --------------------------------------------------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Frozen**          | Full alignment (e.g. per-goal % + composite) at save time | Nothing (display stored numbers)                               | History matches “old math” forever; heuristic improvements need backfill or mixed eras.                                                     |
+| **Dynamic**         | Only workout + enrichment                                 | Re-score against **current** profile goals every view          | Past logs “change meaning” when goals change; great for “what supports me _now_?”                                                           |
+| **Hybrid (chosen)** | **`goal_snapshot text[]`** (ranked goals at log time)     | Per-goal % + composite from **snapshot** + current scorer code | Preserves **intent**; improving tables updates all history **without** DB migrations. Optional later: “evaluate with current goals” toggle. |
 
 **Skim summary:** Profile rank = ordered `text[]`. Log row = snapshot of that rank when saved. Scores = pure TypeScript, versioned in code (`ALIGNMENT_SCORER_VERSION`), not persisted in v1.
 
@@ -44,12 +44,12 @@ Design outline for replacing single **Primary fitness goal** with a **ranked mul
 
 **Decision:** `fitness_goal_ranking text[]` on `profiles`.
 
-| Aspect | Rationale |
-|--------|-----------|
-| **Semantics** | Index `0` = rank **1**, index `1` = rank **2**, index `2` = rank **3**. Max cardinality **3**; empty array = no ranked goals. |
-| **Constraints** | Postgres `CHECK (cardinality(fitness_goal_ranking) <= 3)`; optional `CHECK` that every element ∈ allowlist (`fat_loss`, `cardiovascular_endurance`, `muscle_hypertrophy`, `longevity`) and all distinct. |
-| **Why not `jsonb` for rank** | Rank is the only property that matters for v1 alignment. `text[]` is tidy, fast, and trivial to validate in Zod / TypeScript. |
-| **Evolution** | If we later need per-goal metadata (target date, motivation note, confidence), add a **separate** `fitness_goal_metadata jsonb` (or similar). **Do not** overload the ranking column—keep the hierarchy clean. |
+| Aspect                       | Rationale                                                                                                                                                                                                      |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Semantics**                | Index `0` = rank **1**, index `1` = rank **2**, index `2` = rank **3**. Max cardinality **3**; empty array = no ranked goals.                                                                                  |
+| **Constraints**              | Postgres `CHECK (cardinality(fitness_goal_ranking) <= 3)`; optional `CHECK` that every element ∈ allowlist (`fat_loss`, `cardiovascular_endurance`, `muscle_hypertrophy`, `longevity`) and all distinct.       |
+| **Why not `jsonb` for rank** | Rank is the only property that matters for v1 alignment. `text[]` is tidy, fast, and trivial to validate in Zod / TypeScript.                                                                                  |
+| **Evolution**                | If we later need per-goal metadata (target date, motivation note, confidence), add a **separate** `fitness_goal_metadata jsonb` (or similar). **Do not** overload the ranking column—keep the hierarchy clean. |
 
 **Legacy:** Keep `primary_fitness_goal` for compatibility during rollout: on read, if `fitness_goal_ranking` is empty and `primary_fitness_goal` is set, treat as a one-element ranking; on save, dual-write `primary_fitness_goal = ranking[0] ?? null` until deprecated.
 
@@ -59,8 +59,8 @@ Design outline for replacing single **Primary fitness goal** with a **ranked mul
 
 **Product decision:** Preserve **what the user was optimizing for at log time**, but **recompute fit percentages** whenever the UI renders, so heuristic improvements apply to history without DB backfills.
 
-| Column | Type | Purpose |
-|--------|------|---------|
+| Column          | Type              | Purpose                                                                                                        |
+| --------------- | ----------------- | -------------------------------------------------------------------------------------------------------------- |
 | `goal_snapshot` | `text[]` nullable | Copy of `profiles.fitness_goal_ranking` (0–3 ids) **at insert/update time**. If the user had no goals, `NULL`. |
 
 **Do not persist** per-goal 0–100 scores or a composite in the database for v1.
@@ -105,11 +105,11 @@ where \(s_i\) is the 0–100 fit for the goal at rank \(i\) in `goal_snapshot`.
 
 **Fewer than three goals:** Renormalize weights so they sum to `1.0`:
 
-| Goals in snapshot | Weights |
-|-------------------|---------|
-| 1 | \(1.0\) on \(s_1\) |
-| 2 | \(0.625\) / \(0.375\) (same 5:3 ratio as 50%:30%) |
-| 3 | \(0.50\) / \(0.30\) / \(0.20\) |
+| Goals in snapshot | Weights                                           |
+| ----------------- | ------------------------------------------------- |
+| 1                 | \(1.0\) on \(s_1\)                                |
+| 2                 | \(0.625\) / \(0.375\) (same 5:3 ratio as 50%:30%) |
+| 3                 | \(0.50\) / \(0.30\) / \(0.20\)                    |
 
 **UI:** Show **three horizontal bars** when three snapshot goals exist; fewer bars when snapshot shorter. Optionally show one **composite** line or ring for list cells (phase 2).
 
@@ -153,12 +153,12 @@ Start **simple** (3–4 signals); bump `ALIGNMENT_SCORER_VERSION` when tables ch
 
 ## 6. Training Log & workout detail UX
 
-| Surface | Behavior |
-|---------|----------|
-| **Workout summary modal** | New section: “Goal fit” — compute `computeGoalAlignment(workout, workout.goalSnapshot)`; up to **three** bars + optional composite line. If `goal_snapshot` null, hide or legacy message. |
-| **Week grid / list row** | Phase 2: show **composite only** (cheap: one number per log) or icon tier; avoid recomputing full vectors for hundreds of rows without `useMemo` / virtualization. |
-| **Log editor / save** | On insert/update, set **`goal_snapshot`** from current profile ranking (not the score). All handoff paths ([`workout-logs.ts`](../../src/lib/supabase/client/workout-logs.ts), program completion, etc.) should pass snapshot consistently. |
-| **Profile has no goals** | Save `goal_snapshot = NULL`; no alignment block in UI. |
+| Surface                   | Behavior                                                                                                                                                                                                                                    |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Workout summary modal** | New section: “Goal fit” — compute `computeGoalAlignment(workout, workout.goalSnapshot)`; up to **three** bars + optional composite line. If `goal_snapshot` null, hide or legacy message.                                                   |
+| **Week grid / list row**  | Phase 2: show **composite only** (cheap: one number per log) or icon tier; avoid recomputing full vectors for hundreds of rows without `useMemo` / virtualization.                                                                          |
+| **Log editor / save**     | On insert/update, set **`goal_snapshot`** from current profile ranking (not the score). All handoff paths ([`workout-logs.ts`](../../src/lib/supabase/client/workout-logs.ts), program completion, etc.) should pass snapshot consistently. |
+| **Profile has no goals**  | Save `goal_snapshot = NULL`; no alignment block in UI.                                                                                                                                                                                      |
 
 **Accessibility:** Bars need `aria-valuenow` / labels; don’t rely on color alone (match [`calculations-display-design.md`](./training-log/calculations-display-design.md) guardrails).
 
@@ -172,7 +172,7 @@ Start **simple** (3–4 signals); bump `ALIGNMENT_SCORER_VERSION` when tables ch
 
 2. **Tampering:** Snapshot describes user intent, not a financial audit. If integrity matters later, enforce snapshot via trigger and disallow client overrides.
 
-3. **Legacy logs:** No score backfill required. Optional: populate `goal_snapshot` only when we can do so without lying about intent (generally **don’t** backfill from *current* profile).
+3. **Legacy logs:** No score backfill required. Optional: populate `goal_snapshot` only when we can do so without lying about intent (generally **don’t** backfill from _current_ profile).
 
 ---
 
@@ -193,14 +193,14 @@ Start **simple** (3–4 signals); bump `ALIGNMENT_SCORER_VERSION` when tables ch
 
 ## 10. Cross-app ecosystem
 
-| App / package | Action |
-|---------------|--------|
-| **`apps/app`** | Profile, Training Log, types, Supabase client, scoring lib, migrations. |
-| **`@interval-timers/analytics`** | New event props if tracking goal changes / alignment views. |
-| **Workout Plan Builder / onboarding** | Map `FitnessGoal` strings → canonical ids or store both during transition. |
-| **Timer / AMRAP handoff** | No change required if alignment is computed at log save from enrichment + `source`. |
-| **AI workout generation** | Optionally read `fitnessGoalRanking` to bias `HiitOptions.primaryGoal` or block templates — later phase. |
-| **bio-sync-sixty / landing** | Out of scope unless they start reading Supabase profile. |
+| App / package                         | Action                                                                                                   |
+| ------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| **`apps/app`**                        | Profile, Training Log, types, Supabase client, scoring lib, migrations.                                  |
+| **`@interval-timers/analytics`**      | New event props if tracking goal changes / alignment views.                                              |
+| **Workout Plan Builder / onboarding** | Map `FitnessGoal` strings → canonical ids or store both during transition.                               |
+| **Timer / AMRAP handoff**             | No change required if alignment is computed at log save from enrichment + `source`.                      |
+| **AI workout generation**             | Optionally read `fitnessGoalRanking` to bias `HiitOptions.primaryGoal` or block templates — later phase. |
+| **bio-sync-sixty / landing**          | Out of scope unless they start reading Supabase profile.                                                 |
 
 ---
 
@@ -210,18 +210,18 @@ Start **simple** (3–4 signals); bump `ALIGNMENT_SCORER_VERSION` when tables ch
 
 Summary:
 
-1. **P0:** Migration (`fitness_goal_ranking`, `goal_snapshot`) + profile ranked UI + types + ClientDetailView + `UserProfile` field.  
-2. **P1:** `computeGoalAlignment` + wire `goal_snapshot` on all log writes (or trigger) + modal bars + `WorkoutLog.goalSnapshot`.  
-3. **P2:** Analytics card, CSV columns, list-cell composite (memoized).  
+1. **P0:** Migration (`fitness_goal_ranking`, `goal_snapshot`) + profile ranked UI + types + ClientDetailView + `UserProfile` field.
+2. **P1:** `computeGoalAlignment` + wire `goal_snapshot` on all log writes (or trigger) + modal bars + `WorkoutLog.goalSnapshot`.
+3. **P2:** Analytics card, CSV columns, list-cell composite (memoized).
 4. **P3:** Onboarding id unification, trainer aggregates, optional `fitness_goal_metadata`.
 
 ---
 
 ## 12. Risks & residual questions
 
-- **Vocabulary drift:** Profile ids vs Plan Builder strings — explicit mapping or migrate onboarding to ids.  
-- **Heuristic changes:** Scores “move” under users’ feet for old work—mitigate with transparent copy (“Estimates updated periodically”) and `ALIGNMENT_SCORER_VERSION` in support docs.  
-- **Snapshot vs current profile:** Deliberately **not** recomputing against current goals for historical rows preserves **intent**; users who want “what if my *new* goals?” could be a separate **toggle** in the modal (“Evaluate with my current goals”) as a later enhancement.  
+- **Vocabulary drift:** Profile ids vs Plan Builder strings — explicit mapping or migrate onboarding to ids.
+- **Heuristic changes:** Scores “move” under users’ feet for old work—mitigate with transparent copy (“Estimates updated periodically”) and `ALIGNMENT_SCORER_VERSION` in support docs.
+- **Snapshot vs current profile:** Deliberately **not** recomputing against current goals for historical rows preserves **intent**; users who want “what if my _new_ goals?” could be a separate **toggle** in the modal (“Evaluate with my current goals”) as a later enhancement.
 - **Performance:** Pure TS alignment over a **typical week’s** log count is negligible; for analytics over thousands of rows, batch in a worker or pre-aggregate—see §14.
 
 ---
@@ -244,13 +244,13 @@ Summary:
 
 **Verdict: yes—for this codebase and the stated “Brain / journey” goals.** Here is how the chosen stack behaves against alternatives.
 
-| Criterion | Hybrid snapshot + dynamic math | Persisted 0–100 jsonb (previous draft) |
-|-----------|-------------------------------|----------------------------------------|
-| **User story (“what was I chasing then?”)** | Strong: `goal_snapshot` is explicit behavioral intent. | Weaker unless jsonb also stored snapshot (duplication). |
-| **Improving the heuristic without migrations** | Strong: change TS tables, all views update. | Weak: old rows stay on v1 math unless backfill. |
-| **Honesty / transparency** | Good: one scorer in [`fitness-goal-alignment.ts`](../../src/lib/fitness-goal-alignment.ts); modal and analytics call the same function—aligned with MET single-helper pattern in [`calculations-display-design.md`](./training-log/calculations-display-design.md). | Risk of drift if export, modal, and server use different code paths. |
-| **Performance** | Fine for **modal + weekly grid** (today’s [`training-log.ts`](../../src/lib/supabase/client/training-log.ts) already builds week objects in memory). Risk only if we naïvely recompute full matrices for **unbounded** history in one frame—mitigate with composite-only in lists, `useMemo`, virtualization, or server-side aggregation for year-long exports. |
-| **Rank-weighted composite** | The 50/30/20 rule (renormalized for 1–2 goals) matches how humans prioritize; it prevents a “perfect #3 match” from looking like the best session overall. | Same formula could apply to stored scores, but then frozen math locks the headline. |
+| Criterion                                      | Hybrid snapshot + dynamic math                                                                                                                                                                                                                                                                                                                                  | Persisted 0–100 jsonb (previous draft)                                              |
+| ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| **User story (“what was I chasing then?”)**    | Strong: `goal_snapshot` is explicit behavioral intent.                                                                                                                                                                                                                                                                                                          | Weaker unless jsonb also stored snapshot (duplication).                             |
+| **Improving the heuristic without migrations** | Strong: change TS tables, all views update.                                                                                                                                                                                                                                                                                                                     | Weak: old rows stay on v1 math unless backfill.                                     |
+| **Honesty / transparency**                     | Good: one scorer in [`fitness-goal-alignment.ts`](../../src/lib/fitness-goal-alignment.ts); modal and analytics call the same function—aligned with MET single-helper pattern in [`calculations-display-design.md`](./training-log/calculations-display-design.md).                                                                                             | Risk of drift if export, modal, and server use different code paths.                |
+| **Performance**                                | Fine for **modal + weekly grid** (today’s [`training-log.ts`](../../src/lib/supabase/client/training-log.ts) already builds week objects in memory). Risk only if we naïvely recompute full matrices for **unbounded** history in one frame—mitigate with composite-only in lists, `useMemo`, virtualization, or server-side aggregation for year-long exports. |
+| **Rank-weighted composite**                    | The 50/30/20 rule (renormalized for 1–2 goals) matches how humans prioritize; it prevents a “perfect #3 match” from looking like the best session overall.                                                                                                                                                                                                      | Same formula could apply to stored scores, but then frozen math locks the headline. |
 
 **Caveat:** If product later needs **audit-grade** immutability (“this was exactly 72% on the 2025 formula”), we would add optional persisted scores **in addition to** snapshot, keyed by `ALIGNMENT_SCORER_VERSION`. That is additive; the hybrid model does not block it.
 

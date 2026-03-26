@@ -54,7 +54,9 @@ describe('getWorkoutMetSessionData', () => {
   });
 
   it('returns null when duration is missing or non-positive', () => {
-    expect(getWorkoutMetSessionData(baseLog({ durationSeconds: undefined }), fullBaseline)).toBeNull();
+    expect(
+      getWorkoutMetSessionData(baseLog({ durationSeconds: undefined }), fullBaseline)
+    ).toBeNull();
     expect(getWorkoutMetSessionData(baseLog({ durationSeconds: 0 }), fullBaseline)).toBeNull();
   });
 

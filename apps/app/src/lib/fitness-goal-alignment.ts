@@ -275,8 +275,7 @@ function physiologicalCalibrationAdjustment(
   if (!CARDIO_CALIBRATION_GOALS.has(goal)) return 0;
 
   const formatKey = deriveWorkoutFormat(log) ?? 'unknown';
-  const expected =
-    FORMAT_EXPECTED_INTENSITY[formatKey] ?? FORMAT_EXPECTED_INTENSITY.unknown;
+  const expected = FORMAT_EXPECTED_INTENSITY[formatKey] ?? FORMAT_EXPECTED_INTENSITY.unknown;
   const implied = impliedIntensityFromEffort(log.effort ?? 5);
   const gap = Math.abs(expected - implied);
 

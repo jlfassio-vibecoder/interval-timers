@@ -90,9 +90,7 @@ export async function fetchMissionControlProfile(
     avatar_url: row.avatar_url ?? null,
     role: row.role ?? 'client',
     primary_fitness_goal: row.primary_fitness_goal ?? null,
-    fitness_goal_ranking: Array.isArray(row.fitness_goal_ranking)
-      ? row.fitness_goal_ranking
-      : null,
+    fitness_goal_ranking: Array.isArray(row.fitness_goal_ranking) ? row.fitness_goal_ranking : null,
     preferred_hiit_style: row.preferred_hiit_style ?? null,
     preferred_hiit_styles: Array.isArray(row.preferred_hiit_styles)
       ? row.preferred_hiit_styles

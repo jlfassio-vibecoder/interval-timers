@@ -120,7 +120,9 @@ const AccountLanding: React.FC = () => {
             setHandoff(null);
             window.dispatchEvent(new CustomEvent('calendar:refresh'));
           }
-          setPrefillResult(result.ok ? { success: true, source: handoff.source } : { success: false });
+          setPrefillResult(
+            result.ok ? { success: true, source: handoff.source } : { success: false }
+          );
         });
         trackEvent(
           supabase,
@@ -396,13 +398,13 @@ const AccountLanding: React.FC = () => {
             </button>
             <a
               href="/account/saved-workouts"
-              className="rounded-xl border-2 border-white/20 px-4 py-2 font-bold text-white transition-colors hover:border-orange-500/50 hover:bg-orange-500/10"
+              className="hover:border-orange-500/50 hover:bg-orange-500/10 rounded-xl border-2 border-white/20 px-4 py-2 font-bold text-white transition-colors"
             >
               Your Workouts
             </a>
             <a
               href="/account/profile"
-              className="rounded-xl border-2 border-white/20 px-4 py-2 font-bold text-white transition-colors hover:border-orange-500/50 hover:bg-orange-500/10"
+              className="hover:border-orange-500/50 hover:bg-orange-500/10 rounded-xl border-2 border-white/20 px-4 py-2 font-bold text-white transition-colors"
             >
               Profile
             </a>

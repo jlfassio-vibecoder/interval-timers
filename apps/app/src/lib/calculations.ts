@@ -124,11 +124,7 @@ export function getHeartRateAtIntensity(input: HeartRateAtIntensityInput): numbe
   const max = Math.round(input.maxHrBpm);
   const intensity = clamp01(input.intensity);
   const rest = input.restingHrBpm;
-  if (
-    isFinitePositive(rest) &&
-    rest < max &&
-    rest > 0
-  ) {
+  if (isFinitePositive(rest) && rest < max && rest > 0) {
     const r = Math.round(rest);
     return Math.round((max - r) * intensity + r);
   }
@@ -163,7 +159,9 @@ export interface GetUserHeartRateZonesInput {
  * Five heart-rate zones using the same Karvonen vs %max branch as {@link getHeartRateAtIntensity}.
  * Zone boundaries are **50–60%, 60–70%, … 90–100%** of max HR expressed as intensity 0.5–1.0.
  */
-export function getUserHeartRateZones(input: GetUserHeartRateZonesInput): HeartRateZoneRow[] | null {
+export function getUserHeartRateZones(
+  input: GetUserHeartRateZonesInput
+): HeartRateZoneRow[] | null {
   const cal = buildPhysiologicalCalibration({
     dateOfBirth: input.dateOfBirth,
     manualMaxHrBpm: input.manualMaxHrBpm,
@@ -221,8 +219,7 @@ export function buildPhysiologicalCalibration(
 ): PhysiologicalCalibration {
   const ref = input.referenceDate ?? new Date();
   const ageYears = calculateAgeYears(input.dateOfBirth, ref);
-  const estimatedMaxHrBpm =
-    ageYears != null ? estimateMaxHrTanaka(ageYears) : null;
+  const estimatedMaxHrBpm = ageYears != null ? estimateMaxHrTanaka(ageYears) : null;
   const effectiveMaxHrBpm = getEffectiveMaxHrBpm({
     manualMaxHrBpm: input.manualMaxHrBpm,
     estimatedMaxHrBpm,
@@ -238,11 +235,7 @@ export function buildPhysiologicalCalibration(
   let resting: number | null = null;
   if (isFinitePositive(input.restingHrBpm)) {
     const r = Math.round(input.restingHrBpm);
-    if (
-      effectiveMaxHrBpm != null &&
-      r > 0 &&
-      r < effectiveMaxHrBpm
-    ) {
+    if (effectiveMaxHrBpm != null && r > 0 && r < effectiveMaxHrBpm) {
       resting = r;
     }
   }

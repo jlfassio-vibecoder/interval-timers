@@ -72,7 +72,7 @@ const ClientDetailView: React.FC = () => {
         }
         return Promise.all([
           statsRes.json() as Promise<ClientStats>,
-          profileRes.ok ? profileRes.json() as Promise<MissionControlProfile> : null,
+          profileRes.ok ? (profileRes.json() as Promise<MissionControlProfile>) : null,
         ]);
       })
       .then(([statsData, profileData]) => {
@@ -238,8 +238,8 @@ const ClientDetailView: React.FC = () => {
               !(profile.medical_conditions && profile.medical_conditions.length > 0) &&
               !(profile.pregnancy_postpartum && profile.pregnancy_postpartum.length > 0) &&
               !(profile.injury_limitation_tags && profile.injury_limitation_tags.length > 0) && (
-              <p className="text-white/60">Profile not yet completed.</p>
-            )}
+                <p className="text-white/60">Profile not yet completed.</p>
+              )}
           </div>
         </div>
       )}

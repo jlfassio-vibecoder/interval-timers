@@ -106,10 +106,7 @@ export const POST: APIRoute = async ({ request }) => {
     return jsonResponse({ handoffId: id }, 200);
   } catch (err) {
     console.error('[schedule-workout-handoff] POST error:', err);
-    return jsonResponse(
-      { error: err instanceof Error ? err.message : 'Internal error' },
-      500
-    );
+    return jsonResponse({ error: err instanceof Error ? err.message : 'Internal error' }, 500);
   }
 };
 

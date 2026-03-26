@@ -65,7 +65,7 @@ export default function SavedWorkoutsPage() {
           <p className="mb-4 text-white/70">Sign in to view your saved workouts.</p>
           <a
             href={`/account?returnUrl=${encodeURIComponent('/account/saved-workouts')}`}
-            className="inline-block rounded-lg bg-orange-500 px-4 py-2 font-medium text-black hover:bg-orange-400"
+            className="bg-orange-500 hover:bg-orange-400 inline-block rounded-lg px-4 py-2 font-medium text-black"
           >
             Sign in
           </a>
@@ -78,10 +78,7 @@ export default function SavedWorkoutsPage() {
     <main className="relative z-10 min-h-screen px-4 py-12">
       <div className="mx-auto max-w-2xl">
         <div className="mb-8 flex items-center justify-between">
-          <a
-            href="/account"
-            className="text-sm text-white/70 transition hover:text-white"
-          >
+          <a href="/account" className="text-sm text-white/70 transition hover:text-white">
             ← Account
           </a>
         </div>
@@ -93,7 +90,8 @@ export default function SavedWorkoutsPage() {
           <div className="rounded-2xl border border-white/10 bg-black/20 p-8 text-center">
             <p className="text-white/70">No saved workouts yet.</p>
             <p className="mt-2 text-sm text-white/50">
-              Paste a workout in the Universal Activity Hub and use &quot;Save Workout&quot; to add it here.
+              Paste a workout in the Universal Activity Hub and use &quot;Save Workout&quot; to add
+              it here.
             </p>
           </div>
         ) : (
@@ -111,7 +109,7 @@ export default function SavedWorkoutsPage() {
                   <button
                     type="button"
                     onClick={() => handleOpen(w)}
-                    className="rounded-xl border-2 border-orange-500 bg-orange-600 px-4 py-2 font-bold text-white transition hover:bg-orange-500"
+                    className="border-orange-500 bg-orange-600 hover:bg-orange-500 rounded-xl border-2 px-4 py-2 font-bold text-white transition"
                   >
                     Open
                   </button>

@@ -13,10 +13,7 @@ import { fetchMissionControlProfile } from '@/lib/supabase/admin/mission-control
 
 export const GET: APIRoute = async ({ request, cookies, params }) => {
   try {
-    const { uid: callerId, role: callerRole } = await verifyMissionControlRequest(
-      request,
-      cookies
-    );
+    const { uid: callerId, role: callerRole } = await verifyMissionControlRequest(request, cookies);
     const userId = params.userId;
     if (!userId) {
       return new Response(JSON.stringify({ error: 'User ID required' }), {

@@ -113,7 +113,9 @@ export default function PastedWorkoutTextEntry() {
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      throw new Error(typeof data.error === 'string' ? data.error : res.statusText || 'Handoff failed');
+      throw new Error(
+        typeof data.error === 'string' ? data.error : res.statusText || 'Handoff failed'
+      );
     }
     const handoffId = data.handoffId;
     if (!handoffId) throw new Error('No handoff ID returned');
@@ -140,7 +142,9 @@ export default function PastedWorkoutTextEntry() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error(typeof data.error === 'string' ? data.error : res.statusText || 'Handoff failed');
+        throw new Error(
+          typeof data.error === 'string' ? data.error : res.statusText || 'Handoff failed'
+        );
       }
       const handoffId = data.handoffId;
       if (!handoffId) throw new Error('No handoff ID returned');
@@ -163,7 +167,9 @@ export default function PastedWorkoutTextEntry() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error(typeof data.error === 'string' ? data.error : res.statusText || 'Handoff failed');
+        throw new Error(
+          typeof data.error === 'string' ? data.error : res.statusText || 'Handoff failed'
+        );
       }
       const handoffId = data.handoffId;
       if (!handoffId) throw new Error('No handoff ID returned');
@@ -207,7 +213,8 @@ export default function PastedWorkoutTextEntry() {
   }
 
   const parsedReady = panelState === 'parsed' && workoutSet;
-  const hasPayload = parsedReady && workoutSet && (Boolean(workoutSet.title?.trim()) || hasExercises(workoutSet));
+  const hasPayload =
+    parsedReady && workoutSet && (Boolean(workoutSet.title?.trim()) || hasExercises(workoutSet));
 
   if (parsedReady && hasPayload) {
     if (!user?.uid) {
@@ -216,7 +223,7 @@ export default function PastedWorkoutTextEntry() {
           <p className="text-white/70">Sign in to log this workout.</p>
           <a
             href={`/account?returnUrl=${encodeURIComponent(RETURN_PATH)}`}
-            className="rounded-lg bg-orange-500 px-4 py-2 font-medium text-black hover:bg-orange-400"
+            className="bg-orange-500 hover:bg-orange-400 rounded-lg px-4 py-2 font-medium text-black"
           >
             Sign in
           </a>
@@ -303,7 +310,7 @@ export default function PastedWorkoutTextEntry() {
               Load Sample
             </button>
           </div>
-          <div className="rounded-2xl bg-gradient-to-br from-amber-500/20 via-orange-500/15 to-rose-500/10 p-[1px]">
+          <div className="via-orange-500/15 rounded-2xl bg-gradient-to-br from-amber-500/20 to-rose-500/10 p-[1px]">
             <textarea
               id="paste-input"
               value={text}
@@ -317,7 +324,7 @@ export default function PastedWorkoutTextEntry() {
             type="button"
             onClick={handleFormatAndAdd}
             disabled={!text.trim() || panelState === 'loading'}
-            className="w-full rounded-xl border-2 border-amber-500/50 bg-gradient-to-r from-amber-600/40 to-orange-600/30 px-4 py-3 font-mono text-sm font-bold uppercase tracking-wider text-amber-50 transition-colors hover:from-amber-600/55 hover:to-orange-600/45 disabled:cursor-not-allowed disabled:opacity-50"
+            className="to-orange-600/30 hover:to-orange-600/45 w-full rounded-xl border-2 border-amber-500/50 bg-gradient-to-r from-amber-600/40 px-4 py-3 font-mono text-sm font-bold uppercase tracking-wider text-amber-50 transition-colors hover:from-amber-600/55 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {panelState === 'loading' ? 'Formatting…' : 'Format & add to workout'}
           </button>
@@ -331,13 +338,14 @@ export default function PastedWorkoutTextEntry() {
               </span>
               <p className="font-heading text-base text-white/70">Ready when you are</p>
               <p className="max-w-xs font-mono text-xs text-white/40">
-                Type or paste your workout, then click Format & add to workout when you&apos;re done.
+                Type or paste your workout, then click Format & add to workout when you&apos;re
+                done.
               </p>
             </div>
           )}
           {panelState === 'loading' && (
             <div className="flex flex-col items-center justify-center gap-4 py-8 text-center">
-              <span className="text-3xl animate-pulse" aria-hidden>
+              <span className="animate-pulse text-3xl" aria-hidden>
                 🤖
               </span>
               <p className="font-heading text-base text-white/80">Extracting data…</p>
@@ -397,7 +405,7 @@ export default function PastedWorkoutTextEntry() {
                 type="button"
                 onClick={handleScheduleSubmit}
                 disabled={!scheduleValue.trim() || scheduleSubmitting}
-                className="flex-1 rounded-xl border-2 border-orange-500 bg-orange-600 px-4 py-3 font-bold text-white transition-colors hover:bg-orange-500 disabled:cursor-not-allowed disabled:opacity-50"
+                className="border-orange-500 bg-orange-600 hover:bg-orange-500 flex-1 rounded-xl border-2 px-4 py-3 font-bold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {scheduleSubmitting ? 'Scheduling…' : 'Schedule'}
               </button>

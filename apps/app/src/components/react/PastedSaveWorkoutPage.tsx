@@ -20,7 +20,9 @@ const LoadingPlaceholder = () => (
 
 export default function PastedSaveWorkoutPage() {
   const { user } = useAppContext();
-  const [params, setParams] = useState<{ hid: string | null; savedId: string | null } | 'pending'>('pending');
+  const [params, setParams] = useState<{ hid: string | null; savedId: string | null } | 'pending'>(
+    'pending'
+  );
 
   useEffect(() => {
     const search = new URLSearchParams(window.location.search);
@@ -53,7 +55,8 @@ export default function PastedSaveWorkoutPage() {
         setSavedWorkout({ workoutSet: row.workout_set, id: row.id });
       })
       .catch((err) => {
-        if (!cancelled) setSavedError(err instanceof Error ? err.message : 'Failed to load workout.');
+        if (!cancelled)
+          setSavedError(err instanceof Error ? err.message : 'Failed to load workout.');
       });
     return () => {
       cancelled = true;
@@ -86,7 +89,7 @@ export default function PastedSaveWorkoutPage() {
           <p className="text-white/70">Sign in to edit this workout.</p>
           <a
             href={`/account?returnUrl=${encodeURIComponent(`/workout/save-pasted?savedId=${savedId}`)}`}
-            className="rounded-lg bg-orange-500 px-4 py-2 font-medium text-black hover:bg-orange-400"
+            className="bg-orange-500 hover:bg-orange-400 rounded-lg px-4 py-2 font-medium text-black"
           >
             Sign in
           </a>
@@ -108,7 +111,9 @@ export default function PastedSaveWorkoutPage() {
   if (!hid) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-black/95 px-4 text-center text-white">
-        <p className="text-red-300">Missing handoff ID. Save the workout from the Universal Activity Hub.</p>
+        <p className="text-red-300">
+          Missing handoff ID. Save the workout from the Universal Activity Hub.
+        </p>
         <a
           href="/training-log"
           className="rounded-lg border border-white/20 px-4 py-2 font-medium hover:bg-white/10"

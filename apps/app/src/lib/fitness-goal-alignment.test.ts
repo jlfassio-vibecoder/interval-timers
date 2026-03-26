@@ -79,10 +79,10 @@ describe('computeGoalAlignment', () => {
   });
 
   it('golden: active rest caps scores', () => {
-    const r = computeGoalAlignment(
-      baseLog({ isActiveRest: true, effort: 9 }),
-      ['fat_loss', 'cardiovascular_endurance']
-    );
+    const r = computeGoalAlignment(baseLog({ isActiveRest: true, effort: 9 }), [
+      'fat_loss',
+      'cardiovascular_endurance',
+    ]);
     expect(r).not.toBeNull();
     expect(r!.byGoalId.fat_loss).toBeLessThanOrEqual(36);
     expect(r!.byGoalId.cardiovascular_endurance).toBeLessThanOrEqual(36);

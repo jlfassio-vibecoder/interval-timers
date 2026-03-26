@@ -16,11 +16,12 @@ import {
 } from '@/lib/supabase/client/training-log';
 import { generateInsights } from '@/lib/training-log-insights';
 import { computeTrainingLogEnergyAggregates } from '@/lib/training-log-energy-analytics';
-import { hasBaselineForMET, resolveTotalActiveMultiplier, userProfileToProfileBaseline } from '@/lib/met';
 import {
-  ALIGNMENT_SCORER_VERSION,
-  averageAlignmentComposite,
-} from '@/lib/fitness-goal-alignment';
+  hasBaselineForMET,
+  resolveTotalActiveMultiplier,
+  userProfileToProfileBaseline,
+} from '@/lib/met';
+import { ALIGNMENT_SCORER_VERSION, averageAlignmentComposite } from '@/lib/fitness-goal-alignment';
 import type { TrainingLogFilters } from '@/lib/training-log-filters';
 import AnalyticsSummaryCards from './AnalyticsSummaryCards';
 import AnalyticsEnergySection from './AnalyticsEnergySection';
@@ -46,8 +47,7 @@ const TrainingLogAnalytics: React.FC<TrainingLogAnalyticsProps> = ({
   const [logs, setLogs] = useState<Awaited<ReturnType<typeof getTrainingLogLogsForExport>>>([]);
 
   const profileBaseline = useMemo(() => userProfileToProfileBaseline(user), [user]);
-  const hasMetBaseline =
-    profileBaseline != null && hasBaselineForMET(profileBaseline);
+  const hasMetBaseline = profileBaseline != null && hasBaselineForMET(profileBaseline);
   const energyAggregates = useMemo(
     () => computeTrainingLogEnergyAggregates(logs, profileBaseline),
     [logs, profileBaseline]

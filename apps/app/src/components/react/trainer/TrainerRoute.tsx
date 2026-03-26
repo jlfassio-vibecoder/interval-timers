@@ -1,5 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { BrowserRouter, Routes, Route, NavLink, Outlet, useLocation, Navigate } from 'react-router-dom';
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  NavLink,
+  Outlet,
+  useLocation,
+  Navigate,
+} from 'react-router-dom';
 import { LayoutDashboard, Users, BarChart3, Wrench, Home } from 'lucide-react';
 import { AppProvider, useAppContext } from '../../../contexts/AppContext';
 import { AuthModal } from '@interval-timers/auth-ui';
@@ -184,7 +192,10 @@ const TrainerGuard = () => {
         <Route path="/" element={<TrainerLayout showTrainerNav={isTrainer} />}>
           <Route index element={<TrainerDashboard profile={profile} />} />
           <Route path="roster" element={isTrainer ? <RosterView /> : <Navigate to="/" replace />} />
-          <Route path="roster/:userId" element={isTrainer ? <ClientDetailView /> : <Navigate to="/" replace />} />
+          <Route
+            path="roster/:userId"
+            element={isTrainer ? <ClientDetailView /> : <Navigate to="/" replace />}
+          />
           <Route path="intel" element={isTrainer ? <IntelView /> : <Navigate to="/" replace />} />
         </Route>
       </Routes>

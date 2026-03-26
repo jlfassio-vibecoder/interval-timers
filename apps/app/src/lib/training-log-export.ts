@@ -6,10 +6,7 @@
  */
 
 import type { WorkoutLog } from '@/types';
-import {
-  deriveWorkoutFormat,
-  deriveWorkoutType,
-} from '@/lib/supabase/client/training-log';
+import { deriveWorkoutFormat, deriveWorkoutType } from '@/lib/supabase/client/training-log';
 import { alignmentCompositeForLog } from '@/lib/fitness-goal-alignment';
 
 /** Escape a CSV field: wrap in quotes if it contains comma, quote, or newline. */
