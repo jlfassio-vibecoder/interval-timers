@@ -119,10 +119,7 @@ function focusFitForMuscle(
  */
 export function computeReadinessFit(
   form: DailyCheckInFormState,
-  workout: Pick<
-    WorkoutLog,
-    'source' | 'workoutFormat' | 'durationSeconds' | 'focusArea' | 'intensity'
-  >
+  workout: Pick<WorkoutLog, 'source' | 'workoutFormat' | 'durationSeconds' | 'focusArea'>
 ): ReadinessFitResult {
   const met = inferMETFromWorkout(workout.source, workout.workoutFormat);
   const durationMinutes =

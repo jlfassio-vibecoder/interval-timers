@@ -80,16 +80,21 @@ const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({
   const [readinessFit, setReadinessFit] = useState<ReadinessFitResult | null>(null);
   const [readinessCheckInDate, setReadinessCheckInDate] = useState<string | null>(null);
   const [readinessLoading, setReadinessLoading] = useState(false);
+  const [readinessFetchError, setReadinessFetchError] = useState(false);
 
+  // Deps are fields used by getMostRecentReadinessCheckIn + computeReadinessFit only (not whole
+  // `workout`) to avoid refetch when the parent passes a new object reference with same values.
   useEffect(() => {
     if (!workout?.userId || !workout.date) {
       setReadinessFit(null);
       setReadinessCheckInDate(null);
+      setReadinessFetchError(false);
       setReadinessLoading(false);
       return;
     }
     let cancelled = false;
     setReadinessLoading(true);
+    setReadinessFetchError(false);
     void (async () => {
       try {
         const res = await getMostRecentReadinessCheckIn(workout.userId, workout.date);
@@ -106,6 +111,7 @@ const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({
         if (import.meta.env.DEV) console.error('[WorkoutSummaryModal:readiness]', e);
         setReadinessFit(null);
         setReadinessCheckInDate(null);
+        setReadinessFetchError(true);
       } finally {
         if (!cancelled) setReadinessLoading(false);
       }
@@ -113,7 +119,14 @@ const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [workout]);
+  }, [
+    workout?.userId,
+    workout?.date,
+    workout?.source,
+    workout?.workoutFormat,
+    workout?.durationSeconds,
+    workout?.focusArea,
+  ]);
 
   function restoreFocus() {
     const el = savedFocusRef.current;
@@ -441,7 +454,12 @@ const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({
               </ul>
             </section>
           )}
-          {!readinessLoading && !readinessFit && workout.userId && (
+          {!readinessLoading && readinessFetchError && (
+            <p className="text-center text-xs text-white/45">
+              Couldn&apos;t load readiness check-in. Try again later.
+            </p>
+          )}
+          {!readinessLoading && !readinessFit && !readinessFetchError && workout?.userId && (
             <p className="text-center text-xs text-white/45">
               No readiness check-in on or before this session date.
             </p>
