@@ -58,6 +58,22 @@ export function buildWeekIntensitySeries(
   const truncated = totalSessions > MAX_WEEK_INTENSITY_SESSIONS;
   const visibleLogs = truncated ? filtered.slice(0, MAX_WEEK_INTENSITY_SESSIONS) : filtered;
 
+  // Daily wave uses all matching sessions so high-volume weeks stay accurate; bars stay truncated.
+  const dailyWeightedSum = Array.from({ length: 7 }, () => 0);
+  const dailyMinutes = Array.from({ length: 7 }, () => 0);
+  for (const log of filtered) {
+    const durationMinutes = Math.max(0, Math.round((log.durationSeconds ?? 0) / 60));
+    if (durationMinutes <= 0) continue;
+    const dayIndex = week.days.findIndex((day) => day.logs.some((item) => item.id === log.id));
+    const d = Math.max(0, Math.min(6, dayIndex >= 0 ? dayIndex : 0));
+    const intensity = estimateSessionIntensity(log, { profileBaseline });
+    dailyWeightedSum[d] += intensity.percent * durationMinutes;
+    dailyMinutes[d] += durationMinutes;
+  }
+  const dailyIntensityPercent = dailyMinutes.map((mins, index) =>
+    mins > 0 ? Math.round(dailyWeightedSum[index] / mins) : 0
+  );
+
   const sessions: WeekIntensitySession[] = visibleLogs.map((log) => {
     const dayIndex = week.days.findIndex((day) => day.logs.some((item) => item.id === log.id));
     const intensity = estimateSessionIntensity(log, { profileBaseline });
@@ -73,18 +89,6 @@ export function buildWeekIntensitySeries(
       metValue: intensity.metValue,
     };
   });
-
-  const dailyWeightedSum = Array.from({ length: 7 }, () => 0);
-  const dailyMinutes = Array.from({ length: 7 }, () => 0);
-  for (const session of sessions) {
-    if (session.durationMinutes <= 0) continue;
-    const d = Math.max(0, Math.min(6, session.dayIndex));
-    dailyWeightedSum[d] += session.intensityPercent * session.durationMinutes;
-    dailyMinutes[d] += session.durationMinutes;
-  }
-  const dailyIntensityPercent = dailyMinutes.map((mins, index) =>
-    mins > 0 ? Math.round(dailyWeightedSum[index] / mins) : 0
-  );
 
   return {
     sessions,

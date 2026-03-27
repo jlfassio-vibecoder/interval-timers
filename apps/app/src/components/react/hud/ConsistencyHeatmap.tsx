@@ -135,6 +135,7 @@ const ConsistencyHeatmap: React.FC<ConsistencyHeatmapProps> = ({ hasAccess }) =>
           aspectRatio: `${WEEKS} / ${DAYS}`,
           maxHeight: '140px',
         }}
+        onPointerLeave={() => setActiveDetail(null)}
       >
         {grid.map((dayRow, row) =>
           dayRow.map((cell, col) => {

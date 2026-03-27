@@ -10,9 +10,11 @@ import { supabase } from '../supabase-instance';
 import { computeTrainingLogQuickStats } from '@/lib/training-log-quick-stats';
 import { getAmrapSessionDisplayTitle } from '@/lib/amrap-preset-name';
 import { getAmrapSessionResults } from './amrap-session-results';
+import { getTrainingLogLocalTodayISO } from './training-log';
 
-function todayISO(): string {
-  return new Date().toISOString().slice(0, 10);
+/** YYYY-MM-DD in the user's local calendar (matches Training Log / quick-stats). */
+function localDateISO(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 export interface TodaysWorkoutLogResult {
@@ -27,7 +29,7 @@ export interface TodaysWorkoutLogResult {
  * Get today's workout log if the user has logged a session today.
  */
 export async function getTodaysWorkoutLog(userId: string): Promise<TodaysWorkoutLogResult | null> {
-  const today = todayISO();
+  const today = getTrainingLogLocalTodayISO();
   const { data, error } = await supabase
     .from('user_workout_logs')
     .select('id, program_id, week_id, workout_id, duration_seconds')
@@ -60,7 +62,7 @@ export async function getStreakData(userId: string): Promise<{
   const end = new Date();
   const start = new Date(end);
   start.setDate(start.getDate() - STREAK_QUERY_DAYS);
-  const startStr = start.toISOString().slice(0, 10);
+  const startStr = localDateISO(start);
 
   const [workoutLogsRes, userWorkoutLogsRes, amrapResults] = await Promise.all([
     supabase
@@ -104,7 +106,8 @@ interface MinuteRow {
 }
 
 function getISOWeek(dateStr: string): string {
-  const d = new Date(dateStr);
+  // T12:00:00 avoids UTC/local day skew from parsing YYYY-MM-DD alone (same as training-log.ts).
+  const d = new Date(dateStr + 'T12:00:00');
   d.setHours(0, 0, 0, 0);
   const thursday = new Date(d);
   thursday.setDate(d.getDate() + 4 - (d.getDay() || 7));
@@ -122,8 +125,8 @@ export async function getVolumeByWeek(userId: string, weeks: number = 8): Promis
   const now = new Date();
   const start = new Date(now);
   start.setDate(start.getDate() - weeks * 7);
-  const startStr = start.toISOString().slice(0, 10);
-  const endStr = todayISO();
+  const startStr = localDateISO(start);
+  const endStr = getTrainingLogLocalTodayISO();
 
   const [workoutLogsRes, userWorkoutLogsRes, amrapResults] = await Promise.all([
     supabase
@@ -141,7 +144,8 @@ export async function getVolumeByWeek(userId: string, weeks: number = 8): Promis
       .gte('date', startStr)
       .lte('date', endStr)
       .order('date', { ascending: true }),
-    getAmrapSessionResults(userId, 500).catch(() => []),
+    // RPC caps at 100; larger requests do not fetch more rows (see amrap-session-results.ts).
+    getAmrapSessionResults(userId, 100).catch(() => []),
   ]);
 
   if (workoutLogsRes.error) throw workoutLogsRes.error;
@@ -152,7 +156,7 @@ export async function getVolumeByWeek(userId: string, weeks: number = 8): Promis
   for (let i = 0; i < weeks; i++) {
     const w = new Date(now);
     w.setDate(w.getDate() - (weeks - 1 - i) * 7);
-    const key = getISOWeek(w.toISOString().slice(0, 10));
+    const key = getISOWeek(localDateISO(w));
     weekKeys.push(key);
     byWeek[key] = 0;
   }
@@ -212,7 +216,7 @@ async function getMergedWorkoutDateEntries(
       .gte('date', startStr)
       .lte('date', endStr)
       .order('date', { ascending: true }),
-    getAmrapSessionResults(userId, 500).catch(() => []),
+    getAmrapSessionResults(userId, 100).catch(() => []),
   ]);
 
   if (workoutLogsRes.error) throw workoutLogsRes.error;
@@ -255,8 +259,8 @@ export async function getWorkoutDates(
   const end = new Date();
   const start = new Date(end);
   start.setDate(start.getDate() - daysBack);
-  const startStr = start.toISOString().slice(0, 10);
-  const endStr = end.toISOString().slice(0, 10);
+  const startStr = localDateISO(start);
+  const endStr = localDateISO(end);
 
   return getMergedWorkoutDateEntries(userId, startStr, endStr);
 }
