@@ -109,15 +109,20 @@ const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({
         setReadinessCheckInDate(res.readinessDate);
       } catch (e) {
         if (import.meta.env.DEV) console.error('[WorkoutSummaryModal:readiness]', e);
-        setReadinessFit(null);
-        setReadinessCheckInDate(null);
-        setReadinessFetchError(true);
+        if (!cancelled) {
+          setReadinessFit(null);
+          setReadinessCheckInDate(null);
+          setReadinessFetchError(true);
+        }
       } finally {
         if (!cancelled) setReadinessLoading(false);
       }
     })();
     return () => {
       cancelled = true;
+      // Clear loading when this effect is superseded or unmounted so we never pair
+      // readinessFetchError with readinessLoading true after a cancelled error path.
+      setReadinessLoading(false);
     };
   }, [
     workout?.userId,
