@@ -10,7 +10,7 @@ import { useAppContext } from '@/contexts/AppContext';
 import { getWorkoutDates, type WorkoutDateEntry } from '@/lib/supabase/client/progress-analytics';
 
 export interface ConsistencyHeatmapProps {
-  isPaid: boolean;
+  hasAccess: boolean;
 }
 
 const WEEKS = 52;
@@ -29,23 +29,35 @@ function toISO(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
-const ConsistencyHeatmap: React.FC<ConsistencyHeatmapProps> = ({ isPaid }) => {
+const ConsistencyHeatmap: React.FC<ConsistencyHeatmapProps> = ({ hasAccess }) => {
   const { user } = useAppContext();
   const [entries, setEntries] = useState<WorkoutDateEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [hoverCell, setHoverCell] = useState<{ date: string; title: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  /** When set (e.g. cell hover), overrides the default most-recent workout line below the grid. */
+  const [activeDetail, setActiveDetail] = useState<{ date: string; title: string } | null>(null);
 
   useEffect(() => {
-    if (!isPaid || !user?.uid) {
+    if (!hasAccess || !user?.uid) {
       setLoading(false);
       setEntries([]);
+      setError(null);
       return;
     }
     setLoading(true);
+    setError(null);
     getWorkoutDates(user.uid, 365)
       .then(setEntries)
+      .catch(() => {
+        setEntries([]);
+        setError('Could not load consistency heatmap.');
+      })
       .finally(() => setLoading(false));
-  }, [isPaid, user?.uid]);
+  }, [hasAccess, user?.uid]);
+
+  useEffect(() => {
+    setActiveDetail(null);
+  }, [entries]);
 
   const dateToTitle = useMemo(() => {
     const m = new Map<string, string>();
@@ -54,6 +66,17 @@ const ConsistencyHeatmap: React.FC<ConsistencyHeatmapProps> = ({ isPaid }) => {
   }, [entries]);
 
   const workoutDates = useMemo(() => new Set(entries.map((e) => e.date)), [entries]);
+
+  const mostRecentDetail = useMemo((): { date: string; title: string } | null => {
+    if (!entries.length) return null;
+    let best = entries[0];
+    for (const e of entries) {
+      if (e.date > best.date) best = e;
+    }
+    return { date: best.date, title: best.workoutTitle?.trim() || 'Workout' };
+  }, [entries]);
+
+  const displayDetail = activeDetail ?? mostRecentDetail;
 
   const grid = useMemo(() => {
     const end = new Date();
@@ -75,13 +98,21 @@ const ConsistencyHeatmap: React.FC<ConsistencyHeatmapProps> = ({ isPaid }) => {
     return out;
   }, [dateToTitle]);
 
-  if (!isPaid) return null;
+  if (!hasAccess) return null;
 
   if (loading) {
     return (
       <div className="flex h-40 items-center justify-center rounded-xl bg-white/5 font-mono text-[10px] uppercase text-white/40">
         Loading…
       </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <p className="rounded-xl bg-white/5 py-12 text-center font-mono text-[10px] uppercase italic text-white/40">
+        {error}
+      </p>
     );
   }
 
@@ -115,8 +146,12 @@ const ConsistencyHeatmap: React.FC<ConsistencyHeatmapProps> = ({ isPaid }) => {
                   filled ? 'bg-emerald-500/60' : 'bg-white/10'
                 }`}
                 style={{ minWidth: 2, minHeight: 2 }}
-                onMouseEnter={() => setHoverCell({ date: cell.date, title: cell.title })}
-                onMouseLeave={() => setHoverCell(null)}
+                onMouseEnter={() =>
+                  setActiveDetail({
+                    date: cell.date,
+                    title: cell.title.trim() || (filled ? 'Workout' : 'No workout logged'),
+                  })
+                }
                 role="img"
                 aria-label={filled ? `Workout on ${cell.date}` : `No workout on ${cell.date}`}
               />
@@ -124,10 +159,15 @@ const ConsistencyHeatmap: React.FC<ConsistencyHeatmapProps> = ({ isPaid }) => {
           })
         )}
       </div>
-      {hoverCell && (
-        <div className="rounded border border-white/20 bg-black/80 px-3 py-2 font-mono text-xs text-white/90">
-          {hoverCell.date}
-          {hoverCell.title ? ` — ${hoverCell.title}` : ''}
+      {displayDetail && (
+        <div
+          className="min-h-[2.5rem] rounded border border-white/20 bg-black/80 px-3 py-2 font-mono text-xs text-white/90"
+          aria-live="polite"
+        >
+          <span className="text-white/70">{displayDetail.date}</span>
+          {displayDetail.title ? (
+            <span className="text-white/90"> — {displayDetail.title}</span>
+          ) : null}
         </div>
       )}
     </div>

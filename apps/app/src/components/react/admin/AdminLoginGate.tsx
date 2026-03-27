@@ -118,7 +118,6 @@ const AdminLoginGate: React.FC = () => {
                 <code className="break-all rounded bg-black/20 px-1 font-mono text-xs">
                   {import.meta.env.PUBLIC_SUPABASE_URL ||
                     import.meta.env.VITE_SUPABASE_URL ||
-                    import.meta.env.SUPABASE_URL ||
                     '(not set)'}
                 </code>
               </p>

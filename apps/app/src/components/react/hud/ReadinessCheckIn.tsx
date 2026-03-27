@@ -238,6 +238,9 @@ const ReadinessCheckIn: React.FC<ReadinessCheckInProps> = ({ userId }) => {
             {MUSCLE_GROUPS.map((area) => {
               const checked = getSorenessLevel(form.soreness_areas, area) !== null;
               const level = getSorenessLevel(form.soreness_areas, area) ?? 4;
+              // Same semantics as stress: higher soreness → red, lower → green (reversed ramp).
+              const sorenessPercent = sliderPercent(level, true);
+              const sorenessColorClass = getProgressTextColorClass(sorenessPercent);
               return (
                 <div key={area} className="space-y-3 rounded-md border border-white/10 p-3">
                   <label className="flex items-center gap-2 text-sm text-white">
@@ -257,7 +260,7 @@ const ReadinessCheckIn: React.FC<ReadinessCheckInProps> = ({ userId }) => {
                   </label>
                   {checked && (
                     <div className="space-y-2">
-                      <p className="text-xs text-white/50">Level ({level})</p>
+                      <p className={`text-xs ${sorenessColorClass}`}>Level ({level})</p>
                       <input
                         type="range"
                         min={1}
@@ -275,7 +278,7 @@ const ReadinessCheckIn: React.FC<ReadinessCheckInProps> = ({ userId }) => {
                           })
                         }
                         className="h-2 w-full cursor-pointer"
-                        style={{ accentColor: progressAccentColor(sliderPercent(level)) }}
+                        style={{ accentColor: progressAccentColor(sorenessPercent) }}
                       />
                     </div>
                   )}

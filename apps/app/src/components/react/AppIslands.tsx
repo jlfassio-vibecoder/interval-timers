@@ -52,6 +52,8 @@ const AppIslands: React.FC<AppIslandsProps> = ({ pathname: initialPathname }) =>
     setCompletedWorkouts,
     handleLogout,
     isPaid,
+    isInTrial,
+    isAdmin,
   } = useAppContext();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authModalSignupFirst, setAuthModalSignupFirst] = useState(false);
@@ -205,6 +207,7 @@ const AppIslands: React.FC<AppIslandsProps> = ({ pathname: initialPathname }) =>
     !isPaid &&
     (userPrograms.length === 0 ||
       userPrograms.some((p) => p.source !== 'trainer_assigned' && p.source !== 'cohort'));
+  const hasProgressAnalyticsAccess = isPaid || isInTrial || isAdmin;
 
   // Open auth modal or HUD when arriving from standalone nav (e.g. ?signin=1 or ?hud=1)
   useEffect(() => {
@@ -548,6 +551,7 @@ const AppIslands: React.FC<AppIslandsProps> = ({ pathname: initialPathname }) =>
         >
           <HUDContent
             isPaid={isPaid}
+            hasProgressAnalyticsAccess={hasProgressAnalyticsAccess}
             showUpgradePrompts={showUpgradePrompts}
             onOpenConversionModal={() => setShowConversionModal(true)}
             onCalendarRefresh={() => setCalendarRefreshKey((k) => k + 1)}

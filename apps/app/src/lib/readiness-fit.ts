@@ -67,7 +67,9 @@ function motivationIdeal(met: number, durationMinutes: number): number {
 }
 
 /** Map training-log focus_area string to muscle group; null if unknown. */
-export function focusAreaToMuscleGroup(focusArea: string | undefined | null): MuscleGroupArea | null {
+export function focusAreaToMuscleGroup(
+  focusArea: string | undefined | null
+): MuscleGroupArea | null {
   if (!focusArea) return null;
   const lower = focusArea.toLowerCase();
   const groups: MuscleGroupArea[] = ['legs', 'chest', 'back', 'shoulders', 'arms', 'core'];
@@ -93,20 +95,14 @@ export function focusAreaToMuscleGroup(focusArea: string | undefined | null): Mu
   return null;
 }
 
-function sorenessFitForMuscle(
-  form: DailyCheckInFormState,
-  muscle: MuscleGroupArea | null
-): number {
+function sorenessFitForMuscle(form: DailyCheckInFormState, muscle: MuscleGroupArea | null): number {
   if (!muscle) return 85;
   const level = getSorenessLevel(form.soreness_areas, muscle);
   if (level === null) return 95;
   return clampPercent(100 - (level - 1) * (100 / 9));
 }
 
-function focusFitForMuscle(
-  form: DailyCheckInFormState,
-  muscle: MuscleGroupArea | null
-): number {
+function focusFitForMuscle(form: DailyCheckInFormState, muscle: MuscleGroupArea | null): number {
   if (!muscle) return 70;
   const g = form.muscle_group_focus.find((x) => x.area === muscle);
   if (!g) return 45;

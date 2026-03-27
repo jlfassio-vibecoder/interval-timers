@@ -196,10 +196,15 @@ export const MET_VALUES: Record<string, number> = {
   tabata: 8,
   amrap: 7.5,
   emom: 7,
+  circuit: 7,
+  strength: 6,
+  resistance_training: 6,
+  swimming_moderate: 7,
   housework: 3,
   walking: 3.5,
   running_moderate: 8,
   cycling_moderate: 6,
+  mobility: 3,
 };
 
 /**
@@ -226,9 +231,15 @@ export function inferMETFromWorkout(source?: string | null, workoutFormat?: stri
   if (s.includes('tabata')) return MET_VALUES.tabata;
   if (s.includes('amrap')) return MET_VALUES.amrap;
   if (s.includes('emom')) return MET_VALUES.emom;
+  if (s.includes('circuit')) return MET_VALUES.circuit;
+  if (s.includes('straight sets')) return MET_VALUES.strength;
+  if (s.includes('strength') || s.includes('resistance')) return MET_VALUES.resistance_training;
   if (s.includes('hiit')) return MET_VALUES.hiit;
+  if (s.includes('swim')) return MET_VALUES.swimming_moderate;
   if (s.includes('warmup') || s.includes('mobility')) return 3;
   if (s.includes('walk')) return MET_VALUES.walking;
+  if (s.includes('run')) return MET_VALUES.running_moderate;
+  if (s.includes('cycle') || s.includes('bike')) return MET_VALUES.cycling_moderate;
   return MET_VALUES.hiit;
 }
 

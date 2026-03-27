@@ -252,7 +252,7 @@ const TrainingLog: React.FC = () => {
   }
 
   return (
-    <div className="mx-auto max-w-4xl">
+    <div className="mx-auto w-full max-w-[min(96rem,calc(100vw-0.5rem))] px-2 sm:px-3 lg:px-4">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex rounded-lg border border-white/10 bg-white/5 p-1">
           <button
@@ -356,55 +356,58 @@ const TrainingLog: React.FC = () => {
             Swipe or use arrow keys to move between weeks · Today’s week loads centered
           </p>
 
-          {/* Horizontal week timeline: past ← → future (planned = dashed outline) */}
           <div
-            className="-mx-2 flex max-h-[min(70vh,520px)] max-w-[100vw] snap-x snap-mandatory gap-4 overflow-x-auto overflow-y-hidden overscroll-x-contain scroll-smooth px-2 pb-2 sm:mx-0 sm:max-w-none sm:px-0"
+            className="w-full overflow-hidden"
             role="region"
             aria-label="Training weeks timeline"
           >
-            {weeks.length === 0 ? (
-              <div className="flex min-h-[40vh] min-w-full items-center justify-center">
-                <p className="font-mono text-sm text-white/50">
-                  No timeline to show. Sign in to load your training log.
-                </p>
-              </div>
-            ) : (
-              weeks.map((week, weekIndex) => (
-                <div
-                  key={week.weekMonday}
-                  ref={(el) => {
-                    weekCardRefs.current[weekIndex] = el;
-                  }}
-                  className="w-[min(100vw-2rem,36rem)] shrink-0 snap-center snap-always rounded-xl border border-white/10 bg-black/40 px-3 py-3 shadow-lg backdrop-blur-sm sm:w-[36rem]"
-                >
-                  <p className="mb-2 text-center font-mono text-[10px] uppercase tracking-widest text-white/45">
-                    {week.range}
+            <div className="flex snap-x snap-mandatory items-start gap-0 overflow-x-auto overflow-y-hidden overscroll-x-contain scroll-smooth pb-4">
+              {weeks.length === 0 ? (
+                <div className="flex min-h-[40vh] min-w-full items-center justify-center">
+                  <p className="font-mono text-sm text-white/50">
+                    No timeline to show. Sign in to load your training log.
                   </p>
-                  <div className="mb-2 flex items-center gap-2">
-                    <div className="grid flex-1 grid-cols-7 gap-1 sm:gap-2 md:gap-3">
-                      {DAY_LABELS.map((label, i) => (
-                        <div key={i} className="text-center font-mono text-xs text-white/50">
-                          {label}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <WeekRow
-                    week={week}
-                    weekIndex={weekIndex}
-                    goalMinutes={user?.weeklyGoalMinutes ?? HEALTH_GUIDELINE_WEEKLY_MINUTES}
-                    todayISO={todayISO}
-                    onWorkoutClick={handleWorkoutClick}
-                    hoveredKey={hoveredKey}
-                    onHoverChange={setHoveredKey}
-                    isFocused={weekIndex === focusedWeekIndex}
-                    onFocus={() => setFocusedWeekIndex(weekIndex)}
-                    inCard
-                    hideRangeLabel
-                  />
                 </div>
-              ))
-            )}
+              ) : (
+                weeks.map((week, weekIndex) => (
+                  <div
+                    key={week.weekMonday}
+                    ref={(el) => {
+                      weekCardRefs.current[weekIndex] = el;
+                    }}
+                    className="w-full shrink-0 snap-center snap-always rounded-xl border border-white/10 bg-black/40 px-3 py-3 shadow-lg backdrop-blur-sm"
+                  >
+                    <p className="mb-2 text-center font-mono text-[10px] uppercase tracking-widest text-white/45">
+                      {week.range}
+                    </p>
+                    <div className="mb-2 flex items-center gap-2">
+                      <div className="grid flex-1 grid-cols-7 gap-1 sm:gap-2 md:gap-3">
+                        {DAY_LABELS.map((label, i) => (
+                          <div key={i} className="text-center font-mono text-xs text-white/50">
+                            {label}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <WeekRow
+                      week={week}
+                      weekIndex={weekIndex}
+                      goalMinutes={user?.weeklyGoalMinutes ?? HEALTH_GUIDELINE_WEEKLY_MINUTES}
+                      todayISO={todayISO}
+                      onWorkoutClick={handleWorkoutClick}
+                      hoveredKey={hoveredKey}
+                      onHoverChange={setHoveredKey}
+                      isFocused={weekIndex === focusedWeekIndex}
+                      onFocus={() => setFocusedWeekIndex(weekIndex)}
+                      inCard
+                      hideRangeLabel
+                      filters={filters}
+                      profileBaseline={profileBaseline}
+                    />
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </>
       )}

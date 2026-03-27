@@ -27,7 +27,7 @@ function PlaceholderChart() {
 }
 
 export interface ProgressZoneProps {
-  isPaid: boolean;
+  hasAccess: boolean;
   /** When false, hide upgrade CTA (e.g. user has only trainer_assigned/cohort programs). */
   showUpgradePrompts: boolean;
   onOpenConversionModal: () => void;
@@ -35,7 +35,7 @@ export interface ProgressZoneProps {
 }
 
 const ProgressZone: React.FC<ProgressZoneProps> = ({
-  isPaid,
+  hasAccess,
   showUpgradePrompts,
   onOpenConversionModal,
   workoutsThisWeek = 5,
@@ -75,7 +75,7 @@ const ProgressZone: React.FC<ProgressZoneProps> = ({
       <h4 className="border-orange-light/20 mb-4 border-b pb-4 font-mono text-[10px] uppercase tracking-[0.4em] text-orange-light">
         Progress
       </h4>
-      {!isPaid ? (
+      {!hasAccess ? (
         <div className="flex flex-col gap-4">
           <p className="text-xl font-light italic text-gray-200">
             {workoutsThisWeek} Workouts completed this week.
@@ -108,9 +108,9 @@ const ProgressZone: React.FC<ProgressZoneProps> = ({
               </button>
             ))}
           </div>
-          {activeTab === 'volume' && <VolumeChart isPaid={isPaid} />}
-          {activeTab === 'consistency' && <ConsistencyHeatmap isPaid={isPaid} />}
-          {activeTab === 'prs' && <PRFeed isPaid={isPaid} />}
+          {activeTab === 'volume' && <VolumeChart hasAccess={hasAccess} />}
+          {activeTab === 'consistency' && <ConsistencyHeatmap hasAccess={hasAccess} />}
+          {activeTab === 'prs' && <PRFeed hasAccess={hasAccess} />}
         </div>
       )}
     </section>

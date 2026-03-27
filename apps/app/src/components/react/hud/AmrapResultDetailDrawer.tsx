@@ -5,6 +5,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Play, Calendar, Copy } from 'lucide-react';
 import type { AmrapSessionResult } from '@/lib/supabase/client/amrap-session-results';
+import { getAmrapSessionDisplayTitle } from '@/lib/amrap-preset-name';
 import { getAmrapSessionUrl } from '@/lib/amrap-urls';
 import { buildAmrapResultsText } from '@/lib/amrap-results-text';
 import RoundConsistencyChart from './RoundConsistencyChart';
@@ -44,18 +45,19 @@ const AmrapResultDetailDrawer: React.FC<AmrapResultDetailDrawerProps> = ({
   if (!result) return null;
 
   const sessionUrl = getAmrapSessionUrl(result.session_id);
+  const displayTitle = getAmrapSessionDisplayTitle(result.workout_name, result.workout_list);
   const resultsText = buildAmrapResultsText(
     result.workout_list,
     result.total_rounds,
     result.duration_minutes,
     sessionUrl,
     {
-      workoutTitle: result.workout_name ?? undefined,
+      workoutTitle: displayTitle,
       roundDurations: result.round_durations.length > 0 ? result.round_durations : undefined,
     }
   );
 
-  const workoutLabel = result.workout_name ?? result.workout_list?.[0]?.trim() ?? 'AMRAP';
+  const workoutLabel = displayTitle;
 
   const handleCopy = async () => {
     try {

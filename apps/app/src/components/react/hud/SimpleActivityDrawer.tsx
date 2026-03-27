@@ -8,7 +8,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { X, ExternalLink } from 'lucide-react';
 import type { CalendarEvent } from '@/lib/calendar-events';
-import { getAmrapPresetName } from '@/lib/amrap-preset-name';
+import { getAmrapSessionDisplayTitle } from '@/lib/amrap-preset-name';
 import { getAmrapSessionUrl } from '@/lib/amrap-urls';
 import { getAppById } from '@/lib/app-registry';
 import AmrapSessionActionModal, {
@@ -79,7 +79,7 @@ const SimpleActivityDrawer: React.FC<SimpleActivityDrawerProps> = ({
   const isAmrap = event.type === 'amrap' || event.type === 'amrap_scheduled';
   const amrapExercises = isAmrap ? getAmrapExerciseList(meta?.workoutList) : [];
   const drawerTitle = isAmrap
-    ? (getAmrapPresetName(meta?.workoutList) ?? event.workoutTitle)
+    ? getAmrapSessionDisplayTitle(event.workoutTitle, meta?.workoutList)
     : event.workoutTitle;
 
   const amrapSessionData: AmrapSessionData | null = useMemo(() => {

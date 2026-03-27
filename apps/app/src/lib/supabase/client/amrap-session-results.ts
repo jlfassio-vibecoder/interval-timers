@@ -17,7 +17,7 @@ export interface AmrapSessionResult {
   completed_at: string;
   /** Seconds per round; for consistency chart and analytics */
   round_durations: number[];
-  /** Display name (first exercise or library match) */
+  /** Often matches first exercise in workout_list (DB); use getAmrapSessionDisplayTitle for UI. */
   workout_name: string | null;
 }
 

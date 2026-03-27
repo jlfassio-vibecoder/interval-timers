@@ -1,6 +1,6 @@
 # Pre-PR Checklist — Full Run Report
 
-**Date:** 2026-02-27
+**Date:** 2026-03-27
 
 **Note:** This project uses **Supabase** (not Firebase). Firebase-specific checklist items are marked N/A or adapted below.
 
@@ -32,10 +32,12 @@ Firestore rules, Firebase config, App Check, and Firebase Hosting items do not a
 
 | Check            | Command         | Result                                |
 | ---------------- | --------------- | ------------------------------------- |
-| Unit tests       | `npm run test`  | ✅ **PASS** — 41 tests, 3 files       |
-| Production build | `npm run build` | ✅ **PASS** — Build completed in ~53s |
+| Unit tests       | `npm run test`  | ✅ **PASS** — 142 tests, 18 files     |
+| Production build | `npm run build` | ✅ **PASS** — Build completed in ~1m 4s |
 
-**Build note:** One Vite warning: some chunks >500KB (e.g. `vendor.BtmxuiiK.js`, `AdminDashboard`). Consider code-splitting in a follow-up; not blocking for PR.
+**Build note:** Vite warns that some chunks are >500KB (e.g. `vendor`, `AdminDashboard`). Consider code-splitting in a follow-up; not blocking for PR.
+
+**Test note:** Some test files log `Missing Supabase env` to stderr when env is not set locally; tests still pass.
 
 ---
 
@@ -62,7 +64,7 @@ Firestore rules, Firebase config, App Check, and Firebase Hosting items do not a
 | Lint          | ✅ Pass            |
 | Type-check    | ✅ Pass            |
 | Format        | ✅ Pass            |
-| Tests         | ✅ Pass (41 tests) |
+| Tests         | ✅ Pass (142 tests) |
 | Build         | ✅ Pass            |
 | Security scan | ✅ Pass            |
 | Check-env     | ✅ Pass            |

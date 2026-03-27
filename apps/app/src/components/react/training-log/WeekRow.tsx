@@ -7,6 +7,8 @@
 
 import React, { forwardRef, useCallback, useMemo } from 'react';
 import { HEALTH_GUIDELINE_WEEKLY_MINUTES } from '@/lib/training-log-constants';
+import type { ProfileBaseline } from '@/lib/met';
+import type { TrainingLogFilters } from '@/lib/training-log-filters';
 import {
   getProgressBgColorClassForValue,
   getProgressSoftBgColorClassForValue,
@@ -20,6 +22,7 @@ import {
 import ActivityDot from './ActivityDot';
 import type { TrainingLogWeek } from '@/lib/supabase/client/training-log';
 import type { WorkoutLog } from '@/types';
+import WeekIntensityCharts from './WeekIntensityCharts';
 
 const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -39,6 +42,10 @@ export interface WeekRowProps {
   inCard?: boolean;
   /** When true, hide the date range line (shown on parent card header). */
   hideRangeLabel?: boolean;
+  /** Current Training Log filters so intensity charts match week grid semantics. */
+  filters?: TrainingLogFilters;
+  /** Profile baseline for MET-enabled intensity estimates. */
+  profileBaseline?: ProfileBaseline | null;
 }
 
 const WeekRowInner = forwardRef<HTMLDivElement, WeekRowProps>(function WeekRowInner(
@@ -54,6 +61,8 @@ const WeekRowInner = forwardRef<HTMLDivElement, WeekRowProps>(function WeekRowIn
     onFocus,
     inCard = false,
     hideRangeLabel = false,
+    filters,
+    profileBaseline = null,
   },
   ref
 ) {
@@ -118,7 +127,7 @@ const WeekRowInner = forwardRef<HTMLDivElement, WeekRowProps>(function WeekRowIn
         <div className="flex w-24 shrink-0 flex-col items-end pr-2">
           {!hideRangeLabel && <span className="font-mono text-xs text-white/70">{week.range}</span>}
           <span
-            className={`${hideRangeLabel ? '' : 'mt-0.5 '}rounded px-1.5 py-0.5 font-mono text-sm font-bold ${totalBadgeClass}`}
+            className={`${hideRangeLabel ? '' : 'mt-0.5'}rounded px-1.5 py-0.5 font-mono text-sm font-bold ${totalBadgeClass}`}
           >
             {week.totalMinutes} min
           </span>
@@ -205,6 +214,9 @@ const WeekRowInner = forwardRef<HTMLDivElement, WeekRowProps>(function WeekRowIn
             </div>
           ))}
         </div>
+        {inCard && (
+          <WeekIntensityCharts week={week} filters={filters} profileBaseline={profileBaseline} />
+        )}
       </div>
     </div>
   );

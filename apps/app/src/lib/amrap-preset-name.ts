@@ -130,3 +130,29 @@ export function getAmrapPresetName(workoutList: string[] | undefined | null): st
   }
   return null;
 }
+
+/**
+ * Human-friendly title for AMRAP sessions in calendar, history, and exports.
+ *
+ * DB `workout_name` is populated from the first exercise in `workout_list` (see Supabase
+ * `persist_amrap_session_results`), so it must not win over a library preset name. When there
+ * is no preset match and `workout_name` equals the first exercise, treat it as unset and use
+ * the product default.
+ */
+export function getAmrapSessionDisplayTitle(
+  workoutName: string | null | undefined,
+  workoutList: string[] | undefined | null
+): string {
+  const list = Array.isArray(workoutList)
+    ? workoutList.map((s) => String(s).trim()).filter(Boolean)
+    : [];
+  const preset = list.length ? getAmrapPresetName(list) : null;
+  if (preset) return preset;
+
+  const first = list[0] ?? '';
+  const wn = workoutName?.trim() ?? '';
+
+  if (wn && wn !== first) return wn;
+
+  return 'AMRAP With Friends';
+}

@@ -16,12 +16,7 @@ import {
   getAmrapSessionResults,
   type AmrapSessionResult,
 } from '@/lib/supabase/client/amrap-session-results';
-
-type FilterTab = 'all' | 'this_week' | 'this_month' | 'by_program';
-
-function getAmrapWorkoutLabel(workoutList: string[]): string {
-  return workoutList?.[0]?.trim() ?? 'AMRAP';
-}
+import { getAmrapSessionDisplayTitle } from '@/lib/amrap-preset-name';
 import { fetchUserPrograms, getProgramWithSchedule } from '@/lib/supabase/client/user-programs';
 import SessionFeed from './SessionFeed';
 import SessionDetailDrawer from './SessionDetailDrawer';
@@ -31,6 +26,8 @@ import WorkoutPlayer from '@/components/react/tracking/WorkoutPlayer';
 import { createAmrapSession } from '@/lib/supabase/client/amrap-create-session';
 import { getAmrapSessionUrl } from '@/lib/amrap-urls';
 import type { ProgramSchedule } from '@/types/ai-program';
+
+type FilterTab = 'all' | 'this_week' | 'this_month' | 'by_program';
 
 type WorkoutFromSchedule = ProgramSchedule['workouts'][number];
 
@@ -284,7 +281,7 @@ const HistoryZone: React.FC<HistoryZoneProps> = ({ refreshKey = 0, onCalendarRef
                   className="cursor-pointer rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm transition-colors hover:bg-white/10"
                 >
                   <span className="font-medium text-white/90">
-                    {r.workout_name ?? getAmrapWorkoutLabel(r.workout_list)}
+                    {getAmrapSessionDisplayTitle(r.workout_name, r.workout_list)}
                   </span>
                   <span className="ml-2 text-white/60">
                     {r.total_rounds} rounds · {r.duration_minutes} min

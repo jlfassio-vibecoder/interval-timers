@@ -221,7 +221,7 @@ const Navigation: React.FC<NavigationProps> = ({
         className="flex cursor-pointer items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-white transition-colors hover:bg-white/15 hover:text-orange-light"
         data-hover="true"
       >
-        <Activity className="h-4 w-4" /> You
+        <Activity className="h-4 w-4" /> HUD
       </button>
       <button
         onClick={handleLogoutWithConfirm}
@@ -424,7 +424,7 @@ const Navigation: React.FC<NavigationProps> = ({
                       }}
                       className="rounded-full bg-white/10 px-4 py-2.5 text-base font-semibold uppercase text-orange-light transition-colors hover:bg-white/15"
                     >
-                      You
+                      HUD
                     </button>
                     <button
                       onClick={() => {

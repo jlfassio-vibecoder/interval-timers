@@ -11,6 +11,7 @@ import { useAppContext } from '@/contexts/AppContext';
 import { getSessionHistory } from '@/lib/supabase/client/session-history';
 import type { SessionHistoryItem } from '@/lib/supabase/client/session-history';
 import { getAmrapSessionResults } from '@/lib/supabase/client/amrap-session-results';
+import { getAmrapSessionDisplayTitle } from '@/lib/amrap-preset-name';
 import { getAmrapSessionUrl } from '@/lib/amrap-urls';
 import { fetchHandoffLogs } from '@/lib/supabase/client/workout-logs';
 import { getProgramWithSchedule } from '@/lib/supabase/client/user-programs';
@@ -100,7 +101,7 @@ const AccountFeed: React.FC = () => {
       const amrapItems: FeedItem[] = amrapResults.map((a) => ({
         id: `amrap-${a.id}`,
         date: a.completed_at.slice(0, 10),
-        title: a.workout_list?.[0]?.trim() ?? 'AMRAP',
+        title: getAmrapSessionDisplayTitle(a.workout_name, a.workout_list),
         type: 'amrap',
         durationMinutes: a.duration_minutes,
         link: getAmrapSessionUrl(a.session_id),

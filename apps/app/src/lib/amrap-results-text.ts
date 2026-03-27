@@ -80,7 +80,7 @@ export function buildAmrapResultsText(
 ): string {
   const workoutTitle = options?.workoutTitle?.trim();
   let titleSegment = '';
-  if (workoutTitle && workoutTitle !== 'AMRAP') {
+  if (workoutTitle && workoutTitle !== 'AMRAP' && workoutTitle !== 'AMRAP With Friends') {
     titleSegment =
       workoutTitle.length <= MAX_TITLE_LENGTH
         ? ` ${workoutTitle}`
