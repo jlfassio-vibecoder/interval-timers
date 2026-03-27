@@ -14,6 +14,8 @@ import {
 
 const READINESS_WORKOUT_NAME = 'Readiness';
 const READINESS_NOTES_PREFIX = 'readiness_v1:';
+/** Scan recent rows so score-only / legacy rows without parseable notes do not hide an older valid check-in. */
+const READINESS_CHECKIN_LOOKBACK = 25;
 
 interface ReadinessRow {
   id: string;
@@ -27,8 +29,11 @@ function scoreFromEnergyLevel(energyLevel: number): number {
 }
 
 function parseDailyCheckInNotes(notes: string | null): DailyCheckInFormState | null {
-  if (!notes || !notes.startsWith(READINESS_NOTES_PREFIX)) return null;
-  const raw = notes.slice(READINESS_NOTES_PREFIX.length);
+  // Match isReadinessNotesPayload: ignore leading whitespace so detection and parsing stay aligned.
+  if (notes == null) return null;
+  const trimmed = notes.trimStart();
+  if (!trimmed.startsWith(READINESS_NOTES_PREFIX)) return null;
+  const raw = trimmed.slice(READINESS_NOTES_PREFIX.length);
   try {
     const parsed = JSON.parse(raw) as Partial<DailyCheckInFormState>;
     return {
@@ -132,4 +137,35 @@ export async function getDailyReadinessCheckIn(
   const row = await getReadinessRow(userId, date);
   if (!row) return null;
   return parseDailyCheckInNotes(row.notes);
+}
+
+/** True when `notes` stores the daily readiness JSON payload (not user freeform notes). */
+export function isReadinessNotesPayload(notes: string | null | undefined): boolean {
+  return Boolean(notes?.trimStart().startsWith(READINESS_NOTES_PREFIX));
+}
+
+/**
+ * Latest readiness check-in on or before `targetDate` (Training Log workout date).
+ * Used by WorkoutSummaryModal when no check-in exists for the exact date.
+ */
+export async function getMostRecentReadinessCheckIn(
+  userId: string,
+  targetDate: string
+): Promise<{ form: DailyCheckInFormState; readinessDate: string } | null> {
+  const { data: rows, error } = await supabase
+    .from('workout_logs')
+    .select('date, notes')
+    .eq('user_id', userId)
+    .eq('workout_name', READINESS_WORKOUT_NAME)
+    .lte('date', targetDate)
+    .order('date', { ascending: false })
+    .limit(READINESS_CHECKIN_LOOKBACK);
+  if (error) throw error;
+  if (!rows?.length) return null;
+  for (const row of rows) {
+    const r = row as { date: string; notes: string | null };
+    const form = parseDailyCheckInNotes(r.notes);
+    if (form) return { form, readinessDate: r.date };
+  }
+  return null;
 }

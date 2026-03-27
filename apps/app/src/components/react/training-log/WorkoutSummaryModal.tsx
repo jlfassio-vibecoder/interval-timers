@@ -5,7 +5,7 @@
  * Modal showing workout log detail: name, date, duration, effort, rating, notes.
  */
 
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import type { WorkoutLog } from '@/types';
 import { getWorkoutMetSessionData, type ProfileBaseline } from '@/lib/met';
@@ -19,6 +19,11 @@ import {
   type FitnessGoalId,
 } from '@/lib/fitness-goal-taxonomy';
 import { getProfileHealthSummary } from '@/lib/profile-health-taxonomy';
+import { computeReadinessFit, type ReadinessFitResult } from '@/lib/readiness-fit';
+import {
+  getMostRecentReadinessCheckIn,
+  isReadinessNotesPayload,
+} from '@/lib/supabase/client/readiness';
 
 const FOCUSABLE_SELECTOR =
   'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -71,6 +76,62 @@ const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({
         : null,
     [workout, physiologicalCalibration]
   );
+
+  const [readinessFit, setReadinessFit] = useState<ReadinessFitResult | null>(null);
+  const [readinessCheckInDate, setReadinessCheckInDate] = useState<string | null>(null);
+  const [readinessLoading, setReadinessLoading] = useState(false);
+  const [readinessFetchError, setReadinessFetchError] = useState(false);
+
+  // Deps are fields used by getMostRecentReadinessCheckIn + computeReadinessFit only (not whole
+  // `workout`) to avoid refetch when the parent passes a new object reference with same values.
+  useEffect(() => {
+    if (!workout?.userId || !workout.date) {
+      setReadinessFit(null);
+      setReadinessCheckInDate(null);
+      setReadinessFetchError(false);
+      setReadinessLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setReadinessLoading(true);
+    setReadinessFetchError(false);
+    void (async () => {
+      try {
+        const res = await getMostRecentReadinessCheckIn(workout.userId, workout.date);
+        if (cancelled) return;
+        if (!res) {
+          setReadinessFit(null);
+          setReadinessCheckInDate(null);
+          return;
+        }
+        const fit = computeReadinessFit(res.form, workout);
+        setReadinessFit(fit);
+        setReadinessCheckInDate(res.readinessDate);
+      } catch (e) {
+        if (import.meta.env.DEV) console.error('[WorkoutSummaryModal:readiness]', e);
+        if (!cancelled) {
+          setReadinessFit(null);
+          setReadinessCheckInDate(null);
+          setReadinessFetchError(true);
+        }
+      } finally {
+        if (!cancelled) setReadinessLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+      // Clear loading when this effect is superseded or unmounted so we never pair
+      // readinessFetchError with readinessLoading true after a cancelled error path.
+      setReadinessLoading(false);
+    };
+  }, [
+    workout?.userId,
+    workout?.date,
+    workout?.source,
+    workout?.workoutFormat,
+    workout?.durationSeconds,
+    workout?.focusArea,
+  ]);
 
   function restoreFocus() {
     const el = savedFocusRef.current;
@@ -314,6 +375,101 @@ const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({
             </p>
           )}
 
+          {readinessLoading && (
+            <p className="text-center text-xs text-white/45">Loading readiness check-in…</p>
+          )}
+          {!readinessLoading && readinessFit && readinessCheckInDate && (
+            <section
+              className="rounded-xl border border-white/10 bg-white/5 p-4"
+              aria-labelledby="workout-readiness-fit-heading"
+            >
+              <h4
+                id="workout-readiness-fit-heading"
+                className="mb-1 text-sm font-semibold text-white/90"
+              >
+                Readiness fit (estimate)
+              </h4>
+              <p className="mb-4 text-xs leading-relaxed text-white/50">
+                Compares your latest daily check-in (on or before this session) to this
+                workout&apos;s intensity, focus, and duration—not medical advice.
+              </p>
+              <p className="mb-4 text-xs text-white/45">
+                Based on readiness check-in from{' '}
+                <span className="font-mono text-white/60">{readinessCheckInDate}</span>
+              </p>
+              <div className="mb-4 flex items-center justify-between gap-3 text-sm">
+                <span className="text-white/70">Overall readiness fit</span>
+                <span className="font-semibold tabular-nums text-white" aria-live="polite">
+                  {readinessFit.overall}%
+                </span>
+              </div>
+              <div
+                className="mb-5 h-2 w-full overflow-hidden rounded-full bg-white/15"
+                role="progressbar"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={readinessFit.overall}
+                aria-label={`Overall readiness fit ${readinessFit.overall} percent`}
+              >
+                <div
+                  className="h-full max-w-full rounded-full"
+                  style={{
+                    width: `${readinessFit.overall}%`,
+                    backgroundColor: 'var(--color-accent)',
+                  }}
+                />
+              </div>
+              <ul className="space-y-4">
+                {(
+                  [
+                    ['energy', 'Energy'] as const,
+                    ['sleepQuality', 'Sleep quality'] as const,
+                    ['stress', 'Stress'] as const,
+                    ['motivation', 'Motivation'] as const,
+                    ['soreness', 'Soreness (vs session focus)'] as const,
+                    ['focus', 'Focus (muscle vs session)'] as const,
+                  ] as const
+                ).map(([key, label]) => {
+                  const value = readinessFit[key];
+                  return (
+                    <li key={key}>
+                      <div className="mb-1 flex items-center justify-between gap-2 text-xs">
+                        <span className="text-white/80">{label}</span>
+                        <span className="tabular-nums text-white/90">{value}%</span>
+                      </div>
+                      <div
+                        className="h-2 w-full overflow-hidden rounded-full bg-white/15"
+                        role="progressbar"
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-valuenow={value}
+                        aria-label={`${label}, ${value} percent`}
+                      >
+                        <div
+                          className="h-full max-w-full rounded-full opacity-90"
+                          style={{
+                            width: `${value}%`,
+                            backgroundColor: 'var(--color-accent)',
+                          }}
+                        />
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          )}
+          {!readinessLoading && readinessFetchError && (
+            <p className="text-center text-xs text-white/45">
+              Couldn&apos;t load readiness check-in. Try again later.
+            </p>
+          )}
+          {!readinessLoading && !readinessFit && !readinessFetchError && workout?.userId && (
+            <p className="text-center text-xs text-white/45">
+              No readiness check-in on or before this session date.
+            </p>
+          )}
+
           {healthSummary.showHealthReminder && (
             <p className="text-center text-xs text-white/50">
               Reminder: adjust intensity and exercise choices to match the health filters on your
@@ -321,7 +477,7 @@ const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({
             </p>
           )}
 
-          {workout.notes && workout.notes.trim() && (
+          {workout.notes && workout.notes.trim() && !isReadinessNotesPayload(workout.notes) && (
             <div className="border-orange-light/20 bg-orange-light/5 rounded-xl border p-4">
               <div className="mb-1 font-mono text-xs font-bold uppercase text-orange-light">
                 Your Notes
