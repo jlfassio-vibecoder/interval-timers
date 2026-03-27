@@ -8,7 +8,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { X } from 'lucide-react';
-import { getAmrapPresetName } from '@/lib/amrap-preset-name';
+import { getAmrapSessionDisplayTitle } from '@/lib/amrap-preset-name';
 import { getAmrapSessionUrl } from '@/lib/amrap-urls';
 import { getStoredHostToken } from '@/lib/amrap-host-token';
 import { rescheduleAmrapSession } from '@/lib/supabase/client/amrap-reschedule';
@@ -67,8 +67,7 @@ function formatSessionShort(iso: string): string {
 }
 
 function getWorkoutTitle(workoutList: string[] | undefined): string {
-  const name = workoutList?.length ? getAmrapPresetName(workoutList) : null;
-  return name ?? workoutList?.[0]?.trim() ?? 'AMRAP';
+  return getAmrapSessionDisplayTitle(null, workoutList);
 }
 
 function getWorkoutTitleAndDuration(

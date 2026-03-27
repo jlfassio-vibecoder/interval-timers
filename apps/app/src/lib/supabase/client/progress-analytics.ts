@@ -8,10 +8,13 @@
 
 import { supabase } from '../supabase-instance';
 import { computeTrainingLogQuickStats } from '@/lib/training-log-quick-stats';
+import { getAmrapSessionDisplayTitle } from '@/lib/amrap-preset-name';
 import { getAmrapSessionResults } from './amrap-session-results';
+import { getTrainingLogLocalTodayISO } from './training-log';
 
-function todayISO(): string {
-  return new Date().toISOString().slice(0, 10);
+/** YYYY-MM-DD in the user's local calendar (matches Training Log / quick-stats). */
+function localDateISO(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 export interface TodaysWorkoutLogResult {
@@ -26,7 +29,7 @@ export interface TodaysWorkoutLogResult {
  * Get today's workout log if the user has logged a session today.
  */
 export async function getTodaysWorkoutLog(userId: string): Promise<TodaysWorkoutLogResult | null> {
-  const today = todayISO();
+  const today = getTrainingLogLocalTodayISO();
   const { data, error } = await supabase
     .from('user_workout_logs')
     .select('id, program_id, week_id, workout_id, duration_seconds')
@@ -59,7 +62,7 @@ export async function getStreakData(userId: string): Promise<{
   const end = new Date();
   const start = new Date(end);
   start.setDate(start.getDate() - STREAK_QUERY_DAYS);
-  const startStr = start.toISOString().slice(0, 10);
+  const startStr = localDateISO(start);
 
   const [workoutLogsRes, userWorkoutLogsRes, amrapResults] = await Promise.all([
     supabase
@@ -94,11 +97,17 @@ export async function getStreakData(userId: string): Promise<{
 
 export interface WeeklyVolume {
   weekKey: string;
-  setsCount: number;
+  minutes: number;
+}
+
+interface MinuteRow {
+  date: string;
+  durationSeconds: number;
 }
 
 function getISOWeek(dateStr: string): string {
-  const d = new Date(dateStr);
+  // T12:00:00 avoids UTC/local day skew from parsing YYYY-MM-DD alone (same as training-log.ts).
+  const d = new Date(dateStr + 'T12:00:00');
   d.setHours(0, 0, 0, 0);
   const thursday = new Date(d);
   thursday.setDate(d.getDate() + 4 - (d.getDay() || 7));
@@ -110,57 +119,134 @@ function getISOWeek(dateStr: string): string {
 }
 
 /**
- * Get total sets completed per week for the last N weeks (Zone 4 Volume chart).
+ * Get total workout minutes per week for the last N weeks (Zone 4 Volume chart).
  */
 export async function getVolumeByWeek(userId: string, weeks: number = 8): Promise<WeeklyVolume[]> {
   const now = new Date();
   const start = new Date(now);
   start.setDate(start.getDate() - weeks * 7);
-  const startStr = start.toISOString().slice(0, 10);
+  const startStr = localDateISO(start);
+  const endStr = getTrainingLogLocalTodayISO();
 
-  const { data: rows, error } = await supabase
-    .from('user_workout_logs')
-    .select('date, exercises')
-    .eq('user_id', userId)
-    .gte('date', startStr)
-    .lte('date', todayISO())
-    .order('date', { ascending: true });
+  const [workoutLogsRes, userWorkoutLogsRes, amrapResults] = await Promise.all([
+    supabase
+      .from('workout_logs')
+      .select('date, duration_seconds, workout_name')
+      .eq('user_id', userId)
+      .neq('workout_name', 'Readiness')
+      .gte('date', startStr)
+      .lte('date', endStr)
+      .order('date', { ascending: true }),
+    supabase
+      .from('user_workout_logs')
+      .select('date, duration_seconds')
+      .eq('user_id', userId)
+      .gte('date', startStr)
+      .lte('date', endStr)
+      .order('date', { ascending: true }),
+    // RPC caps at 100; larger requests do not fetch more rows (see amrap-session-results.ts).
+    getAmrapSessionResults(userId, 100).catch(() => []),
+  ]);
 
-  if (error) return [];
+  if (workoutLogsRes.error) throw workoutLogsRes.error;
+  if (userWorkoutLogsRes.error) throw userWorkoutLogsRes.error;
 
   const weekKeys: string[] = [];
   const byWeek: Record<string, number> = {};
   for (let i = 0; i < weeks; i++) {
     const w = new Date(now);
     w.setDate(w.getDate() - (weeks - 1 - i) * 7);
-    const key = getISOWeek(w.toISOString().slice(0, 10));
+    const key = getISOWeek(localDateISO(w));
     weekKeys.push(key);
     byWeek[key] = 0;
   }
 
-  for (const row of rows ?? []) {
-    const weekKey = getISOWeek(row.date as string);
-    if (!(weekKey in byWeek)) continue;
-    const exercises = (row.exercises as { sets?: { completed?: boolean }[] }[]) ?? [];
-    let count = 0;
-    for (const ex of exercises) {
-      const sets = ex.sets ?? [];
-      for (const s of sets) {
-        if (s.completed) count++;
-      }
-    }
-    byWeek[weekKey] = (byWeek[weekKey] ?? 0) + count;
+  const minuteRows: MinuteRow[] = [
+    ...((workoutLogsRes.data ?? []).map((row) => ({
+      date: row.date as string,
+      durationSeconds: (row.duration_seconds as number | null) ?? 0,
+    })) as MinuteRow[]),
+    ...((userWorkoutLogsRes.data ?? []).map((row) => ({
+      date: row.date as string,
+      durationSeconds: (row.duration_seconds as number | null) ?? 0,
+    })) as MinuteRow[]),
+  ];
+
+  for (const row of amrapResults) {
+    const completedAt = row.completed_at ?? '';
+    const date = completedAt.slice(0, 10);
+    if (!date || date < startStr || date > endStr) continue;
+    minuteRows.push({
+      date,
+      durationSeconds: Math.round(((row.duration_minutes ?? 0) as number) * 60),
+    });
   }
+
+  addMinutesToWeekBuckets(minuteRows, byWeek);
 
   return weekKeys.map((weekKey) => ({
     weekKey,
-    setsCount: byWeek[weekKey] ?? 0,
+    minutes: byWeek[weekKey] ?? 0,
   }));
 }
 
 export interface WorkoutDateEntry {
   date: string;
   workoutTitle?: string;
+}
+
+async function getMergedWorkoutDateEntries(
+  userId: string,
+  startStr: string,
+  endStr: string
+): Promise<WorkoutDateEntry[]> {
+  const [workoutLogsRes, userWorkoutLogsRes, amrapResults] = await Promise.all([
+    supabase
+      .from('workout_logs')
+      .select('date, workout_name')
+      .eq('user_id', userId)
+      .neq('workout_name', 'Readiness')
+      .gte('date', startStr)
+      .lte('date', endStr)
+      .order('date', { ascending: true }),
+    supabase
+      .from('user_workout_logs')
+      .select('date, exercises')
+      .eq('user_id', userId)
+      .gte('date', startStr)
+      .lte('date', endStr)
+      .order('date', { ascending: true }),
+    getAmrapSessionResults(userId, 100).catch(() => []),
+  ]);
+
+  if (workoutLogsRes.error) throw workoutLogsRes.error;
+  if (userWorkoutLogsRes.error) throw userWorkoutLogsRes.error;
+
+  const entries: WorkoutDateEntry[] = [
+    ...((workoutLogsRes.data ?? []).map((row) => ({
+      date: row.date as string,
+      workoutTitle: ((row.workout_name as string | null) ?? 'Workout').trim() || 'Workout',
+    })) as WorkoutDateEntry[]),
+    ...((userWorkoutLogsRes.data ?? []).map((row) => {
+      const exercises = (row.exercises as { exerciseName?: string }[]) ?? [];
+      return {
+        date: row.date as string,
+        workoutTitle: exercises[0]?.exerciseName ?? 'Workout',
+      };
+    }) as WorkoutDateEntry[]),
+  ];
+
+  for (const row of amrapResults) {
+    const completedAt = row.completed_at ?? '';
+    const date = completedAt.slice(0, 10);
+    if (!date || date < startStr || date > endStr) continue;
+    entries.push({
+      date,
+      workoutTitle: getAmrapSessionDisplayTitle(row.workout_name, row.workout_list),
+    });
+  }
+
+  return mergeWorkoutDates(entries);
 }
 
 /**
@@ -173,31 +259,10 @@ export async function getWorkoutDates(
   const end = new Date();
   const start = new Date(end);
   start.setDate(start.getDate() - daysBack);
-  const startStr = start.toISOString().slice(0, 10);
-  const endStr = end.toISOString().slice(0, 10);
+  const startStr = localDateISO(start);
+  const endStr = localDateISO(end);
 
-  const { data: rows, error } = await supabase
-    .from('user_workout_logs')
-    .select('date, exercises')
-    .eq('user_id', userId)
-    .gte('date', startStr)
-    .lte('date', endStr)
-    .order('date', { ascending: true });
-
-  if (error) return [];
-
-  const byDate = new Map<string, string>();
-  for (const row of rows ?? []) {
-    const date = row.date as string;
-    const exercises = (row.exercises as { exerciseName?: string }[]) ?? [];
-    const title = exercises[0]?.exerciseName ?? 'Workout';
-    if (!byDate.has(date)) byDate.set(date, title);
-  }
-
-  return Array.from(byDate.entries()).map(([date, workoutTitle]) => ({
-    date,
-    workoutTitle,
-  }));
+  return getMergedWorkoutDateEntries(userId, startStr, endStr);
 }
 
 export interface PersonalRecordEntry {
@@ -220,7 +285,7 @@ export async function getPersonalRecords(
     .eq('user_id', userId)
     .order('date', { ascending: true });
 
-  if (error) return [];
+  if (error) throw error;
 
   type DateWeight = { date: string; weight: number };
   const byExercise = new Map<string, DateWeight[]>();
@@ -264,4 +329,31 @@ export async function getPersonalRecords(
   }
   prs.sort((a, b) => b.date.localeCompare(a.date));
   return prs.slice(0, limit);
+}
+
+export function mergeWorkoutDates(entries: WorkoutDateEntry[]): WorkoutDateEntry[] {
+  const byDate = new Map<string, string>();
+  for (const entry of entries) {
+    const date = entry.date;
+    if (!date) continue;
+    const title = entry.workoutTitle?.trim() || 'Workout';
+    if (!byDate.has(date)) byDate.set(date, title);
+  }
+  return Array.from(byDate.entries()).map(([date, workoutTitle]) => ({
+    date,
+    workoutTitle,
+  }));
+}
+
+export function addMinutesToWeekBuckets(
+  rows: MinuteRow[],
+  byWeek: Record<string, number>
+): Record<string, number> {
+  for (const row of rows) {
+    const weekKey = getISOWeek(row.date);
+    if (!(weekKey in byWeek)) continue;
+    const minutes = Math.max(0, Math.round((row.durationSeconds ?? 0) / 60));
+    byWeek[weekKey] = (byWeek[weekKey] ?? 0) + minutes;
+  }
+  return byWeek;
 }

@@ -8,6 +8,6 @@ const { id } = Astro.params;
 
 <BaseLayout title="Edit Workout | AI Fit Copilot" description="Design your workout sessions.">
   <AppProvider client:only="react">
-    <WorkoutEditor client:only="react" workoutId={id} />
+    <WorkoutEditor workoutId={id} />
   </AppProvider>
 </BaseLayout>

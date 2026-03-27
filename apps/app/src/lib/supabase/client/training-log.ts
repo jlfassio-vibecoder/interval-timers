@@ -68,7 +68,10 @@ export function deriveWorkoutType(log: WorkoutLog): string {
 }
 
 /** Apply filters to a single log. Returns true if log passes. */
-function passesFilters(log: WorkoutLog, filters: TrainingLogFilters | undefined): boolean {
+export function trainingLogLogMatchesFilters(
+  log: WorkoutLog,
+  filters: TrainingLogFilters | undefined
+): boolean {
   if (!filters) return true;
 
   if (filters.excludeActiveRest && log.isActiveRest) return false;
@@ -229,7 +232,7 @@ export async function getTrainingLogWeeks(
 
   const filtered = logs.filter((log) => {
     if (log.date < rangeStart || log.date > rangeEnd) return false;
-    return passesFilters(log, filters);
+    return trainingLogLogMatchesFilters(log, filters);
   });
 
   /** weekMonday -> dayIndex -> data */
@@ -347,7 +350,7 @@ export async function getTrainingLogAnalytics(
   goalMinutes = DEFAULT_GOAL_MINUTES
 ): Promise<TrainingLogAnalytics> {
   const logs = await fetchWorkoutLogsForTraining(uid);
-  const filtered = logs.filter((log) => passesFilters(log, filters));
+  const filtered = logs.filter((log) => trainingLogLogMatchesFilters(log, filters));
 
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - weeksBack * 7);
@@ -455,7 +458,7 @@ export async function getTrainingLogLogsForExport(
   filters?: TrainingLogFilters
 ): Promise<WorkoutLog[]> {
   const logs = await fetchWorkoutLogsForTraining(uid);
-  return logs.filter((log) => passesFilters(log, filters));
+  return logs.filter((log) => trainingLogLogMatchesFilters(log, filters));
 }
 
 /**

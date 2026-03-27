@@ -299,7 +299,13 @@ const AddImageModal: React.FC<AddImageModalProps> = ({
 
       if (!response.ok) {
         const errData = (await response.json().catch(() => ({}))) as { error?: string };
-        console.error('generate-exercise-image error', response.status, errData.error ?? errData);
+        if (import.meta.env.DEV) {
+          console.error(
+            'generate-exercise-image error',
+            response.status,
+            errData.error ?? 'unknown'
+          );
+        }
         throw new Error(errData.error || 'Failed to generate image');
       }
 
@@ -428,7 +434,10 @@ const AddImageModal: React.FC<AddImageModalProps> = ({
       onSuccess();
       handleClose();
     } catch (err) {
-      console.error('[AddImageModal] Save error:', err);
+      if (import.meta.env.DEV) {
+        const msg = err instanceof Error ? err.message : 'unknown';
+        console.error('[AddImageModal] Save error:', msg);
+      }
       const errorMessage = err instanceof Error ? err.message : 'Failed to save image';
       setError(errorMessage);
       toast.error('Failed to add image to gallery', {

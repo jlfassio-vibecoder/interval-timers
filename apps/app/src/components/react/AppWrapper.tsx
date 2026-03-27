@@ -116,8 +116,10 @@ const AppWrapper: React.FC<AppWrapperProps> = ({ children, pathname }) => {
   ) : isSchedulePastedPage ? (
     <PastedScheduleConfirmPage />
   ) : isTrainingLogPage ? (
-    <main>
-      <section className="relative z-10 overflow-hidden border-t border-white/10 bg-black/20 py-16 backdrop-blur-sm md:py-24">
+    <main className="flex min-h-0 flex-1 flex-col">
+      {/* No z-index here: stacking contexts trap fixed overlays; WorkoutSummaryModal portals to body. */}
+      {/* pt clears fixed Navigation (z-40, ~5.5–6rem); AppIslands renders after main so nav stacks on top */}
+      <section className="relative flex min-h-0 flex-1 flex-col border-t border-white/10 bg-black/20 pb-10 pt-[calc(env(safe-area-inset-top,0px)+5.75rem)] backdrop-blur-sm md:pb-14">
         <TrainingLogPage />
       </section>
     </main>

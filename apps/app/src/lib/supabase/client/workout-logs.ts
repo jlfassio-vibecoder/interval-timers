@@ -4,6 +4,7 @@
  */
 
 import { supabase } from '../supabase-instance';
+import { getAmrapSessionDisplayTitle } from '@/lib/amrap-preset-name';
 import { getAmrapSessionResults } from './amrap-session-results';
 import type { WorkoutLog } from '@/types';
 
@@ -130,6 +131,38 @@ export async function fetchWorkoutLogsForTraining(uid: string): Promise<WorkoutL
     fromLogs.map((l) => l.handoffDedupeKey).filter(Boolean) as string[]
   );
 
+  const amrapResultsByDedupeKey = new Map(
+    amrapResults.map((r) => [`amrap_with_friends:${uid}:${r.session_id}:${r.segment_index}`, r])
+  );
+  const amrapResultsByDateDuration = new Map<string, typeof amrapResults>();
+  for (const r of amrapResults) {
+    const key = `${r.completed_at.slice(0, 10)}:${Math.max(0, r.duration_minutes ?? 0)}`;
+    const arr = amrapResultsByDateDuration.get(key) ?? [];
+    arr.push(r);
+    amrapResultsByDateDuration.set(key, arr);
+  }
+
+  // workout_logs can persist AMRAP workout_name as first exercise; normalize from canonical
+  // AMRAP results when we can match via handoff_dedupe_key.
+  // Fallback (legacy rows): if key is missing, match a unique AMRAP row by date+duration.
+  const normalizedFromLogs = fromLogs.map((log) => {
+    const key = log.handoffDedupeKey;
+    let match = key ? amrapResultsByDedupeKey.get(key) : undefined;
+    if (!match && log.source === 'amrap_with_friends') {
+      const date = log.date;
+      const durationMinutes = Math.max(0, Math.round((log.durationSeconds ?? 0) / 60));
+      const fallbackMatches = amrapResultsByDateDuration.get(`${date}:${durationMinutes}`) ?? [];
+      if (fallbackMatches.length === 1) {
+        match = fallbackMatches[0];
+      }
+    }
+    if (!match) return log;
+    return {
+      ...log,
+      workoutName: getAmrapSessionDisplayTitle(match.workout_name, match.workout_list),
+    };
+  });
+
   const amrapLogs: WorkoutLog[] = amrapResults
     .filter((r) => {
       const key = `amrap_with_friends:${uid}:${r.session_id}:${r.segment_index}`;
@@ -141,7 +174,7 @@ export async function fetchWorkoutLogsForTraining(uid: string): Promise<WorkoutL
       return {
         id: `amrap:${r.session_id}:${r.segment_index}`,
         userId: uid,
-        workoutName: r.workout_name ?? 'AMRAP With Friends',
+        workoutName: getAmrapSessionDisplayTitle(r.workout_name, r.workout_list),
         date: dateStr,
         effort: 5,
         rating: 3,
@@ -152,7 +185,7 @@ export async function fetchWorkoutLogsForTraining(uid: string): Promise<WorkoutL
       } as WorkoutLog;
     });
 
-  const merged = [...fromLogs, ...amrapLogs, ...fromPrograms];
+  const merged = [...normalizedFromLogs, ...amrapLogs, ...fromPrograms];
   merged.sort((a, b) => {
     if (a.date !== b.date) return a.date < b.date ? 1 : -1;
     return a.id < b.id ? 1 : a.id > b.id ? -1 : 0;

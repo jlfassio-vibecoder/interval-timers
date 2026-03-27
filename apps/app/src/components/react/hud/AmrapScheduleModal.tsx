@@ -5,6 +5,7 @@
 import React, { useState } from 'react';
 import { X } from 'lucide-react';
 import type { AmrapSessionResult } from '@/lib/supabase/client/amrap-session-results';
+import { getAmrapSessionDisplayTitle } from '@/lib/amrap-preset-name';
 import { createAmrapSession } from '@/lib/supabase/client/amrap-create-session';
 
 export interface AmrapScheduleModalProps {
@@ -96,7 +97,7 @@ export default function AmrapScheduleModal({
         ) : (
           <form onSubmit={handleSubmit}>
             <p className="mb-3 text-sm text-white/70">
-              {result.workout_name ?? result.workout_list?.[0] ?? 'AMRAP'} ·{' '}
+              {getAmrapSessionDisplayTitle(result.workout_name, result.workout_list)} ·{' '}
               {result.duration_minutes} min
             </p>
             <label className="mb-2 block font-mono text-[10px] uppercase text-white/50">

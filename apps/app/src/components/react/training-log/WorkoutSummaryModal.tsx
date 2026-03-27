@@ -6,6 +6,7 @@
  */
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import type { WorkoutLog } from '@/types';
 import { getWorkoutMetSessionData, type ProfileBaseline } from '@/lib/met';
@@ -190,6 +191,15 @@ const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [workout, onClose]);
 
+  useEffect(() => {
+    if (!workout) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [workout]);
+
   if (!workout) return null;
 
   const durationMin = Math.round((workout.durationSeconds ?? 0) / 60);
@@ -214,10 +224,17 @@ const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({
       })
     : '';
 
-  return (
+  const rawWorkoutName = workout.workoutName?.trim() ?? '';
+  /** Readiness logs use this name; the modal already has "Readiness fit (estimate)" below. */
+  const showWorkoutNameHeading =
+    rawWorkoutName.length > 0 && rawWorkoutName.toLowerCase() !== 'readiness';
+
+  return createPortal(
     <div
-      className={`fixed inset-0 z-50 flex items-center justify-center bg-black/60 ${
-        isMobile ? 'p-0' : 'p-4'
+      className={`fixed inset-0 z-[10000] flex bg-black/60 ${
+        isMobile
+          ? 'items-stretch justify-center overflow-y-auto p-0'
+          : 'items-center justify-center overflow-y-auto px-4 py-4'
       }`}
       role="dialog"
       aria-modal="true"
@@ -227,12 +244,14 @@ const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({
     >
       <div
         ref={modalRef}
-        className={`w-full overflow-y-auto border border-white/10 bg-black/95 shadow-2xl backdrop-blur-sm ${
-          isMobile ? 'h-screen max-h-screen rounded-none' : 'max-h-[90vh] max-w-2xl rounded-2xl'
+        className={`flex min-h-0 w-full flex-col overflow-hidden border border-white/10 bg-black/95 shadow-2xl backdrop-blur-sm ${
+          isMobile
+            ? 'h-[100dvh] max-h-[100dvh] min-h-0 rounded-none'
+            : 'max-h-[calc(100dvh-2rem)] max-w-2xl rounded-2xl'
         }`}
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
+        <div className="flex shrink-0 items-center justify-between border-b border-white/10 px-4 py-3 sm:px-6 sm:py-4">
           <h2 id="workout-modal-title" className="text-lg font-bold text-white">
             Workout Summary
           </h2>
@@ -246,23 +265,27 @@ const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({
           </button>
         </div>
 
-        {/* Body */}
-        <div className="space-y-6 p-6">
-          <div className="text-center">
-            <h3 className="mb-1 text-xl font-semibold text-white">{workout.workoutName}</h3>
-            <div className="flex flex-wrap justify-center gap-2">
-              {workout.workoutType && (
-                <span className="rounded-md bg-white/10 px-2 py-1 text-sm text-white/90">
-                  {workout.workoutType}
-                </span>
+        {/* Body — scrolls inside the panel so the overlay/footer never compete with stacking */}
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4 sm:space-y-5 sm:p-5 lg:space-y-4 lg:p-4">
+          {(showWorkoutNameHeading || workout.workoutType || displayFormat) && (
+            <div className="text-center">
+              {showWorkoutNameHeading && (
+                <h3 className="mb-1 text-xl font-semibold text-white">{rawWorkoutName}</h3>
               )}
-              {displayFormat && (
-                <span className="rounded-md bg-white/10 px-2 py-1 text-sm text-white/90">
-                  {displayFormat}
-                </span>
-              )}
+              <div className="flex flex-wrap justify-center gap-2">
+                {workout.workoutType && (
+                  <span className="rounded-md bg-white/10 px-2 py-1 text-sm text-white/90">
+                    {workout.workoutType}
+                  </span>
+                )}
+                {displayFormat && (
+                  <span className="rounded-md bg-white/10 px-2 py-1 text-sm text-white/90">
+                    {displayFormat}
+                  </span>
+                )}
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4 rounded-xl border border-white/10 bg-white/5 p-4 text-sm">
             {durationMin > 0 && (
@@ -297,7 +320,7 @@ const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({
 
           {goalAlignment && orderedSnapshotGoals.length > 0 ? (
             <section
-              className="rounded-xl border border-white/10 bg-white/5 p-4"
+              className="rounded-xl border border-white/10 bg-white/5 p-3 sm:p-4 lg:p-3"
               aria-labelledby="workout-goal-fit-heading"
             >
               <h4
@@ -306,18 +329,18 @@ const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({
               >
                 Goal fit (estimate)
               </h4>
-              <p className="mb-4 text-xs leading-relaxed text-white/50">
+              <p className="mb-2 text-xs leading-relaxed text-white/50 sm:mb-3 lg:mb-2">
                 Heuristic match to the goals stored with this session—not medical advice. Numbers
                 may change when the model updates (v{ALIGNMENT_SCORER_VERSION}).
               </p>
-              <div className="mb-4 flex items-center justify-between gap-3 text-sm">
+              <div className="mb-2 flex items-center justify-between gap-3 text-sm sm:mb-3 lg:mb-2">
                 <span className="text-white/70">Overall alignment</span>
                 <span className="font-semibold tabular-nums text-white" aria-live="polite">
                   {goalAlignment.composite}%
                 </span>
               </div>
               <div
-                className="mb-5 h-2 w-full overflow-hidden rounded-full bg-white/15"
+                className="mb-3 h-2 w-full overflow-hidden rounded-full bg-white/15 sm:mb-4 lg:mb-3"
                 role="progressbar"
                 aria-valuemin={0}
                 aria-valuemax={100}
@@ -333,7 +356,7 @@ const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({
                   }}
                 />
               </div>
-              <ul className="space-y-4">
+              <ul className="space-y-2 sm:space-y-3 lg:space-y-2">
                 {orderedSnapshotGoals.map((goalId, index) => {
                   const value = goalAlignment.byGoalId[goalId] ?? 0;
                   const rank = index + 1;
@@ -404,7 +427,7 @@ const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({
                 </span>
               </div>
               <div
-                className="mb-5 h-2 w-full overflow-hidden rounded-full bg-white/15"
+                className="mb-3 h-2 w-full overflow-hidden rounded-full bg-white/15 sm:mb-4 lg:mb-3"
                 role="progressbar"
                 aria-valuemin={0}
                 aria-valuemax={100}
@@ -419,7 +442,7 @@ const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({
                   }}
                 />
               </div>
-              <ul className="space-y-4">
+              <ul className="space-y-2 sm:space-y-3 lg:space-y-2">
                 {(
                   [
                     ['energy', 'Energy'] as const,
@@ -487,8 +510,7 @@ const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({
           )}
         </div>
 
-        {/* Footer */}
-        <div className="sticky bottom-0 flex justify-end gap-3 border-t border-white/10 bg-black/95 px-6 py-4">
+        <div className="flex shrink-0 justify-end gap-3 border-t border-white/10 bg-black/95 px-4 py-3 sm:px-6">
           <button
             type="button"
             onClick={handleClose}
@@ -498,7 +520,8 @@ const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

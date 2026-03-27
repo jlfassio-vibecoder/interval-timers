@@ -27,6 +27,7 @@ export interface StripDataForUpcoming {
 
 export interface HUDContentProps {
   isPaid: boolean;
+  hasProgressAnalyticsAccess: boolean;
   /** When false, hide upgrade CTAs (e.g. user has only trainer_assigned/cohort programs). */
   showUpgradePrompts: boolean;
   onOpenConversionModal: () => void;
@@ -45,6 +46,7 @@ export interface HUDContentProps {
 
 const HUDContent: React.FC<HUDContentProps> = ({
   isPaid,
+  hasProgressAnalyticsAccess,
   showUpgradePrompts,
   onOpenConversionModal,
   workoutsThisWeek = 5,
@@ -70,7 +72,7 @@ const HUDContent: React.FC<HUDContentProps> = ({
       />
 
       <ProgressZone
-        isPaid={isPaid}
+        hasAccess={hasProgressAnalyticsAccess}
         showUpgradePrompts={showUpgradePrompts}
         onOpenConversionModal={onOpenConversionModal}
         workoutsThisWeek={workoutsThisWeek}

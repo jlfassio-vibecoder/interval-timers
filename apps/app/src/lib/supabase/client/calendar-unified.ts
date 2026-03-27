@@ -8,7 +8,7 @@
 import { getAmrapSessionResults } from './amrap-session-results';
 import { getAmrapScheduledSessionsForUser } from './amrap-scheduled-sessions';
 import { getScheduledWorkoutsForRange } from './scheduled-workouts';
-import { getAmrapPresetName } from '@/lib/amrap-preset-name';
+import { getAmrapSessionDisplayTitle } from '@/lib/amrap-preset-name';
 import type { CalendarEvent } from '@/lib/calendar-events';
 import { supabase } from '../supabase-instance';
 
@@ -30,11 +30,10 @@ export async function getAmrapCompletedEventsForRange(
     const date = dateOnly(r.completed_at);
     if (date >= rangeStart && date <= rangeEnd) {
       const workoutList = r.workout_list?.length ? r.workout_list : undefined;
-      const presetTitle = workoutList ? getAmrapPresetName(workoutList) : null;
       events.push({
         type: 'amrap',
         date,
-        workoutTitle: r.workout_name?.trim() || presetTitle || 'AMRAP With Friends',
+        workoutTitle: getAmrapSessionDisplayTitle(r.workout_name, workoutList),
         status: 'completed',
         sessionId: r.session_id,
         metadata: {
@@ -59,11 +58,10 @@ export async function getAmrapScheduledEventsForRange(
   const sessions = await getAmrapScheduledSessionsForUser(userId, rangeStart, rangeEnd);
   return sessions.map((s) => {
     const workoutList = s.workout_list?.length ? s.workout_list : undefined;
-    const presetTitle = workoutList ? getAmrapPresetName(workoutList) : null;
     return {
       type: 'amrap_scheduled' as const,
       date: dateOnly(s.scheduled_start_at),
-      workoutTitle: presetTitle ?? 'AMRAP With Friends',
+      workoutTitle: getAmrapSessionDisplayTitle(null, workoutList),
       status: 'scheduled' as const,
       sessionId: s.id,
       metadata: {

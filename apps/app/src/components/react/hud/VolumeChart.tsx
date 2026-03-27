@@ -2,7 +2,7 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  *
- * Zone 4: Volume trend chart (sets per week). Uses Recharts.
+ * Zone 4: Volume trend chart (minutes per week). Uses Recharts.
  */
 
 import React, { useState, useEffect } from 'react';
@@ -19,27 +19,34 @@ import { useAppContext } from '@/contexts/AppContext';
 import { getVolumeByWeek, type WeeklyVolume } from '@/lib/supabase/client/progress-analytics';
 
 export interface VolumeChartProps {
-  isPaid: boolean;
+  hasAccess: boolean;
 }
 
-const VolumeChart: React.FC<VolumeChartProps> = ({ isPaid }) => {
+const VolumeChart: React.FC<VolumeChartProps> = ({ hasAccess }) => {
   const { user } = useAppContext();
   const [data, setData] = useState<WeeklyVolume[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!isPaid || !user?.uid) {
+    if (!hasAccess || !user?.uid) {
       setLoading(false);
       setData([]);
+      setError(null);
       return;
     }
     setLoading(true);
+    setError(null);
     getVolumeByWeek(user.uid, 8)
       .then(setData)
+      .catch(() => {
+        setData([]);
+        setError('Could not load volume trend.');
+      })
       .finally(() => setLoading(false));
-  }, [isPaid, user?.uid]);
+  }, [hasAccess, user?.uid]);
 
-  if (!isPaid) return null;
+  if (!hasAccess) return null;
 
   if (loading) {
     return (
@@ -49,7 +56,15 @@ const VolumeChart: React.FC<VolumeChartProps> = ({ isPaid }) => {
     );
   }
 
-  const hasData = data.some((d) => d.setsCount > 0);
+  if (error) {
+    return (
+      <p className="rounded-xl bg-white/5 py-12 text-center font-mono text-[10px] uppercase italic text-white/40">
+        {error}
+      </p>
+    );
+  }
+
+  const hasData = data.some((d) => d.minutes > 0);
   if (!hasData) {
     return (
       <p className="rounded-xl bg-white/5 py-12 text-center font-mono text-[10px] uppercase italic text-white/40">
@@ -60,7 +75,7 @@ const VolumeChart: React.FC<VolumeChartProps> = ({ isPaid }) => {
 
   const chartData = data.map((d) => ({
     name: d.weekKey.replace('-W', ' W'),
-    sets: d.setsCount,
+    minutes: d.minutes,
   }));
 
   return (
@@ -86,14 +101,14 @@ const VolumeChart: React.FC<VolumeChartProps> = ({ isPaid }) => {
             }}
             labelStyle={{ color: 'rgba(255,255,255,0.8)' }}
             formatter={(value: unknown) => [
-              `${Number(Array.isArray(value) ? value[0] : value) || 0} sets`,
-              'Sets',
+              `${Number(Array.isArray(value) ? value[0] : value) || 0} min`,
+              'Minutes',
             ]}
             labelFormatter={(label) => `Week ${label}`}
           />
           <Area
             type="monotone"
-            dataKey="sets"
+            dataKey="minutes"
             stroke="#ffbf00"
             fill="#ffbf00"
             fillOpacity={0.2}

@@ -238,11 +238,15 @@ const ScheduleZone: React.FC<ScheduleZoneProps> = ({
       return;
     }
     let cancelled = false;
-    getPersonalRecords(user.uid, 50).then((prs) => {
-      if (cancelled) return;
-      const count = prs.filter((pr) => isDateInThisWeek(pr.date)).length;
-      setPrCountThisWeek(count);
-    });
+    getPersonalRecords(user.uid, 50)
+      .then((prs) => {
+        if (cancelled) return;
+        const count = prs.filter((pr) => isDateInThisWeek(pr.date)).length;
+        setPrCountThisWeek(count);
+      })
+      .catch(() => {
+        if (!cancelled) setPrCountThisWeek(0);
+      });
     return () => {
       cancelled = true;
     };

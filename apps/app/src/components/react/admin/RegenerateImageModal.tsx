@@ -283,7 +283,13 @@ const RegenerateImageModal: React.FC<RegenerateImageModalProps> = ({
 
       if (!response.ok) {
         const errData = (await response.json().catch(() => ({}))) as { error?: string };
-        console.error('generate-exercise-image error', response.status, errData.error ?? errData);
+        if (import.meta.env.DEV) {
+          console.error(
+            'generate-exercise-image error',
+            response.status,
+            errData.error ?? 'unknown'
+          );
+        }
         throw new Error(errData.error || 'Failed to generate image');
       }
 
