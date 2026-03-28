@@ -60,11 +60,13 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       void trySendRosterInviteEmail(result.rawToken, email, result.inviteUrl);
     }
 
+    const emailTrimmed = typeof email === 'string' ? email.trim() : '';
     return new Response(
       JSON.stringify({
         invitationId: result.invitationId,
         inviteUrl: result.inviteUrl,
-        emailDispatched: channel === 'email',
+        /** True when we invoke the Auth email path (best-effort; may no-op without service role). */
+        emailDeliveryAttempted: channel === 'email' && emailTrimmed.length > 0,
       }),
       { status: 201, headers: { 'Content-Type': 'application/json' } }
     );

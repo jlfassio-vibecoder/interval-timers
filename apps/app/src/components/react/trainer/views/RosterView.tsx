@@ -237,7 +237,7 @@ const RosterView: React.FC = () => {
         return;
       }
       const baseMsg = data.inviteUrl
-        ? `Invite created. Copy the link below.${data.emailDispatched ? ' We also attempted to email a signup/magic link when the service role is configured.' : ''}`
+        ? `Invite created. Copy the link below.${data.emailDeliveryAttempted ? ' We also attempted to email a signup/magic link when the service role is configured.' : ''}`
         : 'Invite created.';
       const url = typeof data.inviteUrl === 'string' ? (data.inviteUrl as string) : '';
       setInviteMessage(url ? `${baseMsg}\n\n${url}` : baseMsg);
@@ -288,7 +288,7 @@ const RosterView: React.FC = () => {
       }
       const url = typeof data.inviteUrl === 'string' ? data.inviteUrl : '';
       const baseMsg = url
-        ? `New invite link.${data.emailDispatched ? ' We also attempted to email a signup/magic link when the service role is configured.' : ''}`
+        ? `New invite link.${data.emailDeliveryAttempted ? ' We also attempted to email a signup/magic link when the service role is configured.' : ''}`
         : 'Invitation updated.';
       setResendFeedbackById((prev) => ({
         ...prev,

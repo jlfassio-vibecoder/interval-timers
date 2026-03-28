@@ -13,7 +13,7 @@ import {
   getTrainingLogLocalTodayISO,
   loadProgramsForCalendar,
 } from '@/lib/supabase/client/training-log';
-import type { WelcomeLandingStrings, WelcomeLocale } from '@/lib/welcome-landing-strings';
+import type { WelcomeLocale, WelcomeSchedulePreviewStrings } from '@/lib/welcome-landing-strings';
 
 const PREVIEW_MAX_ITEMS = 10;
 
@@ -51,38 +51,12 @@ function eventTitle(ev: CalendarEvent): string {
 export interface WelcomeSchedulePreviewProps {
   userId: string;
   className?: string;
-  /** Copy for the welcome island; defaults to English built-ins when omitted. */
-  strings?: WelcomeLandingStrings;
+  /** Schedule card copy; defaults to English built-ins when omitted. */
+  strings?: WelcomeSchedulePreviewStrings;
   locale?: WelcomeLocale;
 }
 
-const DEFAULT_SCHEDULE_STRINGS_EN: WelcomeLandingStrings = {
-  brandSubtitle: '',
-  loadingInvitation: '',
-  loadingInvitationDetails: '',
-  checkingSession: '',
-  signInEmailPhone: '',
-  finishingSetup: '',
-  invitedBy: '',
-  invitedAt: '',
-  kindFriendSub: '',
-  kindClientSub: '',
-  signInToAccept: '',
-  signInSameContact: '',
-  acceptSuccessFriend: '',
-  acceptSuccessClient: '',
-  openApp: '',
-  missionControl: '',
-  couldNotAccept: '',
-  signInInvitedEmailRefresh: '',
-  footerPrivacy: '',
-  footerTerms: '',
-  footerWrongPerson: '',
-  footerWrongPersonSignOut: '',
-  footerWrongPersonSignedOut: '',
-  localeLabel: '',
-  localeEn: '',
-  localeEs: '',
+const DEFAULT_SCHEDULE_STRINGS_EN: WelcomeSchedulePreviewStrings = {
   scheduleNext7Days: 'Next 7 days',
   scheduleReadOnly: 'Upcoming sessions on your calendar (read-only)',
   scheduleEmpty: 'No sessions scheduled this week.',

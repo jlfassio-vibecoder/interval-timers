@@ -1,6 +1,7 @@
 /**
  * Mission Control profile fetch with tiered authorization.
- * Trainers: roster users only. Admin/super_admin: any user. Hosts: own profile only.
+ * Trainers: roster users only. Admin/super_admin: any user.
+ * Hosts: own profile, or accepted buddies on their roster (host_friend_connections).
  */
 
 import { getSupabaseServer } from '@/lib/supabase/server';
@@ -40,7 +41,7 @@ export interface MissionControlProfileDto {
 
 /**
  * Fetch profile for Mission Control viewer. Enforces:
- * - host: own profile only
+ * - host: own profile or buddy profiles (roster connection)
  * - trainer: roster users only
  * - admin/super_admin: any user
  */

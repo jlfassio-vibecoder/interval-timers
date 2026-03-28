@@ -4,6 +4,7 @@ export interface Database {
       profiles: {
         Row: {
           id: string;
+          email: string | null;
           updated_at: string | null;
           username: string | null;
           full_name: string | null;

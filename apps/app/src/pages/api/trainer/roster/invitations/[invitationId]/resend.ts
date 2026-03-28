@@ -33,8 +33,9 @@ export const POST: APIRoute = async ({ request, cookies, params }) => {
       });
     }
 
-    const emailDispatched = !!result.inviteeEmail?.trim();
-    if (emailDispatched && result.inviteeEmail) {
+    const inviteeEmailTrimmed = result.inviteeEmail?.trim() ?? '';
+    const emailDeliveryAttempted = inviteeEmailTrimmed.length > 0;
+    if (emailDeliveryAttempted && result.inviteeEmail) {
       void trySendRosterInviteEmail(result.rawToken, result.inviteeEmail, result.inviteUrl);
     }
 
@@ -42,7 +43,8 @@ export const POST: APIRoute = async ({ request, cookies, params }) => {
       JSON.stringify({
         invitationId: result.invitationId,
         inviteUrl: result.inviteUrl,
-        emailDispatched,
+        /** True when an email invite exists and we invoked the Auth mail path (best-effort). */
+        emailDeliveryAttempted,
       }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     );

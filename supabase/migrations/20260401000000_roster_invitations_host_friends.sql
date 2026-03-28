@@ -1,5 +1,6 @@
 -- Roster invitations (email/phone) and host↔buddy connections.
 -- Access from app via service role API routes (RLS on; no broad grants to authenticated).
+-- Migration prefix 20260401* is a valid calendar ordering slot after 20260333* (replaces invalid 20260334*).
 
 -- ---------------------------------------------------------------------------
 -- host_friend_connections: accepted host "buddy" roster

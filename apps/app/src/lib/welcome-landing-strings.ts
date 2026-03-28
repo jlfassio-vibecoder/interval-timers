@@ -60,6 +60,17 @@ export interface WelcomeLandingStrings {
   scheduleCouldNotLoad: string;
 }
 
+/** Subset passed into WelcomeSchedulePreview (avoids dummy empty fields). */
+export type WelcomeSchedulePreviewStrings = Pick<
+  WelcomeLandingStrings,
+  | 'scheduleNext7Days'
+  | 'scheduleReadOnly'
+  | 'scheduleEmpty'
+  | 'scheduleOpenToPlan'
+  | 'scheduleRetry'
+  | 'scheduleCouldNotLoad'
+>;
+
 const EN: WelcomeLandingStrings = {
   brandSubtitle: 'HIIT Workout Timer',
   loadingInvitation: 'Loading invitation…',

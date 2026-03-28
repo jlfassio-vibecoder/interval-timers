@@ -36,9 +36,8 @@ export function generateRosterInviteToken(): string {
 
 /**
  * Hub origin for invite links and Supabase Auth `redirectTo`.
- * Prefer `publicAppBaseHint` from the incoming API request (forwarded host / URL) so production
- * matches the app the trainer is actually using; otherwise missing/wrong PUBLIC_APP_URL sends users
- * to Site URL (e.g. marketing apex) when Supabase rejects redirect_to.
+ * Prefer a request-derived hint only when it matches {@link resolvePublicAppUrlFromRequest} rules
+ * (same host/protocol as PUBLIC_APP_URL, or localhost in dev); otherwise env/default base is used.
  */
 function getPublicAppBase(publicAppBaseHint?: string | null): string {
   const hint = publicAppBaseHint?.trim() ?? '';
@@ -57,33 +56,87 @@ function getPublicAppBase(publicAppBaseHint?: string | null): string {
   return String(raw).replace(/\/$/, '');
 }
 
+function configuredPublicAppOrigin(): string {
+  return getPublicAppBase(null);
+}
+
+/** Same host + protocol + port as PUBLIC_APP_URL (or default); blocks header spoofing of invite links. */
+function originMatchesConfigured(candidate: string, configured: string): boolean {
+  try {
+    const a = new URL(candidate);
+    const b = new URL(configured);
+    return (
+      a.protocol === b.protocol &&
+      a.hostname.toLowerCase() === b.hostname.toLowerCase() &&
+      a.port === b.port
+    );
+  } catch {
+    return false;
+  }
+}
+
 /**
- * Origin of the hub that served this request (e.g. https://app.hiitworkouttimer.com).
- * Pass into create/resend roster invite so emailed links match allowlisted redirect URLs.
+ * Dev-only: real browser origin for localhost so invite links work when PUBLIC_APP_URL points at production.
+ * Not used for forwarded headers (those must still match configured origin in production).
  */
-export function resolvePublicAppUrlFromRequest(request: Request): string | null {
+function tryLocalDevRequestOrigin(request: Request): string | null {
+  if (!import.meta.env.DEV) return null;
+  try {
+    const u = new URL(request.url);
+    const h = u.hostname.toLowerCase();
+    if (h === 'localhost' || h === '127.0.0.1') {
+      return `${u.protocol}//${u.host}`.replace(/\/$/, '');
+    }
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
+/**
+ * Hub origin for invite links and Auth redirectTo. Untrusted Host/Origin headers are ignored unless they
+ * match PUBLIC_APP_URL; falls back to configured base. See tryLocalDevRequestOrigin for local dev.
+ */
+export function resolvePublicAppUrlFromRequest(request: Request): string {
+  const configured = configuredPublicAppOrigin();
+  const localDev = tryLocalDevRequestOrigin(request);
+  if (localDev) return localDev;
+
+  const acceptIfAllowed = (candidate: string | null | undefined): string | null => {
+    const c = candidate?.trim();
+    if (!c) return null;
+    return originMatchesConfigured(c, configured) ? c.replace(/\/$/, '') : null;
+  };
+
   const xfHost = request.headers.get('x-forwarded-host')?.split(',')[0]?.trim();
   const xfProto = request.headers.get('x-forwarded-proto')?.split(',')[0]?.trim();
   if (xfHost) {
     const proto = xfProto && /^https?$/i.test(xfProto) ? xfProto.toLowerCase() : 'https';
-    return `${proto}://${xfHost}`.replace(/\/$/, '');
+    const fromXf = acceptIfAllowed(`${proto}://${xfHost}`);
+    if (fromXf) return fromXf;
   }
   const originHdr = request.headers.get('origin')?.trim();
   if (originHdr && /^https?:\/\//i.test(originHdr)) {
     try {
       const u = new URL(originHdr);
-      if (u.host) return `${u.protocol}//${u.host}`.replace(/\/$/, '');
+      if (u.host) {
+        const fromOrigin = acceptIfAllowed(`${u.protocol}//${u.host}`);
+        if (fromOrigin) return fromOrigin;
+      }
     } catch {
       /* fall through */
     }
   }
   try {
     const u = new URL(request.url);
-    if (!u.host) return null;
-    return `${u.protocol}//${u.host}`.replace(/\/$/, '');
+    if (u.host) {
+      const fromUrl = acceptIfAllowed(`${u.protocol}//${u.host}`);
+      if (fromUrl) return fromUrl;
+    }
   } catch {
-    return null;
+    /* fall through */
   }
+  return configured;
 }
 
 /**
