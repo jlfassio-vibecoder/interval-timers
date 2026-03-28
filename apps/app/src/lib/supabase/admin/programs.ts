@@ -87,6 +87,18 @@ export const updateProgram = async (
 };
 
 export const createProgram = async (program: { title: string; trainer_id: string }) => {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session?.user?.id) {
+    throw new Error(
+      'You are not signed in to Supabase in this tab. Refresh the page or sign in again, then retry.'
+    );
+  }
+  if (session.user.id !== program.trainer_id) {
+    throw new Error('Session user id does not match trainer_id; sign in as the correct account.');
+  }
+
   const { data, error } = await supabase
     .from('programs')
     .insert([
@@ -99,7 +111,18 @@ export const createProgram = async (program: { title: string; trainer_id: string
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) {
+    const msg = `${error.message ?? ''} ${(error as { details?: string }).details ?? ''}`;
+    if (
+      error.code === '42501' ||
+      /row-level security|permission denied|rls|not allowed/i.test(msg)
+    ) {
+      throw new Error(
+        'Database blocked program creation. Ensure the Supabase project has RLS policies on public.programs allowing authenticated users to insert rows where trainer_id = auth.uid() (see repo migration programs_rls_trainer_policies).'
+      );
+    }
+    throw error;
+  }
   return mapProgram(data);
 };
 

@@ -125,7 +125,8 @@ export function getTrainingLogLocalTodayISO(): string {
   return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`;
 }
 
-function addCalendarDays(iso: string, delta: number): string {
+/** Add days to a YYYY-MM-DD date (local calendar semantics, noon anchor). */
+export function addCalendarDays(iso: string, delta: number): string {
   const d = new Date(iso + 'T12:00:00');
   d.setDate(d.getDate() + delta);
   const y = d.getFullYear();
@@ -155,7 +156,8 @@ function eventPlannedMinutes(ev: CalendarEvent): number {
   return 30;
 }
 
-async function loadProgramsForCalendar(uid: string): Promise<ProgramForCalendar[]> {
+/** Programs with start dates for unified calendar (HUD / welcome preview). */
+export async function loadProgramsForCalendar(uid: string): Promise<ProgramForCalendar[]> {
   const accessList = await fetchUserPrograms(uid);
   const withStart = accessList.filter((a) => a.startDate);
   const results = await Promise.all(

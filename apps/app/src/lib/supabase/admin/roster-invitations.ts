@@ -1,0 +1,810 @@
+/**
+ * Roster invitations: hosts invite friends, trainers invite clients (program enrollment).
+ * Tokens are hashed at rest; accept requires an authenticated session matching invitee email/phone.
+ */
+
+import { createHash, randomBytes } from 'node:crypto';
+import { getSupabaseServer } from '@/lib/supabase/server';
+import { fetchTrainerRoster, isHostBuddy } from '@/lib/supabase/admin/trainer-roster';
+import type { RosterInvitePreview, RosterInviteStudioPreview } from '@/types/roster-invite-preview';
+
+export type { RosterInvitePreview, RosterInviteStudioPreview };
+
+export const HOST_BUDDY_CAP = 5;
+export const ROSTER_INVITE_EXPIRY_DAYS = 14;
+
+export type RosterInviteChannel = 'email' | 'phone';
+
+export interface PendingInvitationDto {
+  id: string;
+  kind: 'friend' | 'client';
+  channel: RosterInviteChannel;
+  inviteeEmail: string | null;
+  inviteePhoneE164: string | null;
+  programIds: string[];
+  createdAt: string;
+  expiresAt: string;
+}
+
+function hashToken(token: string): string {
+  return createHash('sha256').update(token, 'utf8').digest('hex');
+}
+
+export function generateRosterInviteToken(): string {
+  return randomBytes(32).toString('base64url');
+}
+
+/**
+ * Hub origin for invite links and Supabase Auth `redirectTo`.
+ * Prefer `publicAppBaseHint` from the incoming API request (forwarded host / URL) so production
+ * matches the app the trainer is actually using; otherwise missing/wrong PUBLIC_APP_URL sends users
+ * to Site URL (e.g. marketing apex) when Supabase rejects redirect_to.
+ */
+function getPublicAppBase(publicAppBaseHint?: string | null): string {
+  const hint = publicAppBaseHint?.trim() ?? '';
+  if (hint && /^https?:\/\//i.test(hint)) {
+    try {
+      const u = new URL(hint);
+      if (u.hostname) return `${u.protocol}//${u.host}`.replace(/\/$/, '');
+    } catch {
+      /* fall through */
+    }
+  }
+  const raw =
+    (typeof process !== 'undefined' && process.env.PUBLIC_APP_URL?.trim()) ||
+    (import.meta.env.PUBLIC_APP_URL as string | undefined)?.trim() ||
+    'https://app.aiworkoutgenerator.com';
+  return String(raw).replace(/\/$/, '');
+}
+
+/**
+ * Origin of the hub that served this request (e.g. https://app.hiitworkouttimer.com).
+ * Pass into create/resend roster invite so emailed links match allowlisted redirect URLs.
+ */
+export function resolvePublicAppUrlFromRequest(request: Request): string | null {
+  const xfHost = request.headers.get('x-forwarded-host')?.split(',')[0]?.trim();
+  const xfProto = request.headers.get('x-forwarded-proto')?.split(',')[0]?.trim();
+  if (xfHost) {
+    const proto =
+      xfProto && /^https?$/i.test(xfProto) ? xfProto.toLowerCase() : 'https';
+    return `${proto}://${xfHost}`.replace(/\/$/, '');
+  }
+  const originHdr = request.headers.get('origin')?.trim();
+  if (originHdr && /^https?:\/\//i.test(originHdr)) {
+    try {
+      const u = new URL(originHdr);
+      if (u.host) return `${u.protocol}//${u.host}`.replace(/\/$/, '');
+    } catch {
+      /* fall through */
+    }
+  }
+  try {
+    const u = new URL(request.url);
+    if (!u.host) return null;
+    return `${u.protocol}//${u.host}`.replace(/\/$/, '');
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Invite landing URL. When inviter has a studio slug, use vanity path `/s/{slug}/i/{token}`.
+ */
+export function buildRosterInviteAcceptUrl(
+  rawToken: string,
+  studioSlug?: string | null,
+  publicAppBaseHint?: string | null
+): string {
+  const base = getPublicAppBase(publicAppBaseHint);
+  const slug = typeof studioSlug === 'string' ? studioSlug.trim() : '';
+  if (slug) {
+    return `${base}/s/${encodeURIComponent(slug)}/i/${encodeURIComponent(rawToken)}`;
+  }
+  return `${base}/welcome?invite=${encodeURIComponent(rawToken)}`;
+}
+
+/** Resolve studio vanity slug for invite URLs (trainer profiles only). */
+export async function getStudioSlugForInviter(inviterId: string): Promise<string | null> {
+  const supabase = getSupabaseServer();
+  const { data: prof, error: pErr } = await supabase
+    .from('profiles')
+    .select('studio_id')
+    .eq('id', inviterId)
+    .maybeSingle();
+  if (pErr || !prof?.studio_id) return null;
+  const { data: studio, error: sErr } = await supabase
+    .from('studios')
+    .select('slug')
+    .eq('id', prof.studio_id as string)
+    .maybeSingle();
+  if (sErr || !studio?.slug) return null;
+  const s = String(studio.slug).trim();
+  return s || null;
+}
+
+export function normalizeInviteEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
+/** Minimal E.164 check; invitee must sign up with the same normalized phone. */
+export function normalizeInvitePhoneE164(phone: string): string | null {
+  const t = phone.trim();
+  if (!/^\+[1-9]\d{6,14}$/.test(t)) return null;
+  return t;
+}
+
+async function countHostBuddySlotsReserved(hostId: string): Promise<number> {
+  const supabase = getSupabaseServer();
+  const [{ count: buddyCount }, { count: pendingCount }] = await Promise.all([
+    supabase
+      .from('host_friend_connections')
+      .select('*', { count: 'exact', head: true })
+      .eq('host_id', hostId),
+    supabase
+      .from('roster_invitations')
+      .select('*', { count: 'exact', head: true })
+      .eq('inviter_id', hostId)
+      .eq('kind', 'friend')
+      .eq('status', 'pending'),
+  ]);
+  return (buddyCount ?? 0) + (pendingCount ?? 0);
+}
+
+async function findUserIdByEmail(email: string): Promise<string | null> {
+  const supabase = getSupabaseServer();
+  const { data, error } = await supabase.rpc('find_auth_user_id_by_email', {
+    p_email: normalizeInviteEmail(email),
+  });
+  if (error) {
+    if (import.meta.env.DEV) console.warn('[roster-invitations] find_auth_user_id_by_email', error);
+    return null;
+  }
+  return typeof data === 'string' ? data : null;
+}
+
+async function findUserIdByPhone(phoneE164: string): Promise<string | null> {
+  const supabase = getSupabaseServer();
+  const { data, error } = await supabase.rpc('find_auth_user_id_by_phone', {
+    p_phone: phoneE164,
+  });
+  if (error) {
+    if (import.meta.env.DEV) console.warn('[roster-invitations] find_auth_user_id_by_phone', error);
+    return null;
+  }
+  return typeof data === 'string' ? data : null;
+}
+
+export interface CreateRosterInviteInput {
+  inviterId: string;
+  inviterRole: string;
+  channel: RosterInviteChannel;
+  email?: string;
+  phoneE164?: string;
+  programIds?: string[];
+  /** From API request origin; ensures inviteUrl / Auth redirect match the live hub host */
+  publicAppBaseHint?: string | null;
+}
+
+export interface CreateRosterInviteResult {
+  ok: true;
+  invitationId: string;
+  inviteUrl: string;
+  rawToken: string;
+}
+
+export type CreateRosterInviteError =
+  | { ok: false; code: 'VALIDATION'; message: string }
+  | { ok: false; code: 'CAP'; message: string }
+  | { ok: false; code: 'ALREADY_ROSTER'; message: string }
+  | { ok: false; code: 'DB'; message: string };
+
+export async function createRosterInvite(
+  input: CreateRosterInviteInput
+): Promise<CreateRosterInviteResult | CreateRosterInviteError> {
+  const { inviterId, inviterRole, channel } = input;
+  const isTrainerSide =
+    inviterRole === 'trainer' || inviterRole === 'admin' || inviterRole === 'super_admin';
+
+  let inviteeEmail: string | null = null;
+  let inviteePhoneE164: string | null = null;
+  if (channel === 'email') {
+    if (!input.email?.trim()) {
+      return { ok: false, code: 'VALIDATION', message: 'Email is required' };
+    }
+    inviteeEmail = normalizeInviteEmail(input.email);
+  } else {
+    const p = input.phoneE164 ? normalizeInvitePhoneE164(input.phoneE164) : null;
+    if (!p) {
+      return {
+        ok: false,
+        code: 'VALIDATION',
+        message: 'Phone must be E.164 (e.g. +15551234567). SMS is not sent automatically; share the invite link.',
+      };
+    }
+    inviteePhoneE164 = p;
+  }
+
+  let kind: 'friend' | 'client';
+  let dbInviterRole: 'host' | 'trainer';
+  let programIds: string[] = [];
+
+  if (inviterRole === 'host') {
+    kind = 'friend';
+    dbInviterRole = 'host';
+    if (input.programIds?.length) {
+      return { ok: false, code: 'VALIDATION', message: 'Friend invites cannot include programs' };
+    }
+    const cap = await countHostBuddySlotsReserved(inviterId);
+    if (cap >= HOST_BUDDY_CAP) {
+      return {
+        ok: false,
+        code: 'CAP',
+        message: `You can have at most ${HOST_BUDDY_CAP} buddies (including pending invites).`,
+      };
+    }
+  } else if (isTrainerSide) {
+    kind = 'client';
+    dbInviterRole = 'trainer';
+    programIds = input.programIds ?? [];
+    if (programIds.length === 0) {
+      return { ok: false, code: 'VALIDATION', message: 'Select at least one program for client invites' };
+    }
+    const supabase = getSupabaseServer();
+    const { data: programs, error: progErr } = await supabase
+      .from('programs')
+      .select('id')
+      .eq('trainer_id', inviterId)
+      .in('id', programIds);
+    if (progErr) {
+      return { ok: false, code: 'DB', message: 'Failed to validate programs' };
+    }
+    if (!programs || programs.length !== programIds.length) {
+      return { ok: false, code: 'VALIDATION', message: 'Invalid or foreign program selection' };
+    }
+  } else {
+    return { ok: false, code: 'VALIDATION', message: 'Unsupported inviter role for invites' };
+  }
+
+  const existingUserId =
+    channel === 'email' && inviteeEmail
+      ? await findUserIdByEmail(inviteeEmail)
+      : inviteePhoneE164
+        ? await findUserIdByPhone(inviteePhoneE164)
+        : null;
+
+  if (existingUserId) {
+    if (kind === 'friend') {
+      if (existingUserId === inviterId) {
+        return { ok: false, code: 'ALREADY_ROSTER', message: 'You cannot invite yourself' };
+      }
+      if (await isHostBuddy(inviterId, existingUserId)) {
+        return { ok: false, code: 'ALREADY_ROSTER', message: 'This user is already on your roster' };
+      }
+    } else {
+      const roster = await fetchTrainerRoster(inviterId);
+      if (roster.some((r) => r.id === existingUserId)) {
+        const enrolled = roster.find((r) => r.id === existingUserId);
+        const already = programIds.every((pid) => enrolled?.programIds.includes(pid));
+        if (already) {
+          return {
+            ok: false,
+            code: 'ALREADY_ROSTER',
+            message: 'This user is already enrolled in the selected programs',
+          };
+        }
+      }
+    }
+  }
+
+  const rawToken = generateRosterInviteToken();
+  const tokenHash = hashToken(rawToken);
+  const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + ROSTER_INVITE_EXPIRY_DAYS);
+
+  const supabase = getSupabaseServer();
+  const { data: inserted, error: insErr } = await supabase
+    .from('roster_invitations')
+    .insert({
+      inviter_id: inviterId,
+      inviter_role: dbInviterRole,
+      kind,
+      invitee_email: inviteeEmail,
+      invitee_phone_e164: inviteePhoneE164,
+      program_ids: programIds,
+      token_hash: tokenHash,
+      expires_at: expiresAt.toISOString(),
+      status: 'pending',
+    })
+    .select('id')
+    .single();
+
+  if (insErr) {
+    if (insErr.code === '23505') {
+      return {
+        ok: false,
+        code: 'VALIDATION',
+        message: 'A pending invite already exists for this email or phone',
+      };
+    }
+    if (import.meta.env.DEV || import.meta.env.PUBLIC_ENABLE_ERROR_LOGGING === 'true') {
+      console.error('[roster-invitations] insert', insErr);
+    }
+    return { ok: false, code: 'DB', message: 'Failed to create invitation' };
+  }
+
+  const studioSlug = await getStudioSlugForInviter(inviterId);
+  return {
+    ok: true,
+    invitationId: inserted.id,
+    inviteUrl: buildRosterInviteAcceptUrl(rawToken, studioSlug, input.publicAppBaseHint),
+    rawToken,
+  };
+}
+
+export async function listPendingInvitations(inviterId: string): Promise<PendingInvitationDto[]> {
+  const supabase = getSupabaseServer();
+  const { data, error } = await supabase
+    .from('roster_invitations')
+    .select(
+      'id, kind, invitee_email, invitee_phone_e164, program_ids, created_at, expires_at, status'
+    )
+    .eq('inviter_id', inviterId)
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    if (import.meta.env.DEV) console.warn('[roster-invitations] listPending', error);
+    return [];
+  }
+
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    kind: row.kind as 'friend' | 'client',
+    channel: row.invitee_email ? 'email' : 'phone',
+    inviteeEmail: row.invitee_email,
+    inviteePhoneE164: row.invitee_phone_e164,
+    programIds: Array.isArray(row.program_ids) ? row.program_ids : [],
+    createdAt: row.created_at,
+    expiresAt: row.expires_at,
+  }));
+}
+
+export type RevokeRosterInvitationResult =
+  | { ok: true }
+  | { ok: false; code: 'NOT_FOUND' | 'CONFLICT' | 'DB'; message: string };
+
+/**
+ * Mark a pending invitation revoked. Only the inviter may cancel.
+ */
+export async function revokeRosterInvitation(
+  inviterId: string,
+  invitationId: string
+): Promise<RevokeRosterInvitationResult> {
+  const supabase = getSupabaseServer();
+  const { data: row, error: selErr } = await supabase
+    .from('roster_invitations')
+    .select('id, inviter_id, status')
+    .eq('id', invitationId)
+    .maybeSingle();
+
+  if (selErr || !row) {
+    return { ok: false, code: 'NOT_FOUND', message: 'Invitation not found' };
+  }
+  if (row.inviter_id !== inviterId) {
+    return { ok: false, code: 'NOT_FOUND', message: 'Invitation not found' };
+  }
+  if (row.status !== 'pending') {
+    return { ok: false, code: 'CONFLICT', message: 'Only pending invitations can be cancelled' };
+  }
+
+  const { data: updated, error: updErr } = await supabase
+    .from('roster_invitations')
+    .update({ status: 'revoked' })
+    .eq('id', invitationId)
+    .eq('inviter_id', inviterId)
+    .eq('status', 'pending')
+    .select('id');
+
+  if (updErr) {
+    if (import.meta.env.DEV || import.meta.env.PUBLIC_ENABLE_ERROR_LOGGING === 'true') {
+      console.error('[roster-invitations] revoke', updErr);
+    }
+    return { ok: false, code: 'DB', message: 'Failed to cancel invitation' };
+  }
+  if (!updated?.length) {
+    return { ok: false, code: 'CONFLICT', message: 'Only pending invitations can be cancelled' };
+  }
+  return { ok: true };
+}
+
+export type ResendRosterInvitationResult =
+  | {
+      ok: true;
+      invitationId: string;
+      inviteUrl: string;
+      rawToken: string;
+      inviteeEmail: string | null;
+    }
+  | { ok: false; code: 'NOT_FOUND' | 'CONFLICT' | 'DB'; message: string };
+
+/**
+ * Rotate token and extend expiry for a pending invite. Old links stop working.
+ */
+export async function resendRosterInvitation(
+  inviterId: string,
+  invitationId: string,
+  publicAppBaseHint?: string | null
+): Promise<ResendRosterInvitationResult> {
+  const supabase = getSupabaseServer();
+  const { data: row, error: selErr } = await supabase
+    .from('roster_invitations')
+    .select('id, inviter_id, status, invitee_email')
+    .eq('id', invitationId)
+    .maybeSingle();
+
+  if (selErr || !row) {
+    return { ok: false, code: 'NOT_FOUND', message: 'Invitation not found' };
+  }
+  if (row.inviter_id !== inviterId) {
+    return { ok: false, code: 'NOT_FOUND', message: 'Invitation not found' };
+  }
+  if (row.status !== 'pending') {
+    return { ok: false, code: 'CONFLICT', message: 'Only pending invitations can be resent' };
+  }
+
+  const rawToken = generateRosterInviteToken();
+  const tokenHash = hashToken(rawToken);
+  const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + ROSTER_INVITE_EXPIRY_DAYS);
+
+  const { data: updated, error: updErr } = await supabase
+    .from('roster_invitations')
+    .update({
+      token_hash: tokenHash,
+      expires_at: expiresAt.toISOString(),
+    })
+    .eq('id', invitationId)
+    .eq('inviter_id', inviterId)
+    .eq('status', 'pending')
+    .select('id');
+
+  if (updErr) {
+    if (updErr.code === '23505') {
+      return { ok: false, code: 'DB', message: 'Could not rotate invite token; try again' };
+    }
+    if (import.meta.env.DEV || import.meta.env.PUBLIC_ENABLE_ERROR_LOGGING === 'true') {
+      console.error('[roster-invitations] resend', updErr);
+    }
+    return { ok: false, code: 'DB', message: 'Failed to resend invitation' };
+  }
+  if (!updated?.length) {
+    return { ok: false, code: 'CONFLICT', message: 'Only pending invitations can be resent' };
+  }
+
+  const studioSlug = await getStudioSlugForInviter(inviterId);
+  return {
+    ok: true,
+    invitationId: row.id,
+    inviteUrl: buildRosterInviteAcceptUrl(rawToken, studioSlug, publicAppBaseHint),
+    rawToken,
+    inviteeEmail: row.invitee_email,
+  };
+}
+
+export type AcceptRosterInviteResult =
+  | { ok: true; kind: 'friend' | 'client' }
+  | { ok: false; code: 'NOT_FOUND' | 'EXPIRED' | 'MISMATCH' | 'DB' | 'CONFLICT'; message: string };
+
+function sessionMatchesInviteeContact(
+  inv: { invitee_email: string | null; invitee_phone_e164: string | null },
+  sessionEmails: string[],
+  sessionPhone: string | null | undefined
+): boolean {
+  const targetEmail = inv.invitee_email;
+  const emailMatch =
+    !!targetEmail &&
+    sessionEmails.some(
+      (e) =>
+        e.trim() !== '' && normalizeInviteEmail(e) === normalizeInviteEmail(targetEmail)
+    );
+  const phoneMatch =
+    inv.invitee_phone_e164 &&
+    sessionPhone &&
+    normalizeInvitePhoneE164(sessionPhone) === inv.invitee_phone_e164;
+  return !!(emailMatch || phoneMatch);
+}
+
+/** Shared finalize after invitee identity is verified (token path or session-email path). */
+async function finalizeRosterInvitationAfterInviteeVerified(
+  inv: {
+    id: string;
+    inviter_id: string;
+    kind: string;
+    program_ids: unknown;
+  },
+  sessionUserId: string
+): Promise<AcceptRosterInviteResult> {
+  const supabase = getSupabaseServer();
+
+  if (inv.kind === 'friend') {
+    const { error: insErr } = await supabase.from('host_friend_connections').insert({
+      host_id: inv.inviter_id,
+      buddy_user_id: sessionUserId,
+      invitation_id: inv.id,
+    });
+    if (insErr && insErr.code !== '23505') {
+      if (import.meta.env.DEV || import.meta.env.PUBLIC_ENABLE_ERROR_LOGGING === 'true') {
+        console.error('[roster-invitations] host_friend_connections', insErr);
+      }
+      return { ok: false, code: 'DB', message: 'Failed to accept invitation' };
+    }
+  } else {
+    const programIds = Array.isArray(inv.program_ids) ? inv.program_ids : [];
+    for (const programId of programIds) {
+      const { error: upErr } = await supabase.from('user_programs').insert({
+        user_id: sessionUserId,
+        program_id: programId,
+        status: 'active',
+        source: 'trainer_assigned',
+      });
+      if (upErr && upErr.code !== '23505') {
+        if (import.meta.env.DEV || import.meta.env.PUBLIC_ENABLE_ERROR_LOGGING === 'true') {
+          console.error('[roster-invitations] user_programs', upErr);
+        }
+        return { ok: false, code: 'DB', message: 'Failed to enroll in program' };
+      }
+    }
+  }
+
+  const { data: updatedRows, error: updErr } = await supabase
+    .from('roster_invitations')
+    .update({
+      status: 'accepted',
+      accepted_at: new Date().toISOString(),
+      accepted_user_id: sessionUserId,
+    })
+    .eq('id', inv.id)
+    .eq('status', 'pending')
+    .select('id');
+
+  if (updErr) {
+    return { ok: false, code: 'DB', message: 'Failed to finalize invitation' };
+  }
+
+  if (updatedRows?.length) {
+    return { ok: true, kind: inv.kind as 'friend' | 'client' };
+  }
+
+  const { data: finalized } = await supabase
+    .from('roster_invitations')
+    .select('status, accepted_user_id, kind')
+    .eq('id', inv.id)
+    .maybeSingle();
+
+  if (
+    finalized?.status === 'accepted' &&
+    finalized.accepted_user_id === sessionUserId
+  ) {
+    return { ok: true, kind: finalized.kind as 'friend' | 'client' };
+  }
+
+  return { ok: false, code: 'DB', message: 'Failed to finalize invitation' };
+}
+
+/**
+ * When the user is signed in but the invite token was lost (OAuth/magic-link redirects),
+ * complete any non-expired pending invitations whose invitee email/phone matches the session.
+ */
+export async function acceptPendingRosterInvitesForSession(
+  sessionUserId: string,
+  sessionEmails: string[],
+  sessionPhone: string | null | undefined
+): Promise<{ acceptedCount: number }> {
+  const supabase = getSupabaseServer();
+  const nowIso = new Date().toISOString();
+  const normEmails = [
+    ...new Set(
+      sessionEmails
+        .map((e) => normalizeInviteEmail(e))
+        .filter((e) => e.length > 0)
+    ),
+  ];
+  const normPhone = sessionPhone ? normalizeInvitePhoneE164(sessionPhone) : null;
+
+  type InvCandidate = {
+    id: string;
+    inviter_id: string;
+    kind: string;
+    program_ids: unknown;
+    invitee_email: string | null;
+    invitee_phone_e164: string | null;
+    created_at: string;
+  };
+
+  const byId = new Map<string, InvCandidate>();
+
+  if (normEmails.length > 0) {
+    const { data, error } = await supabase
+      .from('roster_invitations')
+      .select(
+        'id, inviter_id, kind, program_ids, invitee_email, invitee_phone_e164, created_at'
+      )
+      .eq('status', 'pending')
+      .gt('expires_at', nowIso)
+      .in('invitee_email', normEmails);
+    if (error && (import.meta.env.DEV || import.meta.env.PUBLIC_ENABLE_ERROR_LOGGING === 'true')) {
+      console.warn('[roster-invitations] acceptPending by email', error);
+    }
+    for (const row of data ?? []) {
+      byId.set(row.id, row as InvCandidate);
+    }
+  }
+
+  if (normPhone) {
+    const { data, error } = await supabase
+      .from('roster_invitations')
+      .select(
+        'id, inviter_id, kind, program_ids, invitee_email, invitee_phone_e164, created_at'
+      )
+      .eq('status', 'pending')
+      .gt('expires_at', nowIso)
+      .eq('invitee_phone_e164', normPhone);
+    if (error && (import.meta.env.DEV || import.meta.env.PUBLIC_ENABLE_ERROR_LOGGING === 'true')) {
+      console.warn('[roster-invitations] acceptPending by phone', error);
+    }
+    for (const row of data ?? []) {
+      byId.set(row.id, row as InvCandidate);
+    }
+  }
+
+  const candidates = [...byId.values()].sort(
+    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+  );
+
+  let acceptedCount = 0;
+  for (const inv of candidates) {
+    if (!sessionMatchesInviteeContact(inv, sessionEmails, sessionPhone)) continue;
+    if (inv.kind === 'friend' && sessionUserId === inv.inviter_id) continue;
+    const res = await finalizeRosterInvitationAfterInviteeVerified(
+      {
+        id: inv.id,
+        inviter_id: inv.inviter_id,
+        kind: inv.kind,
+        program_ids: inv.program_ids,
+      },
+      sessionUserId
+    );
+    if (res.ok) acceptedCount += 1;
+  }
+
+  return { acceptedCount };
+}
+
+/**
+ * Accept an invite. Caller must be authenticated; email or phone must match the invitation.
+ * Pass every email variant you trust (JWT, user_metadata, profiles) — some providers omit `user.email`.
+ */
+export async function acceptRosterInvite(
+  rawToken: string,
+  sessionUserId: string,
+  sessionEmails: string[],
+  sessionPhone: string | null | undefined
+): Promise<AcceptRosterInviteResult> {
+  const tokenHash = hashToken(rawToken.trim());
+  const supabase = getSupabaseServer();
+
+  const { data: inv, error: selErr } = await supabase
+    .from('roster_invitations')
+    .select('*')
+    .eq('token_hash', tokenHash)
+    .eq('status', 'pending')
+    .maybeSingle();
+
+  if (selErr) {
+    return { ok: false, code: 'NOT_FOUND', message: 'Invalid or unknown invitation' };
+  }
+
+  if (!inv) {
+    const { data: past } = await supabase
+      .from('roster_invitations')
+      .select('kind, status, accepted_user_id')
+      .eq('token_hash', tokenHash)
+      .maybeSingle();
+    if (
+      past?.status === 'accepted' &&
+      past.accepted_user_id === sessionUserId
+    ) {
+      return { ok: true, kind: past.kind as 'friend' | 'client' };
+    }
+    return { ok: false, code: 'NOT_FOUND', message: 'Invalid or unknown invitation' };
+  }
+
+  if (new Date(inv.expires_at).getTime() < Date.now()) {
+    await supabase.from('roster_invitations').update({ status: 'expired' }).eq('id', inv.id);
+    return { ok: false, code: 'EXPIRED', message: 'This invitation has expired' };
+  }
+
+  if (!sessionMatchesInviteeContact(inv, sessionEmails, sessionPhone)) {
+    return {
+      ok: false,
+      code: 'MISMATCH',
+      message: 'Sign in with the invited email or phone to accept',
+    };
+  }
+
+  if (inv.kind === 'friend' && sessionUserId === inv.inviter_id) {
+    return { ok: false, code: 'MISMATCH', message: 'You cannot accept your own invitation' };
+  }
+
+  return finalizeRosterInvitationAfterInviteeVerified(
+    {
+      id: inv.id,
+      inviter_id: inv.inviter_id,
+      kind: inv.kind as string,
+      program_ids: inv.program_ids,
+    },
+    sessionUserId
+  );
+}
+
+/**
+ * Resolve inviter display info for a pending, unexpired invite. Unauthenticated; caller must not log raw tokens.
+ */
+export async function getRosterInvitePreview(rawToken: string): Promise<RosterInvitePreview | null> {
+  const trimmed = rawToken.trim();
+  if (!looksLikeRosterInviteToken(trimmed)) return null;
+
+  const tokenHash = hashToken(trimmed);
+  const supabase = getSupabaseServer();
+  const nowIso = new Date().toISOString();
+
+  const { data: inv, error } = await supabase
+    .from('roster_invitations')
+    .select('inviter_id, kind')
+    .eq('token_hash', tokenHash)
+    .eq('status', 'pending')
+    .gt('expires_at', nowIso)
+    .maybeSingle();
+
+  if (error || !inv) return null;
+
+  const { data: prof } = await supabase
+    .from('profiles')
+    .select('full_name, avatar_url, studio_id')
+    .eq('id', inv.inviter_id)
+    .maybeSingle();
+
+  const kind = inv.kind === 'friend' || inv.kind === 'client' ? inv.kind : 'client';
+
+  let studio: RosterInviteStudioPreview | null = null;
+  const sid = prof?.studio_id as string | null | undefined;
+  if (sid) {
+    const { data: st } = await supabase
+      .from('studios')
+      .select('slug, display_name, logo_url, primary_color, welcome_tagline')
+      .eq('id', sid)
+      .maybeSingle();
+    if (st?.slug && st.display_name) {
+      studio = {
+        slug: String(st.slug).trim(),
+        displayName: String(st.display_name).trim(),
+        logoUrl: st.logo_url?.trim() || null,
+        primaryColor: st.primary_color?.trim() || null,
+        tagline: st.welcome_tagline?.trim() || null,
+      };
+    }
+  }
+
+  return {
+    inviterDisplayName: prof?.full_name?.trim() || null,
+    inviterAvatarUrl: prof?.avatar_url?.trim() || null,
+    kind,
+    studio,
+  };
+}
+
+/** Validate raw token format before hashing (optional hardening). */
+export function looksLikeRosterInviteToken(token: string): boolean {
+  const t = token.trim();
+  return t.length >= 32 && t.length <= 200;
+}

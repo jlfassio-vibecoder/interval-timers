@@ -1,0 +1,14 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import WelcomeInviteLanding from '../components/react/WelcomeInviteLanding';
+
+const canonicalUrl = new URL('/welcome', Astro.url).href;
+---
+
+<BaseLayout
+  title="Accept your invitation | HIIT Workout Timer"
+  description="Join your coach or host on HIIT Workout Timer—accept your roster invite, sign in, and see what’s next on your training calendar."
+  canonicalUrl={canonicalUrl}
+>
+  <WelcomeInviteLanding client:load />
+</BaseLayout>

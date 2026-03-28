@@ -50,10 +50,12 @@ Then run:
 npm run db:push
 ```
 
-Or, with env loaded from `.env.local`:
+`npm run db:push` passes **`--include-all`** to the CLI. You need that when the remote already has a *newer* migration applied than some files you still have locally (e.g. after merging branches): otherwise you’ll see *“Found local migration files to be inserted before the last migration on remote database”* and the push will stop.
+
+If you invoke the CLI yourself, use:
 
 ```bash
-supabase db push
+supabase db push --include-all
 ```
 
 If you don’t want to use a database password, use Option 1 or 2 instead.

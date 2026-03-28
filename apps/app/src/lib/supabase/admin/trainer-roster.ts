@@ -16,6 +16,8 @@ export interface RosterItem {
   full_name: string | null;
   created_at: string;
   programIds: string[];
+  /** Present for Mission Control roster; distinguishes program clients vs host buddies. */
+  relationship?: 'client' | 'friend';
 }
 
 /**
@@ -78,6 +80,7 @@ export async function fetchTrainerRoster(trainerId: string): Promise<RosterItem[
       full_name: p.full_name ?? null,
       created_at: p.created_at ?? new Date().toISOString(),
       programIds: programIdsByUser.get(p.id) ?? [],
+      relationship: 'client' as const,
     }));
   } catch (err) {
     if (import.meta.env.DEV || import.meta.env.PUBLIC_ENABLE_ERROR_LOGGING === 'true') {
@@ -85,6 +88,97 @@ export async function fetchTrainerRoster(trainerId: string): Promise<RosterItem[
     }
     return [];
   }
+}
+
+/**
+ * Host buddy roster from host_friend_connections.
+ */
+export async function fetchHostRoster(hostId: string): Promise<RosterItem[]> {
+  try {
+    const supabase = getSupabaseServer();
+    const { data: rows, error } = await supabase
+      .from('host_friend_connections')
+      .select('buddy_user_id, created_at')
+      .eq('host_id', hostId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      if (import.meta.env.DEV) console.warn('[trainer-roster] host_friend_connections error:', error);
+      return [];
+    }
+    if (!rows?.length) return [];
+
+    const buddyIds = rows.map((r) => r.buddy_user_id);
+    const { data: profiles, error: profilesError } = await supabase
+      .from('profiles')
+      .select('id, email, full_name, created_at')
+      .in('id', buddyIds)
+      .order('full_name', { ascending: true });
+
+    if (profilesError) {
+      if (import.meta.env.DEV) console.warn('[trainer-roster] host roster profiles error:', profilesError);
+      return [];
+    }
+    if (!profiles?.length) return [];
+
+    const joinedAtByBuddy = new Map(rows.map((r) => [r.buddy_user_id, r.created_at]));
+
+    return profiles.map((p) => ({
+      id: p.id,
+      email: p.email ?? null,
+      full_name: p.full_name ?? null,
+      created_at: joinedAtByBuddy.get(p.id) ?? p.created_at ?? new Date().toISOString(),
+      programIds: [],
+      relationship: 'friend' as const,
+    }));
+  } catch (err) {
+    if (import.meta.env.DEV || import.meta.env.PUBLIC_ENABLE_ERROR_LOGGING === 'true') {
+      console.error('[trainer-roster] fetchHostRoster error:', err);
+    }
+    return [];
+  }
+}
+
+/** Mission Control roster: host sees buddies; trainer/admin see program clients. */
+export async function fetchRosterForMissionControlUser(
+  uid: string,
+  role: string
+): Promise<RosterItem[]> {
+  if (role === 'host') return fetchHostRoster(uid);
+  return fetchTrainerRoster(uid);
+}
+
+/** True if host has an accepted buddy link to the target user. */
+export async function isHostBuddy(hostId: string, buddyUserId: string): Promise<boolean> {
+  const supabase = getSupabaseServer();
+  const { data, error } = await supabase
+    .from('host_friend_connections')
+    .select('host_id')
+    .eq('host_id', hostId)
+    .eq('buddy_user_id', buddyUserId)
+    .maybeSingle();
+  if (error) {
+    if (import.meta.env.DEV) console.warn('[trainer-roster] isHostBuddy error:', error);
+    return false;
+  }
+  return !!data;
+}
+
+/**
+ * Whether the viewer may access Mission Control stats/profile for the target user
+ * (program roster, host buddies, or admin with shared trainer roster).
+ */
+export async function isUserInViewerRoster(
+  viewerId: string,
+  viewerRole: string,
+  targetUserId: string
+): Promise<boolean> {
+  if (viewerRole === 'host') {
+    if (viewerId === targetUserId) return true;
+    return isHostBuddy(viewerId, targetUserId);
+  }
+  const roster = await fetchTrainerRoster(viewerId);
+  return roster.some((r) => r.id === targetUserId);
 }
 
 export interface TrainerStats {
@@ -108,7 +202,15 @@ const RECENT_ACTIVITY_LIMIT = 20;
  * Aggregate stats for trainer's roster: total clients, total workouts, recent activity.
  */
 export async function fetchTrainerStats(trainerId: string): Promise<TrainerStats> {
-  const roster = await fetchTrainerRoster(trainerId);
+  return fetchMissionControlRosterStats(trainerId, 'trainer');
+}
+
+/** Intel / aggregate stats for whoever the viewer’s roster is (trainer programs or host buddies). */
+export async function fetchMissionControlRosterStats(
+  viewerId: string,
+  viewerRole: string
+): Promise<TrainerStats> {
+  const roster = await fetchRosterForMissionControlUser(viewerId, viewerRole);
   const totalClients = roster.length;
   if (totalClients === 0) {
     return { totalClients: 0, totalWorkoutsLogged: 0, recentActivity: [] };
@@ -176,17 +278,28 @@ export interface ClientStats {
 }
 
 /**
- * Per-client stats. Verifies the user is in the trainer's roster before returning.
+ * Per-member stats. Verifies the user is on the viewer’s roster (trainer programs or host buddies).
  */
 export async function fetchClientStats(
-  trainerId: string,
-  userId: string
+  viewerId: string,
+  userId: string,
+  viewerRole: string = 'trainer'
 ): Promise<ClientStats | null> {
-  const roster = await fetchTrainerRoster(trainerId);
-  const client = roster.find((r) => r.id === userId);
-  if (!client) return null;
+  const allowed = await isUserInViewerRoster(viewerId, viewerRole, userId);
+  if (!allowed) return null;
 
   const supabase = getSupabaseServer();
+  const { data: profileRow } = await supabase
+    .from('profiles')
+    .select('id, email, full_name')
+    .eq('id', userId)
+    .maybeSingle();
+  const client = {
+    id: userId,
+    email: profileRow?.email ?? null,
+    full_name: profileRow?.full_name ?? null,
+  };
+
   const { data: logs, error } = await supabase
     .from('workout_logs')
     .select(

@@ -20,6 +20,8 @@ interface Props {
   preloadHeroLogo?: string;
   /** When true, preload the /api/programs endpoint for faster data fetch */
   preloadProgramsApi?: boolean;
+  /** e.g. noindex, nofollow for invite token paths */
+  robotsContent?: string;
 }
 
 const {
@@ -29,6 +31,7 @@ const {
   ogImage,
   preloadHeroLogo,
   preloadProgramsApi,
+  robotsContent,
 } = Astro.props;
 ---
 
@@ -38,6 +41,7 @@ const {
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{title}</title>
+    {robotsContent && <meta name="robots" content={robotsContent} />}
     {description && <meta name="description" content={description} />}
     {canonicalUrl && <link rel="canonical" href={canonicalUrl} />}
     <meta property="og:title" content={title} />

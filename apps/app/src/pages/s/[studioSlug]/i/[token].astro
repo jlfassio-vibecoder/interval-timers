@@ -1,0 +1,15 @@
+---
+import BaseLayout from '../../../../layouts/BaseLayout.astro';
+import WelcomeInviteLanding from '../../../../components/react/WelcomeInviteLanding';
+
+const studioSlug = Astro.params.studioSlug ?? '';
+const token = Astro.params.token ?? '';
+---
+
+<BaseLayout
+  title="Accept your invitation | HIIT Workout Timer"
+  description="Join your coach on HIIT Workout Timer—accept your roster invite in one step and open the app when you’re ready."
+  robotsContent="noindex, nofollow"
+>
+  <WelcomeInviteLanding client:load initialInviteToken={token} pathStudioSlug={studioSlug} />
+</BaseLayout>

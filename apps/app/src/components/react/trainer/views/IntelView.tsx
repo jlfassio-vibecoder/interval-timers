@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Users, Activity, TrendingUp } from 'lucide-react';
+import { useAppContext } from '@/contexts/AppContext';
 
 interface TrainerStats {
   totalClients: number;
@@ -22,6 +23,8 @@ interface TrainerStats {
 }
 
 const IntelView: React.FC = () => {
+  const { profile } = useAppContext();
+  const isHost = profile?.role === 'host';
   const [stats, setStats] = useState<TrainerStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -33,7 +36,7 @@ const IntelView: React.FC = () => {
     fetch('/api/trainer/stats', { credentials: 'include' })
       .then((res) => {
         if (!res.ok) {
-          if (res.status === 401) throw new Error('Unauthorized. Trainer access required.');
+          if (res.status === 401) throw new Error('Unauthorized. Mission Control access required.');
           throw new Error('Failed to fetch stats');
         }
         return res.json();
@@ -92,7 +95,7 @@ const IntelView: React.FC = () => {
 
   const statCards = [
     {
-      label: 'Total Clients',
+      label: isHost ? 'Roster (friends)' : 'Total clients',
       value: stats.totalClients.toLocaleString(),
       icon: Users,
       color: 'text-blue-400',
@@ -115,7 +118,11 @@ const IntelView: React.FC = () => {
     <div className="space-y-8">
       <div>
         <h1 className="font-heading text-3xl font-bold">Intel</h1>
-        <p className="mt-2 text-white/60">Performance metrics and compliance for your roster</p>
+        <p className="mt-2 text-white/60">
+          {isHost
+            ? 'Workout activity from friends on your roster'
+            : 'Performance metrics and compliance for your roster'}
+        </p>
       </div>
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
@@ -143,7 +150,9 @@ const IntelView: React.FC = () => {
       <div className="rounded-lg border border-white/10 bg-black/20 p-6 backdrop-blur-sm">
         <h2 className="font-heading text-xl font-bold">Recent Activity</h2>
         {stats.recentActivity.length === 0 ? (
-          <p className="mt-4 text-white/60">No recent activity from your clients.</p>
+          <p className="mt-4 text-white/60">
+            No recent activity from {isHost ? 'your friends' : 'your clients'}.
+          </p>
         ) : (
           <div className="mt-4 space-y-3">
             {stats.recentActivity.map((activity) => (

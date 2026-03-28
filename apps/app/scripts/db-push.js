@@ -4,6 +4,11 @@
  * Run supabase db push with env from .env.local (including SUPABASE_DB_PASSWORD).
  * Usage: npm run db:push
  * Requires: supabase CLI installed (npm i -g supabase or npx supabase)
+ *
+ * Uses --include-all so pending migrations whose timestamps sort *before* the latest
+ * migration already on the remote still apply (common when branches merge out of order).
+ * Without it, the CLI exits with "Found local migration files to be inserted before
+ * the last migration on remote database."
  */
 
 import { readFileSync, existsSync } from 'fs';
@@ -33,7 +38,7 @@ const root = join(__dirname, '..');
 loadEnvFile(join(root, '.env'));
 loadEnvFile(join(root, '.env.local'));
 
-const r = spawnSync('supabase', ['db', 'push'], {
+const r = spawnSync('supabase', ['db', 'push', '--include-all'], {
   stdio: 'inherit',
   cwd: root,
   env: process.env,

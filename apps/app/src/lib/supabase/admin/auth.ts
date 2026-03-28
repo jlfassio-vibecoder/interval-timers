@@ -166,6 +166,17 @@ export async function verifyMissionControlRequest(
 }
 
 /**
+ * Roster + roster invite APIs: same roles as Mission Control (host, trainer, admin, super_admin).
+ * Alias of {@link verifyMissionControlRequest} for readable call sites.
+ */
+export async function verifyRosterAccessRequest(
+  request: Request,
+  cookies?: { get: (name: string) => { value: string } | undefined }
+): Promise<{ uid: string; email?: string; role: string }> {
+  return verifyMissionControlRequest(request, cookies);
+}
+
+/**
  * Verify request has valid Supabase session and user has trainer or admin role.
  * Returns { uid, email } or throws UNAUTHENTICATED / UNAUTHORIZED.
  * Use verifyMissionControlRequest for host-inclusive checks.

@@ -8,6 +8,8 @@
  * `monetization_checkout_completed` is server-only (Stripe webhook), not in this allowlist.
  * Minimal onboarding: `minimal_onboarding_viewed`, `minimal_onboarding_baseline_saved`,
  * `minimal_onboarding_goals_saved`, `minimal_onboarding_complete`.
+ * Roster welcome landing: `landing_view`, `cta_open_app`, `invite_accept_success`,
+ * `calendar_preview_view`.
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -44,6 +46,10 @@ export const FUNNEL_EVENTS = [
   'minimal_onboarding_complete',
   'monetization_pricing_viewed',
   'monetization_checkout_started',
+  'landing_view',
+  'cta_open_app',
+  'invite_accept_success',
+  'calendar_preview_view',
 ] as const;
 
 export type FunnelEventName = (typeof FUNNEL_EVENTS)[number];
