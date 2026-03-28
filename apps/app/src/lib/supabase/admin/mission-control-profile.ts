@@ -1,10 +1,11 @@
 /**
  * Mission Control profile fetch with tiered authorization.
- * Trainers: roster users only. Admin/super_admin: any user. Hosts: own profile only.
+ * Trainers: roster users only. Admin/super_admin: any user.
+ * Hosts: own profile, or accepted buddies on their roster (host_friend_connections).
  */
 
 import { getSupabaseServer } from '@/lib/supabase/server';
-import { fetchTrainerRoster } from './trainer-roster';
+import { fetchTrainerRoster, isHostBuddy } from './trainer-roster';
 
 /** DTO returned to Mission Control viewers. Omits sensitive fields based on viewer tier. */
 export interface MissionControlProfileDto {
@@ -40,7 +41,7 @@ export interface MissionControlProfileDto {
 
 /**
  * Fetch profile for Mission Control viewer. Enforces:
- * - host: own profile only
+ * - host: own profile or buddy profiles (roster connection)
  * - trainer: roster users only
  * - admin/super_admin: any user
  */
@@ -53,7 +54,10 @@ export async function fetchMissionControlProfile(
   const isTrainer = callerRole === 'trainer' || isAdminElevated;
 
   if (callerRole === 'host') {
-    if (callerId !== targetUserId) return null;
+    if (callerId !== targetUserId) {
+      const isBuddy = await isHostBuddy(callerId, targetUserId);
+      if (!isBuddy) return null;
+    }
   } else if (isTrainer && !isAdminElevated) {
     const roster = await fetchTrainerRoster(callerId);
     if (!roster.some((r) => r.id === targetUserId)) return null;

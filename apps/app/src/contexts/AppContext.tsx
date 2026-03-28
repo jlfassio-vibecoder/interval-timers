@@ -12,6 +12,17 @@ export type AppUser = UserProfile;
 
 const ACTIVE_PROGRAM_STORAGE_KEY = 'ai-fit-active-program-id';
 
+/** Complete roster invites when auth redirects dropped ?invite= (server matches session email). */
+function requestAcceptPendingRosterInvites() {
+  if (typeof window === 'undefined') return;
+  queueMicrotask(() => {
+    void fetch('/api/invitations/accept-pending', {
+      method: 'POST',
+      credentials: 'include',
+    }).catch(() => {});
+  });
+}
+
 interface AppContextType {
   user: AppUser | null;
   session: Session | null;
@@ -174,6 +185,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           setAuthCookie(s);
           if (s?.user) {
             await fetchProfile(s.user.id, s.user.email || undefined);
+            requestAcceptPendingRosterInvites();
           }
         }
       } catch (err) {
@@ -189,12 +201,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     // 2. Auth State Listener
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
       if (!mounted) return;
       setSession(session);
       setAuthCookie(session);
       if (session?.user) {
         fetchProfile(session.user.id, session.user.email || undefined);
+        if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+          requestAcceptPendingRosterInvites();
+        }
       } else {
         setUser(null);
         setTrainerProfile(null);

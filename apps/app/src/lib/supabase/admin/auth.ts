@@ -3,7 +3,7 @@
  * Replaces Firebase Admin verifyAdminRequest for admin routes.
  */
 
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient, type User } from '@supabase/supabase-js';
 import type { Database } from '@/types/supabase';
 
 // HIIT Workout Timer Supabase (same as AMRAP). Accept SUPABASE_*, VITE_*, PUBLIC_* (injected via astro.config).
@@ -50,6 +50,64 @@ export function extractAccessToken(
   }
 
   return null;
+}
+
+const json401 = () =>
+  new Response(JSON.stringify({ error: 'Authentication required' }), {
+    status: 401,
+    headers: { 'Content-Type': 'application/json' },
+  });
+
+export type InvitationsApiAuthResult =
+  | { ok: true; supabase: SupabaseClient<Database>; user: User }
+  | { ok: false; response: Response };
+
+/**
+ * Bearer/cookie session for roster invitation accept routes (anon client + user JWT).
+ */
+export async function authenticateInvitationsApiRequest(
+  request: Request,
+  cookies?: { get: (name: string) => { value: string } | undefined }
+): Promise<InvitationsApiAuthResult> {
+  const token = extractAccessToken(request, cookies);
+  if (!token || !supabaseUrl || !supabaseAnonKey) {
+    return { ok: false, response: json401() };
+  }
+  const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+  });
+  const {
+    data: { user },
+    error: userErr,
+  } = await supabase.auth.getUser(token);
+  if (userErr || !user) {
+    return { ok: false, response: json401() };
+  }
+  return { ok: true, supabase, user };
+}
+
+/**
+ * Emails to match roster invitees: auth user, user_metadata.email, profiles.email.
+ * Shared by accept + accept-pending APIs.
+ */
+export async function collectRosterInviteCandidateEmails(
+  supabase: SupabaseClient<Database>,
+  user: User
+): Promise<string[]> {
+  const meta = user.user_metadata as Record<string, unknown> | undefined;
+  const candidateEmails: string[] = [];
+  if (user.email) candidateEmails.push(user.email);
+  if (typeof meta?.email === 'string' && meta.email.trim()) {
+    candidateEmails.push(meta.email);
+  }
+  const { data } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle();
+  // Supabase-js can infer `data` as `never` for select('*') on this schema; DB has profiles.email (baseline migration).
+  const prof = data as { email?: string | null } | null;
+  const profileEmail = prof?.email?.trim();
+  if (profileEmail) {
+    candidateEmails.push(profileEmail);
+  }
+  return candidateEmails;
 }
 
 /**
@@ -163,6 +221,17 @@ export async function verifyMissionControlRequest(
     email: user.email ?? undefined,
     role: profile.role,
   };
+}
+
+/**
+ * Roster + roster invite APIs: same roles as Mission Control (host, trainer, admin, super_admin).
+ * Alias of {@link verifyMissionControlRequest} for readable call sites.
+ */
+export async function verifyRosterAccessRequest(
+  request: Request,
+  cookies?: { get: (name: string) => { value: string } | undefined }
+): Promise<{ uid: string; email?: string; role: string }> {
+  return verifyMissionControlRequest(request, cookies);
 }
 
 /**

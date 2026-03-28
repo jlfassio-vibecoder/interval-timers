@@ -3,7 +3,7 @@
  * Use for API routes that need to read/write without user context (e.g. warmup-config GET).
  */
 
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { config as loadEnv } from 'dotenv';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -45,6 +45,17 @@ const anonKey =
  */
 export function hasServiceRoleKey(): boolean {
   return !!serviceRoleKey;
+}
+
+/**
+ * Anon-key client without persisted session. Use for server-triggered Auth email sends
+ * (e.g. `signInWithOtp`) where the service-role client is not appropriate.
+ */
+export function getSupabaseAnonClient(): SupabaseClient | null {
+  if (!supabaseUrl || !anonKey) return null;
+  return createClient(supabaseUrl, anonKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
 }
 
 /**

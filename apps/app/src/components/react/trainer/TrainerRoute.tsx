@@ -8,7 +8,7 @@ import {
   useLocation,
   Navigate,
 } from 'react-router-dom';
-import { LayoutDashboard, Users, BarChart3, Wrench, Home } from 'lucide-react';
+import { LayoutDashboard, Users, BarChart3, Wrench, Home, ExternalLink } from 'lucide-react';
 import { AppProvider, useAppContext } from '../../../contexts/AppContext';
 import { AuthModal } from '@interval-timers/auth-ui';
 import { supabase } from '@/lib/supabase/supabase-instance';
@@ -65,6 +65,13 @@ const TrainerLayout: React.FC<{ showTrainerNav: boolean }> = ({ showTrainerNav }
                 </NavLink>
               );
             })}
+            <a
+              href="/welcome"
+              className="flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-white/70 transition-colors hover:bg-white/5 hover:text-white"
+            >
+              <ExternalLink className="h-5 w-5 shrink-0" />
+              Landing Page
+            </a>
             {showTrainerNav && (
               <a
                 href={adminPaths.root}

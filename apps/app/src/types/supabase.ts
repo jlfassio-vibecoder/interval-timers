@@ -4,6 +4,7 @@ export interface Database {
       profiles: {
         Row: {
           id: string;
+          email: string | null;
           updated_at: string | null;
           username: string | null;
           full_name: string | null;
@@ -35,6 +36,7 @@ export interface Database {
           profile_completed_at?: string | null;
           trainer_bio?: string | null;
           host_tagline?: string | null;
+          studio_id?: string | null;
         };
         Insert: {
           id: string;
@@ -44,6 +46,7 @@ export interface Database {
           avatar_url?: string | null;
           website?: string | null;
           role?: 'client' | 'host' | 'trainer' | 'admin' | 'super_admin';
+          studio_id?: string | null;
         };
         Update: {
           id?: string;
@@ -78,6 +81,39 @@ export interface Database {
           profile_completed_at?: string | null;
           trainer_bio?: string | null;
           host_tagline?: string | null;
+          studio_id?: string | null;
+        };
+        Relationships: [];
+      };
+      studios: {
+        Row: {
+          id: string;
+          slug: string;
+          display_name: string;
+          logo_url: string | null;
+          primary_color: string | null;
+          welcome_tagline: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          slug: string;
+          display_name: string;
+          logo_url?: string | null;
+          primary_color?: string | null;
+          welcome_tagline?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          slug?: string;
+          display_name?: string;
+          logo_url?: string | null;
+          primary_color?: string | null;
+          welcome_tagline?: string | null;
+          created_at?: string;
+          updated_at?: string;
         };
         Relationships: [];
       };

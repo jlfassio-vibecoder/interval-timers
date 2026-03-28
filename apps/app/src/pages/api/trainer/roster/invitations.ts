@@ -1,17 +1,16 @@
 /**
- * @license
- * SPDX-License-Identifier: Apache-2.0
+ * GET /api/trainer/roster/invitations — pending invites created by the current user.
  */
 
 import type { APIRoute } from 'astro';
 import { verifyRosterAccessRequest } from '@/lib/supabase/admin/auth';
-import { fetchRosterForMissionControlUser } from '@/lib/supabase/admin/trainer-roster';
+import { listPendingInvitations } from '@/lib/supabase/admin/roster-invitations';
 
 export const GET: APIRoute = async ({ request, cookies }) => {
   try {
-    const { uid, role } = await verifyRosterAccessRequest(request, cookies);
-    const roster = await fetchRosterForMissionControlUser(uid, role);
-    return new Response(JSON.stringify(roster), {
+    const { uid } = await verifyRosterAccessRequest(request, cookies);
+    const pending = await listPendingInvitations(uid);
+    return new Response(JSON.stringify(pending), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
@@ -25,9 +24,8 @@ export const GET: APIRoute = async ({ request, cookies }) => {
       }
     }
     if (import.meta.env.DEV || import.meta.env.PUBLIC_ENABLE_ERROR_LOGGING === 'true') {
-      console.error('[trainer/roster] Error fetching roster:', error);
+      console.error('[trainer/roster/invitations]', error);
     }
-    // Return empty roster instead of 500 so UI can show empty state (dev/MVP: no users yet)
     return new Response(JSON.stringify([]), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
