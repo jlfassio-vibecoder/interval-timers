@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { actions } from 'astro:actions';
 import { useAppContext } from '@/contexts/AppContext';
 import { supabase } from '@/lib/supabase/supabase-instance';
@@ -43,6 +43,14 @@ function rankingFromUrl(): FitnessGoalId[] {
   return mapOnboardingGoalsToRanking(labels);
 }
 
+function onboardingSourceProp(): { source: string } {
+  if (typeof window === 'undefined') return { source: 'app' };
+  const from = new URLSearchParams(window.location.search).get('from');
+  if (from === 'amrap') return { source: 'amrap' };
+  if (from && from.trim() !== '') return { source: from.trim() };
+  return { source: 'direct' };
+}
+
 export default function MinimalOnboardingPage() {
   const { user, setProfile } = useAppContext();
   const [lifestyleBaseline, setLifestyleBaseline] = useState<LifestyleBaselineValue>('sedentary');
@@ -75,6 +83,18 @@ export default function MinimalOnboardingPage() {
       claimToken: params.get('guest_claim'),
     };
   }, []);
+  const onboardingProps = useMemo(() => onboardingSourceProp(), []);
+  const minimalOnboardingViewedForUid = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!user?.uid) return;
+    if (minimalOnboardingViewedForUid.current === user.uid) return;
+    minimalOnboardingViewedForUid.current = user.uid;
+    void trackEvent(supabase, 'minimal_onboarding_viewed', onboardingProps, {
+      userId: user.uid,
+      appId: 'app',
+    });
+  }, [user?.uid, onboardingProps]);
 
   if (!user?.uid) {
     return (
@@ -173,10 +193,18 @@ export default function MinimalOnboardingPage() {
                   workout_routine: workoutRoutine,
                 });
                 if (baselineResult.error) throw new Error(baselineResult.error.message);
+                await trackEvent(supabase, 'minimal_onboarding_baseline_saved', onboardingProps, {
+                  userId: user.uid,
+                  appId: 'app',
+                });
                 const rankingResult = await actions.updateProfileFitnessGoalRanking({
                   fitness_goal_ranking: ranking,
                 });
                 if (rankingResult.error) throw new Error(rankingResult.error.message);
+                await trackEvent(supabase, 'minimal_onboarding_goals_saved', onboardingProps, {
+                  userId: user.uid,
+                  appId: 'app',
+                });
                 const hasGuestClaim =
                   !!guestClaim.sessionId && !!guestClaim.participantId && !!guestClaim.claimToken;
                 if (hasGuestClaim) {
@@ -201,12 +229,10 @@ export default function MinimalOnboardingPage() {
                     { userId: user.uid, appId: 'app' }
                   );
                 }
-                await trackEvent(
-                  supabase,
-                  'minimal_onboarding_complete',
-                  { source: 'amrap' },
-                  { userId: user.uid, appId: 'app' }
-                );
+                await trackEvent(supabase, 'minimal_onboarding_complete', onboardingProps, {
+                  userId: user.uid,
+                  appId: 'app',
+                });
                 setProfile({
                   ...user,
                   lifestyleBaseline,

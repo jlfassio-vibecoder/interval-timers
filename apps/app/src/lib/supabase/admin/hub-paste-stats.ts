@@ -6,6 +6,7 @@
  * Events ingested via POST /api/analytics/hub-funnel with app_id universal_activity_hub.
  */
 
+import { warnIfAdminAnalyticsRowCapHit } from '@/lib/admin/admin-analytics-cap-warn';
 import { getSupabaseServer } from '../server';
 
 export const HUB_PASTE_APP_ID = 'universal_activity_hub';
@@ -106,18 +107,35 @@ export async function getHubPasteStats(daysInput: number): Promise<HubPasteStats
   });
 
   const sessionRows = sessionResult.data ?? [];
+  warnIfAdminAnalyticsRowCapHit(
+    'hub-paste distinct sessions',
+    sessionRows.length,
+    HUB_PASTE_SESSION_FETCH_LIMIT
+  );
   const distinctSessions = new Set(sessionRows.map((r) => r.session_id as string).filter(Boolean));
   const distinctSessionsCapped = sessionRows.length >= HUB_PASTE_SESSION_FETCH_LIMIT;
 
+  const actionRows = actionResult.data ?? [];
+  warnIfAdminAnalyticsRowCapHit(
+    'hub-paste hub_action_click properties',
+    actionRows.length,
+    HUB_PASTE_PROPERTY_FETCH_LIMIT
+  );
   const actionClicks: Record<string, number> = {};
-  for (const row of actionResult.data ?? []) {
+  for (const row of actionRows) {
     const action = (row.properties as { action?: string })?.action ?? 'unknown';
     actionClicks[action] = (actionClicks[action] ?? 0) + 1;
   }
 
   const handoffOkByKind: Record<string, number> = {};
   const handoffFailByKind: Record<string, number> = {};
-  for (const row of handoffResult.data ?? []) {
+  const handoffRows = handoffResult.data ?? [];
+  warnIfAdminAnalyticsRowCapHit(
+    'hub-paste handoff properties',
+    handoffRows.length,
+    HUB_PASTE_PROPERTY_FETCH_LIMIT
+  );
+  for (const row of handoffRows) {
     const kind = (row.properties as { kind?: string })?.kind ?? 'unknown';
     if (row.event_name === 'hub_handoff_post_ok') {
       handoffOkByKind[kind] = (handoffOkByKind[kind] ?? 0) + 1;

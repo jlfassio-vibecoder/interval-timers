@@ -35,6 +35,8 @@ supabase migration list
 8. `20250305700000_amrap_rounds_realtime.sql` — Realtime for amrap_rounds
 9. `20250305800000_amrap_scheduled_start.sql` — scheduled_start_at and create_session overload
 
+Later migrations add analytics tables/RPCs (e.g. `web_events`, `get_acquisition_stats`, `get_retention_cohort_stats`, `get_monetization_funnel_stats`, `get_minimal_onboarding_dropoff`, `stripe_processed_webhook_events`, `profile_billing_snapshot`) and `COMMENT ON COLUMN profiles.purchased_index` for tier semantics (0–5). For admin metric definitions, see **`docs/ADMIN_ANALYTICS.md`**.
+
 ## AMRAP session results (HUD)
 
 The app loads AMRAP results via **public.get_amrap_session_results(p_limit)** RPC (migration `20250319100000_expose_shared_schema.sql`). The RPC reads from `shared.amrap_session_results` with `auth.uid()`, so the `shared` schema does not need to be exposed in PostgREST. No Dashboard config required.

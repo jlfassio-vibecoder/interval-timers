@@ -6,7 +6,13 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { TrendingUp, MousePointer, UserPlus, LogIn, CheckCircle, XCircle, Zap } from 'lucide-react';
+import {
+  ADMIN_ANALYTICS_DAY_OPTIONS,
+  parseAdminAnalyticsDays,
+  type AdminAnalyticsDays,
+} from '@/lib/admin/analytics-days';
 
 interface FunnelStats {
   from: string;
@@ -47,10 +53,23 @@ function pct(num: number, denom: number): string {
 }
 
 const FunnelView: React.FC = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const days = parseAdminAnalyticsDays(searchParams.get('days'));
+
+  const setDaysParam = (d: AdminAnalyticsDays) => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.set('days', String(d));
+        return next;
+      },
+      { replace: true }
+    );
+  };
+
   const [stats, setStats] = useState<FunnelStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [days, setDays] = useState(30);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -102,13 +121,33 @@ const FunnelView: React.FC = () => {
         </div>
         <select
           value={days}
-          onChange={(e) => setDays(parseInt(e.target.value, 10))}
+          onChange={(e) => setDaysParam(parseAdminAnalyticsDays(e.target.value))}
           className="rounded-lg border border-white/20 bg-black/30 px-4 py-2 text-white"
+          aria-label="Funnel date range"
         >
-          <option value={7}>7 days</option>
-          <option value={30}>30 days</option>
-          <option value={90}>90 days</option>
+          {ADMIN_ANALYTICS_DAY_OPTIONS.map((d) => (
+            <option key={d} value={d}>
+              {d} days
+            </option>
+          ))}
         </select>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        <span className="text-white/50">Related</span>
+        <Link
+          to={`/analytics?days=${days}`}
+          className="rounded-md border border-white/15 bg-black/20 px-3 py-1.5 text-[#ffbf00] hover:bg-white/5"
+        >
+          Analytics hub
+        </Link>
+        <span className="text-white/30">·</span>
+        <Link
+          to={`/app-analytics?days=${days}`}
+          className="rounded-md border border-white/15 bg-black/20 px-3 py-1.5 text-[#ffbf00] hover:bg-white/5"
+        >
+          APP Analytics
+        </Link>
       </div>
 
       {/* Funnel steps */}
