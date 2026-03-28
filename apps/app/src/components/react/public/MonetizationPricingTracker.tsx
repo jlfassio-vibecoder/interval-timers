@@ -54,19 +54,18 @@ const MonetizationPricingTracker: React.FC = () => {
       }
 
       e.preventDefault();
-      void (async () => {
-        await trackEvent(
-          supabase,
-          'monetization_checkout_started',
-          {
-            plan_id: planId,
-            purchased_index,
-            cta_host,
-          },
-          { appId: 'app' }
-        );
-        window.location.assign(anchor.href);
-      })();
+      // Best-effort analytics only: never await before redirect (slow/failed insert must not block checkout).
+      void trackEvent(
+        supabase,
+        'monetization_checkout_started',
+        {
+          plan_id: planId,
+          purchased_index,
+          cta_host,
+        },
+        { appId: 'app' }
+      );
+      window.location.assign(anchor.href);
     };
 
     section.addEventListener('click', onClickCapture, true);

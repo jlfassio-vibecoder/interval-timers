@@ -570,6 +570,16 @@ $$;
 COMMENT ON FUNCTION public.get_errors_frontend_rollups(int, int, int) IS
   'Quality: errors_frontend counts by page, normalized message, and UTC day.';
 
+-- SECURITY DEFINER admin RPCs: revoke default PUBLIC execute (repo convention; see 20250319100000_expose_shared_schema.sql).
+REVOKE EXECUTE ON FUNCTION public.get_admin_analytics_overview(int) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.get_auth_funnel_visit_count(int) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.get_auth_funnel_activation_stats(int) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.get_engagement_dau_series(int) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.get_engagement_web_session_stats(int) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.get_funnel_hub_launch_stats(int) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.get_feature_activity_daily(int, int, text[]) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.get_errors_frontend_rollups(int, int, int) FROM PUBLIC;
+
 GRANT EXECUTE ON FUNCTION public.get_admin_analytics_overview(int) TO service_role;
 GRANT EXECUTE ON FUNCTION public.get_admin_analytics_overview(int) TO postgres;
 

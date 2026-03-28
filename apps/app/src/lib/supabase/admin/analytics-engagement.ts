@@ -138,6 +138,8 @@ export async function getEngagementStats(days: number): Promise<EngagementStats>
     return count ?? 0;
   }
 
+  // One exact-count query per feature × window (catalog size is small). A client-side “fetch all rows”
+  // merge would regress cost vs head-only counts; a single RPC could batch windows later if needed.
   const featureActivity: EngagementStats['featureActivity'] = await Promise.all(
     FEATURE_ACTIVITY_CATALOG.map(async (f) => {
       const [count7d, count30d, prior7d] = await Promise.all([

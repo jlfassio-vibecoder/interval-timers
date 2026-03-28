@@ -5,7 +5,7 @@
 
 This document describes the **pivot** from “what happened?” to “what should we do next?” It complements existing **`AnalyticsView`** sections (e.g. **Monetization drop-off**, onboarding funnel, monetization KPIs) by defining a **meta-layer**: cross-table reasoning, lead prioritization, and feature ROI framing.
 
-**Companion work:** Instrumentation and funnels (e.g. app monetization events in `analytics_funnel_events`) remain the **ground truth**; the Growth Engine **reads** those signals and proposes interventions.
+**Companion work:** Instrumentation and funnels (e.g. app monetization events in `analytics_events`) remain the **ground truth**; the Growth Engine **reads** those signals and proposes interventions.
 
 ### Project stack (this repo — Supabase only)
 
@@ -21,7 +21,7 @@ This **interval-timers** monorepo uses **Supabase as the sole backend** for auth
 
 - **Current phase:** **Not started** — all phases below are **incomplete** in this codebase (begin with the Prerequisite, then Phase A).
 - **Last updated:** 2026-03-27
-- **Source of truth registry:** `apps/admin-dash-astro/src/lib/admin/analytics-datasets.ts`
+- **Source of truth registry:** `apps/app/src/lib/admin/analytics-datasets-registry.ts`
 - **Planned Phase A scope (when started):** route shell, static command center cards, detail-page template, sidebar/navigation wiring, canonical dataset inventory module.
 
 ---
@@ -149,8 +149,8 @@ The engine **aggregates** signals across datasets, applies **rules + optional LL
 
 | Detail page | Primary data | Feeds into |
 |-------------|--------------|------------|
-| Monetization drop-off | `analytics_funnel_events` (app purchase funnel) | Revenue leak card, lead scoring (abandon recency) |
-| Onboarding drop-off | `analytics_funnel_events` | Friction card, first-action timing |
+| Monetization drop-off | `analytics_events` (app purchase funnel) | Revenue leak card, lead scoring (abandon recency) |
+| Onboarding drop-off | `analytics_events` | Friction card, first-action timing |
 | App activity | App activity rollup (existing admin query) | Feature matrix, friction narrative |
 | Retention cohorts | Cohort queries | Messaging engine, trial urgency |
 | Monetization candidates | Supabase-backed candidates query or admin API | Conversion pipeline, marketing card |
@@ -187,10 +187,10 @@ Reverse trials and checkout abandonment are **time-sensitive**. A **nightly-only
 
 **Event-driven or near-real-time** — use for:
 
-- **Top revenue leak / checkout abandonment:** e.g. `purchase_checkout_session_created` (already written to **`analytics_funnel_events`** from app server ingest) **without** `purchase_subscription_activated` or verified **`purchase_return_success`** within **T minutes** (recommended first value: **30**; tune with data).
+- **Top revenue leak / checkout abandonment:** e.g. `purchase_checkout_session_created` (already written to **`analytics_events`** from app server ingest) **without** `purchase_subscription_activated` or verified **`purchase_return_success`** within **T minutes** (recommended first value: **30**; tune with data).
 - **High-urgency reverse-trial windows** (e.g. transition into `trial_expiring_24h`) for Marketing alerts and CRM triggers.
 
-**Implementation patterns** (pick one per environment; all align with the app server → **`analytics_funnel_events`** pipeline):
+**Implementation patterns** (pick one per environment; all align with the app server → **`analytics_events`** pipeline):
 
 1. **Scheduled high-frequency poller** (e.g. every 5–10 min): query recent `purchase_checkout_session_created` rows, verify absence of downstream funnel events or check Stripe session status, enqueue alert / CRM webhook. Often the simplest operationally.
 2. **Supabase Edge Function + pg_cron or queue:** on funnel insert or periodic job, evaluate “stale checkout” predicate and write to `growth_realtime_alerts` or call messaging provider (behind feature flag).
@@ -206,7 +206,7 @@ Reverse trials and checkout abandonment are **time-sensitive**. A **nightly-only
 
 ### 5.4 Admin UI plane
 
-- New **Growth Engine** view component (React island in admin-dash-astro, consistent with `AnalyticsView` styling).
+- New **Growth Engine** view component (React island in `apps/app` admin, consistent with `AnalyticsView` styling).
 - Cards + tables consume **`GET /api/admin/growth-engine/summary`** (new), optionally **`GET /api/admin/growth-engine/alerts/realtime`** for the fast path.
 
 ### 5.5 Observability
@@ -264,7 +264,7 @@ Reverse trials and checkout abandonment are **time-sensitive**. A **nightly-only
 - [ ] Optional: CSV export for CRM (with audit log).
 - Growth-state synchronization may use scheduled reconciliation; prefer **event-driven** app or Stripe webhook updates; ownership of each write path should stay documented.
 - **Conversion pipeline user source (this repo):** default to **Supabase `profiles`** joined to **`auth.users`** (no alternate user store). Environment toggles like `GROWTH_PIPELINE_USER_SOURCE` should resolve to **Supabase-only** backends if present.
-- **Funnel attribution contract:** Events in **`analytics_funnel_events`** should set **`user_id`** to the **Supabase Auth user UUID** when known; optional **`properties`** may hold extra context, but lead scoring and joins should not depend on a non-Supabase id.
+- **Funnel attribution contract:** Events in **`analytics_events`** should set **`user_id`** to the **Supabase Auth user UUID** when known; optional **`properties`** may hold extra context, but lead scoring and joins should not depend on a non-Supabase id.
 
 ### Phase E — Feature ROI matrix
 
@@ -297,7 +297,7 @@ Reverse trials and checkout abandonment are **time-sensitive**. A **nightly-only
 
 - **Time-to-first-action** for growth team: median minutes from login to **identified priority** (survey + analytics on page engagement).
 - **Directive follow-through rate:** % of P1/P2 directives with a matching **`intervention_logs`** row **and** marked outcome within SLA (define “done”: logged deploy, ticket closed, etc.).
-- **Intervention efficacy:** For logged interventions, conversion / return-to-checkout / subscription lift in holdout vs treated (join `intervention_logs` → `analytics_funnel_events` / subscription state).
+- **Intervention efficacy:** For logged interventions, conversion / return-to-checkout / subscription lift in holdout vs treated (join `intervention_logs` → `analytics_events` / subscription state).
 - **Real-time alert latency:** p95 minutes from `purchase_checkout_session_created` to **eligible** abandon alert (target ≪ 18h).
 - **Pipeline quality:** uplift in conversion or reactivation among **top decile** lead scores vs control (holdout).
 - **Trust:** false-positive rate on alerts (stakeholder downvotes); target downward over time.
@@ -343,7 +343,7 @@ The **conversion pipeline** examples map to **lead score features** + **messagin
 
 The **Feature ROI matrix** examples map to **feature→event config** + **correlation tier** output.
 
-**Checkout abandonment (real-time path)** maps to **`purchase_checkout_session_created`** in `analytics_funnel_events` vs downstream **`purchase_subscription_activated`** / **`purchase_return_success`** (see **`apps/app`** and server instrumentation); the poller or edge job should use the same event names the **Monetization drop-off** detail page documents.
+**Checkout abandonment (real-time path)** maps to **`purchase_checkout_session_created`** in `analytics_events` vs downstream **`purchase_subscription_activated`** / **`purchase_return_success`** (see **`apps/app`** and server instrumentation); the poller or edge job should use the same event names the **Monetization drop-off** detail page documents.
 
 ---
 
@@ -353,7 +353,7 @@ The **Feature ROI matrix** examples map to **feature→event config** + **correl
 
 The canonical Active Growth Engine dataset registry is maintained in:
 
-- `apps/admin-dash-astro/src/lib/admin/analytics-datasets.ts`
+- `apps/app/src/lib/admin/analytics-datasets-registry.ts`
 
 Use that module as the source of truth for:
 

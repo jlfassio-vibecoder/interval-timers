@@ -113,5 +113,6 @@ $$;
 COMMENT ON FUNCTION public.get_minimal_onboarding_dropoff(int) IS
   'Admin diagnostic: sequential drop-off for /account/onboarding/minimal; cohort = distinct user_id with minimal_onboarding_viewed in window; later steps require prior milestones in the same window.';
 
+REVOKE EXECUTE ON FUNCTION public.get_minimal_onboarding_dropoff(int) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.get_minimal_onboarding_dropoff(int) TO service_role;
 GRANT EXECUTE ON FUNCTION public.get_minimal_onboarding_dropoff(int) TO postgres;

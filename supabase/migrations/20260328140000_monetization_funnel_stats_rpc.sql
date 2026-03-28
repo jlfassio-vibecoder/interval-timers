@@ -227,5 +227,6 @@ $$;
 COMMENT ON FUNCTION public.get_monetization_funnel_stats(int) IS
   'Admin monetization funnel: step counts, user/session conversion rates, median seconds between steps (logged-in users only).';
 
+REVOKE EXECUTE ON FUNCTION public.get_monetization_funnel_stats(int) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.get_monetization_funnel_stats(int) TO service_role;
 GRANT EXECUTE ON FUNCTION public.get_monetization_funnel_stats(int) TO postgres;

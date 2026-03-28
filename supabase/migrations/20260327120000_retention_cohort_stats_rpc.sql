@@ -18,6 +18,9 @@ DECLARE
   activity_end_ts timestamptz;
   result jsonb;
 BEGIN
+  IF p_days < 1 OR p_days > 366 THEN
+    RAISE EXCEPTION 'p_days must be between 1 and 366';
+  END IF;
   IF p_granularity NOT IN ('week', 'month') THEN
     RAISE EXCEPTION 'p_granularity must be week or month';
   END IF;
@@ -135,5 +138,6 @@ $$;
 COMMENT ON FUNCTION public.get_retention_cohort_stats(int, text, int) IS
   'Admin cohort retention: rows = signup cohort buckets in window; columns = period offsets; rate = activeCount/cohortSize.';
 
+REVOKE EXECUTE ON FUNCTION public.get_retention_cohort_stats(int, text, int) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.get_retention_cohort_stats(int, text, int) TO service_role;
 GRANT EXECUTE ON FUNCTION public.get_retention_cohort_stats(int, text, int) TO postgres;

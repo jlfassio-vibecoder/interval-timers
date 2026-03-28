@@ -8,7 +8,7 @@
 
 import type { APIRoute } from 'astro';
 import Stripe from 'stripe';
-import { getSupabaseServer } from '@/lib/supabase/server';
+import { getSupabaseServer, hasServiceRoleKey } from '@/lib/supabase/server';
 
 export const prerender = false;
 
@@ -43,6 +43,11 @@ function stripeWebhookSigningSecret(): string | undefined {
 }
 
 async function recordCheckoutCompleted(event: Stripe.Event): Promise<void> {
+  if (!hasServiceRoleKey()) {
+    throw new Error(
+      'SUPABASE_SERVICE_ROLE_KEY is required for Stripe webhook (RLS on idempotency + analytics_events inserts)'
+    );
+  }
   const session = event.data.object as Stripe.Checkout.Session;
   const supabase = getSupabaseServer();
 
