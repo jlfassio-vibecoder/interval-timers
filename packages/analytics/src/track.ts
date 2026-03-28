@@ -3,6 +3,11 @@
  * SPDX-License-Identifier: Apache-2.0
  *
  * Funnel event tracking for activation analytics.
+ *
+ * Monetization (client): `monetization_pricing_viewed`, `monetization_checkout_started`.
+ * `monetization_checkout_completed` is server-only (Stripe webhook), not in this allowlist.
+ * Minimal onboarding: `minimal_onboarding_viewed`, `minimal_onboarding_baseline_saved`,
+ * `minimal_onboarding_goals_saved`, `minimal_onboarding_complete`.
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -33,7 +38,12 @@ export const FUNNEL_EVENTS = [
   'guest_save_prompt_signup',
   'guest_amrap_claim_succeeded',
   'guest_amrap_claim_failed',
+  'minimal_onboarding_viewed',
+  'minimal_onboarding_baseline_saved',
+  'minimal_onboarding_goals_saved',
   'minimal_onboarding_complete',
+  'monetization_pricing_viewed',
+  'monetization_checkout_started',
 ] as const;
 
 export type FunnelEventName = (typeof FUNNEL_EVENTS)[number];

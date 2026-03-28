@@ -2,7 +2,7 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  *
- * Admin analytics engagement API: DAU/WAU/MAU, stickiness, sessions, feature adoption, power-user distribution.
+ * Admin analytics engagement API: DAU/WAU/MAU, stickiness, sessions, feature activity (catalog rollups, WoW, trends), app_id 7d volume, power-user distribution.
  */
 
 import type { APIRoute } from 'astro';

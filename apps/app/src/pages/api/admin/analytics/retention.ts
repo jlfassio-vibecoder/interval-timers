@@ -2,20 +2,30 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  *
- * Admin analytics auth-funnel API: sign-ins/sign-ups by day, funnel, OAuth vs email, TTFKA,
- * minimal onboarding drop-off (RPC).
+ * Admin analytics retention API: cohort retention matrix from get_retention_cohort_stats RPC.
  */
 
 import type { APIRoute } from 'astro';
 import { verifyTrainerOrAdminRequest } from '@/lib/supabase/admin/auth';
-import { getAuthFunnelStats } from '@/lib/supabase/admin/analytics-auth-funnel';
+import {
+  getRetentionStats,
+  type RetentionGranularity,
+} from '@/lib/supabase/admin/analytics-retention';
 
 export const GET: APIRoute = async ({ request, cookies, url }) => {
   try {
     await verifyTrainerOrAdminRequest(request, cookies);
-    const daysParam = url.searchParams.get('days');
-    const days = Math.min(90, Math.max(1, parseInt(daysParam ?? '30', 10) || 30));
-    const stats = await getAuthFunnelStats(days);
+    const days = Math.min(
+      180,
+      Math.max(7, parseInt(url.searchParams.get('days') ?? '30', 10) || 30)
+    );
+    const g = url.searchParams.get('granularity') ?? 'week';
+    const granularity: RetentionGranularity = g === 'month' ? 'month' : 'week';
+    const maxPeriods = Math.min(
+      24,
+      Math.max(1, parseInt(url.searchParams.get('maxPeriods') ?? '8', 10) || 8)
+    );
+    const stats = await getRetentionStats(days, granularity, maxPeriods);
 
     return new Response(JSON.stringify(stats), {
       status: 200,
@@ -31,9 +41,9 @@ export const GET: APIRoute = async ({ request, cookies, url }) => {
       });
     }
     if (import.meta.env.DEV || import.meta.env.PUBLIC_ENABLE_ERROR_LOGGING === 'true') {
-      console.error('[admin/analytics/auth-funnel] Error:', error);
+      console.error('[admin/analytics/retention] Error:', error);
     }
-    return new Response(JSON.stringify({ error: 'Failed to fetch auth funnel stats' }), {
+    return new Response(JSON.stringify({ error: 'Failed to fetch retention analytics' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
     });

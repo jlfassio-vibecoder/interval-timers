@@ -30,9 +30,9 @@ Firestore rules, Firebase config, App Check, and Firebase Hosting items do not a
 
 ## 🧪 Testing & Build
 
-| Check            | Command         | Result                                |
-| ---------------- | --------------- | ------------------------------------- |
-| Unit tests       | `npm run test`  | ✅ **PASS** — 142 tests, 18 files     |
+| Check            | Command         | Result                                  |
+| ---------------- | --------------- | --------------------------------------- |
+| Unit tests       | `npm run test`  | ✅ **PASS** — 142 tests, 18 files       |
 | Production build | `npm run build` | ✅ **PASS** — Build completed in ~1m 4s |
 
 **Build note:** Vite warns that some chunks are >500KB (e.g. `vendor`, `AdminDashboard`). Consider code-splitting in a follow-up; not blocking for PR.
@@ -59,14 +59,14 @@ Firestore rules, Firebase config, App Check, and Firebase Hosting items do not a
 
 ## ✅ Summary
 
-| Category      | Status             |
-| ------------- | ------------------ |
-| Lint          | ✅ Pass            |
-| Type-check    | ✅ Pass            |
-| Format        | ✅ Pass            |
+| Category      | Status              |
+| ------------- | ------------------- |
+| Lint          | ✅ Pass             |
+| Type-check    | ✅ Pass             |
+| Format        | ✅ Pass             |
 | Tests         | ✅ Pass (142 tests) |
-| Build         | ✅ Pass            |
-| Security scan | ✅ Pass            |
-| Check-env     | ✅ Pass            |
+| Build         | ✅ Pass             |
+| Security scan | ✅ Pass             |
+| Check-env     | ✅ Pass             |
 
 **Recommendation:** PR is consistent with the checklist; Prettier has been run and the report updated.

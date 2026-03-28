@@ -2,19 +2,19 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  *
- * Engagement: DAU/WAU/MAU, stickiness, sessions, feature adoption, power-user distribution.
+ * Engagement: DAU/WAU/MAU, stickiness, sessions, feature activity (P4), power-user distribution.
+ * Phase P6: DAU/session/trends via RPCs (exact aggregates).
  */
 
+import { warnIfAdminAnalyticsRowCapHit } from '@/lib/admin/admin-analytics-cap-warn';
+import {
+  FEATURE_ACTIVITY_CATALOG,
+  KNOWN_ANALYTICS_APP_IDS,
+  POWER_USER_EVENT_NAMES,
+  allCatalogEventNames,
+  eventNameToFeatureId,
+} from '@/lib/admin/feature-activity-catalog';
 import { getSupabaseServer } from '../server';
-
-const KEY_EVENTS = [
-  'timer_session_complete',
-  'hub_timer_launch_1',
-  'hub_timer_launch_2',
-  'timer_save_click',
-  'account_land_handoff',
-  'account_session_prefill_success',
-] as const;
 
 export interface EngagementStats {
   dauByDay: { date: string; count: number }[];
@@ -25,9 +25,21 @@ export interface EngagementStats {
   sessionCount: number;
   avgSessionDurationMinutes: number;
   avgPagesPerSession: number;
-  featureAdoption: { eventName: string; count7d: number; count30d: number }[];
+  featureActivity: {
+    featureId: string;
+    name: string;
+    surface: string;
+    count7d: number;
+    count30d: number;
+    wowPercent: number | null;
+  }[];
+  featureActivityTrends: { featureId: string; points: { date: string; count: number }[] }[];
+  /** Last 7d event row counts by known `app_id` plus unset (not exhaustive). */
+  eventVolumeByAppId7d: { appId: string; count7d: number }[];
   powerUserDistribution: { bucket: string; count: number }[];
 }
+
+const POWER_USER_FETCH_LIMIT = 10_000;
 
 function dateKey(d: Date): string {
   return d.toISOString().slice(0, 10);
@@ -41,138 +53,192 @@ export async function getEngagementStats(days: number): Promise<EngagementStats>
   const toIso = toDate.toISOString();
 
   const sevenDaysAgo = new Date(toDate.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const fourteenDaysAgo = new Date(toDate.getTime() - 14 * 24 * 60 * 60 * 1000);
   const thirtyDaysAgo = new Date(toDate.getTime() - 30 * 24 * 60 * 60 * 1000);
-  // Use date-only strings so WAU/MAU cutoff compares consistently with dauByDayMap keys (YYYY-MM-DD).
   const from7 = dateKey(sevenDaysAgo);
+  const from14 = dateKey(fourteenDaysAgo);
   const from30 = dateKey(thirtyDaysAgo);
 
-  // Distinct user_id per day from analytics_events and web_events (union per date)
-  const dauByDayMap = new Map<string, Set<string>>();
+  const trendDayCount = Math.min(Math.max(days, 1), 14);
+  const catalogEvents = allCatalogEventNames();
 
-  const addUserToDay = (dateStr: string, userId: string) => {
-    if (!dateStr || !userId) return;
-    let set = dauByDayMap.get(dateStr);
-    if (!set) {
-      set = new Set();
-      dauByDayMap.set(dateStr, set);
-    }
-    set.add(userId);
-  };
+  const [
+    { data: dauData, error: dauErr },
+    { data: sessionData, error: sessionErr },
+    { data: featureDailyData, error: featureDailyErr },
+  ] = await Promise.all([
+    supabase.rpc('get_engagement_dau_series', { p_days: days }),
+    supabase.rpc('get_engagement_web_session_stats', { p_days: days }),
+    supabase.rpc('get_feature_activity_daily', {
+      p_days: days,
+      p_max_days: trendDayCount,
+      p_event_names: catalogEvents,
+    }),
+  ]);
 
-  const { data: aeRows } = await supabase
-    .from('analytics_events')
-    .select('user_id, timestamp')
-    .gte('timestamp', fromIso)
-    .lte('timestamp', toIso)
-    .not('user_id', 'is', null)
-    .limit(10000);
+  if (dauErr) throw dauErr;
+  if (sessionErr) throw sessionErr;
+  if (featureDailyErr) throw featureDailyErr;
 
-  for (const row of aeRows ?? []) {
-    const uid = (row as { user_id: string }).user_id;
-    const ts = (row as { timestamp: string }).timestamp;
-    addUserToDay(ts.slice(0, 10), uid);
+  const dauRow = dauData as {
+    dau_by_day?: unknown;
+    dau?: unknown;
+    wau?: unknown;
+    mau?: unknown;
+    stickiness?: unknown;
+  } | null;
+
+  if (!dauRow || typeof dauRow !== 'object') {
+    throw new Error('get_engagement_dau_series: invalid response');
   }
 
-  const { data: weRows } = await supabase
-    .from('web_events')
-    .select('user_id, occurred_at')
-    .gte('occurred_at', fromIso)
-    .lte('occurred_at', toIso)
-    .not('user_id', 'is', null)
-    .limit(10000);
-
-  for (const row of weRows ?? []) {
-    const uid = (row as { user_id: string }).user_id;
-    const ts = (row as { occurred_at: string }).occurred_at;
-    addUserToDay(ts.slice(0, 10), uid);
-  }
-
-  const dauByDay = Array.from(dauByDayMap.entries())
-    .map(([date, set]) => ({ date, count: set.size }))
+  const rawDauByDay = Array.isArray(dauRow.dau_by_day) ? dauRow.dau_by_day : [];
+  const dauByDay = rawDauByDay
+    .map((r: unknown) => {
+      const row = r as { date?: string; count?: unknown };
+      return {
+        date: typeof row.date === 'string' ? row.date : String(row.date ?? ''),
+        count: Number(row.count ?? 0),
+      };
+    })
+    .filter((r) => r.date)
     .sort((a, b) => a.date.localeCompare(b.date));
 
-  const lastDayInRange = dauByDay.length ? dauByDay[dauByDay.length - 1].date : dateKey(toDate);
-  const dau = dauByDayMap.get(lastDayInRange)?.size ?? 0;
+  const dau = Number(dauRow.dau ?? 0);
+  const wau = Number(dauRow.wau ?? 0);
+  const mau = Number(dauRow.mau ?? 0);
+  const stickiness = Number(dauRow.stickiness ?? 0);
 
-  let wauSet = new Set<string>();
-  let mauSet = new Set<string>();
-  for (const [date, set] of dauByDayMap) {
-    if (date >= from7) set.forEach((u) => wauSet.add(u));
-    if (date >= from30) set.forEach((u) => mauSet.add(u));
+  const sess = sessionData as {
+    session_count?: unknown;
+    avg_session_duration_minutes?: unknown;
+    avg_pages_per_session?: unknown;
+  } | null;
+  if (!sess || typeof sess !== 'object') {
+    throw new Error('get_engagement_web_session_stats: invalid response');
   }
-  const wau = wauSet.size;
-  const mau = mauSet.size;
-  const stickiness = mau > 0 ? wau / mau : 0;
+  const sessionCount = Number(sess.session_count ?? 0);
+  const avgSessionDurationMinutes = Number(sess.avg_session_duration_minutes ?? 0);
+  const avgPagesPerSession = Number(sess.avg_pages_per_session ?? 0);
 
-  // Sessions from web_events (page_view): group by session_id
-  const { data: sessionRows } = await supabase
-    .from('web_events')
-    .select('session_id, user_id, occurred_at')
-    .eq('event_name', 'page_view')
-    .gte('occurred_at', fromIso)
-    .lte('occurred_at', toIso)
-    .limit(15000);
-
-  const sessionMap = new Map<string, { start: number; end: number; pages: number }>();
-  for (const row of sessionRows ?? []) {
-    const sid =
-      (row as { session_id?: string | null }).session_id ?? (row as { user_id?: string }).user_id;
-    if (!sid) continue;
-    const ts = new Date((row as { occurred_at: string }).occurred_at).getTime();
-    let s = sessionMap.get(sid);
-    if (!s) {
-      s = { start: ts, end: ts, pages: 0 };
-      sessionMap.set(sid, s);
-    }
-    s.start = Math.min(s.start, ts);
-    s.end = Math.max(s.end, ts);
-    s.pages += 1;
-  }
-
-  const sessionCount = sessionMap.size;
-  let totalDurationMs = 0;
-  let totalPages = 0;
-  for (const s of sessionMap.values()) {
-    totalDurationMs += s.end - s.start;
-    totalPages += s.pages;
-  }
-  const avgSessionDurationMinutes = sessionCount > 0 ? totalDurationMs / 60000 / sessionCount : 0;
-  const avgPagesPerSession = sessionCount > 0 ? totalPages / sessionCount : 0;
-
-  // Feature adoption: key events count in last 7d and last 30d
-  const featureAdoption: EngagementStats['featureAdoption'] = [];
-  for (const eventName of KEY_EVENTS) {
-    const { count: count7 } = await supabase
+  async function countEventsInWindow(
+    eventNames: readonly string[],
+    tsGte: string,
+    tsLte: string,
+    endExclusive = false
+  ): Promise<number> {
+    if (eventNames.length === 0) return 0;
+    let q = supabase
       .from('analytics_events')
       .select('*', { count: 'exact', head: true })
-      .eq('event_name', eventName)
-      .gte('timestamp', from7)
-      .lte('timestamp', toIso);
-    const { count: count30 } = await supabase
-      .from('analytics_events')
-      .select('*', { count: 'exact', head: true })
-      .eq('event_name', eventName)
-      .gte('timestamp', from30)
-      .lte('timestamp', toIso);
-    featureAdoption.push({
-      eventName,
-      count7d: count7 ?? 0,
-      count30d: count30 ?? 0,
+      .in('event_name', [...eventNames])
+      .gte('timestamp', tsGte);
+    q = endExclusive ? q.lt('timestamp', tsLte) : q.lte('timestamp', tsLte);
+    const { count } = await q;
+    return count ?? 0;
+  }
+
+  // One exact-count query per feature × window (catalog size is small). A client-side “fetch all rows”
+  // merge would regress cost vs head-only counts; a single RPC could batch windows later if needed.
+  const featureActivity: EngagementStats['featureActivity'] = await Promise.all(
+    FEATURE_ACTIVITY_CATALOG.map(async (f) => {
+      const [count7d, count30d, prior7d] = await Promise.all([
+        countEventsInWindow(f.eventNames, from7, toIso),
+        countEventsInWindow(f.eventNames, from30, toIso),
+        countEventsInWindow(f.eventNames, from14, from7, true),
+      ]);
+      const wowPercent = prior7d === 0 ? null : ((count7d - prior7d) / prior7d) * 100;
+      return {
+        featureId: f.id,
+        name: f.name,
+        surface: f.surface,
+        count7d,
+        count30d,
+        wowPercent,
+      };
+    })
+  );
+
+  const trendDates: string[] = [];
+  for (let i = trendDayCount - 1; i >= 0; i--) {
+    trendDates.push(dateKey(new Date(toDate.getTime() - i * 24 * 60 * 60 * 1000)));
+  }
+
+  const eventToFeature = eventNameToFeatureId();
+  const countsByFeatureDay = new Map<string, Map<string, number>>();
+  for (const f of FEATURE_ACTIVITY_CATALOG) {
+    countsByFeatureDay.set(f.id, new Map());
+  }
+
+  const dailyRows = Array.isArray((featureDailyData as { rows?: unknown })?.rows)
+    ? ((featureDailyData as { rows: unknown[] }).rows as {
+        event_name?: string;
+        date?: string;
+        count?: unknown;
+      }[])
+    : [];
+  for (const row of dailyRows) {
+    const en = row.event_name;
+    const day = typeof row.date === 'string' ? row.date : String(row.date ?? '');
+    const c = Number(row.count ?? 0);
+    if (!en || !day) continue;
+    const fid = eventToFeature.get(en);
+    if (!fid) continue;
+    const fm = countsByFeatureDay.get(fid);
+    if (!fm) continue;
+    fm.set(day, (fm.get(day) ?? 0) + c);
+  }
+
+  const featureActivityTrends: EngagementStats['featureActivityTrends'] =
+    FEATURE_ACTIVITY_CATALOG.map((f) => {
+      const fm = countsByFeatureDay.get(f.id)!;
+      const points = trendDates.map((date) => ({
+        date,
+        count: fm.get(date) ?? 0,
+      }));
+      return { featureId: f.id, points };
     });
-  }
 
-  // Power-user: count key events per user in range, then bucket
+  const knownAppCounts = await Promise.all(
+    KNOWN_ANALYTICS_APP_IDS.map((appId) =>
+      supabase
+        .from('analytics_events')
+        .select('*', { count: 'exact', head: true })
+        .eq('app_id', appId)
+        .gte('timestamp', from7)
+        .lte('timestamp', toIso)
+        .then(({ count }) => ({ appId, count7d: count ?? 0 }))
+    )
+  );
+  const { count: unsetCount } = await supabase
+    .from('analytics_events')
+    .select('*', { count: 'exact', head: true })
+    .is('app_id', null)
+    .gte('timestamp', from7)
+    .lte('timestamp', toIso);
+  const eventVolumeByAppId7d: EngagementStats['eventVolumeByAppId7d'] = [
+    ...knownAppCounts,
+    { appId: '(unset)', count7d: unsetCount ?? 0 },
+  ];
+
   const { data: keyEventRows } = await supabase
     .from('analytics_events')
     .select('user_id')
-    .in('event_name', [...KEY_EVENTS])
+    .in('event_name', [...POWER_USER_EVENT_NAMES])
     .gte('timestamp', fromIso)
     .lte('timestamp', toIso)
     .not('user_id', 'is', null)
-    .limit(10000);
+    .limit(POWER_USER_FETCH_LIMIT);
+
+  const rows = keyEventRows ?? [];
+  warnIfAdminAnalyticsRowCapHit(
+    'engagement power-user events',
+    rows.length,
+    POWER_USER_FETCH_LIMIT
+  );
 
   const eventsPerUser = new Map<string, number>();
-  for (const row of keyEventRows ?? []) {
+  for (const row of rows) {
     const uid = (row as { user_id: string }).user_id;
     eventsPerUser.set(uid, (eventsPerUser.get(uid) ?? 0) + 1);
   }
@@ -200,7 +266,9 @@ export async function getEngagementStats(days: number): Promise<EngagementStats>
     sessionCount,
     avgSessionDurationMinutes,
     avgPagesPerSession,
-    featureAdoption,
+    featureActivity,
+    featureActivityTrends,
+    eventVolumeByAppId7d,
     powerUserDistribution,
   };
 }

@@ -2,20 +2,21 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  *
- * Admin analytics auth-funnel API: sign-ins/sign-ups by day, funnel, OAuth vs email, TTFKA,
- * minimal onboarding drop-off (RPC).
+ * Admin analytics: monetization funnel from get_monetization_funnel_stats RPC.
  */
 
 import type { APIRoute } from 'astro';
 import { verifyTrainerOrAdminRequest } from '@/lib/supabase/admin/auth';
-import { getAuthFunnelStats } from '@/lib/supabase/admin/analytics-auth-funnel';
+import { getMonetizationFunnelStats } from '@/lib/supabase/admin/analytics-monetization-funnel';
 
 export const GET: APIRoute = async ({ request, cookies, url }) => {
   try {
     await verifyTrainerOrAdminRequest(request, cookies);
-    const daysParam = url.searchParams.get('days');
-    const days = Math.min(90, Math.max(1, parseInt(daysParam ?? '30', 10) || 30));
-    const stats = await getAuthFunnelStats(days);
+    const days = Math.min(
+      366,
+      Math.max(1, parseInt(url.searchParams.get('days') ?? '30', 10) || 30)
+    );
+    const stats = await getMonetizationFunnelStats(days);
 
     return new Response(JSON.stringify(stats), {
       status: 200,
@@ -31,11 +32,14 @@ export const GET: APIRoute = async ({ request, cookies, url }) => {
       });
     }
     if (import.meta.env.DEV || import.meta.env.PUBLIC_ENABLE_ERROR_LOGGING === 'true') {
-      console.error('[admin/analytics/auth-funnel] Error:', error);
+      console.error('[admin/analytics/monetization-funnel] Error:', error);
     }
-    return new Response(JSON.stringify({ error: 'Failed to fetch auth funnel stats' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return new Response(
+      JSON.stringify({ error: 'Failed to fetch monetization funnel analytics' }),
+      {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
   }
 };

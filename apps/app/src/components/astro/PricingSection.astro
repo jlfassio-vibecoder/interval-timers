@@ -1,6 +1,7 @@
 ---
 import { pricingPlans } from '../../data/pricing';
 import PricingCard from './PricingCard.astro';
+import MonetizationPricingTracker from '../react/public/MonetizationPricingTracker';
 ---
 
 <section
@@ -24,4 +25,5 @@ import PricingCard from './PricingCard.astro';
       {pricingPlans.map((plan) => <PricingCard plan={plan} />)}
     </div>
   </div>
+  <MonetizationPricingTracker client:visible />
 </section>

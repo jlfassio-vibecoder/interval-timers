@@ -10,11 +10,12 @@ import { resolve } from 'path';
 
 const root = fileURLToPath(new URL('.', import.meta.url));
 const monorepoRoot = resolve(root, '../..');
-// Load monorepo root .env first (HIIT Workout Timer Supabase: VITE_SUPABASE_*), then app-level (override)
+// Load monorepo root .env first (HIIT Workout Timer Supabase: VITE_SUPABASE_*), then app-level.
+// Later files override earlier keys (dotenv default is first-wins; we want apps/app/.env to win over root).
 loadEnv({ path: resolve(monorepoRoot, '.env') });
-loadEnv({ path: resolve(monorepoRoot, '.env.local') });
-loadEnv({ path: resolve(root, '.env') });
-loadEnv({ path: resolve(root, '.env.local') });
+loadEnv({ path: resolve(monorepoRoot, '.env.local'), override: true });
+loadEnv({ path: resolve(root, '.env'), override: true });
+loadEnv({ path: resolve(root, '.env.local'), override: true });
 const src = resolve(root, './src');
 
 // Use Vercel adapter on Vercel (fixes 404 NOT_FOUND); Node adapter elsewhere (e.g. local preview, other hosts)

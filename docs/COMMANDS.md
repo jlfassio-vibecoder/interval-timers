@@ -147,6 +147,27 @@ The site is a landing app at `/` plus 13 standalone timer apps, each at its own 
 
 ---
 
+## Stripe (local webhooks)
+
+The central app (`apps/app`) serves `POST /api/stripe/webhook` on the **Astro dev port** (default **3006**, not the landing port).
+
+1. Install the [Stripe CLI](https://stripe.com/docs/stripe-cli) (macOS: `brew install stripe/stripe-cli/stripe`).
+2. Authenticate: `stripe login`
+3. From a terminal, forward events while `npm run dev` (or `npm run dev:app`) is running:
+
+```bash
+stripe listen --forward-to http://localhost:3006/api/stripe/webhook
+```
+
+4. Copy the **`whsec_...`** signing secret the CLI prints and set **`STRIPE_WEBHOOK_SECRET`** in your env (root `.env` or `apps/app/.env` — both are loaded by `astro.config.mjs`). **`STRIPE_SIGNING_SECRET`** is accepted as an alias if `STRIPE_WEBHOOK_SECRET` is unset. Set **`STRIPE_SECRET_KEY`** to your test secret key (`sk_test_...`). If the same key exists in both root and `apps/app/.env`, **the app file wins** (later override). **Restart `npm run dev`** after changing Stripe env so the server picks up new values.
+5. Trigger a test event: `stripe trigger payment_intent.succeeded` (or the event types you care about).
+
+Production: create a webhook endpoint in the Stripe Dashboard pointing at your deployed app URL with the same path, and use that endpoint’s signing secret as `STRIPE_WEBHOOK_SECRET`.
+
+**Monetization analytics:** On `checkout.session.completed`, the app inserts `monetization_checkout_completed` into `analytics_events` (requires **`SUPABASE_SERVICE_ROLE_KEY`** on the server). To attach a Supabase user, set Checkout **`client_reference_id`** or metadata **`supabase_user_id`** to the user’s UUID. See [ADMIN_ANALYTICS.md](ADMIN_ANALYTICS.md) §Monetization funnel.
+
+---
+
 ## Supabase (HIIT project)
 
 Project: `dgxoyhkqdxarewmanbrq` — https://dgxoyhkqdxarewmanbrq.supabase.co
@@ -157,3 +178,4 @@ Project: `dgxoyhkqdxarewmanbrq` — https://dgxoyhkqdxarewmanbrq.supabase.co
   - Or use the DB URL directly: `psql "$DATABASE_URL" -c "…"`
 - **MCP (Cursor):** The Supabase MCP in `~/.cursor/mcp.json` is set to `project_ref=dgxoyhkqdxarewmanbrq` with the anon key in `Authorization`. **Restart Cursor** after changing MCP config. If the MCP still connects to the wrong project, use a [Personal Access Token](https://supabase.com/dashboard/account/tokens) in the `Authorization` header instead of the anon key.
 - **Schema layout:** One project; `public` holds current app-prefixed tables (e.g. `amrap_sessions`). Schemas `amrap` and `shared` exist for future use: put new app-specific objects in `amrap`, cross-app (e.g. user_saved_timers) in `shared`. See `supabase/README.md`.
+- **Admin analytics metrics:** Definitions, data sources, and `/api/admin/analytics/*` routes are documented in [ADMIN_ANALYTICS.md](ADMIN_ANALYTICS.md).

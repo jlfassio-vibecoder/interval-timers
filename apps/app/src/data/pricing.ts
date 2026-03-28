@@ -1,10 +1,21 @@
 /**
- * Pricing plans for the Programs landing page.
- * Matches astro-site landing. Stripe payment links from PUBLIC_STRIPE_PAYMENT_LINK_* env.
- * Fallback: Premium uses default link in production (see getPremiumLink); other tiers use app login URL.
- * Outside production, Premium CTA falls back to login URL when env unset to avoid accidental live checkout.
- * Premium ($11.99) default: https://buy.stripe.com/dRm6oHcW3gW19RZ6qlgnK00
+ * HIIT Ecosystem pricing (value-based scaling) for the Programs landing page.
+ * Stripe payment links: set PUBLIC_STRIPE_PAYMENT_LINK_* env vars (new names preferred;
+ * legacy *_PREMIUM / *_PRO / *_ELITE / *_COACH* fall back for existing deployments).
+ *
+ * purchased_index (profiles): 0=Athlete, 1=Host, 2=Pro, 3=Studio; 4=Coach Pro (legacy); 5=Studio Pro.
  */
+
+/** Maps public `PricingPlan.id` to `profiles.purchased_index` (HIIT Ecosystem 0–3). */
+export function purchasedIndexForPlanId(planId: string): number | null {
+  const map: Record<string, number> = {
+    athlete: 0,
+    host: 1,
+    pro: 2,
+    studio: 3,
+  };
+  return map[planId] ?? null;
+}
 
 export interface PricingPlan {
   id: string;
@@ -26,135 +37,119 @@ const APP_BASE = (
   'https://app.aiworkoutgenerator.com'
 ).replace(/\/$/, '');
 const FALLBACK_LOGIN_URL = `${APP_BASE}/login`;
-const DEFAULT_PREMIUM_PAYMENT_LINK = 'https://buy.stripe.com/dRm6oHcW3gW19RZ6qlgnK00';
+/** Fallback checkout URL when new Athlete link env is unset (legacy Premium link). */
+const DEFAULT_ATHLETE_PAYMENT_LINK = 'https://buy.stripe.com/dRm6oHcW3gW19RZ6qlgnK00';
 
-function getEnv(name: string): string {
+function firstStripeLink(...envKeys: string[]): string {
   try {
-    const v = (import.meta as unknown as { env?: Record<string, string> }).env?.[name];
-    return typeof v === 'string' && v ? v : FALLBACK_LOGIN_URL;
+    const env = (import.meta as unknown as { env?: Record<string, string> }).env ?? {};
+    for (const key of envKeys) {
+      const v = env[key];
+      if (typeof v === 'string' && v.trim() !== '') return v;
+    }
   } catch {
-    return FALLBACK_LOGIN_URL;
+    /* ignore */
   }
+  return FALLBACK_LOGIN_URL;
 }
 
-function getPremiumLink(): string {
+function getAthleteLink(): string {
   const env = (import.meta as unknown as { env?: Record<string, string | boolean | undefined> })
     .env;
-  const v = env?.PUBLIC_STRIPE_PAYMENT_LINK_PREMIUM;
-  if (typeof v === 'string' && v) return v;
-  // Outside production, avoid routing to live Stripe when env is unset
-  return env?.PROD ? DEFAULT_PREMIUM_PAYMENT_LINK : FALLBACK_LOGIN_URL;
+  const athlete = env?.PUBLIC_STRIPE_PAYMENT_LINK_ATHLETE;
+  if (typeof athlete === 'string' && athlete.trim() !== '') return athlete;
+  const legacyPremium = env?.PUBLIC_STRIPE_PAYMENT_LINK_PREMIUM;
+  if (typeof legacyPremium === 'string' && legacyPremium.trim() !== '') return legacyPremium;
+  return env?.PROD ? DEFAULT_ATHLETE_PAYMENT_LINK : FALLBACK_LOGIN_URL;
+}
+
+function getHostLink(): string {
+  return firstStripeLink('PUBLIC_STRIPE_PAYMENT_LINK_HOST', 'PUBLIC_STRIPE_PAYMENT_LINK_PRO');
+}
+
+function getProTrainerLink(): string {
+  return firstStripeLink(
+    'PUBLIC_STRIPE_PAYMENT_LINK_PRO_TRAINER',
+    'PUBLIC_STRIPE_PAYMENT_LINK_ELITE'
+  );
+}
+
+function getStudioLink(): string {
+  return firstStripeLink(
+    'PUBLIC_STRIPE_PAYMENT_LINK_STUDIO',
+    'PUBLIC_STRIPE_PAYMENT_LINK_COACH_PRO',
+    'PUBLIC_STRIPE_PAYMENT_LINK_COACH'
+  );
 }
 
 export const pricingPlans: PricingPlan[] = [
   {
-    id: 'premium',
-    name: 'Premium',
-    price: 11.99,
+    id: 'athlete',
+    name: 'Athlete',
+    price: 9.99,
     period: 'month',
-    description: 'Entry tier, monthly renewal',
+    description:
+      'Solo performer — AI readiness, GPS logs, and Brain-driven training. 7-day calibration trial before first charge.',
     features: [
-      '20 AI-generated workouts/month',
-      'Basic exercise library',
-      'Daily check-in tracking',
-      'Profile customization',
+      'AI-generated “Ready-to-Train” logic (readiness-informed workouts)',
+      'Daily routine, HR, and map log context for your sessions',
+      'Monthly AI generation credits (capped; upgrade for unlimited)',
+      '7-day calibration period to learn your baseline',
     ],
-    ctaText: 'Subscribe',
+    ctaText: 'Start calibration',
     ctaVariant: 'secondary',
-    ctaLink: getPremiumLink(),
+    ctaLink: getAthleteLink(),
+  },
+  {
+    id: 'host',
+    name: 'Host',
+    price: 24.99,
+    period: 'month',
+    description:
+      'Social leader — private leaderboard and network effect. Invite up to 5 Buddies at no extra cost.',
+    popular: true,
+    features: [
+      'Everything in Athlete',
+      'Host a private leaderboard for your crew',
+      'Invite up to 5 Buddies free (family-plan style)',
+      'Community retention hooks — your group stays in one ecosystem',
+    ],
+    ctaText: 'Become a Host',
+    ctaVariant: 'primary',
+    ctaLink: getHostLink(),
   },
   {
     id: 'pro',
     name: 'Pro',
-    price: 19,
+    price: 49.99,
     period: 'month',
-    description: 'Perfect for fitness enthusiasts',
-    popular: true,
+    description:
+      'Independent trainer — client management, not just self-tracking. Base includes 30 client slots; scales with your roster.',
     features: [
-      '50 AI-generated workouts/month',
-      'Full exercise library',
-      'Daily check-in tracking',
-      'Profile customization',
-      'Calendar scheduling',
-      'Workout history analytics',
+      'Base $49.99/mo includes up to 30 paid client slots',
+      '+$1.00 per active client per month beyond 30 (value-based scaling)',
+      '360° view: confirm clients logged housework, walking, and training signals',
+      'Unlimited AI workout generation for your practice (no per-gen anxiety)',
     ],
-    ctaText: 'Get Pro',
-    ctaVariant: 'primary',
-    ctaLink: getEnv('PUBLIC_STRIPE_PAYMENT_LINK_PRO'),
-  },
-  {
-    id: 'elite',
-    name: 'Elite',
-    price: 49,
-    period: 'month',
-    description: 'For serious athletes',
-    features: [
-      'Unlimited AI-generated workouts',
-      'Full exercise library',
-      'Daily check-in tracking',
-      'Profile customization',
-      'Calendar scheduling',
-      'Workout history analytics',
-      'Priority support',
-      'Coach access (coming soon)',
-    ],
-    ctaText: 'Go Elite',
+    ctaText: 'Go Pro',
     ctaVariant: 'secondary',
-    ctaLink: getEnv('PUBLIC_STRIPE_PAYMENT_LINK_ELITE'),
+    ctaLink: getProTrainerLink(),
   },
   {
-    id: 'coach',
-    name: 'Coach',
-    price: 99,
+    id: 'studio',
+    name: 'Studio',
+    price: 199.99,
     period: 'month',
-    description: 'Hybrid coaching + live training',
+    description:
+      'Boutique gym / multi-coach — admin dashboard, engagement analytics, and scale beyond a single trainer.',
     features: [
-      '50 AI-generated workouts/month',
-      'Full exercise library',
-      'Daily check-in tracking',
-      'Profile customization',
-      'Calendar scheduling',
-      'Workout history analytics',
-      'Priority support',
-      'Image generation',
-      'Live online classes (3× weekly, currently 7am PST)',
-      '1× 30-min coaching session/month (form check + program refinement)',
-      '9 Coach-Certified Workouts/month',
-      'Monthly program design + progression toward your goals',
-      'Weekly Coach Office Hours (Q&A + substitutions)',
-      '2 form check video reviews/month',
-      'Travel / Busy Week workout options',
+      'From $199.99/mo for the first location (multi-location add-ons as you scale)',
+      'Unlimited trainers under one license (per agreement)',
+      'Admin dashboard + member engagement analytics',
+      'Position HIIT as your gym OS — timer users stay longer (retention story)',
     ],
-    ctaText: 'Work with a Coach',
+    ctaText: 'Talk Studio',
     ctaVariant: 'secondary',
-    ctaLink: getEnv('PUBLIC_STRIPE_PAYMENT_LINK_COACH'),
-  },
-  {
-    id: 'coach-pro',
-    name: 'Coach Pro',
-    price: 199,
-    period: 'month',
-    description: 'High-touch coaching + nutrition',
-    features: [
-      '50 AI-generated workouts/month',
-      'Full exercise library',
-      'Daily check-in tracking',
-      'Profile customization',
-      'Calendar scheduling',
-      'Workout history analytics',
-      'Priority support',
-      'Image generation',
-      'Live online classes (3× weekly, currently 7am PST)',
-      '2× 30-min coaching sessions/month',
-      '12 Coach-Certified Workouts/month',
-      'Monthly program design + progression',
-      'Nutrition program design (templates + monthly adjustments)',
-      'Priority messaging support (responses within 24h, business days)',
-      'Weekly form check submissions',
-      'Quarterly benchmarks + goal reset',
-    ],
-    ctaText: 'Get Coach Pro',
-    ctaVariant: 'primary',
-    ctaLink: getEnv('PUBLIC_STRIPE_PAYMENT_LINK_COACH_PRO'),
+    ctaLink: getStudioLink(),
   },
 ];

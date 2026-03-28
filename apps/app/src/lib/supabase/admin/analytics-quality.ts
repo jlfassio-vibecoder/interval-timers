@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  *
  * Quality analytics: frontend error counts by page, top errors, time series.
- * Uses service role to read errors_frontend (RLS allows only INSERT for anon/authenticated).
+ * Uses get_errors_frontend_rollups RPC (Phase P6); service role reads errors_frontend.
  */
 
 import { getSupabaseServer } from '../server';
@@ -17,10 +17,6 @@ export interface QualityStats {
   totalErrors: number;
   topErrors: { message: string; count: number }[];
   errorsByDay: { date: string; count: number }[];
-}
-
-function dateKey(d: Date): string {
-  return d.toISOString().slice(0, 10);
 }
 
 function normalizeMessage(msg: string): string {
@@ -38,16 +34,12 @@ const EMPTY_STATS: QualityStats = {
 
 export async function getQualityStats(days: number): Promise<QualityStats> {
   const supabase = getSupabaseServer();
-  const toDate = new Date();
-  const fromDate = new Date(toDate.getTime() - days * 24 * 60 * 60 * 1000);
-  const fromIso = fromDate.toISOString();
-  const toIso = toDate.toISOString();
 
-  const { data: rows, error } = await supabase
-    .from('errors_frontend')
-    .select('message, page, occurred_at')
-    .gte('occurred_at', fromIso)
-    .lte('occurred_at', toIso);
+  const { data, error } = await supabase.rpc('get_errors_frontend_rollups', {
+    p_days: days,
+    p_top_pages: TOP_PAGES_LIMIT,
+    p_top_messages: TOP_ERRORS_LIMIT,
+  });
 
   if (error) {
     const msg = error.message ?? '';
@@ -55,53 +47,57 @@ export async function getQualityStats(days: number): Promise<QualityStats> {
     const missingTable =
       /relation .* does not exist/i.test(msg) ||
       code === '42P01' ||
+      /function .* does not exist/i.test(msg) ||
       /permission denied/i.test(msg) ||
       code === '42501';
     if (missingTable) {
       if (import.meta.env.DEV || import.meta.env.PUBLIC_ENABLE_ERROR_LOGGING === 'true') {
-        console.warn('[analytics-quality] errors_frontend not available:', error.message);
+        console.warn('[analytics-quality] errors_frontend / RPC not available:', error.message);
       }
       return EMPTY_STATS;
     }
     throw error;
   }
 
-  const list = rows ?? [];
-  const totalErrors = list.length;
+  const row = data as {
+    errors_by_page?: unknown;
+    top_errors?: unknown;
+    errors_by_day?: unknown;
+    total_errors?: unknown;
+  } | null;
 
-  const pageCounts = new Map<string, number>();
-  const messageCounts = new Map<string, number>();
-  const dayCounts = new Map<string, number>();
-
-  for (const row of list) {
-    const page = (row as { page: string | null }).page ?? 'Unknown';
-    pageCounts.set(page, (pageCounts.get(page) ?? 0) + 1);
-
-    const msg = (row as { message: string }).message;
-    const normalized = normalizeMessage(msg);
-    messageCounts.set(normalized, (messageCounts.get(normalized) ?? 0) + 1);
-
-    const occurredAt = (row as { occurred_at: string }).occurred_at;
-    const day = occurredAt ? occurredAt.slice(0, 10) : dateKey(toDate);
-    dayCounts.set(day, (dayCounts.get(day) ?? 0) + 1);
+  if (!row || typeof row !== 'object') {
+    return EMPTY_STATS;
   }
 
-  const errorsByPage = Array.from(pageCounts.entries())
-    .map(([page, count]) => ({ page, count }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, TOP_PAGES_LIMIT);
+  const errorsByPage = Array.isArray(row.errors_by_page)
+    ? (row.errors_by_page as { page?: string; count?: unknown }[]).map((r) => ({
+        page: typeof r.page === 'string' ? r.page : String(r.page ?? ''),
+        count: Number(r.count ?? 0),
+      }))
+    : [];
 
-  const topErrors = Array.from(messageCounts.entries())
-    .map(([message, count]) => ({ message, count }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, TOP_ERRORS_LIMIT);
+  const topErrors = Array.isArray(row.top_errors)
+    ? (row.top_errors as { message?: string; count?: unknown }[]).map((r) => ({
+        message: normalizeMessage(
+          typeof r.message === 'string' ? r.message : String(r.message ?? '')
+        ),
+        count: Number(r.count ?? 0),
+      }))
+    : [];
 
-  const sortedDays = Array.from(dayCounts.entries()).sort(([a], [b]) => a.localeCompare(b));
-  const errorsByDay = sortedDays.map(([date, count]) => ({ date, count }));
+  const errorsByDay = Array.isArray(row.errors_by_day)
+    ? (row.errors_by_day as { date?: string; count?: unknown }[])
+        .map((r) => ({
+          date: typeof r.date === 'string' ? r.date : String(r.date ?? ''),
+          count: Number(r.count ?? 0),
+        }))
+        .sort((a, b) => a.date.localeCompare(b.date))
+    : [];
 
   return {
     errorsByPage,
-    totalErrors,
+    totalErrors: Number(row.total_errors ?? 0),
     topErrors,
     errorsByDay,
   };

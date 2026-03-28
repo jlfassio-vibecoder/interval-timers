@@ -58,24 +58,32 @@ export async function getFunnelStats(days = DEFAULT_DAYS): Promise<FunnelStats> 
   ] as const;
 
   const counts: Record<string, number> = {};
-  const distinctLaunch1 = new Set<string>();
-  const distinctLaunch2 = new Set<string>();
+  let distinctLaunch1 = 0;
+  let distinctLaunch2 = 0;
   const bySource: FunnelStats['bySource'] = {};
 
-  // Parallelize event queries (each is independent). RPC for count(distinct user_id) would
-  // avoid row fetch for hub events; parallelization addresses sequential latency for now.
+  const { data: hubRpc, error: hubRpcErr } = await supabase.rpc('get_funnel_hub_launch_stats', {
+    p_days: days,
+  });
+  if (hubRpcErr) throw hubRpcErr;
+
+  const hub = hubRpc as {
+    hub_timer_launch_1?: { event_count?: unknown; distinct_user_count?: unknown };
+    hub_timer_launch_2?: { event_count?: unknown; distinct_user_count?: unknown };
+  } | null;
+
+  if (hub && typeof hub === 'object') {
+    counts['hub_timer_launch_1'] = Number(hub.hub_timer_launch_1?.event_count ?? 0);
+    counts['hub_timer_launch_2'] = Number(hub.hub_timer_launch_2?.event_count ?? 0);
+    distinctLaunch1 = Number(hub.hub_timer_launch_1?.distinct_user_count ?? 0);
+    distinctLaunch2 = Number(hub.hub_timer_launch_2?.distinct_user_count ?? 0);
+  }
+
+  const otherEvents = events.filter(
+    (n) => n !== 'hub_timer_launch_1' && n !== 'hub_timer_launch_2'
+  );
   const eventResults = await Promise.all(
-    events.map(async (name) => {
-      if (name === 'hub_timer_launch_1' || name === 'hub_timer_launch_2') {
-        const { data: rows } = await supabase
-          .from('analytics_events')
-          .select('user_id')
-          .eq('event_name', name)
-          .gte('timestamp', fromIso)
-          .lte('timestamp', toIso)
-          .not('user_id', 'is', null);
-        return { name, rows: rows ?? [] };
-      }
+    otherEvents.map(async (name) => {
       const { count } = await supabase
         .from('analytics_events')
         .select('id', { count: 'exact', head: true })
@@ -87,16 +95,7 @@ export async function getFunnelStats(days = DEFAULT_DAYS): Promise<FunnelStats> 
   );
 
   for (const r of eventResults) {
-    if ('rows' in r && r.rows) {
-      r.rows.forEach(
-        (row) =>
-          row.user_id &&
-          (r.name === 'hub_timer_launch_1' ? distinctLaunch1 : distinctLaunch2).add(row.user_id)
-      );
-      counts[r.name] = r.rows.length;
-    } else {
-      counts[r.name] = 'count' in r ? r.count : 0;
-    }
+    counts[r.name] = r.count;
   }
 
   // By source: timer_save_click, account_land_handoff, prefill
@@ -141,8 +140,8 @@ export async function getFunnelStats(days = DEFAULT_DAYS): Promise<FunnelStats> 
     account_session_prefill_fail: counts['account_session_prefill_fail'] ?? 0,
     hub_timer_launch_1: counts['hub_timer_launch_1'] ?? 0,
     hub_timer_launch_2: counts['hub_timer_launch_2'] ?? 0,
-    distinct_users_launch_1: distinctLaunch1.size,
-    distinct_users_launch_2: distinctLaunch2.size,
+    distinct_users_launch_1: distinctLaunch1,
+    distinct_users_launch_2: distinctLaunch2,
     bySource,
   };
 }

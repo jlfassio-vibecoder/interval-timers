@@ -2,7 +2,9 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  *
- * Auth and onboarding funnel: sign-ins/sign-ups by day, funnel counts, OAuth vs email, TTFKA.
+ * Auth and onboarding funnel: sign-ins/sign-ups by day, funnel counts, OAuth vs email, TTFKA,
+ * minimal onboarding drop-off (`get_minimal_onboarding_dropoff` RPC).
+ * Visit, first-action, TTFKA, and sign-in rollups use scale RPCs (Phase P6).
  */
 
 import { getSupabaseServer } from '../server';
@@ -35,8 +37,6 @@ export async function getAuthFunnelStats(days: number): Promise<AuthFunnelStats>
   const supabase = getSupabaseServer();
   const toDate = new Date();
   const fromDate = new Date(toDate.getTime() - days * 24 * 60 * 60 * 1000);
-  const fromIso = fromDate.toISOString();
-  const toIso = toDate.toISOString();
 
   const signUpsByDayMap = new Map<string, number>();
   let funnelSignUp = 0;
@@ -82,131 +82,85 @@ export async function getAuthFunnelStats(days: number): Promise<AuthFunnelStats>
     .map(([date, count]) => ({ date, count }))
     .sort((a, b) => a.date.localeCompare(b.date));
 
-  // Sign-ins by day: analytics_events account_login_complete
-  const { data: loginRows } = await supabase
-    .from('analytics_events')
-    .select('timestamp')
-    .eq('event_name', 'account_login_complete')
-    .gte('timestamp', fromIso)
-    .lte('timestamp', toIso)
-    .limit(5000);
+  const [{ data: visitData, error: visitErr }, { data: activationData, error: activationErr }] =
+    await Promise.all([
+      supabase.rpc('get_auth_funnel_visit_count', { p_days: days }),
+      supabase.rpc('get_auth_funnel_activation_stats', { p_days: days }),
+    ]);
 
-  const signInsByDayMap = new Map<string, number>();
-  for (const row of loginRows ?? []) {
-    const ts = (row as { timestamp: string }).timestamp;
-    const key = ts.slice(0, 10);
-    signInsByDayMap.set(key, (signInsByDayMap.get(key) ?? 0) + 1);
+  if (visitErr) throw visitErr;
+  if (activationErr) throw activationErr;
+
+  const visitRow = visitData as { visit_count?: unknown } | null;
+  const funnelVisit = Number(visitRow?.visit_count ?? 0);
+
+  const act = activationData as {
+    funnel_first_action_distinct_users?: unknown;
+    ttfka_distribution?: {
+      sameDay?: unknown;
+      oneToTwoDays?: unknown;
+      threeToSevenDays?: unknown;
+      sevenPlusDays?: unknown;
+      never?: unknown;
+    };
+    sign_ins_by_day?: unknown;
+    oauth_vs_email_from_events?: { oauth?: unknown; email?: unknown };
+  } | null;
+
+  if (!act || typeof act !== 'object') {
+    throw new Error('get_auth_funnel_activation_stats: invalid response');
   }
-  const signInsByDay = Array.from(signInsByDayMap.entries())
-    .map(([date, count]) => ({ date, count }))
+
+  const ttf = act.ttfka_distribution ?? {};
+  const ttfka = {
+    sameDay: Number(ttf.sameDay ?? 0),
+    oneToTwoDays: Number(ttf.oneToTwoDays ?? 0),
+    threeToSevenDays: Number(ttf.threeToSevenDays ?? 0),
+    sevenPlusDays: Number(ttf.sevenPlusDays ?? 0),
+    never: Number(ttf.never ?? 0),
+  };
+
+  const signInsRaw = Array.isArray(act.sign_ins_by_day) ? act.sign_ins_by_day : [];
+  const signInsByDay = signInsRaw
+    .map((r: unknown) => {
+      const row = r as { date?: string; count?: unknown };
+      return {
+        date: typeof row.date === 'string' ? row.date : String(row.date ?? ''),
+        count: Number(row.count ?? 0),
+      };
+    })
+    .filter((r) => r.date)
     .sort((a, b) => a.date.localeCompare(b.date));
 
-  // OAuth vs email from events (override or supplement auth): account_signup_complete / account_login_complete properties
-  const { data: methodRows } = await supabase
-    .from('analytics_events')
-    .select('properties')
-    .in('event_name', ['account_signup_complete', 'account_login_complete'])
-    .gte('timestamp', fromIso)
-    .lte('timestamp', toIso)
-    .limit(5000);
-
-  let oauthFromEvents = 0;
-  let emailFromEvents = 0;
-  for (const row of methodRows ?? []) {
-    const method = (row.properties as { method?: string })?.method ?? '';
-    if (method === 'oauth') oauthFromEvents += 1;
-    else if (method === 'email') emailFromEvents += 1;
-  }
+  const oauthFromEvents = Number(act.oauth_vs_email_from_events?.oauth ?? 0);
+  const emailFromEvents = Number(act.oauth_vs_email_from_events?.email ?? 0);
   if (oauthFromEvents > 0 || emailFromEvents > 0) {
     oauthCount = oauthFromEvents;
     emailCount = emailFromEvents;
   }
 
-  // Funnel visit: distinct visitors from web_events in range
-  const { data: visitRows } = await supabase
-    .from('web_events')
-    .select('session_id, user_id')
-    .gte('occurred_at', fromIso)
-    .lte('occurred_at', toIso)
-    .limit(10000);
+  const firstActionUsers = Number(act.funnel_first_action_distinct_users ?? 0);
 
-  const visitSet = new Set<string>();
-  for (const row of visitRows ?? []) {
-    const v =
-      (row as { user_id?: string | null; session_id?: string | null }).user_id ??
-      (row as { session_id?: string | null }).session_id;
-    if (v) visitSet.add(String(v));
-  }
-  const funnelVisit = visitSet.size;
-
-  // Funnel firstAction: distinct user_id with timer_session_complete or hub_timer_launch_1
-  const { data: keyEventRows } = await supabase
-    .from('analytics_events')
-    .select('user_id')
-    .in('event_name', ['timer_session_complete', 'hub_timer_launch_1'])
-    .gte('timestamp', fromIso)
-    .lte('timestamp', toIso)
-    .not('user_id', 'is', null);
-
-  const firstActionUsers = new Set(
-    (keyEventRows ?? []).map((r) => (r as { user_id: string }).user_id).filter(Boolean)
-  );
-
-  // TTFKA: users with account_signup_complete in range -> first key event timestamp
-  const { data: signupEvents } = await supabase
-    .from('analytics_events')
-    .select('user_id, timestamp')
-    .eq('event_name', 'account_signup_complete')
-    .gte('timestamp', fromIso)
-    .lte('timestamp', toIso)
-    .not('user_id', 'is', null);
-
-  const signupByUser = new Map<string, number>();
-  for (const row of signupEvents ?? []) {
-    const uid = (row as { user_id: string }).user_id;
-    const ts = new Date((row as { timestamp: string }).timestamp).getTime();
-    if (!signupByUser.has(uid) || ts < signupByUser.get(uid)!) {
-      signupByUser.set(uid, ts);
+  let onboardingDropOff: { step: string; completed: number; dropped: number }[] = [];
+  try {
+    const { data, error } = await supabase.rpc('get_minimal_onboarding_dropoff', {
+      p_days: days,
+    });
+    if (error) throw error;
+    if (Array.isArray(data)) {
+      onboardingDropOff = data.map((row: unknown) => {
+        const r = row as { step?: unknown; completed?: unknown; dropped?: unknown };
+        return {
+          step: typeof r.step === 'string' ? r.step : String(r.step ?? ''),
+          completed: typeof r.completed === 'number' ? r.completed : Number(r.completed ?? 0),
+          dropped: typeof r.dropped === 'number' ? r.dropped : Number(r.dropped ?? 0),
+        };
+      });
     }
-  }
-
-  // First key event per user for TTFKA; limit 10k may undercount if key events exceed that globally.
-  const { data: firstKeyEvents } = await supabase
-    .from('analytics_events')
-    .select('user_id, timestamp')
-    .in('event_name', ['timer_session_complete', 'hub_timer_launch_1'])
-    .not('user_id', 'is', null)
-    .order('timestamp', { ascending: true })
-    .limit(10000);
-
-  const firstKeyByUser = new Map<string, number>();
-  for (const row of firstKeyEvents ?? []) {
-    const uid = (row as { user_id: string }).user_id;
-    const ts = new Date((row as { timestamp: string }).timestamp).getTime();
-    if (!firstKeyByUser.has(uid) || ts < firstKeyByUser.get(uid)!) {
-      firstKeyByUser.set(uid, ts);
+  } catch (err) {
+    if (import.meta.env.DEV || import.meta.env.PUBLIC_ENABLE_ERROR_LOGGING === 'true') {
+      console.error('[getAuthFunnelStats] get_minimal_onboarding_dropoff:', err);
     }
-  }
-
-  const ttfka = {
-    sameDay: 0,
-    oneToTwoDays: 0,
-    threeToSevenDays: 0,
-    sevenPlusDays: 0,
-    never: 0,
-  };
-  const dayMs = 24 * 60 * 60 * 1000;
-  for (const [uid, signupTs] of signupByUser) {
-    const firstTs = firstKeyByUser.get(uid);
-    if (firstTs == null) {
-      ttfka.never += 1;
-      continue;
-    }
-    const deltaDays = (firstTs - signupTs) / dayMs;
-    if (deltaDays < 1) ttfka.sameDay += 1;
-    else if (deltaDays <= 2) ttfka.oneToTwoDays += 1;
-    else if (deltaDays <= 7) ttfka.threeToSevenDays += 1;
-    else ttfka.sevenPlusDays += 1;
   }
 
   return {
@@ -216,9 +170,10 @@ export async function getAuthFunnelStats(days: number): Promise<AuthFunnelStats>
       visit: funnelVisit,
       signUp: funnelSignUp,
       emailConfirmed: funnelEmailConfirmed,
-      firstAction: firstActionUsers.size,
+      firstAction: firstActionUsers,
     },
     oauthVsEmail: { oauth: oauthCount, email: emailCount },
     ttfkaDistribution: ttfka,
+    onboardingDropOff,
   };
 }
