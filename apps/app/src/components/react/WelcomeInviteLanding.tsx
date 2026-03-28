@@ -66,6 +66,9 @@ const WelcomeInviteInner: React.FC<WelcomeInviteLandingProps> = ({
   const [heroVariant, setHeroVariant] = useState<WelcomeHeroVariantId>('a');
 
   const landingViewTracked = useRef(false);
+  /** Keep accept-flow error copy in sync with locale without re-running the accept effect. */
+  const localeRef = useRef(locale);
+  localeRef.current = locale;
 
   useEffect(() => {
     setHeroVariant(resolveWelcomeHeroVariant());
@@ -203,7 +206,7 @@ const WelcomeInviteInner: React.FC<WelcomeInviteLandingProps> = ({
 
     let cancelled = false;
     (async () => {
-      const str = getWelcomeLandingStrings(locale);
+      const str = getWelcomeLandingStrings(localeRef.current);
       try {
         const res = await fetch('/api/invitations/accept', {
           method: 'POST',
@@ -241,14 +244,29 @@ const WelcomeInviteInner: React.FC<WelcomeInviteLandingProps> = ({
         setAcceptedKind(null);
         setAcceptError(body.error || str.couldNotAccept);
       } catch {
-        if (!cancelled) setAcceptError(getWelcomeLandingStrings(locale).couldNotAccept);
+        if (!cancelled) {
+          setAcceptError(getWelcomeLandingStrings(localeRef.current).couldNotAccept);
+        }
       }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [token, loading, user?.uid, session?.user?.id, locale]);
+  }, [token, loading, user?.uid, session?.user?.id]);
+
+  useEffect(() => {
+    if (!acceptError) return;
+    setAcceptError((prev) => {
+      const str = getWelcomeLandingStrings(locale);
+      const locales: WelcomeLocale[] = ['en', 'es'];
+      const signInVariants = locales.map((l) => getWelcomeLandingStrings(l).signInInvitedEmailRefresh);
+      const couldNotVariants = locales.map((l) => getWelcomeLandingStrings(l).couldNotAccept);
+      if (signInVariants.includes(prev)) return str.signInInvitedEmailRefresh;
+      if (couldNotVariants.includes(prev)) return str.couldNotAccept;
+      return prev;
+    });
+  }, [locale, acceptError]);
 
   const returnPath = useCallback(() => {
     if (!token) return '/welcome';
