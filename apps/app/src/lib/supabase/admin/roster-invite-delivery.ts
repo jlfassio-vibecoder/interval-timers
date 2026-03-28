@@ -22,7 +22,7 @@ export async function trySendRosterInviteEmail(
 ): Promise<void> {
   if (!hasServiceRoleKey()) {
     if (import.meta.env.DEV) {
-      console.info(
+      console.warn(
         '[roster-invite-delivery] SUPABASE_SERVICE_ROLE_KEY missing; skipping Auth email. Share inviteUrl.'
       );
     }
@@ -52,7 +52,7 @@ export async function trySendRosterInviteEmail(
   });
   if (!otpErr) {
     if (import.meta.env.DEV) {
-      console.info(
+      console.warn(
         '[roster-invite-delivery] Sent magic link via signInWithOtp (inviteUserByEmail:',
         inviteErr.message,
         ')'
@@ -79,7 +79,7 @@ export async function trySendRosterInviteEmail(
   }
 
   if (import.meta.env.DEV && linkData?.properties?.action_link) {
-    console.info(
+    console.warn(
       '[roster-invite-delivery] Existing user: magic link generated (share manually if needed):',
       linkData.properties.action_link.slice(0, 80) + '…'
     );

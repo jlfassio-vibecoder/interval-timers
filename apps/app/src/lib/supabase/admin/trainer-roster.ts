@@ -103,7 +103,8 @@ export async function fetchHostRoster(hostId: string): Promise<RosterItem[]> {
       .order('created_at', { ascending: false });
 
     if (error) {
-      if (import.meta.env.DEV) console.warn('[trainer-roster] host_friend_connections error:', error);
+      if (import.meta.env.DEV)
+        console.warn('[trainer-roster] host_friend_connections error:', error);
       return [];
     }
     if (!rows?.length) return [];
@@ -116,7 +117,8 @@ export async function fetchHostRoster(hostId: string): Promise<RosterItem[]> {
       .order('full_name', { ascending: true });
 
     if (profilesError) {
-      if (import.meta.env.DEV) console.warn('[trainer-roster] host roster profiles error:', profilesError);
+      if (import.meta.env.DEV)
+        console.warn('[trainer-roster] host roster profiles error:', profilesError);
       return [];
     }
     if (!profiles?.length) return [];

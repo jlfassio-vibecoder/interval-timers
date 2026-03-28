@@ -155,9 +155,9 @@ const WelcomeSchedulePreview: React.FC<WelcomeSchedulePreviewProps> = ({
         id="welcome-schedule-heading"
         className="mb-1 font-heading text-sm font-bold uppercase tracking-widest text-orange-light"
       >
-        Next 7 days
+        {strings.scheduleNext7Days}
       </h2>
-      <p className="mb-4 text-xs text-white/45">Upcoming sessions on your calendar (read-only)</p>
+      <p className="mb-4 text-xs text-white/45">{strings.scheduleReadOnly}</p>
 
       {loading && (
         <div className="flex justify-center py-6">
@@ -185,7 +185,12 @@ const WelcomeSchedulePreview: React.FC<WelcomeSchedulePreviewProps> = ({
             href="/"
             className="mt-3 inline-block text-xs font-bold uppercase tracking-wide text-orange-light hover:text-white"
             onClick={() =>
-              void trackEvent(supabase, 'cta_open_app', { surface: 'schedule_empty' }, { appId: 'app' })
+              void trackEvent(
+                supabase,
+                'cta_open_app',
+                { surface: 'schedule_empty' },
+                { appId: 'app' }
+              )
             }
           >
             {strings.scheduleOpenToPlan}

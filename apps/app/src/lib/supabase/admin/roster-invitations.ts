@@ -65,8 +65,7 @@ export function resolvePublicAppUrlFromRequest(request: Request): string | null 
   const xfHost = request.headers.get('x-forwarded-host')?.split(',')[0]?.trim();
   const xfProto = request.headers.get('x-forwarded-proto')?.split(',')[0]?.trim();
   if (xfHost) {
-    const proto =
-      xfProto && /^https?$/i.test(xfProto) ? xfProto.toLowerCase() : 'https';
+    const proto = xfProto && /^https?$/i.test(xfProto) ? xfProto.toLowerCase() : 'https';
     return `${proto}://${xfHost}`.replace(/\/$/, '');
   }
   const originHdr = request.headers.get('origin')?.trim();
@@ -218,7 +217,8 @@ export async function createRosterInvite(
       return {
         ok: false,
         code: 'VALIDATION',
-        message: 'Phone must be E.164 (e.g. +15551234567). SMS is not sent automatically; share the invite link.',
+        message:
+          'Phone must be E.164 (e.g. +15551234567). SMS is not sent automatically; share the invite link.',
       };
     }
     inviteePhoneE164 = p;
@@ -247,7 +247,11 @@ export async function createRosterInvite(
     dbInviterRole = 'trainer';
     programIds = input.programIds ?? [];
     if (programIds.length === 0) {
-      return { ok: false, code: 'VALIDATION', message: 'Select at least one program for client invites' };
+      return {
+        ok: false,
+        code: 'VALIDATION',
+        message: 'Select at least one program for client invites',
+      };
     }
     const supabase = getSupabaseServer();
     const { data: programs, error: progErr } = await supabase
@@ -278,7 +282,11 @@ export async function createRosterInvite(
         return { ok: false, code: 'ALREADY_ROSTER', message: 'You cannot invite yourself' };
       }
       if (await isHostBuddy(inviterId, existingUserId)) {
-        return { ok: false, code: 'ALREADY_ROSTER', message: 'This user is already on your roster' };
+        return {
+          ok: false,
+          code: 'ALREADY_ROSTER',
+          message: 'This user is already on your roster',
+        };
       }
     } else {
       const roster = await fetchTrainerRoster(inviterId);
@@ -504,8 +512,7 @@ function sessionMatchesInviteeContact(
   const emailMatch =
     !!targetEmail &&
     sessionEmails.some(
-      (e) =>
-        e.trim() !== '' && normalizeInviteEmail(e) === normalizeInviteEmail(targetEmail)
+      (e) => e.trim() !== '' && normalizeInviteEmail(e) === normalizeInviteEmail(targetEmail)
     );
   const phoneMatch =
     inv.invitee_phone_e164 &&
@@ -581,10 +588,7 @@ async function finalizeRosterInvitationAfterInviteeVerified(
     .eq('id', inv.id)
     .maybeSingle();
 
-  if (
-    finalized?.status === 'accepted' &&
-    finalized.accepted_user_id === sessionUserId
-  ) {
+  if (finalized?.status === 'accepted' && finalized.accepted_user_id === sessionUserId) {
     return { ok: true, kind: finalized.kind as 'friend' | 'client' };
   }
 
@@ -603,11 +607,7 @@ export async function acceptPendingRosterInvitesForSession(
   const supabase = getSupabaseServer();
   const nowIso = new Date().toISOString();
   const normEmails = [
-    ...new Set(
-      sessionEmails
-        .map((e) => normalizeInviteEmail(e))
-        .filter((e) => e.length > 0)
-    ),
+    ...new Set(sessionEmails.map((e) => normalizeInviteEmail(e)).filter((e) => e.length > 0)),
   ];
   const normPhone = sessionPhone ? normalizeInvitePhoneE164(sessionPhone) : null;
 
@@ -626,9 +626,7 @@ export async function acceptPendingRosterInvitesForSession(
   if (normEmails.length > 0) {
     const { data, error } = await supabase
       .from('roster_invitations')
-      .select(
-        'id, inviter_id, kind, program_ids, invitee_email, invitee_phone_e164, created_at'
-      )
+      .select('id, inviter_id, kind, program_ids, invitee_email, invitee_phone_e164, created_at')
       .eq('status', 'pending')
       .gt('expires_at', nowIso)
       .in('invitee_email', normEmails);
@@ -643,9 +641,7 @@ export async function acceptPendingRosterInvitesForSession(
   if (normPhone) {
     const { data, error } = await supabase
       .from('roster_invitations')
-      .select(
-        'id, inviter_id, kind, program_ids, invitee_email, invitee_phone_e164, created_at'
-      )
+      .select('id, inviter_id, kind, program_ids, invitee_email, invitee_phone_e164, created_at')
       .eq('status', 'pending')
       .gt('expires_at', nowIso)
       .eq('invitee_phone_e164', normPhone);
@@ -710,10 +706,7 @@ export async function acceptRosterInvite(
       .select('kind, status, accepted_user_id')
       .eq('token_hash', tokenHash)
       .maybeSingle();
-    if (
-      past?.status === 'accepted' &&
-      past.accepted_user_id === sessionUserId
-    ) {
+    if (past?.status === 'accepted' && past.accepted_user_id === sessionUserId) {
       return { ok: true, kind: past.kind as 'friend' | 'client' };
     }
     return { ok: false, code: 'NOT_FOUND', message: 'Invalid or unknown invitation' };
@@ -750,7 +743,9 @@ export async function acceptRosterInvite(
 /**
  * Resolve inviter display info for a pending, unexpired invite. Unauthenticated; caller must not log raw tokens.
  */
-export async function getRosterInvitePreview(rawToken: string): Promise<RosterInvitePreview | null> {
+export async function getRosterInvitePreview(
+  rawToken: string
+): Promise<RosterInvitePreview | null> {
   const trimmed = rawToken.trim();
   if (!looksLikeRosterInviteToken(trimmed)) return null;
 

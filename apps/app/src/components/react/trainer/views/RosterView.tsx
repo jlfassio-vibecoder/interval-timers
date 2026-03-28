@@ -41,8 +41,7 @@ const RosterView: React.FC = () => {
   const { profile, user } = useAppContext();
   const role = profile?.role ?? 'client';
   const isHost = role === 'host';
-  const canInviteClients =
-    role === 'trainer' || role === 'admin' || role === 'super_admin';
+  const canInviteClients = role === 'trainer' || role === 'admin' || role === 'super_admin';
 
   const [roster, setRoster] = useState<RosterItem[]>([]);
   const [pendingInvites, setPendingInvites] = useState<PendingInvitation[]>([]);
@@ -240,8 +239,7 @@ const RosterView: React.FC = () => {
       const baseMsg = data.inviteUrl
         ? `Invite created. Copy the link below.${data.emailDispatched ? ' We also attempted to email a signup/magic link when the service role is configured.' : ''}`
         : 'Invite created.';
-      const url =
-        typeof data.inviteUrl === 'string' ? (data.inviteUrl as string) : '';
+      const url = typeof data.inviteUrl === 'string' ? (data.inviteUrl as string) : '';
       setInviteMessage(url ? `${baseMsg}\n\n${url}` : baseMsg);
       setInviteEmail('');
       setInvitePhone('');
@@ -308,9 +306,7 @@ const RosterView: React.FC = () => {
   };
 
   const cancelPendingInvitation = async (invitationId: string) => {
-    if (
-      !window.confirm('Cancel this invitation? They will not be able to use the invite link.')
-    ) {
+    if (!window.confirm('Cancel this invitation? They will not be able to use the invite link.')) {
       return;
     }
     setInvitationMutationId(invitationId);
@@ -420,7 +416,7 @@ const RosterView: React.FC = () => {
                 onClick={() => setInviteChannel('email')}
                 className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm ${
                   inviteChannel === 'email'
-                    ? 'border-orange-light bg-orange-light/10 text-white'
+                    ? 'bg-orange-light/10 border-orange-light text-white'
                     : 'border-white/10 text-white/70'
                 }`}
               >
@@ -432,7 +428,7 @@ const RosterView: React.FC = () => {
                 onClick={() => setInviteChannel('phone')}
                 className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm ${
                   inviteChannel === 'phone'
-                    ? 'border-orange-light bg-orange-light/10 text-white'
+                    ? 'bg-orange-light/10 border-orange-light text-white'
                     : 'border-white/10 text-white/70'
                 }`}
               >
@@ -523,10 +519,7 @@ const RosterView: React.FC = () => {
               const rowErr = pendingInviteRowErrors[p.id];
               const resendText = resendFeedbackById[p.id];
               return (
-                <li
-                  key={p.id}
-                  className="space-y-2 border-b border-white/5 py-3 last:border-b-0"
-                >
+                <li key={p.id} className="space-y-2 border-b border-white/5 py-3 last:border-b-0">
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div>
                       <span>

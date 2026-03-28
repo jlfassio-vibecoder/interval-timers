@@ -50,7 +50,7 @@ Then run:
 npm run db:push
 ```
 
-`npm run db:push` passes **`--include-all`** to the CLI. You need that when the remote already has a *newer* migration applied than some files you still have locally (e.g. after merging branches): otherwise you’ll see *“Found local migration files to be inserted before the last migration on remote database”* and the push will stop.
+`npm run db:push` passes **`--include-all`** to the CLI. You need that when the remote already has a _newer_ migration applied than some files you still have locally (e.g. after merging branches): otherwise you’ll see _“Found local migration files to be inserted before the last migration on remote database”_ and the push will stop.
 
 If you invoke the CLI yourself, use:
 

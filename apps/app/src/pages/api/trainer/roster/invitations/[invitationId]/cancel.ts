@@ -21,8 +21,7 @@ export const POST: APIRoute = async ({ request, cookies, params }) => {
     const result = await revokeRosterInvitation(uid, invitationId);
 
     if (!result.ok) {
-      const status =
-        result.code === 'NOT_FOUND' ? 404 : result.code === 'CONFLICT' ? 409 : 500;
+      const status = result.code === 'NOT_FOUND' ? 404 : result.code === 'CONFLICT' ? 409 : 500;
       return new Response(JSON.stringify({ error: result.message, code: result.code }), {
         status,
         headers: { 'Content-Type': 'application/json' },

@@ -12,7 +12,11 @@ import WelcomeTestimonialsSlot, {
   type WelcomeTestimonialQuote,
 } from '@/components/react/WelcomeTestimonialsSlot';
 import { ROSTER_INVITE_STORAGE_KEY } from '@/lib/roster-invite-handoff';
-import { getWelcomeHeroCopy, resolveWelcomeHeroVariant, type WelcomeHeroVariantId } from '@/lib/welcome-hero-variants';
+import {
+  getWelcomeHeroCopy,
+  resolveWelcomeHeroVariant,
+  type WelcomeHeroVariantId,
+} from '@/lib/welcome-hero-variants';
 import {
   getStoredWelcomeLocale,
   getWelcomeLandingStrings,
@@ -121,7 +125,9 @@ const WelcomeInviteInner: React.FC<WelcomeInviteLandingProps> = ({
     (async () => {
       try {
         const res = await fetch(`/api/invitations/preview?invite=${encodeURIComponent(token)}`);
-        const body = (await res.json().catch(() => ({}))) as RosterInvitePreview & { error?: string };
+        const body = (await res.json().catch(() => ({}))) as RosterInvitePreview & {
+          error?: string;
+        };
         if (cancelled) return;
         if (!res.ok) {
           setPreview(null);
@@ -258,9 +264,12 @@ const WelcomeInviteInner: React.FC<WelcomeInviteLandingProps> = ({
   useEffect(() => {
     if (!acceptError) return;
     setAcceptError((prev) => {
+      if (prev == null) return prev;
       const str = getWelcomeLandingStrings(locale);
       const locales: WelcomeLocale[] = ['en', 'es'];
-      const signInVariants = locales.map((l) => getWelcomeLandingStrings(l).signInInvitedEmailRefresh);
+      const signInVariants = locales.map(
+        (l) => getWelcomeLandingStrings(l).signInInvitedEmailRefresh
+      );
       const couldNotVariants = locales.map((l) => getWelcomeLandingStrings(l).couldNotAccept);
       if (signInVariants.includes(prev)) return str.signInInvitedEmailRefresh;
       if (couldNotVariants.includes(prev)) return str.couldNotAccept;
@@ -281,8 +290,7 @@ const WelcomeInviteInner: React.FC<WelcomeInviteLandingProps> = ({
   const accountSignInHref =
     token !== '' ? `/account?returnUrl=${encodeURIComponent(returnPath())}` : '/account';
 
-  const inviterLabel =
-    preview?.inviterDisplayName?.trim() || 'Your trainer';
+  const inviterLabel = preview?.inviterDisplayName?.trim() || 'Your trainer';
 
   const onWrongPerson = async () => {
     if (!isLoggedIn) return;
@@ -356,7 +364,9 @@ const WelcomeInviteInner: React.FC<WelcomeInviteLandingProps> = ({
                   className="max-h-16 max-w-[200px] object-contain"
                 />
               ) : null}
-              <p className="font-heading text-xl font-bold text-white">{preview.studio.displayName}</p>
+              <p className="font-heading text-xl font-bold text-white">
+                {preview.studio.displayName}
+              </p>
               {preview.studio.tagline ? (
                 <p className="max-w-sm text-sm text-white/60">{preview.studio.tagline}</p>
               ) : null}
@@ -377,13 +387,9 @@ const WelcomeInviteInner: React.FC<WelcomeInviteLandingProps> = ({
             {!token && isLoggedIn ? heroCopy.titleWelcomeBack : heroCopy.titleInvited}
           </h1>
 
-          {!token && !isLoggedIn && (
-            <p className="text-white/70">{heroCopy.subMissingToken}</p>
-          )}
+          {!token && !isLoggedIn && <p className="text-white/70">{heroCopy.subMissingToken}</p>}
 
-          {!token && isLoggedIn && (
-            <p className="text-white/65">{heroCopy.subCalendarTeaser}</p>
-          )}
+          {!token && isLoggedIn && <p className="text-white/65">{heroCopy.subCalendarTeaser}</p>}
 
           {token && preview === undefined && !previewError && (
             <p className="text-white/50">{s.loadingInvitation}</p>
@@ -408,7 +414,9 @@ const WelcomeInviteInner: React.FC<WelcomeInviteLandingProps> = ({
                 ) : (
                   <div
                     className="flex h-20 w-20 items-center justify-center rounded-full border-2 bg-white/5 text-2xl font-bold text-white/80"
-                    style={{ borderColor: 'color-mix(in srgb, var(--welcome-accent) 40%, transparent)' }}
+                    style={{
+                      borderColor: 'color-mix(in srgb, var(--welcome-accent) 40%, transparent)',
+                    }}
                   >
                     {inviterLabel.slice(0, 1).toUpperCase()}
                   </div>
@@ -467,7 +475,12 @@ const WelcomeInviteInner: React.FC<WelcomeInviteLandingProps> = ({
                 className="inline-block w-full rounded-xl px-6 py-3 font-bold uppercase text-black transition-opacity hover:opacity-90"
                 style={{ backgroundColor: 'var(--welcome-accent)' }}
                 onClick={() =>
-                  void trackEvent(supabase, 'cta_open_app', { surface: 'post_accept' }, { appId: 'app' })
+                  void trackEvent(
+                    supabase,
+                    'cta_open_app',
+                    { surface: 'post_accept' },
+                    { appId: 'app' }
+                  )
                 }
               >
                 {s.openApp}
@@ -495,10 +508,16 @@ const WelcomeInviteInner: React.FC<WelcomeInviteLandingProps> = ({
 
         <footer className="mt-10 w-full max-w-lg text-center text-xs text-white/45">
           <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
-            <a href="/privacy" className="underline decoration-white/25 underline-offset-2 hover:text-white">
+            <a
+              href="/privacy"
+              className="underline decoration-white/25 underline-offset-2 hover:text-white"
+            >
               {s.footerPrivacy}
             </a>
-            <a href="/terms" className="underline decoration-white/25 underline-offset-2 hover:text-white">
+            <a
+              href="/terms"
+              className="underline decoration-white/25 underline-offset-2 hover:text-white"
+            >
               {s.footerTerms}
             </a>
             <span className="text-white/25" aria-hidden>
@@ -525,7 +544,7 @@ const WelcomeInviteInner: React.FC<WelcomeInviteLandingProps> = ({
             {isLoggedIn ? (
               <button
                 type="button"
-                className="font-medium uppercase tracking-wide text-orange-light/90 hover:text-orange-light"
+                className="text-orange-light/90 font-medium uppercase tracking-wide hover:text-orange-light"
                 onClick={() => void onWrongPerson()}
               >
                 {s.footerWrongPersonSignOut}
