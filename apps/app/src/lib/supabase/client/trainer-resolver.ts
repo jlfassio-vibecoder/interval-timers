@@ -14,6 +14,26 @@ export interface TrainerProfile {
   avatarUrl?: string;
 }
 
+function resolveTrainerDisplayName(row: {
+  full_name: string | null;
+  username: string | null;
+  email: string | null;
+}): string {
+  const n = row.full_name?.trim();
+  if (n) return n;
+  const u = row.username?.trim();
+  if (u) return u;
+  const e = row.email?.trim();
+  if (e) {
+    const local = e.split('@')[0]?.trim() ?? '';
+    if (local) {
+      const t = local.replace(/[._-]+/g, ' ').replace(/\s+/g, ' ').trim();
+      if (t) return t;
+    }
+  }
+  return 'Coach';
+}
+
 /**
  * Get the trainer profile for the user's active program.
  * When activeProgramId is provided, uses that program; otherwise uses first active enrollment.
@@ -59,7 +79,7 @@ export async function getTrainerForUser(
 
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('full_name, avatar_url')
+      .select('full_name, username, email, avatar_url')
       .eq('id', program.trainer_id)
       .single();
 
@@ -67,7 +87,11 @@ export async function getTrainerForUser(
 
     return {
       uid: program.trainer_id,
-      displayName: profile.full_name ?? 'Coach',
+      displayName: resolveTrainerDisplayName({
+        full_name: profile.full_name ?? null,
+        username: profile.username ?? null,
+        email: profile.email ?? null,
+      }),
       avatarUrl: profile.avatar_url ?? undefined,
     };
   } catch {

@@ -794,7 +794,94 @@ export async function acceptRosterInvite(
 }
 
 /**
+ * Inviter label for public invite landing when `full_name` is empty (email-only signups, etc.).
+ */
+function resolveInviterDisplayName(row: {
+  full_name: string | null | undefined;
+  username: string | null | undefined;
+  email: string | null | undefined;
+}): string | null {
+  const n = row.full_name?.trim();
+  if (n) return n;
+  const u = row.username?.trim();
+  if (u) return u;
+  const e = row.email?.trim();
+  if (e) {
+    const local = e.split('@')[0]?.trim() ?? '';
+    if (local) {
+      const t = local.replace(/[._-]+/g, ' ').replace(/\s+/g, ' ').trim();
+      if (t) return t;
+    }
+  }
+  return null;
+}
+
+function mapRosterInvitePreviewRow(row: Record<string, unknown>): RosterInvitePreview | null {
+  const kindRaw = row.kind;
+  // Unknown kind → friend so invitee contact is never prefilled (PR review: safer than defaulting to client).
+  const kind: 'friend' | 'client' = kindRaw === 'client' ? 'client' : 'friend';
+
+  const contactForPrefill = kind === 'client';
+
+  const rpcLabel =
+    typeof row.inviter_display_label === 'string' ? row.inviter_display_label.trim() || null : null;
+  const inviterDisplayName =
+    rpcLabel ??
+    resolveInviterDisplayName({
+      full_name: typeof row.full_name === 'string' ? row.full_name : null,
+      username: typeof row.username === 'string' ? row.username : null,
+      // RPC omits raw email; service-role fallback still selects profiles.email.
+      email: typeof row.email === 'string' ? row.email : null,
+    });
+
+  const inviterAvatarUrl =
+    typeof row.avatar_url === 'string' && row.avatar_url.trim()
+      ? row.avatar_url.trim()
+      : null;
+
+  let studio: RosterInviteStudioPreview | null = null;
+  const slug = row.studio_slug;
+  const displayName = row.studio_display_name;
+  if (typeof slug === 'string' && typeof displayName === 'string' && slug.trim() && displayName.trim()) {
+    studio = {
+      slug: slug.trim(),
+      displayName: displayName.trim(),
+      logoUrl:
+        typeof row.studio_logo_url === 'string' ? row.studio_logo_url.trim() || null : null,
+      primaryColor:
+        typeof row.studio_primary_color === 'string'
+          ? row.studio_primary_color.trim() || null
+          : null,
+      tagline:
+        typeof row.studio_welcome_tagline === 'string'
+          ? row.studio_welcome_tagline.trim() || null
+          : null,
+    };
+  }
+
+  const ie = row.invitee_email;
+  const ip = row.invitee_phone_e164;
+
+  return {
+    inviterDisplayName,
+    inviterAvatarUrl,
+    kind,
+    studio,
+    inviteeEmail: contactForPrefill ? (typeof ie === 'string' ? ie.trim() || null : null) : null,
+    inviteePhoneE164: contactForPrefill
+      ? typeof ip === 'string'
+        ? ip.trim() || null
+        : null
+      : null,
+  };
+}
+
+/**
  * Resolve inviter display info for a pending, unexpired invite. Unauthenticated; caller must not log raw tokens.
+ *
+ * Prefer DB RPC `get_roster_invite_preview_core`: anon API routes cannot read other users' profiles or
+ * studios under RLS without the service role; the RPC runs as SECURITY DEFINER with scope limited to
+ * a valid pending invite token hash.
  */
 export async function getRosterInvitePreview(
   rawToken: string
@@ -804,6 +891,15 @@ export async function getRosterInvitePreview(
 
   const tokenHash = hashToken(trimmed);
   const supabase = getSupabaseServer();
+
+  const { data: rpcData, error: rpcError } = await supabase.rpc('get_roster_invite_preview_core', {
+    p_token_hash: tokenHash,
+  });
+
+  if (!rpcError && rpcData != null && typeof rpcData === 'object' && !Array.isArray(rpcData)) {
+    return mapRosterInvitePreviewRow(rpcData as Record<string, unknown>);
+  }
+
   const nowIso = new Date().toISOString();
 
   const { data: inv, error } = await supabase
@@ -818,7 +914,7 @@ export async function getRosterInvitePreview(
 
   const { data: prof } = await supabase
     .from('profiles')
-    .select('full_name, avatar_url, studio_id')
+    .select('full_name, username, email, avatar_url, studio_id')
     .eq('id', inv.inviter_id)
     .maybeSingle();
 
@@ -843,12 +939,14 @@ export async function getRosterInvitePreview(
     }
   }
 
-  // Public preview is unauthenticated; only trainer (client) invites need invitee contact for signup
-  // prefill in the app. Omit friend-invitee PII here — token still gates access, but scope is narrower.
   const contactForPrefill = kind === 'client';
 
   return {
-    inviterDisplayName: prof?.full_name?.trim() || null,
+    inviterDisplayName: resolveInviterDisplayName({
+      full_name: prof?.full_name ?? null,
+      username: prof?.username ?? null,
+      email: prof?.email ?? null,
+    }),
     inviterAvatarUrl: prof?.avatar_url?.trim() || null,
     kind,
     studio,
