@@ -843,13 +843,17 @@ export async function getRosterInvitePreview(
     }
   }
 
+  // Public preview is unauthenticated; only trainer (client) invites need invitee contact for signup
+  // prefill in the app. Omit friend-invitee PII here — token still gates access, but scope is narrower.
+  const contactForPrefill = kind === 'client';
+
   return {
     inviterDisplayName: prof?.full_name?.trim() || null,
     inviterAvatarUrl: prof?.avatar_url?.trim() || null,
     kind,
     studio,
-    inviteeEmail: inv.invitee_email?.trim() || null,
-    inviteePhoneE164: inv.invitee_phone_e164?.trim() || null,
+    inviteeEmail: contactForPrefill ? inv.invitee_email?.trim() || null : null,
+    inviteePhoneE164: contactForPrefill ? inv.invitee_phone_e164?.trim() || null : null,
   };
 }
 

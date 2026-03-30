@@ -15,8 +15,8 @@ export interface RosterInvitePreview {
   /** Present when inviter profile has studio_id and studio row exists. */
   studio: RosterInviteStudioPreview | null;
   /**
-   * Invitee contact for signup prefill. Only returned with a valid pending invite token
-   * (same secret as the invite link); omitted or null when the invite used the other channel.
+   * Invitee contact for signup prefill. Always present on the JSON object; null when not
+   * applicable (e.g. friend invites, or the invite used the other channel — email vs phone).
    */
   inviteeEmail: string | null;
   inviteePhoneE164: string | null;

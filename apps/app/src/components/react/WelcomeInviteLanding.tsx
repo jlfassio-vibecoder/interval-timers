@@ -319,6 +319,37 @@ const WelcomeInviteInner: React.FC<WelcomeInviteLandingProps> = ({
     return `/welcome?${q.toString()}`;
   }, [token]);
 
+  const handleInviteAuthClose = useCallback(() => {
+    setShowInviteAuthModal(false);
+  }, []);
+
+  const onInviteAuthSignupStart = useCallback(() => {
+    void trackEvent(
+      supabase,
+      'account_signup_start',
+      { from_app_id: 'welcome-invite' },
+      { appId: 'app' }
+    );
+  }, []);
+
+  const onInviteAuthSignupComplete = useCallback(() => {
+    void trackEvent(
+      supabase,
+      'account_signup_complete',
+      { from_app_id: 'welcome-invite', method: 'email' },
+      { appId: 'app' }
+    );
+  }, []);
+
+  const onInviteAuthLoginComplete = useCallback(() => {
+    void trackEvent(
+      supabase,
+      'account_login_complete',
+      { from_app_id: 'welcome-invite', method: 'email' },
+      { appId: 'app' }
+    );
+  }, []);
+
   const accountSignInHref =
     token !== '' ? `/account?returnUrl=${encodeURIComponent(returnPath())}` : '/account';
 
@@ -388,37 +419,16 @@ const WelcomeInviteInner: React.FC<WelcomeInviteLandingProps> = ({
       {preview?.kind === 'client' && token && !isLoggedIn && !acceptedKind ? (
         <AuthModal
           isOpen={showInviteAuthModal}
-          onClose={() => setShowInviteAuthModal(false)}
+          onClose={handleInviteAuthClose}
           supabase={supabase}
           redirectBaseUrl="/account"
           fromAppId="welcome-invite"
           returnUrl={returnPath()}
           defaultSignUp={inviteAuthSignupFirst}
           initialEmail={preview.inviteeEmail ?? undefined}
-          onSignupStart={() =>
-            void trackEvent(
-              supabase,
-              'account_signup_start',
-              { from_app_id: 'welcome-invite' },
-              { appId: 'app' }
-            )
-          }
-          onSignupComplete={() =>
-            void trackEvent(
-              supabase,
-              'account_signup_complete',
-              { from_app_id: 'welcome-invite', method: 'email' },
-              { appId: 'app' }
-            )
-          }
-          onLoginComplete={() =>
-            void trackEvent(
-              supabase,
-              'account_login_complete',
-              { from_app_id: 'welcome-invite', method: 'email' },
-              { appId: 'app' }
-            )
-          }
+          onSignupStart={onInviteAuthSignupStart}
+          onSignupComplete={onInviteAuthSignupComplete}
+          onLoginComplete={onInviteAuthLoginComplete}
         />
       ) : null}
       <main className="relative z-10 mx-auto flex min-h-screen max-w-lg flex-col items-center justify-center px-4 pb-16 pt-24 md:px-6">

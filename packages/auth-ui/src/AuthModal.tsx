@@ -79,15 +79,20 @@ export default function AuthModal({
   }, [clearForm, onClose]);
 
   useEffect(() => {
-    if (isOpen) {
-      setIsSignUp(defaultSignUp);
-      setError(null);
-      setSignUpSuccess(false);
-      if (defaultSignUp) onSignupStart?.();
-      const pre = initialEmail?.trim();
-      if (pre) setEmail(pre);
-    }
-  }, [isOpen, defaultSignUp, initialEmail, onSignupStart]);
+    if (!isOpen) return;
+    setIsSignUp(defaultSignUp);
+    setError(null);
+    setSignUpSuccess(false);
+    if (defaultSignUp) onSignupStart?.();
+  }, [isOpen, defaultSignUp, onSignupStart]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const pre = initialEmail?.trim();
+    // Only fill when empty: avoids clobbering edits and keeps this effect independent of signup
+    // analytics in the effect above when initialEmail arrives or updates while open.
+    if (pre) setEmail((current) => (current === '' ? pre : current));
+  }, [isOpen, initialEmail]);
 
   useEffect(() => {
     if (!isOpen) return;
