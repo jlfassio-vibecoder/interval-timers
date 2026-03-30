@@ -14,4 +14,10 @@ export interface RosterInvitePreview {
   kind: 'friend' | 'client';
   /** Present when inviter profile has studio_id and studio row exists. */
   studio: RosterInviteStudioPreview | null;
+  /**
+   * Invitee contact for signup prefill. Only returned with a valid pending invite token
+   * (same secret as the invite link); omitted or null when the invite used the other channel.
+   */
+  inviteeEmail: string | null;
+  inviteePhoneE164: string | null;
 }

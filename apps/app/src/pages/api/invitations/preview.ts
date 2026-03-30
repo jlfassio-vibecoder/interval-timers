@@ -1,6 +1,7 @@
 /**
  * GET /api/invitations/preview?invite=<token>
- * Public inviter display fields for pending roster invites (no auth, no invitee PII).
+ * Public inviter display for pending roster invites (no auth). Invitee email/phone are included
+ * only for callers who present the same secret token as the invite link (for signup prefill).
  */
 
 import type { APIRoute } from 'astro';

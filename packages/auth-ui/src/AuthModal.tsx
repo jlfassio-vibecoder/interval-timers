@@ -8,6 +8,8 @@ export interface AuthModalProps {
   supabase: SupabaseClient;
   redirectBaseUrl: string;
   defaultSignUp?: boolean;
+  /** When the modal opens, pre-fill the email field (e.g. roster invite). */
+  initialEmail?: string;
   fromAppId?: string;
   returnUrl?: string;
   /** Reserved for future use. If true, show Apple SSO button. Currently Apple OAuth is not wired; default false. */
@@ -45,6 +47,7 @@ export default function AuthModal({
   supabase,
   redirectBaseUrl,
   defaultSignUp = false,
+  initialEmail,
   fromAppId,
   returnUrl,
   enableAppleSignIn: _enableAppleSignIn = false,
@@ -81,8 +84,10 @@ export default function AuthModal({
       setError(null);
       setSignUpSuccess(false);
       if (defaultSignUp) onSignupStart?.();
+      const pre = initialEmail?.trim();
+      if (pre) setEmail(pre);
     }
-  }, [isOpen, defaultSignUp, onSignupStart]);
+  }, [isOpen, defaultSignUp, initialEmail, onSignupStart]);
 
   useEffect(() => {
     if (!isOpen) return;

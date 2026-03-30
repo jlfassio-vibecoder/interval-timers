@@ -808,7 +808,7 @@ export async function getRosterInvitePreview(
 
   const { data: inv, error } = await supabase
     .from('roster_invitations')
-    .select('inviter_id, kind')
+    .select('inviter_id, kind, invitee_email, invitee_phone_e164')
     .eq('token_hash', tokenHash)
     .eq('status', 'pending')
     .gt('expires_at', nowIso)
@@ -848,6 +848,8 @@ export async function getRosterInvitePreview(
     inviterAvatarUrl: prof?.avatar_url?.trim() || null,
     kind,
     studio,
+    inviteeEmail: inv.invitee_email?.trim() || null,
+    inviteePhoneE164: inv.invitee_phone_e164?.trim() || null,
   };
 }
 

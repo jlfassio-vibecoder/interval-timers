@@ -4,6 +4,7 @@
 
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { trackEvent } from '@interval-timers/analytics';
+import { AuthModal } from '@interval-timers/auth-ui';
 import { supabase } from '@/lib/supabase/supabase-instance';
 import { AppProvider, useAppContext } from '@/contexts/AppContext';
 import FluidBackground from '@/components/react/FluidBackground';
@@ -64,12 +65,15 @@ const WelcomeInviteInner: React.FC<WelcomeInviteLandingProps> = ({
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [acceptedKind, setAcceptedKind] = useState<'friend' | 'client' | null>(null);
   const [acceptError, setAcceptError] = useState<string | null>(null);
+  const [showInviteAuthModal, setShowInviteAuthModal] = useState(false);
+  const [inviteAuthSignupFirst, setInviteAuthSignupFirst] = useState(true);
   const [locale, setLocale] = useState<WelcomeLocale>(() =>
     typeof window !== 'undefined' ? getStoredWelcomeLocale() : 'en'
   );
   const [heroVariant, setHeroVariant] = useState<WelcomeHeroVariantId>('a');
 
   const landingViewTracked = useRef(false);
+  const clientInviteAutoOpenDone = useRef(false);
   /** Keep accept-flow error copy in sync with locale without re-running the accept effect. */
   const localeRef = useRef(locale);
   localeRef.current = locale;
@@ -157,11 +161,27 @@ const WelcomeInviteInner: React.FC<WelcomeInviteLandingProps> = ({
               }
             : null;
 
+        const raw = body as unknown as Record<string, unknown>;
+        const rawEmail =
+          typeof body.inviteeEmail === 'string'
+            ? body.inviteeEmail.trim()
+            : typeof raw.invitee_email === 'string'
+              ? raw.invitee_email.trim()
+              : '';
+        const rawPhone =
+          typeof body.inviteePhoneE164 === 'string'
+            ? body.inviteePhoneE164.trim()
+            : typeof raw.invitee_phone_e164 === 'string'
+              ? raw.invitee_phone_e164.trim()
+              : '';
+
         setPreview({
           inviterDisplayName: body.inviterDisplayName ?? null,
           inviterAvatarUrl: body.inviterAvatarUrl ?? null,
           kind: body.kind === 'friend' ? 'friend' : 'client',
           studio,
+          inviteeEmail: rawEmail || null,
+          inviteePhoneE164: rawPhone || null,
         });
         setPreviewError(null);
       } catch {
@@ -262,6 +282,18 @@ const WelcomeInviteInner: React.FC<WelcomeInviteLandingProps> = ({
   }, [token, loading, user?.uid, session?.user?.id]);
 
   useEffect(() => {
+    if (clientInviteAutoOpenDone.current) return;
+    if (!token) return;
+    if (loading) return;
+    if (isLoggedIn) return;
+    if (preview === undefined) return;
+    if (!preview || preview.kind !== 'client') return;
+    clientInviteAutoOpenDone.current = true;
+    setInviteAuthSignupFirst(true);
+    setShowInviteAuthModal(true);
+  }, [token, loading, isLoggedIn, preview]);
+
+  useEffect(() => {
     if (!acceptError) return;
     setAcceptError((prev) => {
       if (prev == null) return prev;
@@ -312,6 +344,9 @@ const WelcomeInviteInner: React.FC<WelcomeInviteLandingProps> = ({
     if (previewError) return <span className="text-red-300/90">{previewError}</span>;
     if (loading) return <span className="text-white/65">{s.checkingSession}</span>;
     if (preview && !isLoggedIn) {
+      if (preview.kind === 'client') {
+        return <span className="text-white/75">{s.clientInviteStatusStrip}</span>;
+      }
       return <span className="text-white/75">{s.signInEmailPhone}</span>;
     }
     if (preview && isLoggedIn && !acceptError) {
@@ -350,6 +385,42 @@ const WelcomeInviteInner: React.FC<WelcomeInviteLandingProps> = ({
       style={rootStyle}
     >
       <FluidBackground />
+      {preview?.kind === 'client' && token && !isLoggedIn && !acceptedKind ? (
+        <AuthModal
+          isOpen={showInviteAuthModal}
+          onClose={() => setShowInviteAuthModal(false)}
+          supabase={supabase}
+          redirectBaseUrl="/account"
+          fromAppId="welcome-invite"
+          returnUrl={returnPath()}
+          defaultSignUp={inviteAuthSignupFirst}
+          initialEmail={preview.inviteeEmail ?? undefined}
+          onSignupStart={() =>
+            void trackEvent(
+              supabase,
+              'account_signup_start',
+              { from_app_id: 'welcome-invite' },
+              { appId: 'app' }
+            )
+          }
+          onSignupComplete={() =>
+            void trackEvent(
+              supabase,
+              'account_signup_complete',
+              { from_app_id: 'welcome-invite', method: 'email' },
+              { appId: 'app' }
+            )
+          }
+          onLoginComplete={() =>
+            void trackEvent(
+              supabase,
+              'account_login_complete',
+              { from_app_id: 'welcome-invite', method: 'email' },
+              { appId: 'app' }
+            )
+          }
+        />
+      ) : null}
       <main className="relative z-10 mx-auto flex min-h-screen max-w-lg flex-col items-center justify-center px-4 pb-16 pt-24 md:px-6">
         <div
           className="w-full rounded-2xl border border-white/10 bg-black/40 p-8 text-center backdrop-blur-sm"
@@ -443,7 +514,7 @@ const WelcomeInviteInner: React.FC<WelcomeInviteLandingProps> = ({
 
               {inviteStatusStripNode}
 
-              {!isLoggedIn && !loading && preview && (
+              {!isLoggedIn && !loading && preview && preview.kind === 'friend' && (
                 <div className="mt-6 space-y-4">
                   <a
                     href={accountSignInHref}
@@ -452,6 +523,37 @@ const WelcomeInviteInner: React.FC<WelcomeInviteLandingProps> = ({
                   >
                     {s.signInToAccept}
                   </a>
+                  <p className="text-xs text-white/40">{s.signInSameContact}</p>
+                </div>
+              )}
+
+              {!isLoggedIn && !loading && preview && preview.kind === 'client' && (
+                <div className="mt-6 space-y-4">
+                  {!showInviteAuthModal ? (
+                    <>
+                      <button
+                        type="button"
+                        className="inline-block w-full rounded-xl px-6 py-3 font-bold uppercase text-black transition-opacity hover:opacity-90"
+                        style={{ backgroundColor: 'var(--welcome-accent)' }}
+                        onClick={() => {
+                          setInviteAuthSignupFirst(true);
+                          setShowInviteAuthModal(true);
+                        }}
+                      >
+                        {s.clientOpenSignupCta}
+                      </button>
+                      <button
+                        type="button"
+                        className="w-full text-sm text-white/55 underline decoration-white/25 underline-offset-2 hover:text-white"
+                        onClick={() => {
+                          setInviteAuthSignupFirst(false);
+                          setShowInviteAuthModal(true);
+                        }}
+                      >
+                        {s.clientLogInInsteadCta}
+                      </button>
+                    </>
+                  ) : null}
                   <p className="text-xs text-white/40">{s.signInSameContact}</p>
                 </div>
               )}

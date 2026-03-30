@@ -31,6 +31,12 @@ export interface WelcomeLandingStrings {
   loadingInvitationDetails: string;
   checkingSession: string;
   signInEmailPhone: string;
+  /** Shown in the status strip for trainer (client) roster invites when signed out. */
+  clientInviteStatusStrip: string;
+  /** Reopen the create-account modal after the user closed it (client invites). */
+  clientOpenSignupCta: string;
+  /** Opens auth modal on the log-in tab (client invites). */
+  clientLogInInsteadCta: string;
   finishingSetup: string;
   invitedBy: string;
   invitedAt: string;
@@ -77,6 +83,10 @@ const EN: WelcomeLandingStrings = {
   loadingInvitationDetails: 'Loading invitation details…',
   checkingSession: 'Checking session…',
   signInEmailPhone: 'Sign in with the email or phone you were invited with.',
+  clientInviteStatusStrip:
+    'Create your account with your invited email, or log in if you already have one.',
+  clientOpenSignupCta: 'Open create account',
+  clientLogInInsteadCta: 'Already have an account? Log in',
   finishingSetup: 'Finishing setup…',
   invitedBy: 'Invited by',
   invitedAt: 'at',
@@ -113,6 +123,10 @@ const ES: WelcomeLandingStrings = {
   loadingInvitationDetails: 'Cargando detalles de la invitación…',
   checkingSession: 'Comprobando sesión…',
   signInEmailPhone: 'Inicia sesión con el correo o teléfono con el que te invitaron.',
+  clientInviteStatusStrip:
+    'Crea tu cuenta con el correo invitado, o inicia sesión si ya tienes una.',
+  clientOpenSignupCta: 'Abrir crear cuenta',
+  clientLogInInsteadCta: '¿Ya tienes cuenta? Iniciar sesión',
   finishingSetup: 'Finalizando configuración…',
   invitedBy: 'Invitación de',
   invitedAt: 'en',
