@@ -9,6 +9,7 @@ import { fetchTrainerRoster, isHostBuddy } from '@/lib/supabase/admin/trainer-ro
 import {
   mergeWelcomeContentLayers,
   parseStudioWelcomeContent,
+  welcomeContentForPublicInvitePreview,
 } from '@/lib/studio-welcome-content-schema';
 import type { RosterInvitePreview, RosterInviteStudioPreview } from '@/types/roster-invite-preview';
 
@@ -813,7 +814,7 @@ export function buildEffectiveInviteStudioPreviewFromRow(
   const studioWelcome = parseStudioWelcomeContent(row.studio_welcome_content);
   const trainerWelcome = parseStudioWelcomeContent(row.trainer_welcome_content);
   const mergedWelcome = mergeWelcomeContentLayers(studioWelcome, trainerWelcome);
-  const mergedHasKeys = Object.keys(mergedWelcome).length > 0;
+  const publicMergedWelcome = welcomeContentForPublicInvitePreview(mergedWelcome);
 
   if (studioSlug && studioName) {
     return {
@@ -828,7 +829,7 @@ export function buildEffectiveInviteStudioPreviewFromRow(
         typeof row.studio_welcome_tagline === 'string'
           ? row.studio_welcome_tagline.trim() || null
           : null,
-      welcomeContent: mergedHasKeys ? mergedWelcome : null,
+      welcomeContent: publicMergedWelcome,
     };
   }
 
@@ -847,7 +848,7 @@ export function buildEffectiveInviteStudioPreviewFromRow(
         typeof row.trainer_welcome_tagline === 'string'
           ? row.trainer_welcome_tagline.trim() || null
           : null,
-      welcomeContent: Object.keys(tw).length ? tw : null,
+      welcomeContent: welcomeContentForPublicInvitePreview(tw),
     };
   }
 

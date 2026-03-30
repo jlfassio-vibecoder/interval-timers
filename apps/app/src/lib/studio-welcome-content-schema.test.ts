@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   mergeStudioWelcomeContentPatch,
   parseStudioWelcomeContent,
+  welcomeContentForPublicInvitePreview,
 } from './studio-welcome-content-schema';
 
 describe('parseStudioWelcomeContent', () => {
@@ -18,6 +19,27 @@ describe('parseStudioWelcomeContent', () => {
     expect(out.en?.heroTitle).toBe('Hi');
     expect((out.en as Record<string, unknown>).junk).toBeUndefined();
     expect(out.emailSenderNote).toBe('note');
+  });
+});
+
+describe('welcomeContentForPublicInvitePreview', () => {
+  it('drops emailSenderNote only', () => {
+    const out = welcomeContentForPublicInvitePreview(
+      parseStudioWelcomeContent({
+        emailSenderNote: 'internal',
+        en: { heroTitle: 'Hi' },
+      })
+    );
+    expect(out?.emailSenderNote).toBeUndefined();
+    expect(out?.en?.heroTitle).toBe('Hi');
+  });
+
+  it('returns null when only internal note was set', () => {
+    expect(
+      welcomeContentForPublicInvitePreview(
+        parseStudioWelcomeContent({ emailSenderNote: 'secret' })
+      )
+    ).toBeNull();
   });
 });
 

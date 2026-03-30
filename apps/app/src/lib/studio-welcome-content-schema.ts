@@ -171,6 +171,19 @@ export function mergeWelcomeContentLayers(
   return parseStudioWelcomeContent(merged);
 }
 
+/**
+ * Strips `emailSenderNote` before returning welcome JSON to unauthenticated invite preview.
+ * That field is trainer-internal only (see StudioWelcomeContentStored).
+ */
+export function welcomeContentForPublicInvitePreview(
+  stored: StudioWelcomeContentStored | null | undefined
+): StudioWelcomeContentStored | null {
+  if (!stored || typeof stored !== 'object') return null;
+  const cleaned = parseStudioWelcomeContent(stored);
+  delete cleaned.emailSenderNote;
+  return Object.keys(cleaned).length ? cleaned : null;
+}
+
 export function getStudioWelcomeContentLimits(): typeof STUDIO_WELCOME_LIMITS {
   return STUDIO_WELCOME_LIMITS;
 }

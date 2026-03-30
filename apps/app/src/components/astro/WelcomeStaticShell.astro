@@ -45,10 +45,10 @@ const sub =
 const showLoggedInStudio = shellVariant === 'logged_in' && loggedInStudio;
 ---
 
+<!-- No aria-hidden: invitees without JS must be able to read this frame; the node is removed on React mount (WelcomeInviteLanding). -->
 <div
   id="welcome-static-shell"
   class="fixed inset-0 z-[20] flex flex-col items-center justify-center overflow-x-hidden bg-[#0d0500] px-4 pb-16 pt-24 text-white md:px-6"
-  aria-hidden="true"
 >
   <div class="pointer-events-none absolute inset-0 bg-gradient-to-b from-[#1a0a00]/90 to-[#0d0500]">
   </div>

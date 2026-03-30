@@ -203,6 +203,8 @@ export async function verifyMissionControlRequest(
 
   if (userError || !user) throw new Error('UNAUTHENTICATED');
 
+  // Deploy DB migrations before app: is_mission_control_staff() must exist. No "missing RPC" fallback—
+  // parsing provider error strings is brittle and would hide misconfigured databases.
   const { data: mcOk, error: mcErr } = await supabase.rpc('is_mission_control_staff');
   if (mcErr || mcOk !== true) throw new Error('UNAUTHORIZED');
 
