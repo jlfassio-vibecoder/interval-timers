@@ -175,13 +175,11 @@ export async function verifyAdminRequest(
   };
 }
 
-/** Roles that can access Mission Control (host, trainer, admin, super_admin). */
-const MISSION_CONTROL_ROLES = ['host', 'trainer', 'admin', 'super_admin'] as const;
-
 /**
  * Verify request has valid Supabase session and user has Mission Control access
- * (host, trainer, admin, or super_admin).
- * Returns { uid, email, role } or throws UNAUTHENTICATED / UNAUTHORIZED.
+ * (host; admin/super_admin; or coach row in public.trainers).
+ * Returns { uid, email, role } with role `'trainer'` when the profile is `client` but a coach row exists
+ * (compat for roster invite APIs).
  */
 export async function verifyMissionControlRequest(
   request: Request,
@@ -194,7 +192,7 @@ export async function verifyMissionControlRequest(
     throw new Error('UNAUTHENTICATED');
   }
 
-  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
     global: { headers: { Authorization: `Bearer ${token}` } },
   });
 
@@ -205,6 +203,9 @@ export async function verifyMissionControlRequest(
 
   if (userError || !user) throw new Error('UNAUTHENTICATED');
 
+  const { data: mcOk, error: mcErr } = await supabase.rpc('is_mission_control_staff');
+  if (mcErr || mcOk !== true) throw new Error('UNAUTHORIZED');
+
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
     .select('role')
@@ -212,14 +213,31 @@ export async function verifyMissionControlRequest(
     .single();
 
   if (profileError || !profile) throw new Error('UNAUTHORIZED');
-  if (!MISSION_CONTROL_ROLES.includes(profile.role as (typeof MISSION_CONTROL_ROLES)[number])) {
+
+  const r = (profile as { role: string }).role;
+  let effectiveRole = r;
+  if (r === 'client') {
+    const { data: tr } = await supabase
+      .from('trainers')
+      .select('user_id')
+      .eq('user_id', user.id)
+      .maybeSingle();
+    if (tr) effectiveRole = 'trainer';
+  }
+
+  if (
+    effectiveRole !== 'host' &&
+    effectiveRole !== 'trainer' &&
+    effectiveRole !== 'admin' &&
+    effectiveRole !== 'super_admin'
+  ) {
     throw new Error('UNAUTHORIZED');
   }
 
   return {
     uid: user.id,
     email: user.email ?? undefined,
-    role: profile.role,
+    role: effectiveRole,
   };
 }
 
@@ -250,7 +268,7 @@ export async function verifyTrainerOrAdminRequest(
     throw new Error('UNAUTHENTICATED');
   }
 
-  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
     global: { headers: { Authorization: `Bearer ${token}` } },
   });
 
@@ -268,15 +286,25 @@ export async function verifyTrainerOrAdminRequest(
     .single();
 
   if (profileError || !profile) throw new Error('UNAUTHORIZED');
-  const role = profile.role;
-  if (role !== 'trainer' && role !== 'admin' && role !== 'super_admin') {
-    throw new Error('UNAUTHORIZED');
+  const role = (profile as { role: string }).role;
+  if (role === 'admin' || role === 'super_admin') {
+    return {
+      uid: user.id,
+      email: user.email ?? undefined,
+    };
   }
-
-  return {
-    uid: user.id,
-    email: user.email ?? undefined,
-  };
+  const { data: tr } = await supabase
+    .from('trainers')
+    .select('user_id')
+    .eq('user_id', user.id)
+    .maybeSingle();
+  if (tr) {
+    return {
+      uid: user.id,
+      email: user.email ?? undefined,
+    };
+  }
+  throw new Error('UNAUTHORIZED');
 }
 
 /**

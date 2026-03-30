@@ -38,10 +38,10 @@ interface PendingInvitation {
 const RosterView: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { profile, user } = useAppContext();
+  const { profile, user, isTrainer } = useAppContext();
   const role = profile?.role ?? 'client';
   const isHost = role === 'host';
-  const canInviteClients = role === 'trainer' || role === 'admin' || role === 'super_admin';
+  const canInviteClients = isTrainer;
 
   const [roster, setRoster] = useState<RosterItem[]>([]);
   const [pendingInvites, setPendingInvites] = useState<PendingInvitation[]>([]);

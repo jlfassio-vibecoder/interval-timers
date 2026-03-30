@@ -69,7 +69,12 @@ const AdminLoginGate: React.FC = () => {
     }
 
     const role = (profile?.role ?? '').toString().trim().toLowerCase();
-    if (role === 'admin' || role === 'trainer') {
+    const { data: tr } = await supabase
+      .from('trainers')
+      .select('user_id')
+      .eq('user_id', user.id)
+      .maybeSingle();
+    if (role === 'admin' || role === 'super_admin' || tr) {
       setAuthCookie(session);
       window.location.href = adminPaths.root;
     } else if (!profile) {

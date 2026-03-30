@@ -8,7 +8,16 @@ import {
   useLocation,
   Navigate,
 } from 'react-router-dom';
-import { LayoutDashboard, Users, BarChart3, Wrench, Home, ExternalLink } from 'lucide-react';
+import {
+  LayoutDashboard,
+  Users,
+  BarChart3,
+  Wrench,
+  Home,
+  ExternalLink,
+  FileText,
+  UserCircle,
+} from 'lucide-react';
 import { AppProvider, useAppContext } from '../../../contexts/AppContext';
 import { AuthModal } from '@interval-timers/auth-ui';
 import { supabase } from '@/lib/supabase/supabase-instance';
@@ -16,6 +25,8 @@ import TrainerDashboard from './TrainerDashboard';
 import RosterView from './views/RosterView';
 import ClientDetailView from './views/ClientDetailView';
 import IntelView from './views/IntelView';
+import StudioWelcomeEditorView from './views/StudioWelcomeEditorView';
+import TrainerWelcomeEditorView from './views/TrainerWelcomeEditorView';
 import FluidBackground from '../FluidBackground';
 import PageViewTracker from '@/components/react/PageViewTracker';
 import { adminPaths } from '@/lib/admin/config';
@@ -23,11 +34,24 @@ import { adminPaths } from '@/lib/admin/config';
 const TRAINER_NAV = [
   { path: '/', label: 'Mission Control', icon: LayoutDashboard },
   { path: '/roster', label: 'Roster', icon: Users },
+  { path: '/roster/welcome', label: 'Studio invite', icon: FileText },
+  { path: '/roster/welcome/coach', label: 'Coach landing', icon: UserCircle },
   { path: '/intel', label: 'Intel', icon: BarChart3 },
 ] as const;
 
 function isTrainerNavActive(path: string, pathname: string): boolean {
   if (path === '/') return pathname === '/' || pathname === '';
+  if (path === '/roster/welcome/coach') {
+    return pathname === '/roster/welcome/coach';
+  }
+  if (path === '/roster/welcome') {
+    return pathname === '/roster/welcome';
+  }
+  if (path === '/roster') {
+    if (pathname === '/roster') return true;
+    if (!pathname.startsWith('/roster/')) return false;
+    return !pathname.startsWith('/roster/welcome');
+  }
   return pathname === path || pathname.startsWith(path + '/');
 }
 
@@ -149,14 +173,19 @@ const TrainerGuard = () => {
           redirectBaseUrl="/account"
           fromAppId="app"
           getRedirectUrl={async (authUser) => {
-            const { data } = await supabase
+            const { data: prof } = await supabase
               .from('profiles')
               .select('role')
               .eq('id', authUser.id)
               .maybeSingle();
-            const r = data?.role;
-            if (r === 'host' || r === 'trainer' || r === 'admin' || r === 'super_admin')
-              return '/trainer';
+            const r = prof?.role;
+            if (r === 'host' || r === 'admin' || r === 'super_admin') return '/trainer';
+            const { data: tr } = await supabase
+              .from('trainers')
+              .select('user_id')
+              .eq('user_id', authUser.id)
+              .maybeSingle();
+            if (tr) return '/trainer';
             return null;
           }}
         />
@@ -199,6 +228,14 @@ const TrainerGuard = () => {
         <Route path="/" element={<TrainerLayout showTrainerNav={isTrainer} />}>
           <Route index element={<TrainerDashboard profile={profile} />} />
           <Route path="roster" element={isTrainer ? <RosterView /> : <Navigate to="/" replace />} />
+          <Route
+            path="roster/welcome"
+            element={isTrainer ? <StudioWelcomeEditorView /> : <Navigate to="/" replace />}
+          />
+          <Route
+            path="roster/welcome/coach"
+            element={isTrainer ? <TrainerWelcomeEditorView /> : <Navigate to="/" replace />}
+          />
           <Route
             path="roster/:userId"
             element={isTrainer ? <ClientDetailView /> : <Navigate to="/" replace />}

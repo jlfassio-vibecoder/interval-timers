@@ -3,7 +3,7 @@ export interface UserProfile {
   uid: string;
   email: string | null;
   displayName?: string;
-  role: 'trainer' | 'client' | 'admin' | 'host' | 'super_admin';
+  role: 'client' | 'admin' | 'host' | 'super_admin';
   isAdmin?: boolean;
   purchasedIndex?: number | null;
   createdAt: string;

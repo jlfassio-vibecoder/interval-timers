@@ -6,6 +6,7 @@
 
 import { getSupabaseServer } from '@/lib/supabase/server';
 import { fetchTrainerRoster, isHostBuddy } from './trainer-roster';
+import { userHasTrainerRecord } from './trainer-record';
 
 /** DTO returned to Mission Control viewers. Omits sensitive fields based on viewer tier. */
 export interface MissionControlProfileDto {
@@ -51,7 +52,8 @@ export async function fetchMissionControlProfile(
   targetUserId: string
 ): Promise<MissionControlProfileDto | null> {
   const isAdminElevated = callerRole === 'admin' || callerRole === 'super_admin';
-  const isTrainer = callerRole === 'trainer' || isAdminElevated;
+  const hasTrainerRecord = await userHasTrainerRecord(callerId);
+  const isTrainer = callerRole === 'trainer' || hasTrainerRecord || isAdminElevated;
 
   if (callerRole === 'host') {
     if (callerId !== targetUserId) {

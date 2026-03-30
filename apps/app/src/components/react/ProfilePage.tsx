@@ -298,7 +298,13 @@ function getRestingHrGuideFocusable(container: HTMLElement): HTMLElement[] {
 }
 
 const ProfilePage: React.FC = () => {
-  const { user, profile: contextProfile, setProfile } = useAppContext();
+  const {
+    user,
+    profile: contextProfile,
+    setProfile,
+    isTrainer,
+    isMissionControlStaff,
+  } = useAppContext();
   const [form, setForm] = useState<ProfileForm>(emptyForm);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -697,9 +703,8 @@ const ProfilePage: React.FC = () => {
     }
   }, [user?.uid, form, contextProfile, setProfile, profileCompletedAt, showToast]);
 
-  const isTrainerOrAdmin =
-    user?.role === 'trainer' || user?.role === 'admin' || user?.role === 'super_admin';
-  const isHostOrAbove = isTrainerOrAdmin || user?.role === 'host';
+  const isTrainerOrAdmin = isTrainer;
+  const isHostOrAbove = isMissionControlStaff;
 
   if (!user) {
     return (

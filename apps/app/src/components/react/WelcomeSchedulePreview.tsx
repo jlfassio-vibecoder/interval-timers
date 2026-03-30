@@ -24,20 +24,20 @@ function formatPreviewDate(iso: string, locale: WelcomeLocale): string {
   const d = parts[2];
   if (!y || !m || !d) return iso;
   const date = new Date(y, m - 1, d);
-  const loc = locale === 'es' ? 'es-ES' : 'en-US';
+  const loc = locale === 'es' ? 'es-ES' : locale === 'fr' ? 'fr-FR' : 'en-US';
   return date.toLocaleDateString(loc, { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
-function eventTypeLabel(ev: CalendarEvent): string {
+function eventTypeLabel(ev: CalendarEvent, strings: WelcomeSchedulePreviewStrings): string {
   switch (ev.type) {
     case 'program':
-      return 'Program';
+      return strings.scheduleEventProgram;
     case 'amrap_scheduled':
-      return 'AMRAP';
+      return strings.scheduleEventAmrap;
     case 'timer_scheduled':
-      return 'Timer';
+      return strings.scheduleEventTimer;
     default:
-      return ev.type;
+      return strings.scheduleEventOther;
   }
 }
 
@@ -63,6 +63,11 @@ const DEFAULT_SCHEDULE_STRINGS_EN: WelcomeSchedulePreviewStrings = {
   scheduleOpenToPlan: 'Open app to plan',
   scheduleRetry: 'Retry',
   scheduleCouldNotLoad: 'Couldn’t load schedule',
+  scheduleEventProgram: 'Program',
+  scheduleEventAmrap: 'AMRAP',
+  scheduleEventTimer: 'Timer',
+  scheduleEventOther: 'Session',
+  scheduleSeeFullCalendar: 'See full calendar in the app',
 };
 
 const WelcomeSchedulePreview: React.FC<WelcomeSchedulePreviewProps> = ({
@@ -114,7 +119,7 @@ const WelcomeSchedulePreview: React.FC<WelcomeSchedulePreviewProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [userId, strings.scheduleCouldNotLoad]);
+  }, [userId, strings]);
 
   useEffect(() => {
     void load();
@@ -173,22 +178,40 @@ const WelcomeSchedulePreview: React.FC<WelcomeSchedulePreviewProps> = ({
       )}
 
       {!loading && !error && items.length > 0 && (
-        <ul className="space-y-3">
-          {items.map((ev, i) => (
-            <li
-              key={`${ev.type}-${ev.date}-${ev.sessionId ?? 'n'}-${eventCompletionKey(ev)}-${i}`}
-              className="flex flex-col gap-1 rounded-lg border border-white/10 bg-black/20 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+        <>
+          <ul className="space-y-3">
+            {items.map((ev, i) => (
+              <li
+                key={`${ev.type}-${ev.date}-${ev.sessionId ?? 'n'}-${eventCompletionKey(ev)}-${i}`}
+                className="flex flex-col gap-1 rounded-lg border border-white/10 bg-black/20 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div>
+                  <p className="text-sm font-medium text-white">{eventTitle(ev)}</p>
+                  <p className="text-xs text-white/50">{formatPreviewDate(ev.date, locale)}</p>
+                </div>
+                <span className="shrink-0 self-start rounded-md border border-white/15 bg-white/5 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-white/60 sm:self-center">
+                  {eventTypeLabel(ev, strings)}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <div className="mt-4 border-t border-white/10 pt-4 text-center">
+            <a
+              href="/?ref=welcome_schedule"
+              className="text-xs font-bold uppercase tracking-wide text-orange-light hover:text-white"
+              onClick={() =>
+                void trackEvent(
+                  supabase,
+                  'cta_open_app',
+                  { surface: 'schedule_footer' },
+                  { appId: 'app' }
+                )
+              }
             >
-              <div>
-                <p className="text-sm font-medium text-white">{eventTitle(ev)}</p>
-                <p className="text-xs text-white/50">{formatPreviewDate(ev.date, locale)}</p>
-              </div>
-              <span className="shrink-0 self-start rounded-md border border-white/15 bg-white/5 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-white/60 sm:self-center">
-                {eventTypeLabel(ev)}
-              </span>
-            </li>
-          ))}
-        </ul>
+              {strings.scheduleSeeFullCalendar}
+            </a>
+          </div>
+        </>
       )}
     </section>
   );

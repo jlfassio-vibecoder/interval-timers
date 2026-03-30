@@ -10,7 +10,7 @@ export interface Database {
           full_name: string | null;
           avatar_url: string | null;
           website: string | null;
-          role: 'client' | 'host' | 'trainer' | 'admin' | 'super_admin';
+          role: 'client' | 'host' | 'admin' | 'super_admin';
           date_of_birth?: string | null;
           biological_sex?: string | null;
           weight_kg?: number | null;
@@ -45,7 +45,7 @@ export interface Database {
           full_name?: string | null;
           avatar_url?: string | null;
           website?: string | null;
-          role?: 'client' | 'host' | 'trainer' | 'admin' | 'super_admin';
+          role?: 'client' | 'host' | 'admin' | 'super_admin';
           studio_id?: string | null;
         };
         Update: {
@@ -55,7 +55,7 @@ export interface Database {
           full_name?: string | null;
           avatar_url?: string | null;
           website?: string | null;
-          role?: 'client' | 'host' | 'trainer' | 'admin' | 'super_admin';
+          role?: 'client' | 'host' | 'admin' | 'super_admin';
           date_of_birth?: string | null;
           biological_sex?: string | null;
           weight_kg?: number | null;
@@ -93,6 +93,7 @@ export interface Database {
           logo_url: string | null;
           primary_color: string | null;
           welcome_tagline: string | null;
+          welcome_content: Record<string, unknown>;
           created_at: string;
           updated_at: string;
         };
@@ -103,6 +104,7 @@ export interface Database {
           logo_url?: string | null;
           primary_color?: string | null;
           welcome_tagline?: string | null;
+          welcome_content?: Record<string, unknown>;
           created_at?: string;
           updated_at?: string;
         };
@@ -112,6 +114,45 @@ export interface Database {
           logo_url?: string | null;
           primary_color?: string | null;
           welcome_tagline?: string | null;
+          welcome_content?: Record<string, unknown>;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      trainers: {
+        Row: {
+          user_id: string;
+          slug: string | null;
+          display_name: string;
+          logo_url: string | null;
+          primary_color: string | null;
+          welcome_tagline: string | null;
+          welcome_content: Record<string, unknown>;
+          studio_id: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          user_id: string;
+          slug?: string | null;
+          display_name: string;
+          logo_url?: string | null;
+          primary_color?: string | null;
+          welcome_tagline?: string | null;
+          welcome_content?: Record<string, unknown>;
+          studio_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          slug?: string | null;
+          display_name?: string;
+          logo_url?: string | null;
+          primary_color?: string | null;
+          welcome_tagline?: string | null;
+          welcome_content?: Record<string, unknown>;
+          studio_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -234,6 +275,12 @@ export interface Database {
           goal_snapshot?: string[] | null;
         };
         Relationships: [];
+      };
+    };
+    Functions: {
+      is_mission_control_staff: {
+        Args: Record<PropertyKey, never>;
+        Returns: boolean;
       };
     };
   };

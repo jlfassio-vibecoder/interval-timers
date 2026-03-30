@@ -1,8 +1,34 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import WelcomeInviteLanding from '../components/react/WelcomeInviteLanding';
+import WelcomeStaticShell from '../components/astro/WelcomeStaticShell.astro';
+import { getCurrentUserFromRequest } from '../lib/supabase/admin/auth';
+import { getWelcomeClientTrainerContext } from '../lib/supabase/admin/welcome-trainer';
+import { trainerFirstNameForWelcome } from '../lib/welcome-landing-strings';
+import type { RosterInviteStudioPreview } from '../types/roster-invite-preview';
 
 const canonicalUrl = new URL('/welcome', Astro.url).href;
+const inviteParam = Astro.url.searchParams.get('invite')?.trim() ?? '';
+
+let initialTrainerFirstName: string | null = null;
+let ssrSessionUserId: string | null = null;
+let initialWelcomeStudio: RosterInviteStudioPreview | null = null;
+let initialActiveProgramCount = 0;
+let shellUser: Awaited<ReturnType<typeof getCurrentUserFromRequest>> = null;
+
+if (!inviteParam) {
+  shellUser = await getCurrentUserFromRequest(Astro.request, Astro.cookies);
+  if (shellUser) {
+    ssrSessionUserId = shellUser.uid;
+    const ctx = await getWelcomeClientTrainerContext(shellUser.uid);
+    initialTrainerFirstName = trainerFirstNameForWelcome(ctx.trainerDisplayName);
+    initialWelcomeStudio = ctx.studio;
+    initialActiveProgramCount = ctx.activeProgramCount;
+  }
+}
+
+const shellVariant = inviteParam ? 'invite' : shellUser ? 'logged_in' : 'anonymous';
+const shellAccent = initialWelcomeStudio?.primaryColor ?? null;
 ---
 
 <BaseLayout
@@ -10,5 +36,20 @@ const canonicalUrl = new URL('/welcome', Astro.url).href;
   description="Join your coach or host on HIIT Workout Timer—accept your roster invite, sign in, and see what’s next on your training calendar."
   canonicalUrl={canonicalUrl}
 >
-  <WelcomeInviteLanding client:load />
+  <link slot="head" rel="prefetch" href="/" />
+  <div class="relative min-h-screen">
+    <WelcomeStaticShell
+      shellVariant={shellVariant}
+      accentHex={shellAccent}
+      initialTrainerFirstName={initialTrainerFirstName}
+      loggedInStudio={initialWelcomeStudio}
+    />
+    <WelcomeInviteLanding
+      client:load
+      initialTrainerFirstName={initialTrainerFirstName}
+      ssrSessionUserId={ssrSessionUserId}
+      initialWelcomeStudio={initialWelcomeStudio}
+      initialActiveProgramCount={initialActiveProgramCount}
+    />
+  </div>
 </BaseLayout>
