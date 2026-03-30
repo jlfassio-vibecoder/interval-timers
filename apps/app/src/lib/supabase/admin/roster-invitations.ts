@@ -6,6 +6,11 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { getSupabaseServer } from '@/lib/supabase/server';
 import { fetchTrainerRoster, isHostBuddy } from '@/lib/supabase/admin/trainer-roster';
+import {
+  mergeWelcomeContentLayers,
+  parseStudioWelcomeContent,
+  welcomeContentForPublicInvitePreview,
+} from '@/lib/studio-welcome-content-schema';
 import type { RosterInvitePreview, RosterInviteStudioPreview } from '@/types/roster-invite-preview';
 
 export type { RosterInvitePreview, RosterInviteStudioPreview };
@@ -794,8 +799,63 @@ export async function acceptRosterInvite(
 }
 
 /**
- * Inviter label for public invite landing when `full_name` is empty (email-only signups, etc.).
+ * Studio wins for visual brand when a studio row exists; welcome copy merges studio then trainer layers.
  */
+export function buildEffectiveInviteStudioPreviewFromRow(
+  row: Record<string, unknown>
+): RosterInviteStudioPreview | null {
+  const studioSlug = typeof row.studio_slug === 'string' ? row.studio_slug.trim() : '';
+  const studioName =
+    typeof row.studio_display_name === 'string' ? row.studio_display_name.trim() : '';
+  const trainerSlug = typeof row.trainer_slug === 'string' ? row.trainer_slug.trim() : '';
+  const trainerName =
+    typeof row.trainer_display_name === 'string' ? row.trainer_display_name.trim() : '';
+
+  const studioWelcome = parseStudioWelcomeContent(row.studio_welcome_content);
+  const trainerWelcome = parseStudioWelcomeContent(row.trainer_welcome_content);
+  const mergedWelcome = mergeWelcomeContentLayers(studioWelcome, trainerWelcome);
+  const publicMergedWelcome = welcomeContentForPublicInvitePreview(mergedWelcome);
+
+  if (studioSlug && studioName) {
+    return {
+      slug: studioSlug,
+      displayName: studioName,
+      logoUrl: typeof row.studio_logo_url === 'string' ? row.studio_logo_url.trim() || null : null,
+      primaryColor:
+        typeof row.studio_primary_color === 'string'
+          ? row.studio_primary_color.trim() || null
+          : null,
+      tagline:
+        typeof row.studio_welcome_tagline === 'string'
+          ? row.studio_welcome_tagline.trim() || null
+          : null,
+      welcomeContent: publicMergedWelcome,
+    };
+  }
+
+  if (trainerSlug && trainerName) {
+    const tw = parseStudioWelcomeContent(row.trainer_welcome_content);
+    return {
+      slug: trainerSlug,
+      displayName: trainerName,
+      logoUrl:
+        typeof row.trainer_logo_url === 'string' ? row.trainer_logo_url.trim() || null : null,
+      primaryColor:
+        typeof row.trainer_primary_color === 'string'
+          ? row.trainer_primary_color.trim() || null
+          : null,
+      tagline:
+        typeof row.trainer_welcome_tagline === 'string'
+          ? row.trainer_welcome_tagline.trim() || null
+          : null,
+      welcomeContent: welcomeContentForPublicInvitePreview(tw),
+    };
+  }
+
+  return null;
+}
+
+/** Inviter label for public invite landing when `full_name` is empty (email-only signups, etc.). */
 function resolveInviterDisplayName(row: {
   full_name: string | null | undefined;
   username: string | null | undefined;
@@ -809,7 +869,10 @@ function resolveInviterDisplayName(row: {
   if (e) {
     const local = e.split('@')[0]?.trim() ?? '';
     if (local) {
-      const t = local.replace(/[._-]+/g, ' ').replace(/\s+/g, ' ').trim();
+      const t = local
+        .replace(/[._-]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
       if (t) return t;
     }
   }
@@ -835,29 +898,9 @@ function mapRosterInvitePreviewRow(row: Record<string, unknown>): RosterInvitePr
     });
 
   const inviterAvatarUrl =
-    typeof row.avatar_url === 'string' && row.avatar_url.trim()
-      ? row.avatar_url.trim()
-      : null;
+    typeof row.avatar_url === 'string' && row.avatar_url.trim() ? row.avatar_url.trim() : null;
 
-  let studio: RosterInviteStudioPreview | null = null;
-  const slug = row.studio_slug;
-  const displayName = row.studio_display_name;
-  if (typeof slug === 'string' && typeof displayName === 'string' && slug.trim() && displayName.trim()) {
-    studio = {
-      slug: slug.trim(),
-      displayName: displayName.trim(),
-      logoUrl:
-        typeof row.studio_logo_url === 'string' ? row.studio_logo_url.trim() || null : null,
-      primaryColor:
-        typeof row.studio_primary_color === 'string'
-          ? row.studio_primary_color.trim() || null
-          : null,
-      tagline:
-        typeof row.studio_welcome_tagline === 'string'
-          ? row.studio_welcome_tagline.trim() || null
-          : null,
-    };
-  }
+  const studio = buildEffectiveInviteStudioPreviewFromRow(row);
 
   const ie = row.invitee_email;
   const ip = row.invitee_phone_e164;
@@ -918,26 +961,50 @@ export async function getRosterInvitePreview(
     .eq('id', inv.inviter_id)
     .maybeSingle();
 
+  const { data: tr } = await supabase
+    .from('trainers')
+    .select(
+      'slug, display_name, logo_url, primary_color, welcome_tagline, welcome_content, studio_id'
+    )
+    .eq('user_id', inv.inviter_id)
+    .maybeSingle();
+
   const kind = inv.kind === 'friend' || inv.kind === 'client' ? inv.kind : 'client';
 
-  let studio: RosterInviteStudioPreview | null = null;
-  const sid = prof?.studio_id as string | null | undefined;
+  const sid =
+    (tr?.studio_id as string | null | undefined) ?? (prof?.studio_id as string | null | undefined);
+  let st: {
+    slug: unknown;
+    display_name: unknown;
+    logo_url?: string | null;
+    primary_color?: string | null;
+    welcome_tagline?: string | null;
+    welcome_content?: unknown;
+  } | null = null;
   if (sid) {
-    const { data: st } = await supabase
+    const { data: studioRow } = await supabase
       .from('studios')
-      .select('slug, display_name, logo_url, primary_color, welcome_tagline')
+      .select('slug, display_name, logo_url, primary_color, welcome_tagline, welcome_content')
       .eq('id', sid)
       .maybeSingle();
-    if (st?.slug && st.display_name) {
-      studio = {
-        slug: String(st.slug).trim(),
-        displayName: String(st.display_name).trim(),
-        logoUrl: st.logo_url?.trim() || null,
-        primaryColor: st.primary_color?.trim() || null,
-        tagline: st.welcome_tagline?.trim() || null,
-      };
-    }
+    st = studioRow ?? null;
   }
+
+  const previewRow: Record<string, unknown> = {
+    studio_slug: st?.slug,
+    studio_display_name: st?.display_name,
+    studio_logo_url: st?.logo_url,
+    studio_primary_color: st?.primary_color,
+    studio_welcome_tagline: st?.welcome_tagline,
+    studio_welcome_content: st?.welcome_content,
+    trainer_slug: tr?.slug,
+    trainer_display_name: tr?.display_name,
+    trainer_logo_url: tr?.logo_url,
+    trainer_primary_color: tr?.primary_color,
+    trainer_welcome_tagline: tr?.welcome_tagline,
+    trainer_welcome_content: tr?.welcome_content,
+  };
+  const studio = buildEffectiveInviteStudioPreviewFromRow(previewRow);
 
   const contactForPrefill = kind === 'client';
 

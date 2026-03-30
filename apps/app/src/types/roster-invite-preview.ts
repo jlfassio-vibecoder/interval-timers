@@ -1,3 +1,5 @@
+import type { StudioWelcomeContentStored } from '@/types/studio-welcome-content';
+
 /** Public-safe studio fields for invite landing (shared client/server). */
 export interface RosterInviteStudioPreview {
   slug: string;
@@ -5,6 +7,8 @@ export interface RosterInviteStudioPreview {
   logoUrl: string | null;
   primaryColor: string | null;
   tagline: string | null;
+  /** Public-safe trainer-edited copy; omit or empty object when unset. */
+  welcomeContent?: StudioWelcomeContentStored | null;
 }
 
 /** Public-safe inviter fields for invite landing (shared client/server). */

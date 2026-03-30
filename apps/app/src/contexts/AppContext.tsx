@@ -127,6 +127,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [workoutLogs, setWorkoutLogs] = useState<WorkoutLog[]>([]);
   const [completedWorkouts, setCompletedWorkouts] = useState<Set<string>>(new Set());
   const [purchasedIndex, setPurchasedIndex] = useState<number | null>(null);
+  const [hasTrainerRecord, setHasTrainerRecord] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -213,6 +214,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       } else {
         setUser(null);
         setTrainerProfile(null);
+        setHasTrainerRecord(false);
         setWorkoutLogs([]);
       }
     });
@@ -242,6 +244,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const fetchProfile = async (userId: string, email?: string) => {
     const setMinimalUser = () => {
+      setHasTrainerRecord(false);
       setUser({
         uid: userId,
         email: email || null,
@@ -282,12 +285,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
 
       if (data) {
+        const { data: trRow } = await supabase
+          .from('trainers')
+          .select('user_id')
+          .eq('user_id', userId)
+          .maybeSingle();
+        setHasTrainerRecord(!!trRow);
+
         const goal = data.weekly_goal_minutes;
         setUser({
           uid: data.id,
           email: email || null,
           displayName: data.full_name || undefined,
-          role: (data.role as 'trainer' | 'client' | 'admin' | 'host' | 'super_admin') || 'client',
+          role: (data.role as 'client' | 'admin' | 'host' | 'super_admin') || 'client',
           avatarUrl: data.avatar_url || undefined,
           isAdmin: data.role === 'admin' || data.role === 'super_admin',
           createdAt: data.created_at || new Date().toISOString(),
@@ -346,6 +356,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);
+    setHasTrainerRecord(false);
     setTrainerProfile(null);
     setActiveProgramIdState(null);
     setWorkoutLogs([]);
@@ -362,8 +373,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   };
 
-  const isTrainer =
-    user?.role === 'trainer' || user?.role === 'admin' || user?.role === 'super_admin';
+  const isTrainer = hasTrainerRecord || user?.role === 'admin' || user?.role === 'super_admin';
   const isMissionControlStaff = isTrainer || user?.role === 'host';
   const isPaid = !!user?.isAdmin || purchasedIndex !== null;
 

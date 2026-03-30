@@ -2,13 +2,17 @@
  * Public roster invite landing: inviter preview, sign-in handoff, accept via /api/invitations/accept.
  */
 
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { trackEvent } from '@interval-timers/analytics';
 import { AuthModal } from '@interval-timers/auth-ui';
 import { supabase } from '@/lib/supabase/supabase-instance';
 import { AppProvider, useAppContext } from '@/contexts/AppContext';
 import FluidBackground from '@/components/react/FluidBackground';
 import WelcomeSchedulePreview from '@/components/react/WelcomeSchedulePreview';
+import {
+  WelcomeWelcomeBackHeroSkeleton,
+  WelcomeWelcomeBackScheduleSkeleton,
+} from '@/components/react/WelcomeWelcomeBackSkeleton';
 import WelcomeTestimonialsSlot, {
   type WelcomeTestimonialQuote,
 } from '@/components/react/WelcomeTestimonialsSlot';
@@ -24,9 +28,35 @@ import {
   setStoredWelcomeLocale,
   type WelcomeLocale,
 } from '@/lib/welcome-landing-strings';
-import type { RosterInvitePreview } from '@/types/roster-invite-preview';
+import type { RosterInvitePreview, RosterInviteStudioPreview } from '@/types/roster-invite-preview';
+import { parseStudioWelcomeContent } from '@/lib/studio-welcome-content-schema';
+import {
+  mergeAcceptSuccessCopy,
+  mergeOpenAppCta,
+  mergeWelcomeBackTrainerTeaser,
+  mergeWelcomeHeroCopy,
+  mergeWelcomeStatusStrip,
+  pickInviteFlowHeroSub,
+} from '@/lib/studio-welcome-merge';
 
 const DEFAULT_WELCOME_ACCENT = '#fb923c';
+
+function parseWelcomeStudioFromApi(v: unknown): RosterInviteStudioPreview | null {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return null;
+  const o = v as Record<string, unknown>;
+  const slug = typeof o.slug === 'string' ? o.slug.trim() : '';
+  const displayName = typeof o.displayName === 'string' ? o.displayName.trim() : '';
+  if (!slug || !displayName) return null;
+  const wc = parseStudioWelcomeContent(o.welcomeContent);
+  return {
+    slug,
+    displayName,
+    logoUrl: typeof o.logoUrl === 'string' ? o.logoUrl.trim() || null : null,
+    primaryColor: typeof o.primaryColor === 'string' ? o.primaryColor.trim() || null : null,
+    tagline: typeof o.tagline === 'string' ? o.tagline.trim() || null : null,
+    welcomeContent: Object.keys(wc).length ? wc : null,
+  };
+}
 
 function isValidWelcomeHex(color: string | null | undefined): color is string {
   if (!color?.trim()) return false;
@@ -52,14 +82,29 @@ export interface WelcomeInviteLandingProps {
   initialInviteToken?: string;
   pathStudioSlug?: string;
   testimonialsQuotes?: WelcomeTestimonialQuote[];
+  /**
+   * From `welcome.astro` when the request had a valid session and no `?invite=` (trainer teaser; RLS-safe server read).
+   */
+  initialTrainerFirstName?: string | null;
+  /** Must match hydrated `uid` for `initialTrainerFirstName` to apply (avoids cross-user flash). */
+  ssrSessionUserId?: string | null;
+  /** Logged-in welcome-back studio from SSR (same shape as invite preview). */
+  initialWelcomeStudio?: RosterInviteStudioPreview | null;
+  /** Active enrollment count from SSR (multi-program hint). */
+  initialActiveProgramCount?: number;
 }
 
 const WelcomeInviteInner: React.FC<WelcomeInviteLandingProps> = ({
   initialInviteToken,
   pathStudioSlug,
   testimonialsQuotes,
+  initialTrainerFirstName,
+  ssrSessionUserId,
+  initialWelcomeStudio,
+  initialActiveProgramCount = 0,
 }) => {
-  const { user, session, loading, isMissionControlStaff, handleLogout } = useAppContext();
+  const { user, session, loading, activeProgramId, isMissionControlStaff, handleLogout } =
+    useAppContext();
   const [token, setToken] = useState('');
   const [preview, setPreview] = useState<RosterInvitePreview | null | undefined>(undefined);
   const [previewError, setPreviewError] = useState<string | null>(null);
@@ -73,6 +118,11 @@ const WelcomeInviteInner: React.FC<WelcomeInviteLandingProps> = ({
   const [heroVariant, setHeroVariant] = useState<WelcomeHeroVariantId>('a');
   /** Resolved via GET /api/welcome/trainer-display (RLS blocks client-side trainer profile reads). */
   const [welcomeTrainerFirstName, setWelcomeTrainerFirstName] = useState<string | null>(null);
+  const [welcomeLoggedInStudio, setWelcomeLoggedInStudio] =
+    useState<RosterInviteStudioPreview | null>(null);
+  const [welcomeActiveProgramCount, setWelcomeActiveProgramCount] = useState(0);
+  /** False until trainer-display fetch finishes for the logged-in, no-token path (coordinates skeleton). */
+  const [trainerFetchSettled, setTrainerFetchSettled] = useState(false);
 
   const landingViewTracked = useRef(false);
   const clientInviteAutoOpenDone = useRef(false);
@@ -84,37 +134,116 @@ const WelcomeInviteInner: React.FC<WelcomeInviteLandingProps> = ({
   const uid = user?.uid ?? session?.user?.id ?? '';
 
   useEffect(() => {
+    document.getElementById('welcome-static-shell')?.remove();
+  }, []);
+
+  useEffect(() => {
     setHeroVariant(resolveWelcomeHeroVariant());
   }, []);
 
   useEffect(() => {
     if (token || !isLoggedIn || !uid) {
       setWelcomeTrainerFirstName(null);
+      setWelcomeLoggedInStudio(null);
+      setWelcomeActiveProgramCount(0);
+      setTrainerFetchSettled(false);
       return;
     }
+
+    setTrainerFetchSettled(false);
+    if (ssrSessionUserId && uid === ssrSessionUserId) {
+      setWelcomeTrainerFirstName(initialTrainerFirstName ?? null);
+      setWelcomeLoggedInStudio(initialWelcomeStudio ?? null);
+      setWelcomeActiveProgramCount(
+        typeof initialActiveProgramCount === 'number' ? initialActiveProgramCount : 0
+      );
+    }
+
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch('/api/welcome/trainer-display', { credentials: 'include' });
-        const body = (await res.json().catch(() => ({}))) as { firstName?: string | null };
+        const params = new URLSearchParams();
+        if (activeProgramId?.trim()) {
+          params.set('programId', activeProgramId.trim());
+        }
+        const qs = params.toString();
+        const res = await fetch(`/api/welcome/trainer-display${qs ? `?${qs}` : ''}`, {
+          credentials: 'include',
+        });
+        const body = (await res.json().catch(() => ({}))) as {
+          firstName?: string | null;
+          studio?: unknown;
+          activeProgramCount?: number;
+        };
         if (cancelled) return;
         setWelcomeTrainerFirstName(typeof body.firstName === 'string' ? body.firstName : null);
+        setWelcomeLoggedInStudio(parseWelcomeStudioFromApi(body.studio));
+        setWelcomeActiveProgramCount(
+          typeof body.activeProgramCount === 'number' ? body.activeProgramCount : 0
+        );
       } catch {
-        if (!cancelled) setWelcomeTrainerFirstName(null);
+        if (!cancelled) {
+          setWelcomeTrainerFirstName(null);
+          setWelcomeLoggedInStudio(null);
+          setWelcomeActiveProgramCount(0);
+        }
+      } finally {
+        if (!cancelled) setTrainerFetchSettled(true);
       }
     })();
+
     return () => {
       cancelled = true;
     };
-  }, [token, isLoggedIn, uid]);
+  }, [
+    token,
+    isLoggedIn,
+    uid,
+    activeProgramId,
+    ssrSessionUserId,
+    initialTrainerFirstName,
+    initialWelcomeStudio,
+    initialActiveProgramCount,
+  ]);
 
   const s = getWelcomeLandingStrings(locale);
   const heroCopy = getWelcomeHeroCopy(heroVariant);
 
-  const accentColor =
-    preview?.studio && isValidWelcomeHex(preview.studio.primaryColor)
-      ? preview.studio.primaryColor
-      : DEFAULT_WELCOME_ACCENT;
+  const studioWelcomeForCopy = useMemo(() => {
+    if (token && preview?.studio) return preview.studio.welcomeContent ?? null;
+    if (!token && isLoggedIn && welcomeLoggedInStudio)
+      return welcomeLoggedInStudio.welcomeContent ?? null;
+    return null;
+  }, [token, preview?.studio, isLoggedIn, welcomeLoggedInStudio]);
+
+  const mergedHeroCopy = useMemo(
+    () =>
+      mergeWelcomeHeroCopy(
+        heroVariant,
+        locale,
+        getWelcomeHeroCopy(heroVariant),
+        studioWelcomeForCopy
+      ),
+    [heroVariant, locale, studioWelcomeForCopy]
+  );
+
+  const inviteTokenHeroSub =
+    token && preview && !isLoggedIn && !acceptedKind
+      ? pickInviteFlowHeroSub(preview.studio?.welcomeContent ?? null, locale)
+      : null;
+
+  const showWelcomeBackSkeleton =
+    !token && isLoggedIn && !!uid && (loading || !trainerFetchSettled);
+
+  const accentColor = (() => {
+    if (preview?.studio && isValidWelcomeHex(preview.studio.primaryColor)) {
+      return preview.studio.primaryColor;
+    }
+    if (!token && welcomeLoggedInStudio && isValidWelcomeHex(welcomeLoggedInStudio.primaryColor)) {
+      return welcomeLoggedInStudio.primaryColor;
+    }
+    return DEFAULT_WELCOME_ACCENT;
+  })();
 
   const rootStyle = {
     ['--welcome-accent' as string]: accentColor,
@@ -181,6 +310,14 @@ const WelcomeInviteInner: React.FC<WelcomeInviteLandingProps> = ({
                   (body.studio as { tagline?: string | null }).tagline?.trim() ||
                   (body.studio as { welcome_tagline?: string | null }).welcome_tagline?.trim() ||
                   null,
+                welcomeContent: (() => {
+                  const st = body.studio as { welcomeContent?: unknown } | null;
+                  if (!st || typeof st !== 'object') return null;
+                  const wc = parseStudioWelcomeContent(
+                    (st as { welcomeContent?: unknown }).welcomeContent
+                  );
+                  return Object.keys(wc).length ? wc : null;
+                })(),
               }
             : null;
 
@@ -326,7 +463,7 @@ const WelcomeInviteInner: React.FC<WelcomeInviteLandingProps> = ({
     setAcceptError((prev) => {
       if (prev == null) return prev;
       const str = getWelcomeLandingStrings(locale);
-      const locales: WelcomeLocale[] = ['en', 'es'];
+      const locales: WelcomeLocale[] = ['en', 'es', 'fr'];
       const signInVariants = locales.map(
         (l) => getWelcomeLandingStrings(l).signInInvitedEmailRefresh
       );
@@ -403,10 +540,13 @@ const WelcomeInviteInner: React.FC<WelcomeInviteLandingProps> = ({
     if (previewError) return <span className="text-red-300/90">{previewError}</span>;
     if (loading) return <span className="text-white/65">{s.checkingSession}</span>;
     if (preview && !isLoggedIn) {
-      if (preview.kind === 'client') {
-        return <span className="text-white/75">{s.clientInviteStatusStrip}</span>;
-      }
-      return <span className="text-white/75">{s.signInEmailPhone}</span>;
+      const strip = mergeWelcomeStatusStrip(
+        preview.kind,
+        s,
+        preview.studio?.welcomeContent ?? null,
+        locale
+      );
+      return <span className="text-white/75">{strip}</span>;
     }
     if (preview && isLoggedIn && !acceptError) {
       return (
@@ -483,6 +623,25 @@ const WelcomeInviteInner: React.FC<WelcomeInviteLandingProps> = ({
                 {s.brandSubtitle}
               </p>
             </div>
+          ) : !token && isLoggedIn && welcomeLoggedInStudio && !showWelcomeBackSkeleton ? (
+            <div className="mb-6 flex flex-col items-center gap-3">
+              {welcomeLoggedInStudio.logoUrl ? (
+                <img
+                  src={welcomeLoggedInStudio.logoUrl}
+                  alt=""
+                  className="max-h-16 max-w-[200px] object-contain"
+                />
+              ) : null}
+              <p className="font-heading text-xl font-bold text-white">
+                {welcomeLoggedInStudio.displayName}
+              </p>
+              {welcomeLoggedInStudio.tagline ? (
+                <p className="max-w-sm text-sm text-white/60">{welcomeLoggedInStudio.tagline}</p>
+              ) : null}
+              <p className="font-mono text-[10px] uppercase tracking-widest text-white/35">
+                {s.brandSubtitle}
+              </p>
+            </div>
           ) : (
             <p
               className="mb-2 font-mono text-xs uppercase tracking-widest"
@@ -493,17 +652,34 @@ const WelcomeInviteInner: React.FC<WelcomeInviteLandingProps> = ({
           )}
 
           <h1 className="mb-2 font-heading text-2xl font-bold uppercase tracking-tight md:text-3xl">
-            {!token && isLoggedIn ? heroCopy.titleWelcomeBack : heroCopy.titleInvited}
+            {!token && isLoggedIn ? heroCopy.titleWelcomeBack : mergedHeroCopy.titleInvited}
           </h1>
 
-          {!token && !isLoggedIn && <p className="text-white/70">{heroCopy.subMissingToken}</p>}
+          {!token && !isLoggedIn && (
+            <p className="text-white/70">{mergedHeroCopy.subMissingToken}</p>
+          )}
 
-          {!token && isLoggedIn && (
-            <p className="text-white/65">
-              {welcomeTrainerFirstName
-                ? s.welcomeLoggedInTrainerTeaser.replace('{name}', welcomeTrainerFirstName)
-                : heroCopy.subCalendarTeaser}
-            </p>
+          {inviteTokenHeroSub ? <p className="mb-2 text-white/65">{inviteTokenHeroSub}</p> : null}
+
+          {!token && isLoggedIn && showWelcomeBackSkeleton && <WelcomeWelcomeBackHeroSkeleton />}
+
+          {!token && isLoggedIn && !showWelcomeBackSkeleton && (
+            <>
+              <p className="text-white/65">
+                {(() => {
+                  const t = mergeWelcomeBackTrainerTeaser(
+                    s,
+                    studioWelcomeForCopy,
+                    locale,
+                    welcomeTrainerFirstName
+                  );
+                  return t || heroCopy.subCalendarTeaser;
+                })()}
+              </p>
+              {welcomeActiveProgramCount > 1 ? (
+                <p className="mt-2 text-xs text-white/45">{s.welcomeMultipleProgramsHint}</p>
+              ) : null}
+            </>
           )}
 
           {token && preview === undefined && !previewError && (
@@ -614,7 +790,12 @@ const WelcomeInviteInner: React.FC<WelcomeInviteLandingProps> = ({
                 }}
                 role="status"
               >
-                {acceptedKind === 'friend' ? s.acceptSuccessFriend : s.acceptSuccessClient}
+                {mergeAcceptSuccessCopy(
+                  acceptedKind,
+                  s,
+                  preview?.studio?.welcomeContent ?? null,
+                  locale
+                )}
               </div>
               <a
                 href="/"
@@ -629,7 +810,7 @@ const WelcomeInviteInner: React.FC<WelcomeInviteLandingProps> = ({
                   )
                 }
               >
-                {s.openApp}
+                {mergeOpenAppCta(s, preview?.studio?.welcomeContent ?? null, locale)}
               </a>
               {isMissionControlStaff && (
                 <a
@@ -643,7 +824,11 @@ const WelcomeInviteInner: React.FC<WelcomeInviteLandingProps> = ({
           )}
         </div>
 
-        {isLoggedIn && !loading && uid ? (
+        {isLoggedIn && uid && showWelcomeBackSkeleton ? (
+          <WelcomeWelcomeBackScheduleSkeleton className="mt-6 w-full" />
+        ) : null}
+
+        {isLoggedIn && !loading && uid && !showWelcomeBackSkeleton ? (
           <WelcomeSchedulePreview
             userId={uid}
             className="mt-6 w-full"
@@ -683,6 +868,13 @@ const WelcomeInviteInner: React.FC<WelcomeInviteLandingProps> = ({
               onClick={() => setLocaleAndStore('es')}
             >
               {s.localeEs}
+            </button>
+            <button
+              type="button"
+              className={`font-mono text-[10px] uppercase tracking-wider ${locale === 'fr' ? 'text-orange-light' : 'hover:text-white'}`}
+              onClick={() => setLocaleAndStore('fr')}
+            >
+              {s.localeFr}
             </button>
           </div>
           <div className="mt-4 border-t border-white/10 pt-4">

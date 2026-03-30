@@ -28,27 +28,16 @@ function formatProviderIds(providerIds?: string[]): string {
 const ROLE_LABELS: Record<string, string> = {
   super_admin: 'Super Admin',
   admin: 'Admin',
-  trainer: 'Trainer',
   host: 'Host',
   client: 'User',
 };
 
-function getRoleDisplay(role: UserProfile['role'] | undefined): {
+function getRoleDisplay(role: string | undefined): {
   label: string;
   className: string;
 } {
   const r = role ?? 'client';
-  const label =
-    ROLE_LABELS[r] ??
-    (r === 'super_admin'
-      ? 'Super Admin'
-      : r === 'admin'
-        ? 'Admin'
-        : r === 'trainer'
-          ? 'Trainer'
-          : r === 'host'
-            ? 'Host'
-            : 'User');
+  const label = ROLE_LABELS[r] ?? 'User';
   switch (r) {
     case 'super_admin':
       return {
@@ -59,11 +48,6 @@ function getRoleDisplay(role: UserProfile['role'] | undefined): {
       return {
         label,
         className: 'rounded-full bg-purple-500/20 px-3 py-1 text-xs font-medium text-purple-300',
-      };
-    case 'trainer':
-      return {
-        label,
-        className: 'rounded-full bg-amber-500/20 px-3 py-1 text-xs font-medium text-amber-300',
       };
     case 'host':
       return {

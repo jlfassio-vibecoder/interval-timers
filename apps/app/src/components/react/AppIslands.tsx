@@ -525,8 +525,13 @@ const AppIslands: React.FC<AppIslandsProps> = ({ pathname: initialPathname }) =>
           ) {
             return adminPaths.root;
           }
-          if (role === 'host' || role === 'trainer' || role === 'admin' || role === 'super_admin')
-            return '/trainer';
+          if (role === 'host' || role === 'admin' || role === 'super_admin') return '/trainer';
+          const { data: tr } = await supabase
+            .from('trainers')
+            .select('user_id')
+            .eq('user_id', authUser.id)
+            .maybeSingle();
+          if (tr) return '/trainer';
           return null;
         }}
       />

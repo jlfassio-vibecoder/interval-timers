@@ -27,7 +27,10 @@ function resolveTrainerDisplayName(row: {
   if (e) {
     const local = e.split('@')[0]?.trim() ?? '';
     if (local) {
-      const t = local.replace(/[._-]+/g, ' ').replace(/\s+/g, ' ').trim();
+      const t = local
+        .replace(/[._-]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
       if (t) return t;
     }
   }

@@ -1,0 +1,99 @@
+---
+/**
+ * SEO / no-JS frame for /welcome: removed on React hydrate (see WelcomeInviteLanding).
+ * Copy aligns with welcome hero variant "a" (SSR cannot read sessionStorage A/B).
+ */
+import type { RosterInviteStudioPreview } from '@/types/roster-invite-preview';
+
+interface Props {
+  shellVariant: 'invite' | 'logged_in' | 'anonymous';
+  accentHex?: string | null;
+  initialTrainerFirstName?: string | null;
+  loggedInStudio?: RosterInviteStudioPreview | null;
+}
+
+const DEFAULT_ACCENT = '#fb923c';
+
+const { shellVariant, accentHex, initialTrainerFirstName, loggedInStudio } = Astro.props;
+
+function isValidWelcomeHex(color: string | null | undefined): color is string {
+  if (!color?.trim()) return false;
+  return /^#[0-9A-Fa-f]{3}$/.test(color) || /^#[0-9A-Fa-f]{6}$/.test(color);
+}
+
+const accent = isValidWelcomeHex(accentHex) ? accentHex : DEFAULT_ACCENT;
+
+const titleInvited = "You're invited";
+const titleWelcomeBack = 'Welcome';
+const subMissingToken =
+  'This link is missing an invitation code. Ask your host or trainer for a new invite.';
+const subCalendarTeaser = "Here's what's on your calendar this week.";
+const subInvite =
+  'Sign in with the email or phone you were invited with, or open your invite link.';
+const subLoggedInPersonalized = initialTrainerFirstName
+  ? `Here's what ${initialTrainerFirstName} has planned for you this week.`
+  : subCalendarTeaser;
+
+const title = shellVariant === 'logged_in' ? titleWelcomeBack : titleInvited;
+const sub =
+  shellVariant === 'anonymous'
+    ? subMissingToken
+    : shellVariant === 'invite'
+      ? subInvite
+      : subLoggedInPersonalized;
+
+const showLoggedInStudio = shellVariant === 'logged_in' && loggedInStudio;
+---
+
+<!-- No aria-hidden: invitees without JS must be able to read this frame; the node is removed on React mount (WelcomeInviteLanding). -->
+<div
+  id="welcome-static-shell"
+  class="fixed inset-0 z-[20] flex flex-col items-center justify-center overflow-x-hidden bg-[#0d0500] px-4 pb-16 pt-24 text-white md:px-6"
+>
+  <div class="pointer-events-none absolute inset-0 bg-gradient-to-b from-[#1a0a00]/90 to-[#0d0500]">
+  </div>
+  <main class="relative z-10 mx-auto w-full max-w-lg">
+    <div
+      class="w-full rounded-2xl border border-white/10 bg-black/40 p-8 text-center backdrop-blur-sm"
+      style={`border-color: color-mix(in srgb, ${accent} 35%, transparent)`}
+    >
+      {
+        showLoggedInStudio && loggedInStudio ? (
+          <div class="mb-6 flex flex-col items-center gap-3">
+            {loggedInStudio.logoUrl ? (
+              <img
+                src={loggedInStudio.logoUrl}
+                alt=""
+                class="max-h-16 max-w-[200px] object-contain"
+              />
+            ) : null}
+            <p class="font-heading text-xl font-bold text-white">{loggedInStudio.displayName}</p>
+            {loggedInStudio.tagline ? (
+              <p class="max-w-sm text-sm text-white/60">{loggedInStudio.tagline}</p>
+            ) : null}
+            <p class="font-mono text-[10px] uppercase tracking-widest text-white/35">
+              HIIT Workout Timer
+            </p>
+          </div>
+        ) : (
+          <p class="mb-2 font-mono text-xs uppercase tracking-widest" style={`color: ${accent}`}>
+            HIIT Workout Timer
+          </p>
+        )
+      }
+      <h1 class="mb-2 font-heading text-2xl font-bold uppercase tracking-tight md:text-3xl">
+        {title}
+      </h1>
+      <p class="text-white/70">{sub}</p>
+      {
+        shellVariant === 'logged_in' ? (
+          <div class="mt-8 space-y-3 text-left" role="presentation">
+            <div class="h-3 w-3/4 max-w-xs rounded bg-white/10" />
+            <div class="h-3 w-full rounded bg-white/10" />
+            <div class="h-3 w-5/6 rounded bg-white/10" />
+          </div>
+        ) : null
+      }
+    </div>
+  </main>
+</div>
