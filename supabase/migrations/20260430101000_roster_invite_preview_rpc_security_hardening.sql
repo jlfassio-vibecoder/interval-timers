@@ -1,11 +1,4 @@
--- Public invite preview: inviter profile + studio in one SECURITY DEFINER read.
--- API routes often use only the anon key; RLS blocks SELECT on other users' profiles and on studios,
--- so the preview could not load trainer name/avatar/studio without the service role.
--- RPC is granted to anon/authenticated: omit raw inviter email, NULL invitee contact unless kind=client.
-
--- Hosted DBs created before baseline alignment may lack columns present in 20250101000000_baseline_public_profiles.sql.
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS username text;
-
+-- Applies RPC hardening for databases that already ran 20260430100000 (client-only invitee PII, no raw inviter email, search_path).
 CREATE OR REPLACE FUNCTION public.get_roster_invite_preview_core(p_token_hash text)
 RETURNS jsonb
 LANGUAGE sql
@@ -20,7 +13,6 @@ AS $$
     'invitee_phone_e164', CASE WHEN ri.kind = 'client' THEN ri.invitee_phone_e164 ELSE NULL END,
     'full_name', p.full_name,
     'username', p.username,
-    -- Mirrors apps resolveInviterDisplayName (email local-part fallback) without exposing p.email in JSON.
     'inviter_display_label', (
       COALESCE(
         NULLIF(trim(both from COALESCE(p.full_name, '')), ''),
@@ -50,9 +42,6 @@ AS $$
     AND ri.expires_at > now()
   LIMIT 1;
 $$;
-
-REVOKE ALL ON FUNCTION public.get_roster_invite_preview_core(text) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.get_roster_invite_preview_core(text) TO anon, authenticated;
 
 COMMENT ON FUNCTION public.get_roster_invite_preview_core(text) IS
   'Returns inviter + studio fields for a valid pending roster invite token hash; used by GET /api/invitations/preview.';

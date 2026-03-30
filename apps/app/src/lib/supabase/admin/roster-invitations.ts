@@ -818,16 +818,21 @@ function resolveInviterDisplayName(row: {
 
 function mapRosterInvitePreviewRow(row: Record<string, unknown>): RosterInvitePreview | null {
   const kindRaw = row.kind;
-  const kind =
-    kindRaw === 'friend' || kindRaw === 'client' ? kindRaw : ('client' as const);
+  // Unknown kind → friend so invitee contact is never prefilled (PR review: safer than defaulting to client).
+  const kind: 'friend' | 'client' = kindRaw === 'client' ? 'client' : 'friend';
 
   const contactForPrefill = kind === 'client';
 
-  const inviterDisplayName = resolveInviterDisplayName({
-    full_name: typeof row.full_name === 'string' ? row.full_name : null,
-    username: typeof row.username === 'string' ? row.username : null,
-    email: typeof row.email === 'string' ? row.email : null,
-  });
+  const rpcLabel =
+    typeof row.inviter_display_label === 'string' ? row.inviter_display_label.trim() || null : null;
+  const inviterDisplayName =
+    rpcLabel ??
+    resolveInviterDisplayName({
+      full_name: typeof row.full_name === 'string' ? row.full_name : null,
+      username: typeof row.username === 'string' ? row.username : null,
+      // RPC omits raw email; service-role fallback still selects profiles.email.
+      email: typeof row.email === 'string' ? row.email : null,
+    });
 
   const inviterAvatarUrl =
     typeof row.avatar_url === 'string' && row.avatar_url.trim()
