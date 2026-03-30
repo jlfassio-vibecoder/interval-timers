@@ -281,6 +281,11 @@ const WelcomeInviteInner: React.FC<WelcomeInviteLandingProps> = ({
     };
   }, [token, loading, user?.uid, session?.user?.id]);
 
+  // New invite link = new token: allow auto-open again (ref would otherwise stay true for the instance).
+  useEffect(() => {
+    clientInviteAutoOpenDone.current = false;
+  }, [token]);
+
   useEffect(() => {
     if (clientInviteAutoOpenDone.current) return;
     if (!token) return;
