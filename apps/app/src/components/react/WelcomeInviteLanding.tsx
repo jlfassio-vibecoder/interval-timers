@@ -71,6 +71,8 @@ const WelcomeInviteInner: React.FC<WelcomeInviteLandingProps> = ({
     typeof window !== 'undefined' ? getStoredWelcomeLocale() : 'en'
   );
   const [heroVariant, setHeroVariant] = useState<WelcomeHeroVariantId>('a');
+  /** Resolved via GET /api/welcome/trainer-display (RLS blocks client-side trainer profile reads). */
+  const [welcomeTrainerFirstName, setWelcomeTrainerFirstName] = useState<string | null>(null);
 
   const landingViewTracked = useRef(false);
   const clientInviteAutoOpenDone = useRef(false);
@@ -78,15 +80,36 @@ const WelcomeInviteInner: React.FC<WelcomeInviteLandingProps> = ({
   const localeRef = useRef(locale);
   localeRef.current = locale;
 
+  const isLoggedIn = !!user?.uid || !!session?.user;
+  const uid = user?.uid ?? session?.user?.id ?? '';
+
   useEffect(() => {
     setHeroVariant(resolveWelcomeHeroVariant());
   }, []);
 
+  useEffect(() => {
+    if (token || !isLoggedIn || !uid) {
+      setWelcomeTrainerFirstName(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/welcome/trainer-display', { credentials: 'include' });
+        const body = (await res.json().catch(() => ({}))) as { firstName?: string | null };
+        if (cancelled) return;
+        setWelcomeTrainerFirstName(typeof body.firstName === 'string' ? body.firstName : null);
+      } catch {
+        if (!cancelled) setWelcomeTrainerFirstName(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [token, isLoggedIn, uid]);
+
   const s = getWelcomeLandingStrings(locale);
   const heroCopy = getWelcomeHeroCopy(heroVariant);
-
-  const isLoggedIn = !!user?.uid || !!session?.user;
-  const uid = user?.uid ?? session?.user?.id ?? '';
 
   const accentColor =
     preview?.studio && isValidWelcomeHex(preview.studio.primaryColor)
@@ -475,7 +498,13 @@ const WelcomeInviteInner: React.FC<WelcomeInviteLandingProps> = ({
 
           {!token && !isLoggedIn && <p className="text-white/70">{heroCopy.subMissingToken}</p>}
 
-          {!token && isLoggedIn && <p className="text-white/65">{heroCopy.subCalendarTeaser}</p>}
+          {!token && isLoggedIn && (
+            <p className="text-white/65">
+              {welcomeTrainerFirstName
+                ? s.welcomeLoggedInTrainerTeaser.replace('{name}', welcomeTrainerFirstName)
+                : heroCopy.subCalendarTeaser}
+            </p>
+          )}
 
           {token && preview === undefined && !previewError && (
             <p className="text-white/50">{s.loadingInvitation}</p>

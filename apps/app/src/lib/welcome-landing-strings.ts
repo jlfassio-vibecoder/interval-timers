@@ -64,6 +64,10 @@ export interface WelcomeLandingStrings {
   scheduleOpenToPlan: string;
   scheduleRetry: string;
   scheduleCouldNotLoad: string;
+  /**
+   * Logged-in /welcome hero (no invite token). Use `{name}` for the trainer’s first name.
+   */
+  welcomeLoggedInTrainerTeaser: string;
 }
 
 /** Subset passed into WelcomeSchedulePreview (avoids dummy empty fields). */
@@ -115,6 +119,7 @@ const EN: WelcomeLandingStrings = {
   scheduleOpenToPlan: 'Open app to plan',
   scheduleRetry: 'Retry',
   scheduleCouldNotLoad: 'Couldn’t load schedule',
+  welcomeLoggedInTrainerTeaser: "Here's what {name} has planned for you this week.",
 };
 
 const ES: WelcomeLandingStrings = {
@@ -155,8 +160,16 @@ const ES: WelcomeLandingStrings = {
   scheduleOpenToPlan: 'Abrir la app para planificar',
   scheduleRetry: 'Reintentar',
   scheduleCouldNotLoad: 'No se pudo cargar el calendario',
+  welcomeLoggedInTrainerTeaser: 'Esto es lo que {name} ha planeado para ti esta semana.',
 };
 
 export function getWelcomeLandingStrings(locale: WelcomeLocale): WelcomeLandingStrings {
   return locale === 'es' ? ES : EN;
+}
+
+/** First word of trainer display name for welcome teaser (e.g. "Jane Doe" → "Jane"). */
+export function trainerFirstNameForWelcome(displayName: string | null | undefined): string | null {
+  if (!displayName?.trim()) return null;
+  const first = displayName.trim().split(/\s+/)[0];
+  return first || null;
 }
