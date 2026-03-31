@@ -4,7 +4,7 @@
  */
 
 import { createHash, randomBytes } from 'node:crypto';
-import { getSupabaseServer } from '@/lib/supabase/server';
+import { getSupabaseServer, hasServiceRoleKey } from '@/lib/supabase/server';
 import { fetchTrainerRoster, isHostBuddy } from '@/lib/supabase/admin/trainer-roster';
 import {
   mergeWelcomeContentLayers,
@@ -594,6 +594,54 @@ function sessionMatchesInviteeContact(
   return !!(emailMatch || phoneMatch);
 }
 
+/**
+ * `roster_invitations.accepted_user_id` and `host_friend_connections` reference `public.profiles`.
+ * If signup did not create a profile (missing auth trigger), finalize PATCH returns PostgREST 409 (FK violation).
+ */
+async function ensureInviteeProfileRow(userId: string): Promise<AcceptRosterInviteResult | null> {
+  const supabase = getSupabaseServer();
+  const { data: existing, error: selErr } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('id', userId)
+    .maybeSingle();
+  if (selErr) {
+    if (import.meta.env.DEV || import.meta.env.PUBLIC_ENABLE_ERROR_LOGGING === 'true') {
+      console.error('[roster-invitations] ensureInviteeProfileRow select', selErr);
+    }
+    return { ok: false, code: 'DB', message: 'Failed to verify profile' };
+  }
+  if (existing) return null;
+
+  let email: string | null = null;
+  let fullName: string | null = null;
+  if (hasServiceRoleKey()) {
+    const { data: adminData, error: adminErr } = await supabase.auth.admin.getUserById(userId);
+    if (adminErr && (import.meta.env.DEV || import.meta.env.PUBLIC_ENABLE_ERROR_LOGGING === 'true')) {
+      console.warn('[roster-invitations] ensureInviteeProfileRow getUserById', adminErr);
+    }
+    if (!adminErr && adminData?.user) {
+      email = adminData.user.email ?? null;
+      const meta = adminData.user.user_metadata as Record<string, unknown> | undefined;
+      if (meta && typeof meta.full_name === 'string') fullName = meta.full_name;
+      else if (meta && typeof meta.name === 'string') fullName = meta.name;
+    }
+  }
+
+  const { error: insErr } = await supabase.from('profiles').insert({
+    id: userId,
+    email,
+    full_name: fullName,
+    role: 'client',
+  });
+  if (!insErr) return null;
+  if (insErr.code === '23505') return null;
+  if (import.meta.env.DEV || import.meta.env.PUBLIC_ENABLE_ERROR_LOGGING === 'true') {
+    console.error('[roster-invitations] ensureInviteeProfileRow insert', insErr);
+  }
+  return { ok: false, code: 'DB', message: 'Failed to create profile for invitee' };
+}
+
 /** Shared finalize after invitee identity is verified (token path or session-email path). */
 async function finalizeRosterInvitationAfterInviteeVerified(
   inv: {
@@ -604,6 +652,9 @@ async function finalizeRosterInvitationAfterInviteeVerified(
   },
   sessionUserId: string
 ): Promise<AcceptRosterInviteResult> {
+  const pre = await ensureInviteeProfileRow(sessionUserId);
+  if (pre) return pre;
+
   const supabase = getSupabaseServer();
 
   if (inv.kind === 'friend') {
