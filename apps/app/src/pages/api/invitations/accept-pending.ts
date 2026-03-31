@@ -21,7 +21,8 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     const { acceptedCount } = await acceptPendingRosterInvitesForSession(
       user.id,
       candidateEmails,
-      user.phone ?? undefined
+      user.phone ?? undefined,
+      supabase
     );
 
     return new Response(JSON.stringify({ ok: true, acceptedCount }), {

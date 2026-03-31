@@ -39,7 +39,13 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 
     const candidateEmails = await collectRosterInviteCandidateEmails(supabase, user);
 
-    const result = await acceptRosterInvite(raw, user.id, candidateEmails, user.phone ?? undefined);
+    const result = await acceptRosterInvite(
+      raw,
+      user.id,
+      candidateEmails,
+      user.phone ?? undefined,
+      supabase
+    );
 
     if (!result.ok) {
       const status =

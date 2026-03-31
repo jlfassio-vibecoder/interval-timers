@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase/supabase-instance';
 import { getTrainerForUser } from '@/lib/supabase/client/trainer-resolver';
 import { updateWeeklyGoalMinutes } from '@/lib/supabase/client/profiles';
 import { setAuthCookie, clearAuthCookie } from '@/lib/auth-cookie';
+import CredentialUpgradeModal from '@/components/react/CredentialUpgradeModal';
 import type { Session } from '@supabase/supabase-js';
 import type { UserProfile, WorkoutLog } from '@/types';
 
@@ -420,6 +421,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }}
     >
       {children}
+      {/* Magic-link (OTP) gate: blocking until password or Google. Uses session.user (auth), not profile. */}
+      {!loading && session?.user ? (
+        <CredentialUpgradeModal supabase={supabase} session={session} user={session.user} />
+      ) : null}
     </AppContext.Provider>
   );
 };

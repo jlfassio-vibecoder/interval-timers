@@ -11,7 +11,9 @@ import {
   parseStudioWelcomeContent,
   welcomeContentForPublicInvitePreview,
 } from '@/lib/studio-welcome-content-schema';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type { RosterInvitePreview, RosterInviteStudioPreview } from '@/types/roster-invite-preview';
+import type { Database } from '@/types/supabase';
 
 export type { RosterInvitePreview, RosterInviteStudioPreview };
 
@@ -597,10 +599,23 @@ function sessionMatchesInviteeContact(
 /**
  * `roster_invitations.accepted_user_id` and `host_friend_connections` reference `public.profiles`.
  * If signup did not create a profile (missing auth trigger), finalize PATCH returns PostgREST 409 (FK violation).
+ *
+ * Requires service role: anon `getSupabaseServer()` has no JWT, so RLS on `profiles` blocks SELECT/INSERT
+ * for the invitee and would falsely fail acceptance (or no-op select + failed insert).
  */
-async function ensureInviteeProfileRow(userId: string): Promise<AcceptRosterInviteResult | null> {
-  const supabase = getSupabaseServer();
-  const { data: existing, error: selErr } = await supabase
+async function ensureInviteeProfileRow(
+  userId: string,
+  userClient?: SupabaseClient<Database>
+): Promise<AcceptRosterInviteResult | null> {
+  const canUseServiceRole = hasServiceRoleKey();
+  const supabase = getSupabaseServer() as unknown as SupabaseClient<Database>;
+  const profileClient = (canUseServiceRole ? supabase : userClient) as SupabaseClient<Database> | undefined;
+  if (!profileClient) {
+    // Without service role and without a user JWT client, we cannot verify/create profiles under RLS.
+    return { ok: false, code: 'DB', message: 'Server configuration error (missing service role)' };
+  }
+
+  const { data: existing, error: selErr } = await profileClient
     .from('profiles')
     .select('id')
     .eq('id', userId)
@@ -609,29 +624,44 @@ async function ensureInviteeProfileRow(userId: string): Promise<AcceptRosterInvi
     if (import.meta.env.DEV || import.meta.env.PUBLIC_ENABLE_ERROR_LOGGING === 'true') {
       console.error('[roster-invitations] ensureInviteeProfileRow select', selErr);
     }
+    // If service role is missing, this is likely an RLS denial. Let the invite accept proceed to
+    // the FK-safe path below only when we have a user JWT client.
+    if (!canUseServiceRole) {
+      return { ok: false, code: 'DB', message: 'Sign-in session could not verify your profile' };
+    }
     return { ok: false, code: 'DB', message: 'Failed to verify profile' };
   }
   if (existing) return null;
 
-  let email: string | null = null;
   let fullName: string | null = null;
-  if (hasServiceRoleKey()) {
+  if (canUseServiceRole) {
     const { data: adminData, error: adminErr } = await supabase.auth.admin.getUserById(userId);
-    if (adminErr && (import.meta.env.DEV || import.meta.env.PUBLIC_ENABLE_ERROR_LOGGING === 'true')) {
+    if (
+      adminErr &&
+      (import.meta.env.DEV || import.meta.env.PUBLIC_ENABLE_ERROR_LOGGING === 'true')
+    ) {
       console.warn('[roster-invitations] ensureInviteeProfileRow getUserById', adminErr);
     }
     if (!adminErr && adminData?.user) {
-      email = adminData.user.email ?? null;
       const meta = adminData.user.user_metadata as Record<string, unknown> | undefined;
       if (meta && typeof meta.full_name === 'string') fullName = meta.full_name;
       else if (meta && typeof meta.name === 'string') fullName = meta.name;
     }
   }
 
-  const { error: insErr } = await supabase.from('profiles').insert({
+  type ProfilesInsert = Database['public']['Tables']['profiles']['Insert'];
+  type ProfilesInsertError = { code?: string; message?: string } | null;
+  type ProfilesClient = {
+    from: (
+      table: 'profiles'
+    ) => {
+      insert: (values: ProfilesInsert) => Promise<{ error: ProfilesInsertError }>;
+    };
+  };
+
+  const { error: insErr } = await (profileClient as unknown as ProfilesClient).from('profiles').insert({
     id: userId,
-    email,
-    full_name: fullName,
+    full_name: fullName ?? undefined,
     role: 'client',
   });
   if (!insErr) return null;
@@ -650,9 +680,10 @@ async function finalizeRosterInvitationAfterInviteeVerified(
     kind: string;
     program_ids: unknown;
   },
-  sessionUserId: string
+  sessionUserId: string,
+  userClient?: SupabaseClient<Database>
 ): Promise<AcceptRosterInviteResult> {
-  const pre = await ensureInviteeProfileRow(sessionUserId);
+  const pre = await ensureInviteeProfileRow(sessionUserId, userClient);
   if (pre) return pre;
 
   const supabase = getSupabaseServer();
@@ -732,7 +763,8 @@ async function finalizeRosterInvitationAfterInviteeVerified(
 export async function acceptPendingRosterInvitesForSession(
   sessionUserId: string,
   sessionEmails: string[],
-  sessionPhone: string | null | undefined
+  sessionPhone: string | null | undefined,
+  userClient?: SupabaseClient<Database>
 ): Promise<{ acceptedCount: number }> {
   const supabase = getSupabaseServer();
   const nowIso = new Date().toISOString();
@@ -798,7 +830,8 @@ export async function acceptPendingRosterInvitesForSession(
         kind: inv.kind,
         program_ids: inv.program_ids,
       },
-      sessionUserId
+      sessionUserId,
+      userClient
     );
     if (res.ok) acceptedCount += 1;
   }
@@ -814,7 +847,8 @@ export async function acceptRosterInvite(
   rawToken: string,
   sessionUserId: string,
   sessionEmails: string[],
-  sessionPhone: string | null | undefined
+  sessionPhone: string | null | undefined,
+  userClient?: SupabaseClient<Database>
 ): Promise<AcceptRosterInviteResult> {
   const tokenHash = hashToken(rawToken.trim());
   const supabase = getSupabaseServer();
@@ -866,7 +900,8 @@ export async function acceptRosterInvite(
       kind: inv.kind as string,
       program_ids: inv.program_ids,
     },
-    sessionUserId
+    sessionUserId,
+    userClient
   );
 }
 
