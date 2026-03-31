@@ -129,6 +129,9 @@ const WelcomeInviteInner: React.FC<WelcomeInviteLandingProps> = ({
   /** Keep accept-flow error copy in sync with locale without re-running the accept effect. */
   const localeRef = useRef(locale);
   localeRef.current = locale;
+  /** Latest JWT for /api/invitations/accept only; omitting from effect deps avoids duplicate accepts on token refresh. */
+  const sessionAccessTokenRef = useRef<string | null>(null);
+  sessionAccessTokenRef.current = session?.access_token?.trim() || null;
 
   const isLoggedIn = !!user?.uid || !!session?.user;
   const uid = user?.uid ?? session?.user?.id ?? '';
@@ -394,10 +397,13 @@ const WelcomeInviteInner: React.FC<WelcomeInviteLandingProps> = ({
     (async () => {
       const str = getWelcomeLandingStrings(localeRef.current);
       try {
+        const authHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+        const at = sessionAccessTokenRef.current;
+        if (at) authHeaders.Authorization = `Bearer ${at}`;
         const res = await fetch('/api/invitations/accept', {
           method: 'POST',
           credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
+          headers: authHeaders,
           body: JSON.stringify({ token }),
         });
         const body = (await res.json().catch(() => ({}))) as { kind?: string; error?: string };

@@ -13,12 +13,17 @@ export type AppUser = UserProfile;
 const ACTIVE_PROGRAM_STORAGE_KEY = 'ai-fit-active-program-id';
 
 /** Complete roster invites when auth redirects dropped ?invite= (server matches session email). */
-function requestAcceptPendingRosterInvites() {
+function requestAcceptPendingRosterInvites(accessToken?: string | null) {
   if (typeof window === 'undefined') return;
   queueMicrotask(() => {
+    const headers: Record<string, string> = {};
+    if (accessToken?.trim()) {
+      headers.Authorization = `Bearer ${accessToken.trim()}`;
+    }
     void fetch('/api/invitations/accept-pending', {
       method: 'POST',
       credentials: 'include',
+      headers: Object.keys(headers).length ? headers : undefined,
     }).catch(() => {});
   });
 }
@@ -186,7 +191,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           setAuthCookie(s);
           if (s?.user) {
             await fetchProfile(s.user.id, s.user.email || undefined);
-            requestAcceptPendingRosterInvites();
+            requestAcceptPendingRosterInvites(s.access_token);
           }
         }
       } catch (err) {
@@ -209,7 +214,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (session?.user) {
         fetchProfile(session.user.id, session.user.email || undefined);
         if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
-          requestAcceptPendingRosterInvites();
+          requestAcceptPendingRosterInvites(session?.access_token);
         }
       } else {
         setUser(null);
