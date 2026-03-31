@@ -39,16 +39,18 @@ export default function CredentialUpgradeModal({
   const [error, setError] = useState<string | null>(null);
 
   const visible = shouldShowCredentialGate(session, user);
-  if (!visible) return null;
 
   useEffect(() => {
+    if (!visible) return;
     // Blocking modal: prevent background scroll (especially on mobile/trackpads).
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
       document.body.style.overflow = prev;
     };
-  }, []);
+  }, [visible]);
+
+  if (!visible) return null;
 
   const handleGoogleLink = useCallback(async () => {
     setError(null);
@@ -133,6 +135,16 @@ export default function CredentialUpgradeModal({
           <span className="flex-1 border-t border-white/20" />
         </div>
         <form onSubmit={(e) => void handlePasswordSubmit(e)} className="space-y-3">
+          {/* A11y: provide a (hidden) username/email field for password managers and screen readers. */}
+          <input
+            type="email"
+            autoComplete="username"
+            value={user.email ?? ''}
+            readOnly
+            tabIndex={-1}
+            aria-hidden="true"
+            className="hidden"
+          />
           <div className="relative">
             <input
               type={showPassword ? 'text' : 'password'}
