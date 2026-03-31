@@ -597,8 +597,15 @@ function sessionMatchesInviteeContact(
 /**
  * `roster_invitations.accepted_user_id` and `host_friend_connections` reference `public.profiles`.
  * If signup did not create a profile (missing auth trigger), finalize PATCH returns PostgREST 409 (FK violation).
+ *
+ * Requires service role: anon `getSupabaseServer()` has no JWT, so RLS on `profiles` blocks SELECT/INSERT
+ * for the invitee and would falsely fail acceptance (or no-op select + failed insert).
  */
 async function ensureInviteeProfileRow(userId: string): Promise<AcceptRosterInviteResult | null> {
+  if (!hasServiceRoleKey()) {
+    return null;
+  }
+
   const supabase = getSupabaseServer();
   const { data: existing, error: selErr } = await supabase
     .from('profiles')
@@ -615,17 +622,15 @@ async function ensureInviteeProfileRow(userId: string): Promise<AcceptRosterInvi
 
   let email: string | null = null;
   let fullName: string | null = null;
-  if (hasServiceRoleKey()) {
-    const { data: adminData, error: adminErr } = await supabase.auth.admin.getUserById(userId);
-    if (adminErr && (import.meta.env.DEV || import.meta.env.PUBLIC_ENABLE_ERROR_LOGGING === 'true')) {
-      console.warn('[roster-invitations] ensureInviteeProfileRow getUserById', adminErr);
-    }
-    if (!adminErr && adminData?.user) {
-      email = adminData.user.email ?? null;
-      const meta = adminData.user.user_metadata as Record<string, unknown> | undefined;
-      if (meta && typeof meta.full_name === 'string') fullName = meta.full_name;
-      else if (meta && typeof meta.name === 'string') fullName = meta.name;
-    }
+  const { data: adminData, error: adminErr } = await supabase.auth.admin.getUserById(userId);
+  if (adminErr && (import.meta.env.DEV || import.meta.env.PUBLIC_ENABLE_ERROR_LOGGING === 'true')) {
+    console.warn('[roster-invitations] ensureInviteeProfileRow getUserById', adminErr);
+  }
+  if (!adminErr && adminData?.user) {
+    email = adminData.user.email ?? null;
+    const meta = adminData.user.user_metadata as Record<string, unknown> | undefined;
+    if (meta && typeof meta.full_name === 'string') fullName = meta.full_name;
+    else if (meta && typeof meta.name === 'string') fullName = meta.name;
   }
 
   const { error: insErr } = await supabase.from('profiles').insert({

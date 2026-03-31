@@ -1,3 +1,3 @@
 export { default as AuthModal } from './AuthModal';
 export type { AuthModalProps } from './AuthModal';
-export { buildAuthRedirectUrl } from './useAuthRedirect';
+export { buildAuthRedirectUrl, buildOAuthRedirectUrl } from './useAuthRedirect';
