@@ -191,7 +191,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           setAuthCookie(s);
           if (s?.user) {
             await fetchProfile(s.user.id, s.user.email || undefined);
-            requestAcceptPendingRosterInvites();
+            requestAcceptPendingRosterInvites(s.access_token);
           }
         }
       } catch (err) {
