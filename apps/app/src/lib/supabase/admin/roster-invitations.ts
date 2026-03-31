@@ -35,6 +35,21 @@ function hashToken(token: string): string {
   return createHash('sha256').update(token, 'utf8').digest('hex');
 }
 
+/** Unique / conflict on insert — PostgREST may surface 23505, 409, or message text. */
+function isUniqueOrConflictInsertError(err: {
+  code?: string;
+  message?: string;
+  status?: number;
+  statusCode?: number;
+} | null): boolean {
+  if (!err) return false;
+  if (err.code === '23505') return true;
+  const m = (err.message ?? '').toLowerCase();
+  if (m.includes('duplicate key') || m.includes('unique constraint')) return true;
+  if (err.status === 409 || err.statusCode === 409) return true;
+  return false;
+}
+
 export function generateRosterInviteToken(): string {
   return randomBytes(32).toString('base64url');
 }
@@ -592,12 +607,15 @@ async function finalizeRosterInvitationAfterInviteeVerified(
   const supabase = getSupabaseServer();
 
   if (inv.kind === 'friend') {
-    const { error: insErr } = await supabase.from('host_friend_connections').insert({
-      host_id: inv.inviter_id,
-      buddy_user_id: sessionUserId,
-      invitation_id: inv.id,
-    });
-    if (insErr && insErr.code !== '23505') {
+    const { error: insErr } = await supabase.from('host_friend_connections').upsert(
+      {
+        host_id: inv.inviter_id,
+        buddy_user_id: sessionUserId,
+        invitation_id: inv.id,
+      },
+      { onConflict: 'host_id,buddy_user_id', ignoreDuplicates: true }
+    );
+    if (insErr && !isUniqueOrConflictInsertError(insErr)) {
       if (import.meta.env.DEV || import.meta.env.PUBLIC_ENABLE_ERROR_LOGGING === 'true') {
         console.error('[roster-invitations] host_friend_connections', insErr);
       }
@@ -606,13 +624,16 @@ async function finalizeRosterInvitationAfterInviteeVerified(
   } else {
     const programIds = Array.isArray(inv.program_ids) ? inv.program_ids : [];
     for (const programId of programIds) {
-      const { error: upErr } = await supabase.from('user_programs').insert({
-        user_id: sessionUserId,
-        program_id: programId,
-        status: 'active',
-        source: 'trainer_assigned',
-      });
-      if (upErr && upErr.code !== '23505') {
+      const { error: upErr } = await supabase.from('user_programs').upsert(
+        {
+          user_id: sessionUserId,
+          program_id: programId,
+          status: 'active',
+          source: 'trainer_assigned',
+        },
+        { onConflict: 'user_id,program_id', ignoreDuplicates: true }
+      );
+      if (upErr && !isUniqueOrConflictInsertError(upErr)) {
         if (import.meta.env.DEV || import.meta.env.PUBLIC_ENABLE_ERROR_LOGGING === 'true') {
           console.error('[roster-invitations] user_programs', upErr);
         }

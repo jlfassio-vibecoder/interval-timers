@@ -23,7 +23,11 @@ function requestAcceptPendingRosterInvites(accessToken?: string | null) {
     void fetch('/api/invitations/accept-pending', {
       method: 'POST',
       credentials: 'include',
-      headers: Object.keys(headers).length ? headers : undefined,
+      headers: {
+        'Content-Type': 'application/json',
+        ...headers,
+      },
+      body: '{}',
     }).catch(() => {});
   });
 }

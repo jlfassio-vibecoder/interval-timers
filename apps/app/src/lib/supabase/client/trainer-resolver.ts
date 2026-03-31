@@ -76,7 +76,7 @@ export async function getTrainerForUser(
       .from('programs')
       .select('trainer_id')
       .eq('id', programId)
-      .single();
+      .maybeSingle();
 
     if (programError || !program?.trainer_id) return null;
 
@@ -84,7 +84,7 @@ export async function getTrainerForUser(
       .from('profiles')
       .select('full_name, username, email, avatar_url')
       .eq('id', program.trainer_id)
-      .single();
+      .maybeSingle();
 
     if (profileError || !profile) return null;
 
