@@ -2,7 +2,7 @@
  * Blocking modal after magic-link (OTP) sign-in: require password or Google before using the app.
  */
 
-import { useState, useCallback, type FormEvent } from 'react';
+import { useState, useCallback, useEffect, type FormEvent } from 'react';
 import { createPortal } from 'react-dom';
 import type { Session, SupabaseClient, User } from '@supabase/supabase-js';
 import { buildOAuthRedirectUrl } from '@interval-timers/auth-ui';
@@ -40,6 +40,15 @@ export default function CredentialUpgradeModal({
 
   const visible = shouldShowCredentialGate(session, user);
   if (!visible) return null;
+
+  useEffect(() => {
+    // Blocking modal: prevent background scroll (especially on mobile/trackpads).
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
 
   const handleGoogleLink = useCallback(async () => {
     setError(null);
