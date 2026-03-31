@@ -608,8 +608,8 @@ async function ensureInviteeProfileRow(
   userClient?: SupabaseClient<Database>
 ): Promise<AcceptRosterInviteResult | null> {
   const canUseServiceRole = hasServiceRoleKey();
-  const supabase = getSupabaseServer();
-  const profileClient = canUseServiceRole ? supabase : userClient;
+  const supabase = getSupabaseServer() as unknown as SupabaseClient<Database>;
+  const profileClient = (canUseServiceRole ? supabase : userClient) as SupabaseClient<Database> | undefined;
   if (!profileClient) {
     // Without service role and without a user JWT client, we cannot verify/create profiles under RLS.
     return { ok: false, code: 'DB', message: 'Server configuration error (missing service role)' };
@@ -633,7 +633,6 @@ async function ensureInviteeProfileRow(
   }
   if (existing) return null;
 
-  let email: string | null = null;
   let fullName: string | null = null;
   if (canUseServiceRole) {
     const { data: adminData, error: adminErr } = await supabase.auth.admin.getUserById(userId);
@@ -644,20 +643,27 @@ async function ensureInviteeProfileRow(
       console.warn('[roster-invitations] ensureInviteeProfileRow getUserById', adminErr);
     }
     if (!adminErr && adminData?.user) {
-      email = adminData.user.email ?? null;
       const meta = adminData.user.user_metadata as Record<string, unknown> | undefined;
       if (meta && typeof meta.full_name === 'string') fullName = meta.full_name;
       else if (meta && typeof meta.name === 'string') fullName = meta.name;
     }
   }
 
-  // Supabase-js can infer `profiles` as `never` in some generated schemas; cast to keep this helper usable.
-  const { error: insErr } = await profileClient.from('profiles').insert({
+  type ProfilesInsert = Database['public']['Tables']['profiles']['Insert'];
+  type ProfilesInsertError = { code?: string; message?: string } | null;
+  type ProfilesClient = {
+    from: (
+      table: 'profiles'
+    ) => {
+      insert: (values: ProfilesInsert) => Promise<{ error: ProfilesInsertError }>;
+    };
+  };
+
+  const { error: insErr } = await (profileClient as unknown as ProfilesClient).from('profiles').insert({
     id: userId,
-    email,
-    full_name: fullName,
+    full_name: fullName ?? undefined,
     role: 'client',
-  } as any);
+  });
   if (!insErr) return null;
   if (insErr.code === '23505') return null;
   if (import.meta.env.DEV || import.meta.env.PUBLIC_ENABLE_ERROR_LOGGING === 'true') {
