@@ -35,6 +35,9 @@ export default defineConfig({
     AstroPWA({
       manifest: false,
       workbox: {
+        // @vite-pwa/astro defaults navigateFallback to "/" for SSR; "/" is not in precache (no HTML in
+        // globPatterns), which throws non-precached-url in Workbox. SSR navigations must hit the network.
+        navigateFallback: null,
         globPatterns: ['**/*.{js,css,ico,png,svg,woff2}'],
         maximumFileSizeToCacheInBytes: 10 * 1024 * 1024,
         runtimeCaching: [

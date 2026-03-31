@@ -394,10 +394,13 @@ const WelcomeInviteInner: React.FC<WelcomeInviteLandingProps> = ({
     (async () => {
       const str = getWelcomeLandingStrings(localeRef.current);
       try {
+        const authHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+        const at = session?.access_token?.trim();
+        if (at) authHeaders.Authorization = `Bearer ${at}`;
         const res = await fetch('/api/invitations/accept', {
           method: 'POST',
           credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
+          headers: authHeaders,
           body: JSON.stringify({ token }),
         });
         const body = (await res.json().catch(() => ({}))) as { kind?: string; error?: string };
@@ -439,7 +442,7 @@ const WelcomeInviteInner: React.FC<WelcomeInviteLandingProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [token, loading, user?.uid, session?.user?.id]);
+  }, [token, loading, user?.uid, session?.user?.id, session?.access_token]);
 
   // New invite link = new token: allow auto-open again (ref would otherwise stay true for the instance).
   useEffect(() => {
