@@ -24,8 +24,9 @@ function minimalSession(accessToken: string): Session {
 }
 
 function minimalUser(overrides: Partial<User> & { identities?: User['identities'] }): User {
+  const testUserId = 'test-user-id';
   return {
-    id: '00000000-0000-4000-8000-000000000001',
+    id: testUserId,
     aud: 'authenticated',
     role: 'authenticated',
     email: 'a@b.co',
@@ -97,7 +98,7 @@ describe('shouldShowCredentialGate', () => {
         {
           provider: 'google',
           id: 'g',
-          user_id: '00000000-0000-4000-8000-000000000001',
+          user_id: 'test-user-id',
           identity_id: 'i',
           created_at: '',
           updated_at: '',
