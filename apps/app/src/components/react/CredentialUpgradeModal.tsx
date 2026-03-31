@@ -55,6 +55,9 @@ export default function CredentialUpgradeModal({
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       setError(normalizeAuthError(msg));
+    } finally {
+      // In most cases, linkIdentity triggers a redirect; this is for completeness and for cases where
+      // the redirect is suppressed or blocked.
       setLoading(false);
     }
   }, [supabase]);

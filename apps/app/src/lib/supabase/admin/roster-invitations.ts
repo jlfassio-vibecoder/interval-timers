@@ -11,7 +11,9 @@ import {
   parseStudioWelcomeContent,
   welcomeContentForPublicInvitePreview,
 } from '@/lib/studio-welcome-content-schema';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type { RosterInvitePreview, RosterInviteStudioPreview } from '@/types/roster-invite-preview';
+import type { Database } from '@/types/supabase';
 
 export type { RosterInvitePreview, RosterInviteStudioPreview };
 
@@ -601,13 +603,19 @@ function sessionMatchesInviteeContact(
  * Requires service role: anon `getSupabaseServer()` has no JWT, so RLS on `profiles` blocks SELECT/INSERT
  * for the invitee and would falsely fail acceptance (or no-op select + failed insert).
  */
-async function ensureInviteeProfileRow(userId: string): Promise<AcceptRosterInviteResult | null> {
-  if (!hasServiceRoleKey()) {
-    return null;
+async function ensureInviteeProfileRow(
+  userId: string,
+  userClient?: SupabaseClient<Database>
+): Promise<AcceptRosterInviteResult | null> {
+  const canUseServiceRole = hasServiceRoleKey();
+  const supabase = getSupabaseServer();
+  const profileClient = canUseServiceRole ? supabase : userClient;
+  if (!profileClient) {
+    // Without service role and without a user JWT client, we cannot verify/create profiles under RLS.
+    return { ok: false, code: 'DB', message: 'Server configuration error (missing service role)' };
   }
 
-  const supabase = getSupabaseServer();
-  const { data: existing, error: selErr } = await supabase
+  const { data: existing, error: selErr } = await profileClient
     .from('profiles')
     .select('id')
     .eq('id', userId)
@@ -616,29 +624,40 @@ async function ensureInviteeProfileRow(userId: string): Promise<AcceptRosterInvi
     if (import.meta.env.DEV || import.meta.env.PUBLIC_ENABLE_ERROR_LOGGING === 'true') {
       console.error('[roster-invitations] ensureInviteeProfileRow select', selErr);
     }
+    // If service role is missing, this is likely an RLS denial. Let the invite accept proceed to
+    // the FK-safe path below only when we have a user JWT client.
+    if (!canUseServiceRole) {
+      return { ok: false, code: 'DB', message: 'Sign-in session could not verify your profile' };
+    }
     return { ok: false, code: 'DB', message: 'Failed to verify profile' };
   }
   if (existing) return null;
 
   let email: string | null = null;
   let fullName: string | null = null;
-  const { data: adminData, error: adminErr } = await supabase.auth.admin.getUserById(userId);
-  if (adminErr && (import.meta.env.DEV || import.meta.env.PUBLIC_ENABLE_ERROR_LOGGING === 'true')) {
-    console.warn('[roster-invitations] ensureInviteeProfileRow getUserById', adminErr);
-  }
-  if (!adminErr && adminData?.user) {
-    email = adminData.user.email ?? null;
-    const meta = adminData.user.user_metadata as Record<string, unknown> | undefined;
-    if (meta && typeof meta.full_name === 'string') fullName = meta.full_name;
-    else if (meta && typeof meta.name === 'string') fullName = meta.name;
+  if (canUseServiceRole) {
+    const { data: adminData, error: adminErr } = await supabase.auth.admin.getUserById(userId);
+    if (
+      adminErr &&
+      (import.meta.env.DEV || import.meta.env.PUBLIC_ENABLE_ERROR_LOGGING === 'true')
+    ) {
+      console.warn('[roster-invitations] ensureInviteeProfileRow getUserById', adminErr);
+    }
+    if (!adminErr && adminData?.user) {
+      email = adminData.user.email ?? null;
+      const meta = adminData.user.user_metadata as Record<string, unknown> | undefined;
+      if (meta && typeof meta.full_name === 'string') fullName = meta.full_name;
+      else if (meta && typeof meta.name === 'string') fullName = meta.name;
+    }
   }
 
-  const { error: insErr } = await supabase.from('profiles').insert({
+  // Supabase-js can infer `profiles` as `never` in some generated schemas; cast to keep this helper usable.
+  const { error: insErr } = await profileClient.from('profiles').insert({
     id: userId,
     email,
     full_name: fullName,
     role: 'client',
-  });
+  } as any);
   if (!insErr) return null;
   if (insErr.code === '23505') return null;
   if (import.meta.env.DEV || import.meta.env.PUBLIC_ENABLE_ERROR_LOGGING === 'true') {
@@ -655,9 +674,10 @@ async function finalizeRosterInvitationAfterInviteeVerified(
     kind: string;
     program_ids: unknown;
   },
-  sessionUserId: string
+  sessionUserId: string,
+  userClient?: SupabaseClient<Database>
 ): Promise<AcceptRosterInviteResult> {
-  const pre = await ensureInviteeProfileRow(sessionUserId);
+  const pre = await ensureInviteeProfileRow(sessionUserId, userClient);
   if (pre) return pre;
 
   const supabase = getSupabaseServer();
@@ -737,7 +757,8 @@ async function finalizeRosterInvitationAfterInviteeVerified(
 export async function acceptPendingRosterInvitesForSession(
   sessionUserId: string,
   sessionEmails: string[],
-  sessionPhone: string | null | undefined
+  sessionPhone: string | null | undefined,
+  userClient?: SupabaseClient<Database>
 ): Promise<{ acceptedCount: number }> {
   const supabase = getSupabaseServer();
   const nowIso = new Date().toISOString();
@@ -803,7 +824,8 @@ export async function acceptPendingRosterInvitesForSession(
         kind: inv.kind,
         program_ids: inv.program_ids,
       },
-      sessionUserId
+      sessionUserId,
+      userClient
     );
     if (res.ok) acceptedCount += 1;
   }
@@ -819,7 +841,8 @@ export async function acceptRosterInvite(
   rawToken: string,
   sessionUserId: string,
   sessionEmails: string[],
-  sessionPhone: string | null | undefined
+  sessionPhone: string | null | undefined,
+  userClient?: SupabaseClient<Database>
 ): Promise<AcceptRosterInviteResult> {
   const tokenHash = hashToken(rawToken.trim());
   const supabase = getSupabaseServer();
@@ -871,7 +894,8 @@ export async function acceptRosterInvite(
       kind: inv.kind as string,
       program_ids: inv.program_ids,
     },
-    sessionUserId
+    sessionUserId,
+    userClient
   );
 }
 
