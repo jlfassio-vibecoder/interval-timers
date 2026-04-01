@@ -1,6 +1,9 @@
 /**
  * Maps between Workout Factory `workout_sets` / WorkoutInSet JSON and the admin
  * WorkoutEditor block UI (warmup / main / finisher / cooldown).
+ *
+ * Contract fields: `exerciseBlocks` = main work; `finisherBlocks` = finisher (WarmupBlock[]).
+ * We do not infer finisher from exercise block names — that was lossy for round-trips.
  */
 
 import type { Exercise, ExerciseBlock, WarmupBlock } from '@/types/ai-program';
@@ -32,6 +35,7 @@ export function workoutInSetToBlocks(w: WorkoutInSet | undefined): WorkoutBlock[
   if (!w) return defaultBlocks();
 
   const blocks: WorkoutBlock[] = [];
+  let order = 1;
 
   const warmupEx: BlockExercise[] = (w.warmupBlocks ?? []).map((wb) =>
     newBlockExercise({
@@ -45,15 +49,14 @@ export function workoutInSetToBlocks(w: WorkoutInSet | undefined): WorkoutBlock[
   blocks.push({
     type: 'warmup',
     name: 'Warm-up',
-    order: 1,
+    order: order++,
     exercises: warmupEx,
   });
 
   const mains = w.exerciseBlocks ?? [];
   if (mains.length === 0) {
-    blocks.push({ type: 'main', name: 'Main Circuit', order: 2, exercises: [] });
+    blocks.push({ type: 'main', name: 'Main Circuit', order: order++, exercises: [] });
   } else {
-    let order = 2;
     for (const eb of mains) {
       const exercises: BlockExercise[] = (eb.exercises ?? []).map((ex) =>
         newBlockExercise({
@@ -65,15 +68,31 @@ export function workoutInSetToBlocks(w: WorkoutInSet | undefined): WorkoutBlock[
           notes: ex.coachNotes,
         })
       );
-      const t: WorkoutBlock['type'] =
-        eb.name?.toLowerCase().includes('finish') ? 'finisher' : 'main';
       blocks.push({
-        type: t,
+        type: 'main',
         name: eb.name || 'Main',
         order: order++,
         exercises,
       });
     }
+  }
+
+  const finisherEx: BlockExercise[] = (w.finisherBlocks ?? []).map((fb) =>
+    newBlockExercise({
+      name: fb.exerciseName,
+      sets: 1,
+      reps: '',
+      restSeconds: 0,
+      notes: Array.isArray(fb.instructions) ? fb.instructions.join('\n') : '',
+    })
+  );
+  if (finisherEx.length > 0) {
+    blocks.push({
+      type: 'finisher',
+      name: 'Finisher',
+      order: order++,
+      exercises: finisherEx,
+    });
   }
 
   const coolEx: BlockExercise[] = (w.cooldownBlocks ?? []).map((wb) =>
@@ -88,7 +107,7 @@ export function workoutInSetToBlocks(w: WorkoutInSet | undefined): WorkoutBlock[
   blocks.push({
     type: 'cooldown',
     name: 'Cool-down',
-    order: blocks.length + 1,
+    order: order++,
     exercises: coolEx,
   });
 
@@ -111,7 +130,8 @@ function blockExerciseToWarmupBlock(ex: BlockExercise, order: number): WarmupBlo
   return {
     order,
     exerciseName: ex.name,
-    instructions: ex.notes ? [ex.notes] : [''],
+    // Empty notes → no placeholder instruction rows (avoids blank UI lines downstream).
+    instructions: ex.notes ? [ex.notes] : [],
   };
 }
 
@@ -128,12 +148,16 @@ export function blocksToWorkoutInSet(
     .flatMap((b) => b.exercises.map((ex, i) => blockExerciseToWarmupBlock(ex, i + 1)));
 
   const exerciseBlocks: ExerciseBlock[] = blocks
-    .filter((b) => b.type === 'main' || b.type === 'finisher')
+    .filter((b) => b.type === 'main')
     .map((b, bi) => ({
       order: bi + 1,
       name: b.name,
       exercises: b.exercises.map((ex, i) => blockExerciseToExercise(ex, i + 1)),
     }));
+
+  const finisherBlocks = blocks
+    .filter((b) => b.type === 'finisher')
+    .flatMap((b) => b.exercises.map((ex, i) => blockExerciseToWarmupBlock(ex, i + 1)));
 
   const cooldownBlocks = blocks
     .filter((b) => b.type === 'cooldown')
@@ -145,6 +169,7 @@ export function blocksToWorkoutInSet(
     description: meta.description,
     warmupBlocks: warmupBlocks.length > 0 ? warmupBlocks : undefined,
     exerciseBlocks: exerciseBlocks.length > 0 ? exerciseBlocks : undefined,
+    finisherBlocks: finisherBlocks.length > 0 ? finisherBlocks : undefined,
     cooldownBlocks: cooldownBlocks.length > 0 ? cooldownBlocks : undefined,
   };
 }

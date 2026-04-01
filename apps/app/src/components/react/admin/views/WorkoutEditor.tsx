@@ -97,7 +97,11 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId }) => {
         title,
         description,
         difficulty: difficulty as WorkoutSetTemplate['difficulty'],
-        workouts: [workoutInSet],
+        // This screen edits session 0 only; keep any additional sessions from the document.
+        workouts:
+          workoutDoc.workouts.length > 0
+            ? [workoutInSet, ...workoutDoc.workouts.slice(1)]
+            : [workoutInSet],
       };
 
       const nextConfig: WorkoutConfig | undefined = workoutConfig
