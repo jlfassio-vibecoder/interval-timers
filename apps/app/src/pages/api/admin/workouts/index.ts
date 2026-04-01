@@ -101,9 +101,20 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     if (import.meta.env.DEV || import.meta.env.PUBLIC_ENABLE_ERROR_LOGGING === 'true') {
       console.error('[admin/workouts] Error creating workout:', error);
     }
-    return new Response(JSON.stringify({ error: 'Failed to create workout' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    const errObj = error as { message?: string; details?: string; hint?: string };
+    const devDetail =
+      import.meta.env.DEV && (errObj?.message || error instanceof Error)
+        ? [errObj?.message, errObj?.details, errObj?.hint].filter(Boolean).join(' — ') ||
+          (error instanceof Error ? error.message : '')
+        : '';
+    return new Response(
+      JSON.stringify({
+        error: devDetail || 'Failed to create workout',
+      }),
+      {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
   }
 };

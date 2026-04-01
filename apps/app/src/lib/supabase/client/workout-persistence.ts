@@ -3,9 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  *
  * Client-side persistence for Workout Factory. Calls admin API endpoints (Supabase-backed).
+ * Workout Factory API (Phase 1) provides the endpoints.
  */
 
-import { supabase } from '@/lib/supabase/supabase-instance';
+import { supabase } from '@/lib/supabase/client';
 import type {
   WorkoutSetTemplate,
   WorkoutConfig,
@@ -55,15 +56,16 @@ function waitForAuth(): Promise<void> {
 export async function saveWorkoutToLibrary(
   workoutSet: WorkoutSetTemplate,
   workoutConfig: WorkoutConfig,
-  authorId: string,
   chainMetadata?: WorkoutChainMetadata
 ): Promise<string> {
   const token = await getAccessToken();
   const {
     data: { session },
   } = await supabase.auth.getSession();
-  const currentUid = session?.user?.id;
-  if (!currentUid || currentUid !== authorId) throw new Error('Author ID must match current user');
+  const authorId = session?.user?.id;
+  if (!authorId) {
+    throw new Error('User must be authenticated to save workouts');
+  }
 
   const response = await fetch('/api/admin/workouts', {
     method: 'POST',
@@ -172,6 +174,7 @@ export async function updateWorkout(
     workoutSet?: WorkoutSetTemplate;
     workoutConfig?: WorkoutConfig;
     status?: 'draft' | 'published';
+    featured_on_landing?: boolean;
   }
 ): Promise<void> {
   const token = await getAccessToken();

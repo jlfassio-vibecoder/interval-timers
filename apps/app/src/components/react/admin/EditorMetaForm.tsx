@@ -19,7 +19,7 @@ export interface EditorMetaFormData {
 export interface EditorMetaFormProps {
   formData: EditorMetaFormData;
   onChange: (data: EditorMetaFormData) => void;
-  onSubmit: (e: React.FormEvent) => void;
+  onSubmit: (e: React.SyntheticEvent) => void;
   saving?: boolean;
   sectionTitle?: string;
   children?: React.ReactNode;

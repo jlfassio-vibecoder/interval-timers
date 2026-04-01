@@ -2,7 +2,6 @@
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import AppWrapper from '../../components/react/AppWrapper';
 import AdminLoginGate from '../../components/react/admin/AdminLoginGate';
-import { adminPaths } from '@/lib/admin/config';
 import { verifyTrainerOrAdminRequest } from '@/lib/supabase/admin/auth';
 
 export const prerender = false;
@@ -10,7 +9,7 @@ export const prerender = false;
 // If already authenticated as admin/trainer, redirect to dashboard
 try {
   await verifyTrainerOrAdminRequest(Astro.request, Astro.cookies);
-  return Astro.redirect(adminPaths.root);
+  return Astro.redirect((await import('@/lib/admin/config')).ADMIN_BASE_PATH);
 } catch {
   // Not authenticated or not admin - render login page
 }

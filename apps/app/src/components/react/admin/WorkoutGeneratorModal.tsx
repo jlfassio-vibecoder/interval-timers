@@ -32,7 +32,7 @@ import {
 import { saveWorkoutToLibrary, updateWorkout } from '@/lib/supabase/client/workout-persistence';
 import { useAppContext } from '@/contexts/AppContext';
 import { isHIITWorkout, workoutInSetToHIITWorkoutData } from '@/lib/hiit-workout-data';
-import IntervalTimerOverlay from '../interval-timers/IntervalTimerOverlay';
+import IntervalTimerOverlay from '@/components/react/interval-timers/IntervalTimerOverlay';
 
 type Step = 'config' | 'preview';
 type WorkoutSetType = 'single' | 'split';
@@ -260,7 +260,7 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
     'Step 4/4: Writing prescriptions...',
   ];
 
-  const handleGenerate = async (e: React.FormEvent) => {
+  const handleGenerate = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     setError(null);
     if (!workoutConfig.workoutInfo.title.trim()) {
@@ -276,7 +276,8 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
     setLoadingMessage(chainMessages[0]);
     const progressInterval = setInterval(() => {
       setChainStep((prev) => {
-        const next = Math.min(prev + 1, 2);
+        const maxIndex = chainMessages.length - 1;
+        const next = Math.min(prev + 1, maxIndex);
         setLoadingMessage(chainMessages[next]);
         return next;
       });
@@ -285,6 +286,7 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
       const res = await fetch('/api/ai/generate-workout-chain', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           ...buildPersona(),
           blockOptions: workoutConfig.hiitMode
@@ -296,7 +298,6 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
             : undefined,
         }),
       });
-      clearInterval(progressInterval);
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || res.statusText || 'Failed to generate workout');
@@ -314,6 +315,7 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
       setError(msg);
       toast.error('Generation failed', { description: msg });
     } finally {
+      clearInterval(progressInterval);
       setLoading(false);
       setLoadingMessage('');
     }
@@ -338,7 +340,6 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
         await saveWorkoutToLibrary(
           generatedWorkout,
           workoutConfig,
-          user.uid,
           chainMetadata ?? undefined
         );
         toast.success('Workout saved to library.');
@@ -374,7 +375,7 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
             animate={{ scale: 1, y: 0 }}
             exit={{ scale: 0.95, y: 20 }}
             onClick={(e) => e.stopPropagation()}
-            className={`relative w-full overflow-hidden rounded-2xl border border-white/10 bg-bg-dark shadow-[0_0_100px_rgba(255,191,0,0.1)] ${
+            className={`relative w-full overflow-hidden rounded-2xl border border-white/10 bg-[#0d0500] shadow-[0_0_100px_rgba(255,191,0,0.1)] ${
               step === 'preview' ? 'max-w-4xl' : 'max-w-3xl'
             }`}
           >

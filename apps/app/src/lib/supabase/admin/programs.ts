@@ -1,3 +1,4 @@
+import { normalizeProgramDifficulty, type ProgramDifficulty } from '@/lib/program-difficulty';
 import { supabase } from '../supabase-instance';
 
 /** Shape of a program row from Supabase (select *). */
@@ -15,6 +16,7 @@ interface ProgramRow {
   trainer_id: string;
   config?: unknown;
   chain_metadata?: unknown;
+  featured_on_landing?: boolean | null;
 }
 
 /** UI type for program library table and editors. */
@@ -22,7 +24,7 @@ export interface ProgramLibraryItem {
   id: string;
   title: string;
   description: string | null;
-  difficulty: string;
+  difficulty: ProgramDifficulty;
   durationWeeks: number;
   createdAt: string;
   updatedAt: string;
@@ -30,13 +32,15 @@ export interface ProgramLibraryItem {
   status: string;
   isPublic: boolean;
   trainerId: string;
+  /** Homepage spotlight (column featured_on_landing). */
+  featuredOnLanding: boolean;
 }
 
 const mapProgram = (row: ProgramRow): ProgramLibraryItem => ({
   id: row.id,
   title: row.title,
   description: row.description,
-  difficulty: row.difficulty || 'intermediate',
+  difficulty: normalizeProgramDifficulty(row.difficulty),
   durationWeeks: row.duration_weeks ?? 4,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
@@ -44,6 +48,7 @@ const mapProgram = (row: ProgramRow): ProgramLibraryItem => ({
   status: row.is_public ? 'active' : 'draft',
   isPublic: row.is_public,
   trainerId: row.trainer_id,
+  featuredOnLanding: row.featured_on_landing ?? false,
 });
 
 export const fetchPrograms = async (trainerId: string) => {

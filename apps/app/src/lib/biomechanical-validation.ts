@@ -32,7 +32,7 @@ const DEFAULT_DEVIATION_THRESHOLD = 15;
  * targetAngles, and fail if deviation exceeds threshold.
  */
 export async function validateVideoAgainstBiomechanics(
-  _videoBuffer: ArrayBuffer,
+  _videoBuffer: ArrayBuffer | Buffer,
   _targetAngles?: TargetJointAngles,
   options?: { threshold?: number; skipValidation?: boolean }
 ): Promise<ValidationResult> {

@@ -5,11 +5,12 @@
  * Program persistence: calls admin API endpoints (Supabase-backed).
  */
 
-import { supabase } from '@/lib/supabase/supabase-instance';
+import { supabase } from '@/lib/supabase/client';
 import type {
   ProgramTemplate,
   ProgramConfig,
   ProgramLibraryItem,
+  ProgramTemplateScaffold,
   PromptChainMetadata,
 } from '@/types/ai-program';
 import type { WorkoutSetTemplate, WorkoutConfig } from '@/types/ai-workout';
@@ -222,13 +223,31 @@ export async function fetchFullProgram(programId: string): Promise<ProgramTempla
   }
 }
 
+/**
+ * Fetch program scaffold (program_template). Returns null if the program was never scaffolded
+ * (e.g. manual programs). API returns 200 with scaffold: null in that case.
+ */
+export async function fetchScaffold(
+  programId: string
+): Promise<ProgramTemplateScaffold | null> {
+  const token = await getAccessToken();
+  const response = await fetch(`/api/admin/programs/${programId}/scaffold`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+    credentials: 'include',
+  });
+  if (!response.ok) throw new Error('Failed to fetch scaffold');
+  const data = (await response.json()) as { scaffold?: ProgramTemplateScaffold | null };
+  return data.scaffold ?? null;
+}
+
 export async function fetchProgramMetadata(programId: string): Promise<ProgramLibraryItem> {
   await waitForAuth();
 
   const { data: row, error } = await supabase
     .from('programs')
     .select(
-      'id, trainer_id, title, description, difficulty, duration_weeks, config, chain_metadata, status, is_public, created_at, updated_at'
+      'id, trainer_id, title, description, difficulty, duration_weeks, config, chain_metadata, status, is_public, featured_on_landing, created_at, updated_at'
     )
     .eq('id', programId)
     .single();
@@ -251,6 +270,7 @@ export async function fetchProgramMetadata(programId: string): Promise<ProgramLi
     } | null;
     chain_metadata: Record<string, unknown> | null;
     is_public: boolean;
+    featured_on_landing?: boolean;
     created_at: string;
     updated_at: string;
   };
@@ -275,6 +295,7 @@ export async function fetchProgramMetadata(programId: string): Promise<ProgramLi
         }
       : undefined,
     status: r.is_public ? 'published' : 'draft',
+    featuredOnLanding: r.featured_on_landing ?? false,
     createdAt: new Date(r.created_at),
     updatedAt: new Date(r.updated_at),
     authorId: r.trainer_id || '',
@@ -392,8 +413,7 @@ export async function updateProgramStatus(
 export async function promoteWorkoutToCanonical(
   programId: string,
   weekIndex: number,
-  workoutIndex: number,
-  userId: string
+  workoutIndex: number
 ): Promise<{ workoutId: string }> {
   const program = await fetchFullProgram(programId);
   const schedule = program.schedule ?? [];
@@ -441,6 +461,6 @@ export async function promoteWorkoutToCanonical(
     goals: { primary: 'Muscle Gain', secondary: 'Strength' },
   };
 
-  const workoutId = await saveWorkoutToLibrary(workoutSet, config, userId);
+  const workoutId = await saveWorkoutToLibrary(workoutSet, config);
   return { workoutId };
 }

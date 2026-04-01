@@ -6,7 +6,7 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  Cell,
+  Rectangle,
   ReferenceLine,
   ResponsiveContainer,
   Tooltip,
@@ -84,20 +84,29 @@ export default function RoundConsistencyChart({ roundDurations }: RoundConsisten
               strokeDasharray="3 3"
               strokeWidth={1.5}
             />
-            <Bar dataKey="seconds" radius={[4, 4, 0, 0]}>
-              {data.map((entry, index) => (
-                <Cell
-                  key={`cell-${index}`}
-                  fill={
-                    entry.seconds > average
-                      ? 'rgba(234,88,12,0.6)'
-                      : entry.seconds < average
-                        ? 'rgba(16,185,129,0.6)'
-                        : 'rgba(148,163,184,0.5)'
-                  }
-                />
-              ))}
-            </Bar>
+            <Bar
+              dataKey="seconds"
+              radius={[4, 4, 0, 0]}
+              shape={(props) => {
+                const { x = 0, y = 0, width = 0, height = 0, payload } = props as {
+                  x?: number;
+                  y?: number;
+                  width?: number;
+                  height?: number;
+                  payload?: { seconds?: number };
+                };
+                const sec = payload?.seconds ?? 0;
+                const fill =
+                  sec > average
+                    ? 'rgba(234,88,12,0.6)'
+                    : sec < average
+                      ? 'rgba(16,185,129,0.6)'
+                      : 'rgba(148,163,184,0.5)';
+                return (
+                  <Rectangle x={x} y={y} width={width} height={height} radius={[4, 4, 0, 0]} fill={fill} />
+                );
+              }}
+            />
           </BarChart>
         </ResponsiveContainer>
       </div>

@@ -16,7 +16,7 @@ import {
   YAxis,
   Tooltip,
   ResponsiveContainer,
-  Cell,
+  Rectangle,
   CartesianGrid,
   LineChart,
   Line,
@@ -143,20 +143,20 @@ const TabataInterval: React.FC<TabataTimerProps> = ({ onNavigate }) => {
   const lastBeatPhaseRef = useRef(0);
 
   /** Returns a running AudioContext; creates or replaces if closed, awaits resume if suspended. */
-  const getRunningAudioContext = (): Promise<AudioContext | null> => {
+  const getRunningAudioContext = async (): Promise<AudioContext | null> => {
     const AudioContextCtor =
       window.AudioContext ||
       (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!AudioContextCtor) return Promise.resolve(null);
+    if (!AudioContextCtor) return null;
     let ctx = audioContextRef.current;
     if (!ctx || ctx.state === 'closed') {
       audioContextRef.current = new AudioContextCtor();
       ctx = audioContextRef.current;
     }
     if (ctx.state === 'suspended') {
-      return ctx.resume().then(() => ctx);
+      await ctx.resume();
     }
-    return Promise.resolve(ctx);
+    return ctx;
   };
 
   const toggleTelemetryAudio = () => {
@@ -399,22 +399,24 @@ const TabataInterval: React.FC<TabataTimerProps> = ({ onNavigate }) => {
                         border: '1px solid rgba(255,255,255,0.1)',
                       }}
                     />
-                    <Bar dataKey={metric} radius={[6, 6, 0, 0]}>
-                      {impactData.map((entry, index) => (
-                        <Cell
-                          key={`cell-${index}`}
-                          fill={
-                            metric === 'aerobic'
-                              ? index === 2
-                                ? '#dc2626'
-                                : 'rgba(148,163,184,0.5)'
-                              : index === 2
-                                ? '#2563eb'
-                                : 'rgba(148,163,184,0.5)'
-                          }
-                        />
-                      ))}
-                    </Bar>
+                    <Bar
+                      dataKey={metric}
+                      radius={[6, 6, 0, 0]}
+                      shape={(props) => {
+                        const { x = 0, y = 0, width = 0, height = 0, index = 0 } = props;
+                        const fill =
+                          metric === 'aerobic'
+                            ? index === 2
+                              ? '#dc2626'
+                              : 'rgba(148,163,184,0.5)'
+                            : index === 2
+                              ? '#2563eb'
+                              : 'rgba(148,163,184,0.5)';
+                        return (
+                          <Rectangle x={x} y={y} width={width} height={height} radius={[6, 6, 0, 0]} fill={fill} />
+                        );
+                      }}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </div>

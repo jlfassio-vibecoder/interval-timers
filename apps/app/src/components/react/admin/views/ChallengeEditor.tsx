@@ -123,7 +123,7 @@ const ChallengeEditor: React.FC = () => {
     }
   };
 
-  const handleSave = async (e: React.FormEvent) => {
+  const handleSave = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!id || !challenge || !challengeConfig) return;
     if (!formData.title.trim()) {

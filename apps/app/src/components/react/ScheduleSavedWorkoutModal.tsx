@@ -5,7 +5,7 @@
  * Schedule a saved workout: pick date/time, save to scheduled_workouts.
  */
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import CreateFlowSchedulePicker from '@interval-timers/schedule-picker';
 import { useAppContext } from '@/contexts/AppContext';
 import { saveScheduledWorkout } from '@/lib/supabase/client/scheduled-workouts';

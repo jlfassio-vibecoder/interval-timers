@@ -13,7 +13,7 @@ export interface UserDemographics {
   ageRange: string;
   sex: string;
   weight: number;
-  experienceLevel: 'beginner' | 'intermediate' | 'advanced';
+  experienceLevel: 'beginner' | 'intermediate' | 'advanced' | 'any';
 }
 
 /**
@@ -52,6 +52,8 @@ export interface ProgramPersona {
   zoneId?: string;
   selectedEquipmentIds?: string[];
   durationWeeks?: number; // Explicit duration: 6, 8, or 12 weeks
+  /** Preferred training days per week (2-6). Optional. */
+  daysPerWeek?: number;
 }
 
 /**
@@ -70,6 +72,59 @@ export interface ProgramBlueprint {
   periodization_strategy: Record<string, string>;
   /** Weekly schedule skeleton, e.g., { "Day_1": "Lower Body - Squat Focus", ... } */
   weekly_schedule_skeleton: Record<string, string>;
+}
+
+// ============================================================================
+// Scaffold (program_template) Types
+// ============================================================================
+
+/**
+ * Single phase in the program scaffold (AI-decided or admin-edited).
+ */
+export interface PhaseScaffold {
+  phaseIndex: number; // 1-based
+  name: string; // e.g. "Neural Adaptation"
+  weeks: number; // e.g. 2, 4, 4, 2
+  focus: string; // Phase intent
+  daysPerWeek?: number; // Optional override per phase
+  instructions?: string; // AI instructions for Architect
+}
+
+/**
+ * Program scaffold stored in programs.program_template (phase structure only).
+ */
+export interface ProgramTemplateScaffold {
+  phases: PhaseScaffold[];
+  totalWeeks: number; // Sum of phase weeks
+}
+
+/**
+ * Response from generate-scaffold API.
+ */
+export interface ScaffoldGenerationResponse {
+  scaffold: ProgramTemplateScaffold;
+  programId?: string; // When program is created on scaffold generation
+}
+
+/**
+ * Request for build-phase API.
+ */
+export interface BuildPhaseRequest {
+  programId: string;
+  phaseIndex: number; // 1-based
+  persona: ProgramPersona;
+  zoneId?: string;
+  selectedEquipmentIds?: string[];
+  /** Previous phase(s) workouts so the AI can build the next phase accurately (with trainer edits). */
+  previousPhaseWorkouts?: ProgramSchedule[];
+}
+
+/**
+ * Response from build-phase API.
+ */
+export interface BuildPhaseResponse {
+  schedule: ProgramSchedule[];
+  chain_metadata: PromptChainMetadata;
 }
 
 // ============================================================================
@@ -165,11 +220,14 @@ export interface PromptChainMetadata {
 }
 
 /**
- * Response from the chain endpoint
+ * Response from the chain endpoint.
+ * authorId is the verified admin uid so the client can set program ownership when saving.
  */
 export interface ChainGenerationResponse {
   program: ProgramTemplate;
   chain_metadata: PromptChainMetadata;
+  /** Verified admin uid; use as authorId when saving to library. */
+  authorId: string;
 }
 
 /**
@@ -282,6 +340,8 @@ export interface ProgramConfig {
   targetAudience: UserDemographics;
   requirements: {
     durationWeeks: 6 | 8 | 12;
+    /** Preferred training days per week (2-6). Optional; AI may use when building split. */
+    daysPerWeek?: number;
   };
   medicalContext?: {
     includeInjuries: boolean;
@@ -314,6 +374,8 @@ export interface ProgramMetadata {
   /** Chain metadata from 4-step generation - for admin visibility, SEO, content generation */
   chain_metadata?: PromptChainMetadata;
   status: 'draft' | 'published';
+  /** Show on astro-site homepage when true */
+  featuredOnLanding?: boolean;
   createdAt: Date;
   updatedAt: Date;
   authorId: string;

@@ -11,19 +11,10 @@ import type {
   ExerciseSource,
   SuitableBlock,
   MainWorkoutType,
+  SerializedGeneratedExercise,
 } from '@/types/generated-exercise';
 
-/** Server-side serialized exercise (timestamps as ISO strings for SSR) */
-export type SerializedGeneratedExercise = Omit<
-  GeneratedExercise,
-  'generatedAt' | 'createdAt' | 'updatedAt' | 'rejectedAt'
-> & {
-  generatedAt: string;
-  createdAt: string;
-  updatedAt: string;
-  rejectedAt?: string;
-  deepDiveHtmlContent?: string;
-};
+export type { SerializedGeneratedExercise };
 
 function toDate(v: string | null | undefined): Date {
   if (!v) return new Date();

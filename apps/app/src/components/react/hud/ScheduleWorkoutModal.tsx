@@ -119,7 +119,7 @@ export default function ScheduleWorkoutModal({
     });
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!user?.uid || workoutType === 'amrap') return;
     setError(null);

@@ -124,6 +124,17 @@ export interface GeneratedExercise {
   videos?: ExerciseVideo[];
 }
 
+/** ISO string timestamps for SSR / public pages (e.g. getGeneratedExerciseBySlug). */
+export type SerializedGeneratedExercise = Omit<
+  GeneratedExercise,
+  'generatedAt' | 'createdAt' | 'updatedAt' | 'rejectedAt'
+> & {
+  generatedAt: string;
+  createdAt: string;
+  updatedAt: string;
+  rejectedAt?: string;
+};
+
 export type CreateGeneratedExerciseInput = Omit<
   GeneratedExercise,
   'id' | 'createdAt' | 'updatedAt'

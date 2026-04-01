@@ -4,9 +4,11 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Edit, Trash2, Loader2 } from 'lucide-react';
+import { Edit, Trash2, Loader2, Globe, GlobeLock, Star } from 'lucide-react';
+import { toast } from 'sonner';
 import { fetchPrograms, deleteProgram } from '@/lib/supabase/admin/programs';
 import type { ProgramLibraryItem } from '@/lib/supabase/admin/programs';
+import { supabase } from '@/lib/supabase/client';
 import { useAppContext } from '@/contexts/AppContext';
 import DeleteProgramModal from './DeleteProgramModal';
 
@@ -26,12 +28,14 @@ const ProgramLibraryTable: React.FC<ProgramLibraryTableProps> = ({ onEdit, onDel
   const [programToDelete, setProgramToDelete] = useState<{ id: string; title: string } | null>(
     null
   );
+  const [publishingId, setPublishingId] = useState<string | null>(null);
+  const [featuredLoadingId, setFeaturedLoadingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (user?.uid) {
       loadPrograms();
     }
-  }, [user]);
+  }, [user?.uid]);
 
   const loadPrograms = async () => {
     if (!user?.uid) return;
@@ -40,9 +44,15 @@ const ProgramLibraryTable: React.FC<ProgramLibraryTableProps> = ({ onEdit, onDel
       setError(null);
       const data = await fetchPrograms(user.uid);
       setPrograms(data);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('[ProgramLibraryTable] Error fetching programs:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch programs');
+      const is404 =
+        (err && typeof err === 'object' && 'code' in err && (err as { code?: string }).code === 'PGRST204') ||
+        (err && typeof err === 'object' && 'status' in err && (err as { status?: number }).status === 404);
+      const message = is404
+        ? 'Programs table not set up. Run docs/RUN_PROGRAMS_SCHEMA.sql in the Supabase SQL Editor for this project.'
+        : err instanceof Error ? err.message : 'Failed to fetch programs';
+      setError(message);
       setPrograms([]);
     } finally {
       setLoading(false);
@@ -50,14 +60,35 @@ const ProgramLibraryTable: React.FC<ProgramLibraryTableProps> = ({ onEdit, onDel
   };
 
   const handleEdit = (programId: string) => {
-    // Navigate to editor page usually handled by parent or router
-    // Here we just pass the ID up
     onEdit(null, programId);
   };
 
   const handleDeleteRequest = (programId: string, programTitle: string) => {
     setProgramToDelete({ id: programId, title: programTitle });
     setDeleteModalOpen(true);
+  };
+
+  const handlePublishToggle = async (program: ProgramLibraryItem) => {
+    const nextStatus = program.isPublic ? 'draft' : 'published';
+    try {
+      setPublishingId(program.id);
+      const res = await fetch(`/api/admin/programs/${program.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ status: nextStatus }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to update status');
+      }
+      toast.success(nextStatus === 'published' ? 'Program published.' : 'Program unpublished.');
+      await loadPrograms();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update status');
+    } finally {
+      setPublishingId(null);
+    }
   };
 
   const handleConfirmDelete = async () => {
@@ -70,9 +101,42 @@ const ProgramLibraryTable: React.FC<ProgramLibraryTableProps> = ({ onEdit, onDel
       setDeleteModalOpen(false);
       setProgramToDelete(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete program');
+      toast.error(err instanceof Error ? err.message : 'Failed to delete program');
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const handleFeaturedToggle = async (program: ProgramLibraryItem) => {
+    const next = !program.featuredOnLanding;
+    if (next && !program.isPublic) {
+      toast.error('Publish the program first to feature it on the homepage.');
+      return;
+    }
+    try {
+      setFeaturedLoadingId(program.id);
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const res = await fetch(`/api/admin/programs/${program.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
+        credentials: 'include',
+        body: JSON.stringify({ featured_on_landing: next }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error((data as { error?: string }).error ?? 'Failed to update');
+      }
+      toast.success(next ? 'Featured on homepage.' : 'Removed from homepage.');
+      await loadPrograms();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update');
+    } finally {
+      setFeaturedLoadingId(null);
     }
   };
 
@@ -99,7 +163,7 @@ const ProgramLibraryTable: React.FC<ProgramLibraryTableProps> = ({ onEdit, onDel
           <select
             value={filter}
             onChange={(e) => setFilter((e.target.value as 'all' | 'draft' | 'active') || 'all')}
-            className="focus:border-orange-light/50 rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-white focus:outline-none"
+            className="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-white focus:border-orange-light/50 focus:outline-none"
           >
             <option value="all">All</option>
             <option value="draft">Draft</option>
@@ -118,7 +182,7 @@ const ProgramLibraryTable: React.FC<ProgramLibraryTableProps> = ({ onEdit, onDel
         <div className="rounded-lg border border-white/10 bg-black/20 p-12 text-center backdrop-blur-sm">
           <p className="text-white/60">
             {filter === 'all'
-              ? 'No programs yet. Create your first program from the generator or editor.'
+              ? 'No programs yet. Create your first program from the editor.'
               : `No ${filter} programs found.`}
           </p>
         </div>
@@ -160,6 +224,32 @@ const ProgramLibraryTable: React.FC<ProgramLibraryTableProps> = ({ onEdit, onDel
                   </td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex justify-end gap-2">
+                      <button
+                        onClick={() => handleFeaturedToggle(program)}
+                        disabled={featuredLoadingId === program.id || (program.featuredOnLanding === false && !program.isPublic)}
+                        className="rounded-lg p-2 text-white/60 hover:bg-white/10 hover:text-orange-light disabled:opacity-50"
+                        title={program.featuredOnLanding ? 'Remove from homepage' : 'Feature on homepage'}
+                      >
+                        {featuredLoadingId === program.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Star className={`h-4 w-4 ${program.featuredOnLanding ? 'fill-orange-light text-orange-light' : ''}`} />
+                        )}
+                      </button>
+                      <button
+                        onClick={() => handlePublishToggle(program)}
+                        disabled={publishingId === program.id}
+                        className="rounded-lg p-2 text-white/60 hover:bg-white/10 hover:text-orange-light disabled:opacity-50"
+                        title={program.isPublic ? 'Unpublish' : 'Publish'}
+                      >
+                        {publishingId === program.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : program.isPublic ? (
+                          <GlobeLock className="h-4 w-4" />
+                        ) : (
+                          <Globe className="h-4 w-4" />
+                        )}
+                      </button>
                       <button
                         onClick={() => handleEdit(program.id)}
                         className="rounded-lg p-2 text-white/60 hover:bg-white/10 hover:text-orange-light"

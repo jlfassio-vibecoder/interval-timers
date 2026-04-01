@@ -10,6 +10,7 @@ import type {
   ProgramBlueprint,
   ProgramSchedule,
 } from '@/types/ai-program';
+import { verifyTrainerOrAdminRequest } from '@/lib/supabase/admin/auth';
 import {
   getZoneByIdServer,
   getAllEquipmentItemsServer,
@@ -17,6 +18,7 @@ import {
 import { parseJSONWithRepair } from '@/lib/json-parser';
 import { validateWorkoutDescriptions } from '@/lib/validate-program-schedule';
 import { normalizeProgramSchedule } from '@/lib/program-schedule-utils';
+import { getVertexAICredentials } from '@/lib/vertex-ai-client';
 
 /**
  * Extended request body that includes optional blueprint for Phase 2 generation
@@ -310,7 +312,7 @@ ${Object.entries(blueprint.weekly_schedule_skeleton)
     return `You are a Clinical Exercise Physiologist and Strength Coach. Generate detailed workouts following the provided blueprint.
 
 CLIENT PROFILE:
-- Demographics: ${demographics.sex}, ${demographics.ageRange} years, ${demographics.weight}lbs
+- Demographics: ${demographics.sex === 'Universal' ? 'Universal (gender-neutral)' : demographics.sex}, ${demographics.ageRange} years, ${demographics.weight}lbs
 - Experience Level: ${demographics.experienceLevel}
 - Primary Goal: ${goals.primary}
 - Secondary Goal: ${goals.secondary}
@@ -380,7 +382,7 @@ Generate all ${programDuration} weeks with workouts for each training day. Retur
   return `You are a Clinical Exercise Physiologist and Strength Coach. Generate a personalized fitness program.
 
 CLIENT PROFILE:
-- Demographics: ${demographics.sex}, ${demographics.ageRange} years, ${demographics.weight}lbs
+- Demographics: ${demographics.sex === 'Universal' ? 'Universal (gender-neutral)' : demographics.sex}, ${demographics.ageRange} years, ${demographics.weight}lbs
 - Experience Level: ${demographics.experienceLevel}
 - Primary Goal: ${goals.primary}
 - Secondary Goal: ${goals.secondary}
@@ -483,7 +485,21 @@ ${title || description ? '- CRITICAL: Use the exact title and description provid
 Return the complete program as valid JSON. The schedule array must contain exactly ${programDuration} week objects.`;
 }
 
-export const POST: APIRoute = async ({ request }) => {
+export const POST: APIRoute = async ({ request, cookies }) => {
+  try {
+    await verifyTrainerOrAdminRequest(request, cookies);
+  } catch (e) {
+    if (e instanceof Error && (e.message === 'UNAUTHENTICATED' || e.message === 'UNAUTHORIZED')) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized. Sign in as a trainer or admin.' }),
+        { status: 401, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
   try {
     // Validate request
     if (!request.body) {
@@ -548,26 +564,9 @@ export const POST: APIRoute = async ({ request }) => {
       }
     }
 
-    // Check for required environment variable
-    // GOOGLE_PROJECT_ID is preferred, but PUBLIC_FIREBASE_PROJECT_ID can be used as fallback
-    // since they should have the same value (Firebase project ID = Google Cloud project ID)
-    const projectId =
-      import.meta.env.GOOGLE_PROJECT_ID || import.meta.env.PUBLIC_FIREBASE_PROJECT_ID;
-    if (!projectId) {
-      return new Response(
-        JSON.stringify({
-          error: 'GOOGLE_PROJECT_ID or PUBLIC_FIREBASE_PROJECT_ID environment variable is not set',
-        }),
-        {
-          status: 500,
-          headers: { 'Content-Type': 'application/json' },
-        }
-      );
-    }
-
-    // Use REST API for DeepSeek V3.2 (SDK doesn't support it directly)
-    // Endpoint format: /v1/projects/{PROJECT_ID}/locations/{REGION}/endpoints/openapi/chat/completions
-    const region = import.meta.env.GOOGLE_LOCATION || 'global';
+    const creds = await getVertexAICredentials('[generate-program]');
+    if ('error' in creds) return creds.error;
+    const { projectId, region, accessToken } = creds;
     const endpoint = `https://aiplatform.googleapis.com/v1/projects/${projectId}/locations/${region}/endpoints/openapi/chat/completions`;
 
     // Build prompt with zone context and optional blueprint
@@ -576,34 +575,6 @@ export const POST: APIRoute = async ({ request }) => {
     // System instruction
     const systemInstruction =
       'You are a Clinical Exercise Physiologist and Strength Coach with expertise in biomechanics, periodization, injury management, and metabolic conditioning.';
-
-    // Get access token for authentication using Google Auth Library
-    let accessToken: string;
-    try {
-      const { GoogleAuth } = await import('google-auth-library');
-      const auth = new GoogleAuth({
-        scopes: ['https://www.googleapis.com/auth/cloud-platform'],
-        projectId: projectId,
-      });
-      const client = await auth.getClient();
-      const tokenResponse = await client.getAccessToken();
-      if (!tokenResponse.token) {
-        throw new Error('Failed to get access token');
-      }
-      accessToken = tokenResponse.token;
-    } catch (tokenError) {
-      console.error('[generate-program] Failed to get access token:', tokenError);
-      return new Response(
-        JSON.stringify({
-          error:
-            'Failed to authenticate. Please ensure you have run: gcloud auth application-default login',
-        }),
-        {
-          status: 500,
-          headers: { 'Content-Type': 'application/json' },
-        }
-      );
-    }
 
     // Call DeepSeek V3.2 REST API with retry logic for rate limiting
     let apiResponse: Response | undefined;

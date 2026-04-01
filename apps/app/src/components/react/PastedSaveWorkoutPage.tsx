@@ -6,7 +6,7 @@
  * renders library editor for saving to user_saved_workouts.
  */
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import PastedLibraryWorkoutEditor from '@/components/react/pasted-workout/PastedLibraryWorkoutEditor';
 import { getSavedWorkout } from '@/lib/supabase/client/user-saved-workouts';
 import { useAppContext } from '@/contexts/AppContext';

@@ -2,7 +2,7 @@
  * AMRAP With Friends progress: rounds per session and consistency over time.
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { useAppContext } from '@/contexts/AppContext';
 import { getAmrapSessionResultsForAnalytics } from '@/lib/supabase/client/amrap-session-results';

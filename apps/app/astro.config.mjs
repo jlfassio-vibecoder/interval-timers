@@ -132,10 +132,9 @@ export default defineConfig({
       }
     },
     ssr: {
-      // Bundle ALL dependencies in production to avoid runtime ERR_MODULE_NOT_FOUND errors
-      // This is necessary because Firebase App Hosting may not have all transitive dependencies
-      // at runtime. We exclude native modules that can't be bundled.
-      noExternal: isProduction ? true : ['piccolore', 'clsx', 'es-module-lexer', 'devalue'],
+      // Only bundle these small packages into the SSR graph. Do not set noExternal: true for
+      // everything — bundling google-auth-library breaks JWT signing for Vertex AI at runtime.
+      noExternal: ['piccolore', 'clsx', 'es-module-lexer', 'devalue'],
       // Dev only: keep React external so Node requires it at runtime (avoids "module is not defined" when CJS is inlined)
       ...(!isProduction && { external: ['react', 'react-dom', 'scheduler'] })
     },

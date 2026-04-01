@@ -308,7 +308,7 @@ export const POST: APIRoute = async ({ request }) => {
     const challenge: ChallengeTemplate = normalizeProgramSchedule({
       title: persona.title || architect.program_name,
       description: persona.description || architect.rationale,
-      difficulty: persona.demographics.experienceLevel,
+      difficulty: (persona.demographics.experienceLevel === "any" ? "beginner" : persona.demographics.experienceLevel) as "beginner" | "intermediate" | "advanced",
       durationWeeks,
       theme: persona.theme,
       tagline: persona.theme ? `${persona.theme} — ${durationWeeks} Week Challenge` : undefined,

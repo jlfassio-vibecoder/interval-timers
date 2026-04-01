@@ -58,7 +58,6 @@ const DynamicHIITInterval: React.FC<DynamicHIITIntervalProps> = ({ workout, onCl
   const [isTimerOpen, setIsTimerOpen] = useState(false);
 
   const timeline = workout?.timeline ?? [];
-  const _totalDuration = timeline.reduce((acc, b) => acc + b.duration, 0);
 
   const workBlocks = timeline.filter((t) => t.type === 'work');
   const restBlocks = timeline.filter((t) => t.type === 'rest');

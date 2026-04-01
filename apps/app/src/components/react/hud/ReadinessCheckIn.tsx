@@ -104,7 +104,7 @@ const ReadinessCheckIn: React.FC<ReadinessCheckInProps> = ({ userId }) => {
     };
   }, [userId, today]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     setSubmitting(true);
     try {

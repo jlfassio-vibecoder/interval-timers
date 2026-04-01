@@ -48,7 +48,6 @@ const UpcomingStrip: React.FC<UpcomingStripProps> = ({
     <div className="flex gap-2 overflow-x-auto pb-2">
       {days.map(({ date, events }) => {
         const isToday = date === todayISO;
-        const _primary = events[0] ?? null;
         return (
           <DroppableChip
             key={date}

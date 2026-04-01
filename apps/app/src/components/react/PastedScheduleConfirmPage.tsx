@@ -6,7 +6,7 @@
  * redirects to Training Log.
  */
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useAppContext } from '@/contexts/AppContext';
 import { saveScheduledWorkout } from '@/lib/supabase/client/scheduled-workouts';
 import type { WorkoutSetTemplate } from '@/types/ai-workout';

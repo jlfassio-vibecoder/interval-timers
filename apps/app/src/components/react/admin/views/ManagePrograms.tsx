@@ -4,16 +4,22 @@
  */
 
 import React, { useState } from 'react';
-import { Plus, RefreshCw } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Plus, RefreshCw, Sparkles } from 'lucide-react';
+import { toast } from 'sonner';
 import { createProgram } from '@/lib/supabase/admin/programs';
 import type { ProgramLibraryItem } from '@/lib/supabase/admin/programs';
 import { useAppContext } from '@/contexts/AppContext';
 import ProgramLibraryTable from '../ProgramLibraryTable';
+import ProgramGeneratorModal from '../ProgramGeneratorModal';
+import type { ProgramTemplate } from '@/types/ai-program';
 
 const ManagePrograms: React.FC = () => {
+  const navigate = useNavigate();
   const { user } = useAppContext();
   const [refreshKey, setRefreshKey] = useState(0);
   const [isCreating, setIsCreating] = useState(false);
+  const [generatorOpen, setGeneratorOpen] = useState(false);
 
   const handleCreateProgram = async () => {
     if (!user?.uid) return;
@@ -23,18 +29,25 @@ const ManagePrograms: React.FC = () => {
         title: 'New Program',
         trainer_id: user.uid,
       });
-      // Redirect to editor
-      window.location.href = `/admin/programs/${newProgram.id}`;
+      navigate(`/programs/${newProgram.id}`);
     } catch (err) {
       console.error('Failed to create program:', err);
-      alert('Failed to create program. See console.');
+      toast.error('Failed to create program.');
     } finally {
       setIsCreating(false);
     }
   };
 
+  const handleGenerate = (_programData: Omit<ProgramTemplate, 'id' | 'createdAt'>, savedProgramId?: string) => {
+    if (savedProgramId) {
+      setRefreshKey((k) => k + 1);
+      navigate(`/programs/${savedProgramId}`);
+    }
+    setGeneratorOpen(false);
+  };
+
   const handleEdit = (_program: ProgramLibraryItem | null, programId: string) => {
-    window.location.href = `/admin/programs/${programId}`;
+    navigate(`/programs/${programId}`);
   };
 
   return (
@@ -55,6 +68,14 @@ const ManagePrograms: React.FC = () => {
             <span>Refresh</span>
           </button>
           <button
+            type="button"
+            onClick={() => setGeneratorOpen(true)}
+            className="flex items-center gap-2 rounded-lg border border-orange-light/50 bg-orange-light/10 px-4 py-2 font-medium text-orange-light transition-colors hover:bg-orange-light/20"
+          >
+            <Sparkles className="h-5 w-5" />
+            <span>Generate with AI</span>
+          </button>
+          <button
             onClick={handleCreateProgram}
             disabled={isCreating}
             className="hover:bg-orange-light/90 flex items-center gap-2 rounded-lg bg-orange-light px-4 py-2 font-medium text-black transition-colors disabled:opacity-50"
@@ -65,8 +86,13 @@ const ManagePrograms: React.FC = () => {
         </div>
       </div>
 
-      {/* Program Library Table */}
       <ProgramLibraryTable key={refreshKey} onEdit={handleEdit} />
+
+      <ProgramGeneratorModal
+        isOpen={generatorOpen}
+        onClose={() => setGeneratorOpen(false)}
+        onGenerate={handleGenerate}
+      />
     </div>
   );
 };

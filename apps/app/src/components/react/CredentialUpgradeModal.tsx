@@ -2,7 +2,7 @@
  * Blocking modal after magic-link (OTP) sign-in: require password or Google before using the app.
  */
 
-import { useState, useCallback, useEffect, type FormEvent } from 'react';
+import { useState, useCallback, useEffect, type SyntheticEvent } from 'react';
 import { createPortal } from 'react-dom';
 import type { Session, SupabaseClient, User } from '@supabase/supabase-js';
 import { buildOAuthRedirectUrl } from '@interval-timers/auth-ui';
@@ -73,7 +73,7 @@ export default function CredentialUpgradeModal({
     }
   }, [supabase]);
 
-  const handlePasswordSubmit = async (e: FormEvent) => {
+  const handlePasswordSubmit = async (e: SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
     if (password.length < MIN_PASSWORD_LEN) {

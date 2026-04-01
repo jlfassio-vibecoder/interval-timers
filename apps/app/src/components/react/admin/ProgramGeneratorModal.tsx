@@ -15,6 +15,7 @@ import type {
   ArchitectBlueprint,
   ChainGenerationResponse,
   PromptChainMetadata,
+  ProgramTemplateScaffold,
 } from '@/types/ai-program';
 import {
   getAllZones,
@@ -26,21 +27,75 @@ import ProgramBlueprintEditor from './ProgramBlueprintEditor';
 import BlueprintPreview from './BlueprintPreview';
 import ArchitectBlueprintPreview from './ArchitectBlueprintPreview';
 import ChainDebugPanel from './ChainDebugPanel';
-import { saveProgramToLibrary, updateProgram } from '@/lib/supabase/client/program-persistence';
-import { supabase } from '@/lib/supabase/supabase-instance';
+import ScaffoldEditor from './ScaffoldEditor';
+import { saveProgramToLibrary, updateProgram, fetchFullProgram } from '@/lib/supabase/client/program-persistence';
+import { supabase } from '@/lib/supabase/client';
 
-/** The steps of program generation (simplified: config → generating → preview) */
-type GenerationStep = 'config' | 'blueprint' | 'architect' | 'preview';
+/** The steps of program generation: config → scaffold (or architect) → preview */
+type GenerationStep = 'config' | 'scaffold' | 'blueprint' | 'architect' | 'preview';
 
 interface ProgramGeneratorModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onGenerate: (programData: Omit<ProgramTemplate, 'id' | 'createdAt'>) => void;
+  /** When creating, savedProgramId is the new program id after save. */
+  onGenerate: (programData: Omit<ProgramTemplate, 'id' | 'createdAt'>, savedProgramId?: string) => void;
   existingProgram?: ProgramTemplate; // For edit mode
   programConfig?: ProgramConfig; // For edit mode - needed to reconstruct config
   editingProgramId?: string; // Program ID when editing
   editingChainMetadata?: PromptChainMetadata; // Chain metadata when editing - for admin visibility
 }
+
+/** Injury body parts by region (match programs page PrescriptionVitalsSidebar). */
+const INJURY_PILLS_BY_REGION: { group: string; pills: { id: string; label: string }[] }[] = [
+  {
+    group: 'Spine & Torso',
+    pills: [
+      { id: 'neck', label: 'Neck' },
+      { id: 'upper-back', label: 'Upper Back' },
+      { id: 'lower-back', label: 'Lower Back' },
+      { id: 'chest-ribs', label: 'Chest / Ribs' },
+      { id: 'abdominals', label: 'Abdominals (Core)' },
+    ],
+  },
+  {
+    group: 'Upper Body',
+    pills: [
+      { id: 'shoulder', label: 'Shoulders' },
+      { id: 'elbow', label: 'Elbows' },
+      { id: 'wrist-hands', label: 'Wrists / Hands' },
+    ],
+  },
+  {
+    group: 'Lower Body',
+    pills: [
+      { id: 'hip-glutes', label: 'Hips / Glutes' },
+      { id: 'groin', label: 'Groin' },
+      { id: 'thighs', label: 'Thighs (Quads/Hamstrings)' },
+      { id: 'knee', label: 'Knees' },
+      { id: 'shins-calves', label: 'Shins / Calves' },
+      { id: 'ankles-feet', label: 'Ankles / Feet' },
+    ],
+  },
+];
+
+/** All goal options (programs page + existing modal). Used for primary/secondary dropdowns. */
+const GOALS_OPTIONS: { value: string; label: string }[] = [
+  { value: 'Lose Weight / Burn Fat', label: 'Lose Weight / Burn Fat' },
+  { value: 'Build Muscle', label: 'Build Muscle' },
+  { value: 'Tone & Definition', label: 'Tone & Definition' },
+  { value: 'Increase Strength', label: 'Increase Strength' },
+  { value: 'Improve Endurance', label: 'Improve Endurance' },
+  { value: 'Athleticism & Power', label: 'Athleticism & Power' },
+  { value: 'General Health / Maintenance', label: 'General Health / Maintenance' },
+  { value: 'Mobility & Flexibility', label: 'Mobility & Flexibility' },
+  { value: 'Core Stability & Posture', label: 'Core Stability & Posture' },
+  { value: 'Fat Loss', label: 'Fat Loss' },
+  { value: 'Strength', label: 'Strength' },
+  { value: 'Muscle Gain', label: 'Muscle Gain' },
+  { value: 'Endurance', label: 'Endurance' },
+  { value: 'General Fitness', label: 'General Fitness' },
+  { value: 'Rehabilitation', label: 'Rehabilitation' },
+];
 
 const ProgramGeneratorModal: React.FC<ProgramGeneratorModalProps> = ({
   isOpen,
@@ -67,6 +122,7 @@ const ProgramGeneratorModal: React.FC<ProgramGeneratorModalProps> = ({
     },
     requirements: {
       durationWeeks: 12, // Default to 12 weeks
+      daysPerWeek: undefined, // Any (AI decides per phase); user can set 2-6 as suggested default
     },
     medicalContext: {
       includeInjuries: false,
@@ -85,6 +141,8 @@ const ProgramGeneratorModal: React.FC<ProgramGeneratorModalProps> = ({
   const [selectedZone, setSelectedZone] = useState<Zone | null>(null);
   const [equipmentItems, setEquipmentItems] = useState<Array<{ id: string; name: string }>>([]);
   const [selectedEquipmentIds, setSelectedEquipmentIds] = useState<string[]>([]);
+  /** Selected injury body part ids (for Medical Context pills). */
+  const [selectedInjuryIds, setSelectedInjuryIds] = useState<string[]>([]);
   // Initialize programConfig from provided config or use default
   const [programConfig, setProgramConfig] = useState<ProgramConfig>(
     providedProgramConfig || defaultConfig
@@ -101,8 +159,15 @@ const ProgramGeneratorModal: React.FC<ProgramGeneratorModalProps> = ({
   const [blueprint, setBlueprint] = useState<ProgramBlueprint | null>(null);
   const [architectBlueprint, setArchitectBlueprint] = useState<ArchitectBlueprint | null>(null);
 
+  // Scaffold-first flow state
+  const [scaffold, setScaffold] = useState<ProgramTemplateScaffold | null>(null);
+  const [scaffoldProgramId, setScaffoldProgramId] = useState<string | null>(null);
+  const [buildingPhaseIndex, setBuildingPhaseIndex] = useState<number | null>(null);
+
   // Chain metadata for debugging (saved with program)
   const [chainMetadata, setChainMetadata] = useState<PromptChainMetadata | null>(null);
+  /** Author uid from chain response; use when saving so ownership matches admin who ran the chain. */
+  const [generatedProgramAuthorId, setGeneratedProgramAuthorId] = useState<string | null>(null);
   const [chainStep, setChainStep] = useState<number>(0); // 0-4 for progress display
 
   // Unsaved changes guard (Program Blueprint Editor)
@@ -131,10 +196,15 @@ const ProgramGeneratorModal: React.FC<ProgramGeneratorModalProps> = ({
       // Reset when modal closes
       setGeneratedProgram(null);
       setProgramConfig(defaultConfig);
+      setSelectedInjuryIds([]);
       setStep('config');
       setBlueprint(null);
       setArchitectBlueprint(null);
+      setScaffold(null);
+      setScaffoldProgramId(null);
+      setBuildingPhaseIndex(null);
       setChainMetadata(null);
+      setGeneratedProgramAuthorId(null);
       setChainStep(0);
       setHasUnsavedBlueprintChanges(false);
       setPendingCloseAction(null);
@@ -146,7 +216,7 @@ const ProgramGeneratorModal: React.FC<ProgramGeneratorModalProps> = ({
     if (!isOpen || !hasUnsavedBlueprintChanges || step !== 'preview') return;
     const handler = (e: BeforeUnloadEvent) => {
       e.preventDefault();
-      e.returnValue = '';
+      Reflect.set(e, 'returnValue', '');
     };
     window.addEventListener('beforeunload', handler);
     return () => window.removeEventListener('beforeunload', handler);
@@ -166,6 +236,7 @@ const ProgramGeneratorModal: React.FC<ProgramGeneratorModalProps> = ({
     } else {
       setStep('config');
       setChainMetadata(null);
+      setGeneratedProgramAuthorId(null);
     }
   };
 
@@ -179,6 +250,7 @@ const ProgramGeneratorModal: React.FC<ProgramGeneratorModalProps> = ({
       setHasUnsavedBlueprintChanges(false);
       setStep('config');
       setChainMetadata(null);
+      setGeneratedProgramAuthorId(null);
     }
   };
 
@@ -225,96 +297,53 @@ const ProgramGeneratorModal: React.FC<ProgramGeneratorModalProps> = ({
     fetchZonesAndEquipment();
   }, []);
 
+  /** Headers for AI API calls: JSON + Bearer token so auth works even if cookies are not sent. */
+  const getAuthHeaders = useCallback(async (): Promise<Record<string, string>> => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (session?.access_token) {
+      headers.Authorization = `Bearer ${session.access_token}`;
+    }
+    return headers;
+  }, []);
+
   // Build the request payload from programConfig (shared by both phases)
-  const buildRequestPayload = (): ProgramPersona => ({
-    title: programConfig.programInfo.title.trim(),
-    description: programConfig.programInfo.description.trim(),
-    demographics: programConfig.targetAudience,
-    medical: {
-      injuries: programConfig.medicalContext?.includeInjuries
-        ? programConfig.medicalContext.injuries || ''
-        : '',
-      conditions: programConfig.medicalContext?.includeConditions
-        ? programConfig.medicalContext.conditions || ''
-        : '',
-    },
-    goals: programConfig.goals,
-    zoneId: selectedZone ? selectedZone.id : programConfig.zoneId,
-    selectedEquipmentIds:
-      selectedEquipmentIds.length > 0 ? selectedEquipmentIds : programConfig.selectedEquipmentIds,
-    durationWeeks: programConfig.requirements.durationWeeks,
-  });
+  const buildRequestPayload = (): ProgramPersona => {
+    const injuryParts =
+      selectedInjuryIds.length > 0
+        ? selectedInjuryIds
+            .map((id) => INJURY_PILLS_BY_REGION.flatMap((r) => r.pills).find((p) => p.id === id)?.label)
+            .filter(Boolean)
+            .join(', ')
+        : '';
+    const injuryNotes = programConfig.medicalContext?.injuries?.trim() || '';
+    const injuries =
+      programConfig.medicalContext?.includeInjuries && (injuryParts || injuryNotes)
+        ? [injuryParts, injuryNotes].filter(Boolean).join(' | ')
+        : '';
 
-  // Phase 1: Generate Blueprint (kept for two-phase flow; main flow uses handleGenerateChain)
-  const _handleGenerateBlueprint = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-
-    // Validation
-    if (!programConfig.programInfo.title.trim()) {
-      setError('Program title is required');
-      return;
-    }
-
-    if (!programConfig.programInfo.description.trim()) {
-      setError('Program description is required');
-      return;
-    }
-
-    setLoading(true);
-    setLoadingMessage('Generating Program Blueprint...');
-
-    try {
-      const requestPayload = buildRequestPayload();
-
-      const response = await fetch('/api/ai/generate-blueprint', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestPayload),
-      });
-
-      if (!response.ok) {
-        const raw = await response.text();
-        let errorMessage = response.statusText || 'Failed to generate blueprint';
-        try {
-          const parsed = JSON.parse(raw);
-          if (typeof parsed?.error === 'string' && parsed.error.trim()) {
-            errorMessage = parsed.error;
-          }
-        } catch {
-          if (raw.trim().length > 0) {
-            errorMessage = raw.length > 200 ? raw.slice(0, 200) + '…' : raw.trim();
-          }
-        }
-        throw new Error(errorMessage);
-      }
-
-      const blueprintData: ProgramBlueprint = await response.json();
-
-      // Store blueprint and move to blueprint step
-      setBlueprint(blueprintData);
-      setStep('blueprint');
-      setLoading(false);
-      setLoadingMessage('');
-    } catch (err) {
-      console.error('[ProgramGeneratorModal] Blueprint error:', err);
-      let message = err instanceof Error ? err.message : 'Failed to generate blueprint';
-      const lower = message.toLowerCase();
-      if (
-        lower.includes('fetch failed') ||
-        lower.includes('failed to fetch') ||
-        lower.includes('networkerror') ||
-        lower.includes('network error')
-      ) {
-        message = 'Network error. Check your connection and try again.';
-      }
-      setError(message);
-      setLoading(false);
-      setLoadingMessage('');
-    }
+    return {
+      title: programConfig.programInfo.title.trim(),
+      description: programConfig.programInfo.description.trim(),
+      demographics: programConfig.targetAudience,
+      medical: {
+        injuries,
+        conditions: programConfig.medicalContext?.includeConditions
+          ? programConfig.medicalContext.conditions || ''
+          : '',
+      },
+      goals: programConfig.goals,
+      zoneId: selectedZone ? selectedZone.id : programConfig.zoneId,
+      selectedEquipmentIds:
+        selectedEquipmentIds.length > 0 ? selectedEquipmentIds : programConfig.selectedEquipmentIds,
+      durationWeeks: programConfig.requirements.durationWeeks,
+      daysPerWeek: programConfig.requirements.daysPerWeek,
+    };
   };
 
-  // Phase 2: Generate Detailed Workouts using Blueprint
+  // Phase 2: Generate Detailed Workouts using Blueprint (two-phase: architect → chain uses handleGenerateArchitect + handleBuildChainFromArchitect)
   const handleGenerateWorkouts = async () => {
     if (!blueprint) {
       setError('Blueprint is required to generate workouts');
@@ -337,10 +366,11 @@ const ProgramGeneratorModal: React.FC<ProgramGeneratorModalProps> = ({
         ...buildRequestPayload(),
         blueprint, // Include the blueprint for Phase 2
       };
+      const headers = await getAuthHeaders();
 
       const response = await fetch('/api/ai/generate-program', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(requestPayload),
       });
 
@@ -394,7 +424,7 @@ const ProgramGeneratorModal: React.FC<ProgramGeneratorModalProps> = ({
   ];
 
   // NEW: 4-Step Chain Generation (unified endpoint)
-  const handleGenerateChain = async (e: React.FormEvent) => {
+  const handleGenerateChain = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     setError(null);
 
@@ -424,10 +454,11 @@ const ProgramGeneratorModal: React.FC<ProgramGeneratorModalProps> = ({
 
     try {
       const requestPayload = buildRequestPayload();
+      const headers = await getAuthHeaders();
 
       const response = await fetch('/api/ai/generate-program-chain', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(requestPayload),
       });
 
@@ -451,9 +482,10 @@ const ProgramGeneratorModal: React.FC<ProgramGeneratorModalProps> = ({
 
       const chainResponse: ChainGenerationResponse = await response.json();
 
-      // Store program and chain metadata
+      // Store program, chain metadata, and author (use when saving to library)
       setGeneratedProgram(chainResponse.program);
       setChainMetadata(chainResponse.chain_metadata);
+      setGeneratedProgramAuthorId(chainResponse.authorId);
       setStep('preview');
       setLoading(false);
       setLoadingMessage('');
@@ -489,7 +521,7 @@ const ProgramGeneratorModal: React.FC<ProgramGeneratorModalProps> = ({
   };
 
   // Two-phase: Generate architect blueprint only (Step 1)
-  const handleGenerateArchitect = async (e: React.FormEvent) => {
+  const handleGenerateArchitect = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     setError(null);
 
@@ -507,9 +539,11 @@ const ProgramGeneratorModal: React.FC<ProgramGeneratorModalProps> = ({
 
     try {
       const requestPayload = buildRequestPayload();
+      const headers = await getAuthHeaders();
+
       const response = await fetch('/api/ai/generate-architect', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(requestPayload),
       });
 
@@ -577,10 +611,11 @@ const ProgramGeneratorModal: React.FC<ProgramGeneratorModalProps> = ({
         ...buildRequestPayload(),
         architectBlueprint,
       };
+      const headers = await getAuthHeaders();
 
       const response = await fetch('/api/ai/generate-program-chain', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(requestPayload),
       });
 
@@ -605,6 +640,7 @@ const ProgramGeneratorModal: React.FC<ProgramGeneratorModalProps> = ({
       const chainResponse: ChainGenerationResponse = await response.json();
       setGeneratedProgram(chainResponse.program);
       setChainMetadata(chainResponse.chain_metadata);
+      setGeneratedProgramAuthorId(chainResponse.authorId);
       setStep('preview');
       setChainStep(4);
       toast.success('Program generated successfully!', {
@@ -629,6 +665,228 @@ const ProgramGeneratorModal: React.FC<ProgramGeneratorModalProps> = ({
       setLoading(false);
       setLoadingMessage('');
       setChainStep(0);
+    }
+  };
+
+  // Scaffold-first: generate scaffold and create program
+  const handleGenerateScaffold = async (e: React.SyntheticEvent) => {
+    e.preventDefault();
+    setError(null);
+    if (!programConfig.programInfo.title.trim()) {
+      setError('Program title is required');
+      return;
+    }
+    if (!programConfig.programInfo.description.trim()) {
+      setError('Program description is required');
+      return;
+    }
+    setLoading(true);
+    setLoadingMessage('Generating phase structure...');
+    try {
+      const headers = await getAuthHeaders();
+      const response = await fetch('/api/ai/generate-scaffold', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(buildRequestPayload()),
+      });
+      if (!response.ok) {
+        const raw = await response.text();
+        let msg = 'Failed to generate scaffold';
+        try {
+          const parsed = JSON.parse(raw);
+          if (typeof parsed?.error === 'string') msg = parsed.error;
+        } catch {
+          if (raw.trim()) msg = raw.slice(0, 200);
+        }
+        throw new Error(msg);
+      }
+      const { scaffold: nextScaffold, programId } = await response.json();
+      setScaffold(nextScaffold);
+      setScaffoldProgramId(programId);
+      setStep('scaffold');
+      toast.success('Scaffold generated', {
+        description: 'Review and edit phases, then build each phase (or build all).',
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to generate scaffold';
+      setError(message);
+      toast.error('Scaffold failed', { description: message });
+    } finally {
+      setLoading(false);
+      setLoadingMessage('');
+    }
+  };
+
+  const handleSaveScaffold = async (nextScaffold: ProgramTemplateScaffold) => {
+    if (!scaffoldProgramId) throw new Error('No program id');
+    const headers = await getAuthHeaders();
+    const response = await fetch(`/api/admin/programs/${scaffoldProgramId}/scaffold`, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify({ scaffold: nextScaffold }),
+    });
+    if (!response.ok) {
+      const raw = await response.text();
+      let msg = 'Failed to save scaffold';
+      try {
+        const parsed = JSON.parse(raw);
+        if (typeof parsed?.error === 'string') msg = parsed.error;
+      } catch {
+        if (raw.trim()) msg = raw.slice(0, 200);
+      }
+      throw new Error(msg);
+    }
+    setScaffold(nextScaffold);
+  };
+
+  const handleBuildPhase = async (phaseIndex: number) => {
+    if (!scaffoldProgramId || !scaffold) return;
+    setError(null);
+    setBuildingPhaseIndex(phaseIndex);
+    setLoading(true);
+    setLoadingMessage(`Building Phase ${phaseIndex}...`);
+    try {
+      const headers = await getAuthHeaders();
+      const response = await fetch('/api/ai/build-phase', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          programId: scaffoldProgramId,
+          phaseIndex,
+          persona: buildRequestPayload(),
+        }),
+      });
+      if (!response.ok) {
+        const raw = await response.text();
+        let msg = 'Failed to build phase';
+        try {
+          const parsed = JSON.parse(raw);
+          if (typeof parsed?.error === 'string') msg = parsed.error;
+        } catch {
+          if (raw.trim()) msg = raw.slice(0, 200);
+        }
+        throw new Error(msg);
+      }
+      const data = await response.json();
+      setChainMetadata(data.chain_metadata ?? null);
+      const fullProgram = await fetchFullProgram(scaffoldProgramId);
+      setGeneratedProgram(fullProgram);
+      setStep('preview');
+      toast.success(`Phase ${phaseIndex} built`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to build phase';
+      setError(message);
+      toast.error('Build phase failed', { description: message });
+    } finally {
+      setLoading(false);
+      setBuildingPhaseIndex(null);
+      setLoadingMessage('');
+    }
+  };
+
+  /** Build next phase from ProgramBlueprintEditor; passes current program (with trainer edits) as previousPhaseWorkouts. */
+  const handleBuildPhaseFromEditor = async (
+    phaseIndex: number,
+    currentProgram: ProgramTemplate
+  ) => {
+    if (!scaffoldProgramId || !scaffold) return;
+    setError(null);
+    setBuildingPhaseIndex(phaseIndex);
+    setLoading(true);
+    setLoadingMessage(`Building Phase ${phaseIndex}...`);
+    try {
+      const headers = await getAuthHeaders();
+      const response = await fetch('/api/ai/build-phase', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          programId: scaffoldProgramId,
+          phaseIndex,
+          persona: buildRequestPayload(),
+          previousPhaseWorkouts: currentProgram.schedule ?? [],
+        }),
+      });
+      if (!response.ok) {
+        const raw = await response.text();
+        let msg = 'Failed to build phase';
+        try {
+          const parsed = JSON.parse(raw);
+          if (typeof parsed?.error === 'string') msg = parsed.error;
+        } catch {
+          if (raw.trim()) msg = raw.slice(0, 200);
+        }
+        throw new Error(msg);
+      }
+      const data = await response.json();
+      setChainMetadata(data.chain_metadata ?? null);
+      const fullProgram = await fetchFullProgram(scaffoldProgramId);
+      setGeneratedProgram(fullProgram);
+      setStep('preview');
+      toast.success(`Phase ${phaseIndex} built`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to build phase';
+      setError(message);
+      toast.error('Build phase failed', { description: message });
+    } finally {
+      setLoading(false);
+      setBuildingPhaseIndex(null);
+      setLoadingMessage('');
+    }
+  };
+
+  const handleBuildAllPhases = async () => {
+    if (!scaffoldProgramId || !scaffold) return;
+    setError(null);
+    setLoading(true);
+    for (let i = 0; i < scaffold.phases.length; i++) {
+      const phaseIndex = scaffold.phases[i].phaseIndex;
+      setBuildingPhaseIndex(phaseIndex);
+      setLoadingMessage(`Building Phase ${phaseIndex}...`);
+      try {
+        const headers = await getAuthHeaders();
+        const response = await fetch('/api/ai/build-phase', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            programId: scaffoldProgramId,
+            phaseIndex,
+            persona: buildRequestPayload(),
+          }),
+        });
+        if (!response.ok) {
+          const raw = await response.text();
+          let msg = 'Failed to build phase';
+          try {
+            const parsed = JSON.parse(raw);
+            if (typeof parsed?.error === 'string') msg = parsed.error;
+          } catch {
+            if (raw.trim()) msg = raw.slice(0, 200);
+          }
+          throw new Error(msg);
+        }
+        const data = await response.json();
+        setChainMetadata(data.chain_metadata ?? null);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to build phase';
+        setError(message);
+        toast.error(`Phase ${phaseIndex} failed`, { description: message });
+        setLoading(false);
+        setBuildingPhaseIndex(null);
+        setLoadingMessage('');
+        return;
+      }
+    }
+    setBuildingPhaseIndex(null);
+    setLoadingMessage('');
+    try {
+      const fullProgram = await fetchFullProgram(scaffoldProgramId);
+      setGeneratedProgram(fullProgram);
+      setStep('preview');
+      toast.success('All phases built');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load program');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -688,15 +946,24 @@ const ProgramGeneratorModal: React.FC<ProgramGeneratorModalProps> = ({
         );
       }
 
+      // Use author from chain response when saving chain-generated program (ownership = admin who ran chain)
+      const authorId = generatedProgramAuthorId ?? userId;
+
       // Save to library: update existing or create new (persistence uses Supabase auth)
+      let savedProgramId: string | undefined;
       if (editingProgramId) {
         await updateProgram(editingProgramId, editedProgram, programConfig, userId);
+        savedProgramId = editingProgramId;
+      } else if (scaffoldProgramId) {
+        // Scaffold flow: program already exists; update it with edited content
+        await updateProgram(scaffoldProgramId, editedProgram, programConfig, userId);
+        savedProgramId = scaffoldProgramId;
       } else {
         // Chain metadata should always be passed for chain-generated programs (admin visibility, SEO, content generation)
-        await saveProgramToLibrary(
+        savedProgramId = await saveProgramToLibrary(
           editedProgram,
           programConfig,
-          userId,
+          authorId,
           chainMetadata || undefined
         );
       }
@@ -712,8 +979,8 @@ const ProgramGeneratorModal: React.FC<ProgramGeneratorModalProps> = ({
         setSaveSuccess(false);
       }, 3000);
 
-      // Call onGenerate callback (for compatibility with existing code)
-      onGenerate(editedProgram);
+      // Call onGenerate callback (parent can navigate when savedProgramId is set)
+      onGenerate(editedProgram, savedProgramId);
 
       // Reset and close after a brief delay (only on success)
       setTimeout(() => {
@@ -725,6 +992,7 @@ const ProgramGeneratorModal: React.FC<ProgramGeneratorModalProps> = ({
         setSelectedEquipmentIds([]);
         setSaveSuccess(false);
         setChainMetadata(null);
+        setGeneratedProgramAuthorId(null);
         setChainStep(0);
       }, 2000);
     } catch (err) {
@@ -763,7 +1031,7 @@ const ProgramGeneratorModal: React.FC<ProgramGeneratorModalProps> = ({
             className={`relative w-full overflow-hidden rounded-2xl border border-white/10 bg-bg-dark shadow-[0_0_100px_rgba(255,191,0,0.1)] ${
               step === 'preview'
                 ? 'max-w-6xl'
-                : step === 'blueprint' || step === 'architect'
+                : step === 'scaffold' || step === 'blueprint' || step === 'architect'
                   ? 'max-w-4xl'
                   : 'max-w-3xl'
             }`}
@@ -776,24 +1044,28 @@ const ProgramGeneratorModal: React.FC<ProgramGeneratorModalProps> = ({
                   <h2 className="font-heading text-2xl font-bold">
                     {isEditMode
                       ? 'Edit Program'
-                      : step === 'blueprint'
-                        ? 'Program Blueprint'
-                        : step === 'architect'
-                          ? 'Program Structure'
-                          : step === 'preview'
-                            ? 'Review Workouts'
-                            : 'Program Factory'}
+                      : step === 'scaffold'
+                        ? 'Program Scaffold'
+                        : step === 'blueprint'
+                          ? 'Program Blueprint'
+                          : step === 'architect'
+                            ? 'Program Structure'
+                            : step === 'preview'
+                              ? 'Review Workouts'
+                              : 'Program Factory'}
                   </h2>
                   <p className="text-sm text-white/60">
                     {isEditMode
                       ? 'Edit and update program details'
-                      : step === 'blueprint'
-                        ? 'Phase 1: Review structure before generating workouts'
-                        : step === 'architect'
-                          ? 'Review and edit structure, then generate detailed workouts'
-                          : step === 'preview'
-                            ? 'Phase 2: Review and save detailed workouts'
-                            : 'Create pre-made program SKUs for the storefront'}
+                      : step === 'scaffold'
+                        ? 'Review and edit phases, then build each phase'
+                        : step === 'blueprint'
+                          ? 'Phase 1: Review structure before generating workouts'
+                          : step === 'architect'
+                            ? 'Review and edit structure, then generate detailed workouts'
+                            : step === 'preview'
+                              ? 'Phase 2: Review and save detailed workouts'
+                              : 'Create pre-made program SKUs for the storefront'}
                   </p>
                 </div>
               </div>
@@ -827,6 +1099,34 @@ const ProgramGeneratorModal: React.FC<ProgramGeneratorModalProps> = ({
                     This may take 30-60 seconds for the full chain...
                   </p>
                 </div>
+              ) : step === 'scaffold' && scaffold && scaffoldProgramId ? (
+                <>
+                  {error && (
+                    <div className="mb-4 flex items-start gap-3 rounded-lg border border-red-500/20 bg-red-500/10 p-4">
+                      <AlertCircle className="h-5 w-5 shrink-0 text-red-400" />
+                      <div className="flex-1">
+                        <p className="font-medium text-red-300">Error</p>
+                        <p className="mt-1 text-sm text-red-200">{error}</p>
+                      </div>
+                    </div>
+                  )}
+                  <ScaffoldEditor
+                    scaffold={scaffold}
+                    programId={scaffoldProgramId}
+                    durationWeeks={programConfig.requirements.durationWeeks}
+                    onUpdate={(next) => setScaffold(next)}
+                    onSaveScaffold={handleSaveScaffold}
+                    onBuildPhase={handleBuildPhase}
+                    onBuildAllPhases={handleBuildAllPhases}
+                    onBack={() => {
+                      setStep('config');
+                      setScaffold(null);
+                      setScaffoldProgramId(null);
+                    }}
+                    loading={loading}
+                    buildingPhaseIndex={buildingPhaseIndex}
+                  />
+                </>
               ) : step === 'blueprint' && blueprint ? (
                 /* Phase 1: Blueprint Preview */
                 <>
@@ -896,6 +1196,12 @@ const ProgramGeneratorModal: React.FC<ProgramGeneratorModalProps> = ({
                     onSave={handleSaveToLibrary}
                     onCancel={handleRequestCancel}
                     onDirtyChange={setHasUnsavedBlueprintChanges}
+                    scaffold={scaffold ?? undefined}
+                    scaffoldProgramId={scaffoldProgramId ?? undefined}
+                    onBuildPhase={
+                      scaffold && scaffoldProgramId ? handleBuildPhaseFromEditor : undefined
+                    }
+                    buildingPhaseIndex={buildingPhaseIndex}
                   />
                   {/* Chain Debug Panel - shows intermediate outputs */}
                   {chainMetadata && <ChainDebugPanel metadata={chainMetadata} />}
@@ -972,6 +1278,40 @@ const ProgramGeneratorModal: React.FC<ProgramGeneratorModalProps> = ({
                       Program Parameters
                     </h3>
 
+                    {/* Days per week: optional hint; AI can set different days per phase */}
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-white/80">
+                        Suggested days per week (optional)
+                      </label>
+                      <p className="mb-2 text-xs text-white/60">
+                        The AI can set different days per week per phase. This is only a starting preference; leave as &quot;Any&quot; to let the AI decide for each phase.
+                      </p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <select
+                          value={programConfig.requirements.daysPerWeek ?? 'any'}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            const n = v === 'any' ? undefined : parseInt(v, 10);
+                            setProgramConfig((prev) => ({
+                              ...prev,
+                              requirements: {
+                                ...prev.requirements,
+                                daysPerWeek: n,
+                              },
+                            }));
+                          }}
+                          className="focus:border-orange-light/50 focus:ring-orange-light/20 rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-white focus:outline-none focus:ring-2"
+                        >
+                          <option value="any">Any (AI decides per phase)</option>
+                          {[2, 3, 4, 5, 6].map((d) => (
+                            <option key={d} value={d}>
+                              {d} days
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
                     {/* Duration Selector */}
                     <div>
                       <label className="mb-2 block text-sm font-medium text-white/80">
@@ -1044,7 +1384,7 @@ const ProgramGeneratorModal: React.FC<ProgramGeneratorModalProps> = ({
                         }}
                         className="focus:border-orange-light/50 focus:ring-orange-light/20 w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-white focus:outline-none focus:ring-2"
                       >
-                        <option value="">None - Generate without zone context</option>
+                        <option value="">Any</option>
                         {zones.map((zone) => (
                           <option key={zone.id} value={zone.id}>
                             {zone.name} (
@@ -1190,8 +1530,13 @@ const ProgramGeneratorModal: React.FC<ProgramGeneratorModalProps> = ({
                         >
                           <option value="Male">Male</option>
                           <option value="Female">Female</option>
-                          <option value="Other">Other</option>
+                          <option value="Universal">Universal (gender-neutral)</option>
                         </select>
+                        {programConfig.targetAudience.sex === 'Universal' && (
+                          <p className="mt-1 text-xs text-white/60">
+                            Design a workout suitable for any user, without gender-specific programming.
+                          </p>
+                        )}
                       </div>
 
                       <div>
@@ -1220,12 +1565,17 @@ const ProgramGeneratorModal: React.FC<ProgramGeneratorModalProps> = ({
                           onChange={(e) =>
                             handleTargetAudienceChange(
                               'experienceLevel',
-                              e.target.value as 'beginner' | 'intermediate' | 'advanced'
+                              e.target.value as
+                                | 'beginner'
+                                | 'intermediate'
+                                | 'advanced'
+                                | 'any'
                             )
                           }
                           className="focus:border-orange-light/50 focus:ring-orange-light/20 w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-white focus:outline-none focus:ring-2"
                           required
                         >
+                          <option value="any">Any</option>
                           <option value="beginner">Beginner</option>
                           <option value="intermediate">Intermediate</option>
                           <option value="advanced">Advanced</option>
@@ -1256,17 +1606,55 @@ const ProgramGeneratorModal: React.FC<ProgramGeneratorModalProps> = ({
                       </label>
 
                       {programConfig.medicalContext?.includeInjuries && (
-                        <div>
-                          <label className="mb-2 block text-sm font-medium text-white/80">
-                            Simulate Injuries (e.g., "Right shoulder impingement")
-                          </label>
-                          <textarea
-                            value={programConfig.medicalContext?.injuries || ''}
-                            onChange={(e) => handleMedicalContextChange('injuries', e.target.value)}
-                            rows={3}
-                            className="focus:border-orange-light/50 focus:ring-orange-light/20 w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-white placeholder:text-white/40 focus:outline-none focus:ring-2"
-                            placeholder="e.g., Right shoulder impingement"
-                          />
+                        <div className="space-y-3">
+                          <p className="text-sm font-medium text-white/80">
+                            Tap the body part where you have acute injury or pain. We will hide
+                            exercises that directly load these areas.
+                          </p>
+                          <div className="space-y-3">
+                            {INJURY_PILLS_BY_REGION.map(({ group, pills }) => (
+                              <div key={group}>
+                                <div className="mb-1.5 text-xs font-medium uppercase tracking-wide text-white/60">
+                                  {group}
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                  {pills.map(({ id, label }) => {
+                                    const isSelected = selectedInjuryIds.includes(id);
+                                    return (
+                                      <button
+                                        key={id}
+                                        type="button"
+                                        onClick={() => {
+                                          setSelectedInjuryIds((prev) =>
+                                            prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+                                          );
+                                        }}
+                                        className={`rounded-full border px-3 py-1.5 text-sm transition-colors ${
+                                          isSelected
+                                            ? 'border-orange-light bg-orange-light/20 text-orange-light'
+                                            : 'border-white/20 bg-white/5 text-white/80 hover:border-white/30 hover:text-white'
+                                        }`}
+                                      >
+                                        {label}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                          <div>
+                            <label className="mb-2 block text-sm font-medium text-white/80">
+                              Additional injury notes (optional)
+                            </label>
+                            <textarea
+                              value={programConfig.medicalContext?.injuries || ''}
+                              onChange={(e) => handleMedicalContextChange('injuries', e.target.value)}
+                              rows={2}
+                              className="focus:border-orange-light/50 focus:ring-orange-light/20 w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-white placeholder:text-white/40 focus:outline-none focus:ring-2"
+                              placeholder="e.g., Right shoulder impingement"
+                            />
+                          </div>
                         </div>
                       )}
 
@@ -1319,12 +1707,11 @@ const ProgramGeneratorModal: React.FC<ProgramGeneratorModalProps> = ({
                           className="focus:border-orange-light/50 focus:ring-orange-light/20 w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-white focus:outline-none focus:ring-2"
                           required
                         >
-                          <option value="Fat Loss">Fat Loss</option>
-                          <option value="Strength">Strength</option>
-                          <option value="Muscle Gain">Muscle Gain</option>
-                          <option value="Endurance">Endurance</option>
-                          <option value="General Fitness">General Fitness</option>
-                          <option value="Rehabilitation">Rehabilitation</option>
+                          {GOALS_OPTIONS.map((opt) => (
+                            <option key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </option>
+                          ))}
                         </select>
                       </div>
 
@@ -1338,12 +1725,11 @@ const ProgramGeneratorModal: React.FC<ProgramGeneratorModalProps> = ({
                           className="focus:border-orange-light/50 focus:ring-orange-light/20 w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-white focus:outline-none focus:ring-2"
                           required
                         >
-                          <option value="Fat Loss">Fat Loss</option>
-                          <option value="Strength">Strength</option>
-                          <option value="Muscle Gain">Muscle Gain</option>
-                          <option value="Endurance">Endurance</option>
-                          <option value="General Fitness">General Fitness</option>
-                          <option value="Rehabilitation">Rehabilitation</option>
+                          {GOALS_OPTIONS.map((opt) => (
+                            <option key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </option>
+                          ))}
                         </select>
                       </div>
                     </div>
@@ -1359,7 +1745,19 @@ const ProgramGeneratorModal: React.FC<ProgramGeneratorModalProps> = ({
                     >
                       Cancel
                     </button>
-                    <div className="order-1 flex flex-col gap-2 sm:order-2 sm:flex-row">
+                    <div className="order-1 flex flex-col gap-2 sm:order-2 sm:flex-row sm:flex-wrap">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          handleGenerateScaffold(e);
+                        }}
+                        disabled={loading}
+                        className="hover:bg-orange-light/90 flex items-center gap-2 rounded-lg bg-orange-light px-6 py-2 font-medium text-black transition-colors disabled:opacity-50"
+                      >
+                        <Sparkles className="h-5 w-5" />
+                        <span>{loading ? 'Generating...' : 'Generate scaffold'}</span>
+                      </button>
                       <button
                         type="button"
                         onClick={(e) => {
@@ -1384,10 +1782,10 @@ const ProgramGeneratorModal: React.FC<ProgramGeneratorModalProps> = ({
                           handleGenerateChain(e);
                         }}
                         disabled={loading}
-                        className="hover:bg-orange-light/90 flex items-center gap-2 rounded-lg bg-orange-light px-6 py-2 font-medium text-black transition-colors disabled:opacity-50"
+                        className="flex items-center gap-2 rounded-lg border border-white/20 bg-black/20 px-6 py-2 font-medium text-white transition-colors hover:bg-white/5 disabled:opacity-50"
                       >
                         <Sparkles className="h-5 w-5" />
-                        <span>{loading ? 'Generating...' : 'Generate Program'}</span>
+                        <span>{loading ? 'Generating...' : 'Generate Program (one-shot)'}</span>
                       </button>
                     </div>
                   </div>

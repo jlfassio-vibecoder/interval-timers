@@ -45,7 +45,7 @@ const SyncToCalendarModal: React.FC<SyncToCalendarModalProps> = ({
     }
   }, [isOpen, currentStartDate]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
     onSave(startDate);
   };
