@@ -1,4 +1,3 @@
-import React from 'react';
 import { WORKOUT_DATABASE, TABATA_PROTOCOL_LABELS } from './interval-timer-setup-data';
 import type { TabataWorkoutCategory } from './interval-timer-setup-data';
 import { TABATA_DEFAULT_CYCLES } from './interval-timer-setup-data';

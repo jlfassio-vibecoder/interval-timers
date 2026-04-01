@@ -69,7 +69,7 @@ export interface UseVisualizationLabReturn {
     loading: boolean;
     result: BiomechanicalPoints | null;
     error: string | null;
-    handleSubmit: (e: React.FormEvent) => Promise<void>;
+    handleSubmit: (e: React.SyntheticEvent) => Promise<void>;
     clearResult: () => void;
     reviewPromptsBeforeGenerate: boolean;
     setReviewPromptsBeforeGenerate: (v: boolean) => void;
@@ -262,7 +262,7 @@ export function useVisualizationLab(
     cancelPromptReviewRef.current?.();
   }, [outputMode]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     await generation.submit();
   };

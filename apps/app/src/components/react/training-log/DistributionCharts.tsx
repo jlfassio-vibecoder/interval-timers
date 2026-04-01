@@ -14,7 +14,7 @@ import {
   Tooltip,
   ResponsiveContainer,
   CartesianGrid,
-  Cell,
+  Rectangle,
 } from 'recharts';
 
 const CHART_COLORS = [
@@ -101,15 +101,25 @@ const DistributionCharts: React.FC<DistributionChartsProps> = ({
               formatter={(value: unknown) => [`${Number(value) || 0} min`, 'Minutes']}
               labelStyle={{ color: 'rgba(255,255,255,0.8)' }}
             />
-            <Bar dataKey="minutes" radius={[0, 4, 4, 0]}>
-              {data.map((_, index) => (
-                <Cell
-                  key={`cell-${index}`}
-                  fill={CHART_COLORS[index % CHART_COLORS.length]}
-                  fillOpacity={0.8}
-                />
-              ))}
-            </Bar>
+            <Bar
+              dataKey="minutes"
+              radius={[0, 4, 4, 0]}
+              shape={(props) => {
+                const { x = 0, y = 0, width = 0, height = 0, index = 0 } = props;
+                const fill = CHART_COLORS[index % CHART_COLORS.length];
+                return (
+                  <Rectangle
+                    x={x}
+                    y={y}
+                    width={width}
+                    height={height}
+                    radius={[0, 4, 4, 0]}
+                    fill={fill}
+                    fillOpacity={0.8}
+                  />
+                );
+              }}
+            />
           </BarChart>
         </ResponsiveContainer>
       </div>

@@ -259,7 +259,7 @@ const RegenerateImageModal: React.FC<RegenerateImageModalProps> = ({
     }
   };
 
-  const handleGenerate = async (e: React.FormEvent) => {
+  const handleGenerate = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);

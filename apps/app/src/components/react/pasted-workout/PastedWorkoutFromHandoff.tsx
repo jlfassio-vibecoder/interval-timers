@@ -6,7 +6,7 @@
  * Shows parsed-content landing first; "Start Workout" opens PastedWorkoutSession.
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAppContext } from '@/contexts/AppContext';
 import { getExercisesFromWorkout } from '@/lib/program-schedule-utils';
 import PastedWorkoutSession from './PastedWorkoutSession';

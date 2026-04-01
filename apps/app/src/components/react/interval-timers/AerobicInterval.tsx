@@ -14,7 +14,7 @@ import {
   YAxis,
   Tooltip,
   ResponsiveContainer,
-  Cell,
+  Rectangle,
   CartesianGrid,
   LineChart,
   Line,
@@ -383,22 +383,24 @@ const AerobicInterval: React.FC<AerobicIntervalProps> = ({ onNavigate }) => {
                         border: '1px solid rgba(255,255,255,0.1)',
                       }}
                     />
-                    <Bar dataKey={metric} radius={[6, 6, 0, 0]}>
-                      {impactData.map((entry, index) => (
-                        <Cell
-                          key={`cell-${index}`}
-                          fill={
-                            metric === 'vo2'
-                              ? index === 1
-                                ? '#4f46e5'
-                                : 'rgba(148,163,184,0.5)'
-                              : index === 1
-                                ? '#06b6d4'
-                                : 'rgba(148,163,184,0.5)'
-                          }
-                        />
-                      ))}
-                    </Bar>
+                    <Bar
+                      dataKey={metric}
+                      radius={[6, 6, 0, 0]}
+                      shape={(props) => {
+                        const { x = 0, y = 0, width = 0, height = 0, index = 0 } = props;
+                        const fill =
+                          metric === 'vo2'
+                            ? index === 1
+                              ? '#4f46e5'
+                              : 'rgba(148,163,184,0.5)'
+                            : index === 1
+                              ? '#06b6d4'
+                              : 'rgba(148,163,184,0.5)';
+                        return (
+                          <Rectangle x={x} y={y} width={width} height={height} radius={[6, 6, 0, 0]} fill={fill} />
+                        );
+                      }}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </div>

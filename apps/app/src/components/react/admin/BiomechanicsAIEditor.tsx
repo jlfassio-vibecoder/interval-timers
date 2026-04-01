@@ -86,7 +86,7 @@ const BiomechanicsAIEditor: React.FC<BiomechanicsAIEditorProps> = ({
           )
         : SECTION_KEYS;
 
-  const handleGenerate = async (e: React.FormEvent) => {
+  const handleGenerate = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);

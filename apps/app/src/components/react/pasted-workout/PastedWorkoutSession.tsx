@@ -6,7 +6,7 @@
  * Used by PastedWorkoutFromHandoff; saves to user_workout_logs with universal_activity_hub.
  */
 
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import WorkoutPlayer from '@/components/react/tracking/WorkoutPlayer';
 import type { WorkoutSetTemplate } from '@/types/ai-workout';
 

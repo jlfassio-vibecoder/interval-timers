@@ -23,10 +23,6 @@ export interface SessionHistoryItem {
   programTitle?: string;
 }
 
-function _todayISO(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
 function getThisWeekRange(): { start: string; end: string } {
   const d = new Date();
   const day = d.getDay();

@@ -13,13 +13,42 @@ import type {
   ProgressionProtocol,
 } from '@/types/ai-program';
 
+/** Summarize last week's sets/reps/RPE from previous phase for Mathematician baselines. */
+function summarizePreviousPhaseForMathematician(previousPhaseWorkouts: ProgramSchedule[]): string {
+  if (previousPhaseWorkouts.length === 0) return '';
+  const lastWeek = previousPhaseWorkouts[previousPhaseWorkouts.length - 1];
+  const lines: string[] = [];
+  for (const w of lastWeek?.workouts ?? []) {
+    const blocks = w.exerciseBlocks ?? (w.blocks ? [{ exercises: w.blocks }] : []);
+    for (const b of blocks) {
+      for (const e of b.exercises ?? []) {
+        const ex = e as {
+          exerciseName?: string;
+          sets?: number;
+          reps?: string | number;
+          rpe?: number;
+        };
+        const reps = ex.reps != null ? String(ex.reps) : '—';
+        const rpe = ex.rpe != null ? `RPE ${ex.rpe}` : '';
+        lines.push(`  - ${ex.exerciseName ?? 'Unknown'}: ${ex.sets ?? '?'} sets × ${reps} ${rpe}`.trim());
+      }
+    }
+  }
+  return `
+=== PREVIOUS PHASE FINAL WEEK (continue progression from these baselines) ===
+${lines.join('\n') || 'None'}
+`;
+}
+
 /**
  * Build the prompt for Step 4: The Mathematician
+ * When previousPhaseWorkouts is provided, includes last week's numbers so progression continues.
  */
 export function buildMathematicianPrompt(
   architect: ArchitectBlueprint,
   exercises: ExerciseSelection[],
-  durationWeeks: number
+  durationWeeks: number,
+  previousPhaseWorkouts?: ProgramSchedule[]
 ): string {
   const exercisesDescription = exercises
     .map((day) => {
@@ -31,9 +60,14 @@ export function buildMathematicianPrompt(
     .join('\n\n');
 
   const protocolInstructions = getProtocolInstructions(architect.progression_protocol);
+  const previousPhaseSection =
+    previousPhaseWorkouts && previousPhaseWorkouts.length > 0
+      ? summarizePreviousPhaseForMathematician(previousPhaseWorkouts)
+      : '';
 
   return `Role: You are the Progression Mathematician.
 Task: Generate week-by-week numbers for each exercise across ${durationWeeks} weeks.
+${previousPhaseSection}
 
 === PROGRESSION PROTOCOL: ${architect.progression_protocol.toUpperCase()} ===
 ${protocolInstructions}
@@ -129,8 +163,6 @@ function getProtocolInstructions(protocol: ProgressionProtocol): string {
 
 /**
  * Validate Step 4 output.
- * Intentionally does not enforce schedule length vs expected weeks: partial schedules
- * are allowed and the UI offers "Generate Missing N Weeks" via extend-program.
  */
 export function validateMathematicianOutput(
   data: unknown
@@ -149,6 +181,8 @@ export function validateMathematicianOutput(
     return { valid: false, error: 'schedule must have at least one week' };
   }
 
+  // Mathematician output uses local 1-based week numbers for this phase only.
+  // build-phase.ts remaps to global week numbers (startWeek + i); do not ask the prompt for global weeks.
   for (let i = 0; i < obj.schedule.length; i++) {
     const week = obj.schedule[i] as Record<string, unknown>;
 
@@ -183,14 +217,12 @@ export function validateMathematicianOutput(
         return { valid: false, error: `Week ${i + 1}, Workout ${j + 1}: description is required` };
       }
 
-      // Accept either blocks (legacy flat exercises) or exerciseBlocks (groups of exercises)
       const exerciseBlocks = workout.exerciseBlocks as
         | Array<{ exercises?: Array<Record<string, unknown>> }>
         | undefined;
       const blocks = workout.blocks as Array<Record<string, unknown>> | undefined;
 
       if (exerciseBlocks && Array.isArray(exerciseBlocks) && exerciseBlocks.length > 0) {
-        // Validate exerciseBlocks: each block has exercises array
         for (let k = 0; k < exerciseBlocks.length; k++) {
           const block = exerciseBlocks[k];
           const exercises = block?.exercises;
@@ -229,7 +261,6 @@ export function validateMathematicianOutput(
           }
         }
       } else if (blocks && Array.isArray(blocks) && blocks.length > 0) {
-        // Validate legacy blocks (flat exercises)
         for (let k = 0; k < blocks.length; k++) {
           const block = blocks[k];
 

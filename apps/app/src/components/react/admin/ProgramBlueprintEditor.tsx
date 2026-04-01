@@ -32,17 +32,37 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import type { ProgramTemplate, WarmupBlock, Exercise, ExerciseBlock } from '@/types/ai-program';
+import type {
+  ProgramTemplate,
+  ProgramTemplateScaffold,
+  WarmupBlock,
+  Exercise,
+  ExerciseBlock,
+} from '@/types/ai-program';
 import { validateWorkoutDescriptions } from '@/lib/validate-program-schedule';
 import { normalizeWorkoutForEditor } from '@/lib/program-schedule-utils';
 import { getGeneratedExercises } from '@/lib/supabase/client/generated-exercises';
 import type { GeneratedExercise } from '@/types/generated-exercise';
-import { buildApprovedExerciseMaps, normalizeExerciseName } from '@/lib/approved-exercise-maps';
+import { buildApprovedExerciseMaps, normalizeExerciseName } from '@interval-timers/exercise-mapping';
 import type { Exercise as PublicExercise } from '@/types';
 import type { ExtendedBiomechanics } from '@/components/react/ExerciseDetailModal';
 import ExerciseMapPickerModal from '@/components/react/admin/ExerciseMapPickerModal';
 import WarmupLikeBlockList from '@/components/react/admin/WarmupLikeBlockList';
 import ExerciseDetailModal from '@/components/react/ExerciseDetailModal';
+
+/** Compute the first phase whose weeks are not yet built (for scaffold flow). */
+function getNextPhaseIndex(
+  scaffold: ProgramTemplateScaffold,
+  scheduleLength: number
+): number | undefined {
+  let cumulative = 0;
+  const sorted = [...scaffold.phases].sort((a, b) => a.phaseIndex - b.phaseIndex);
+  for (const p of sorted) {
+    if (cumulative + p.weeks > scheduleLength) return p.phaseIndex;
+    cumulative += p.weeks;
+  }
+  return undefined;
+}
 
 interface ProgramBlueprintEditorProps {
   initialData: ProgramTemplate;
@@ -50,6 +70,13 @@ interface ProgramBlueprintEditorProps {
   onCancel: () => void;
   /** Called when dirty state changes (program differs from initialData). */
   onDirtyChange?: (isDirty: boolean) => void;
+  /** When set, show "Generate Phase N" instead of "Generate Missing N Weeks" and call onBuildPhase. */
+  scaffold?: ProgramTemplateScaffold;
+  scaffoldProgramId?: string;
+  /** Callback to build the next phase (receives current program so trainer edits are included). */
+  onBuildPhase?: (phaseIndex: number, currentProgram: ProgramTemplate) => Promise<void>;
+  /** When building this phase index, show "Generating..." and disable the button. */
+  buildingPhaseIndex?: number | null;
 }
 
 /** Ensure each block and exercise has a stable id for React keys and DnD. */
@@ -159,6 +186,10 @@ const ProgramBlueprintEditor: React.FC<ProgramBlueprintEditorProps> = ({
   onSave,
   onCancel,
   onDirtyChange,
+  scaffold,
+  scaffoldProgramId,
+  onBuildPhase,
+  buildingPhaseIndex,
 }) => {
   const [program, setProgram] = useState<ProgramTemplate>(() =>
     normalizeScheduleForEditor(initialData)
@@ -229,6 +260,17 @@ const ProgramBlueprintEditor: React.FC<ProgramBlueprintEditorProps> = ({
 
   // Detect if the program is missing weeks (schedule length < durationWeeks)
   const missingWeeks = Math.max(0, program.durationWeeks - program.schedule.length);
+  // When using scaffold, next phase to build (first phase whose weeks are not yet built)
+  const nextPhaseIndex =
+    scaffold && scaffold.phases.length > 0
+      ? getNextPhaseIndex(scaffold, program.schedule.length)
+      : undefined;
+  const useScaffoldFlow =
+    Boolean(scaffold && scaffoldProgramId && onBuildPhase && nextPhaseIndex !== undefined);
+  const handleBuildPhaseClick = async () => {
+    if (!useScaffoldFlow || nextPhaseIndex == null || !onBuildPhase) return;
+    await onBuildPhase(nextPhaseIndex, program);
+  };
 
   const handleExtendProgram = async () => {
     if (missingWeeks <= 0) return;
@@ -1406,7 +1448,7 @@ const ProgramBlueprintEditor: React.FC<ProgramBlueprintEditorProps> = ({
         ))}
       </div>
 
-      {/* Partial Program Notice */}
+      {/* Partial Program Notice: scaffold flow = "Generate Phase N", else legacy "Generate Missing N Weeks" */}
       {missingWeeks > 0 && (
         <div className="border-orange-light/30 bg-orange-light/10 flex items-center justify-between gap-4 rounded-lg border p-4">
           <div className="flex items-center gap-3">
@@ -1416,19 +1458,37 @@ const ProgramBlueprintEditor: React.FC<ProgramBlueprintEditorProps> = ({
               <span className="font-bold">{program.durationWeeks}</span> weeks.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={handleExtendProgram}
-            disabled={extending || saving}
-            className="bg-orange-light/20 hover:bg-orange-light/30 flex items-center gap-2 rounded-lg border border-orange-light px-4 py-2 text-sm font-medium text-orange-light transition-colors disabled:opacity-50"
-          >
-            <RefreshCw className={`h-4 w-4 ${extending ? 'animate-spin' : ''}`} />
-            <span>
-              {extending
-                ? 'Generating...'
-                : `Generate Missing ${missingWeeks} Week${missingWeeks > 1 ? 's' : ''}`}
-            </span>
-          </button>
+          {useScaffoldFlow ? (
+            <button
+              type="button"
+              onClick={handleBuildPhaseClick}
+              disabled={extending || saving || buildingPhaseIndex != null}
+              className="bg-orange-light/20 hover:bg-orange-light/30 flex items-center gap-2 rounded-lg border border-orange-light px-4 py-2 text-sm font-medium text-orange-light transition-colors disabled:opacity-50"
+            >
+              <RefreshCw
+                className={`h-4 w-4 ${buildingPhaseIndex === nextPhaseIndex ? 'animate-spin' : ''}`}
+              />
+              <span>
+                {buildingPhaseIndex === nextPhaseIndex
+                  ? 'Generating...'
+                  : `Generate Phase ${nextPhaseIndex}`}
+              </span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleExtendProgram}
+              disabled={extending || saving}
+              className="bg-orange-light/20 hover:bg-orange-light/30 flex items-center gap-2 rounded-lg border border-orange-light px-4 py-2 text-sm font-medium text-orange-light transition-colors disabled:opacity-50"
+            >
+              <RefreshCw className={`h-4 w-4 ${extending ? 'animate-spin' : ''}`} />
+              <span>
+                {extending
+                  ? 'Generating...'
+                  : `Generate Missing ${missingWeeks} Week${missingWeeks > 1 ? 's' : ''}`}
+              </span>
+            </button>
+          )}
         </div>
       )}
 

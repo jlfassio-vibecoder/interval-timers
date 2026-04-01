@@ -7,11 +7,7 @@
  * Renders the AI-generated HTML guide for a specific exercise.
  * Sanitizes HTML and sets CSP to mitigate XSS from stored content.
  */
-import { randomBytes } from 'node:crypto';
 import { getGeneratedExerciseBySlug } from '@/lib/supabase/public/generated-exercise-service';
-import { normalizeMathSymbols } from '@/lib/normalize-math-symbols';
-import { prepareDeepDiveDocument } from '@/lib/prepare-deep-dive-document';
-import { sanitizeDeepDiveHtml } from '@/lib/sanitize-deep-dive-html';
 
 export const prerender = false;
 
@@ -31,29 +27,15 @@ if (!exercise) {
 const { deepDiveHtmlContent } = exercise;
 
 if (deepDiveHtmlContent) {
-  const sanitized = sanitizeDeepDiveHtml(deepDiveHtmlContent);
-  const withNormalizedMath = normalizeMathSymbols(sanitized, { htmlSafe: true });
-  const baseUrl = Astro.site?.href?.replace(/\/$/, '') || new URL(Astro.request.url).origin;
-  const nonce = randomBytes(16).toString('base64');
-  const metaInput = {
+  return (await import('@/lib/deep-dive-learn-response')).deepDiveLearnResponse(deepDiveHtmlContent, {
     exerciseName: exercise.exerciseName,
     slug,
-    baseUrl,
+    baseUrl: Astro.site?.href?.replace(/\/$/, '') || new URL(Astro.request.url).origin,
     imageUrl: exercise.imageUrl ?? '',
     performanceCues: exercise.biomechanics?.performanceCues ?? [],
     complexityLevel: exercise.complexityLevel,
-    nonce,
+    nonce: (await import('node:crypto')).randomBytes(16).toString('base64'),
     sources: exercise.sources ?? [],
-  };
-  const prepared = prepareDeepDiveDocument(withNormalizedMath, metaInput);
-  // Restrict script to trusted CDNs; allow inline JSON-LD script via nonce
-  const csp = `default-src 'self'; script-src 'self' 'nonce-${nonce}' https://cdn.tailwindcss.com https://cdn.jsdelivr.net https://unpkg.com; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: https:; font-src 'self' https:; connect-src 'self'; frame-ancestors 'self'; base-uri 'self'; form-action 'none'`;
-  return new Response(prepared, {
-    headers: {
-      'Content-Type': 'text/html; charset=utf-8',
-      'Content-Security-Policy': csp,
-      'X-Content-Type-Options': 'nosniff',
-    },
   });
 }
 

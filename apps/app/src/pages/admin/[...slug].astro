@@ -1,7 +1,6 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import AdminDashboard from '../../components/react/admin/AdminDashboard';
-import { adminPaths } from '@/lib/admin/config';
 import { verifyTrainerOrAdminRequest } from '@/lib/supabase/admin/auth';
 
 export const prerender = false;
@@ -13,7 +12,7 @@ try {
   if (msg === 'UNAUTHORIZED') {
     return Astro.redirect('/?admin_required=1');
   }
-  return Astro.redirect(adminPaths.login);
+  return Astro.redirect(`${(await import('@/lib/admin/config')).ADMIN_BASE_PATH}/login`);
 }
 ---
 

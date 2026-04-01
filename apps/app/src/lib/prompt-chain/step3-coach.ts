@@ -6,24 +6,35 @@
  * Fills patterns with specific exercises based on available equipment.
  */
 
-import type { PatternSkeleton, ExerciseSelection } from '@/types/ai-program';
+import type { PatternSkeleton, ExerciseSelection, ProgramSchedule } from '@/types/ai-program';
+
+/** Extract exercise names from previous phase schedule for Coach context. */
+function getPreviousPhaseExerciseNames(previousPhaseWorkouts: ProgramSchedule[]): string[] {
+  const names = new Set<string>();
+  for (const week of previousPhaseWorkouts) {
+    for (const w of week.workouts ?? []) {
+      const blocks = w.exerciseBlocks ?? (w.blocks ? [{ exercises: w.blocks }] : []);
+      for (const b of blocks) {
+        for (const e of b.exercises ?? []) {
+          const name = (e as { exerciseName?: string }).exerciseName;
+          if (name?.trim()) names.add(name.trim());
+        }
+      }
+    }
+  }
+  return [...names];
+}
 
 /**
  * Build the prompt for Step 3: The Coach
- * @param hiitMode - When true, add guidance to deprioritize heavy barbell and favor DB/KB/bodyweight
+ * When previousPhaseWorkouts is provided, includes context to progress from those exercises.
  */
 export function buildCoachPrompt(
   patterns: PatternSkeleton,
   availableEquipment: string[],
-  hiitMode?: boolean
+  _hiitMode?: boolean,
+  previousPhaseWorkouts?: ProgramSchedule[]
 ): string {
-  const hiitNote =
-    hiitMode &&
-    `
-=== HIIT / METABOLIC CONDITIONING ===
-Deprioritize heavy barbell setups. Favor Dumbbells, Kettlebells, and Bodyweight for safety under fatigue.
-`;
-
   const daysDescription = patterns.days
     .map((day) => {
       const patternList = day.patterns
@@ -33,13 +44,21 @@ Deprioritize heavy barbell setups. Favor Dumbbells, Kettlebells, and Bodyweight 
     })
     .join('\n\n');
 
+  const previousPhaseSection =
+    previousPhaseWorkouts && previousPhaseWorkouts.length > 0
+      ? `
+=== PREVIOUS PHASE EXERCISES (progress from these) ===
+Previous phase used: ${getPreviousPhaseExerciseNames(previousPhaseWorkouts).join(', ') || 'none'}
+Consider progressing to harder variations or adding volume where appropriate.
+`
+      : '';
+
   return `Role: You are the Equipment Coach.
 Task: Fill each movement pattern with a SPECIFIC exercise based on available equipment.
 
 === AVAILABLE EQUIPMENT ===
 ${availableEquipment.length > 0 ? availableEquipment.join(', ') : 'Bodyweight only (no equipment)'}
-${hiitNote ?? ''}
-
+${previousPhaseSection}
 === PATTERN SKELETON FROM BIOMECHANIST ===
 ${daysDescription}
 
@@ -158,7 +177,6 @@ export function validateCoachOutput(
     }
   }
 
-  // Transform to ExerciseSelection[] format
   const selections: ExerciseSelection[] = (obj.selections as Record<string, unknown>[]).map(
     (s) => ({
       day_number: s.day_number as number,

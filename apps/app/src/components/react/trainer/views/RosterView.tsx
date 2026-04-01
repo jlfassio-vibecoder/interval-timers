@@ -213,7 +213,7 @@ const RosterView: React.FC = () => {
     );
   };
 
-  const submitInvite = async (e: React.FormEvent) => {
+  const submitInvite = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     setInviteMessage(null);
     setInviteSubmitting(true);

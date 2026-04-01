@@ -150,7 +150,7 @@ const ChallengeGeneratorModal: React.FC<ChallengeGeneratorModalProps> = ({
     if (!isOpen || !hasUnsavedBlueprintChanges || step !== 'preview') return;
     const handler = (e: BeforeUnloadEvent) => {
       e.preventDefault();
-      e.returnValue = '';
+      Reflect.set(e, 'returnValue', '');
     };
     window.addEventListener('beforeunload', handler);
     return () => window.removeEventListener('beforeunload', handler);
@@ -226,7 +226,7 @@ const ChallengeGeneratorModal: React.FC<ChallengeGeneratorModalProps> = ({
     durationWeeks: challengeConfig.requirements.durationWeeks,
   });
 
-  const handleGenerateArchitect = async (e: React.FormEvent) => {
+  const handleGenerateArchitect = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     setError(null);
 
@@ -293,7 +293,7 @@ const ChallengeGeneratorModal: React.FC<ChallengeGeneratorModalProps> = ({
     }
   };
 
-  const handleGenerateChain = async (e: React.FormEvent) => {
+  const handleGenerateChain = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     setError(null);
 

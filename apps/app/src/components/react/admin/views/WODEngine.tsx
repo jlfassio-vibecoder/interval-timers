@@ -259,7 +259,7 @@ const WODEngine: React.FC = () => {
     setError(null);
   };
 
-  const handleGenerate = async (e: React.FormEvent) => {
+  const handleGenerate = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     setError(null);
     setGeneratedWOD(null);

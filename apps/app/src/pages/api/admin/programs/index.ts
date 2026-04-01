@@ -10,7 +10,6 @@ import type { ProgramTemplate, ProgramConfig, PromptChainMetadata } from '@/type
 
 export const POST: APIRoute = async ({ request, cookies }) => {
   try {
-    // Verify admin authentication (extracts token from cookies or Authorization header)
     const adminInfo = await verifyTrainerOrAdminRequest(request, cookies);
 
     // Parse request body
@@ -74,7 +73,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     // Handle authentication/authorization errors
     if (error instanceof Error) {
       if (error.message === 'UNAUTHENTICATED' || error.message === 'UNAUTHORIZED') {
-        return new Response(JSON.stringify({ error: 'Unauthorized. Admin access required.' }), {
+        return new Response(JSON.stringify({ error: 'Unauthorized. Sign in as a trainer or admin.' }), {
           status: 401,
           headers: { 'Content-Type': 'application/json' },
         });

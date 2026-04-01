@@ -5,7 +5,7 @@
  * Library editor for pasted workouts: read-only view, Edit toggle, Save to user_saved_workouts.
  */
 
-import React, { useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { X, Pencil, Check } from 'lucide-react';
 import { useAppContext } from '@/contexts/AppContext';
 import { getExercisesFromWorkout, normalizeWorkoutSet } from '@/lib/program-schedule-utils';

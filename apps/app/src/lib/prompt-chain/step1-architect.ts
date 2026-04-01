@@ -6,7 +6,13 @@
  * Establishes constraints and progression logic before picking exercises.
  */
 
-import type { ProgramPersona, ArchitectBlueprint, ProgressionProtocol } from '@/types/ai-program';
+import type {
+  ProgramPersona,
+  ArchitectBlueprint,
+  ProgressionProtocol,
+  PhaseScaffold,
+  ProgramSchedule,
+} from '@/types/ai-program';
 
 interface ZoneContext {
   zoneName: string;
@@ -14,12 +20,61 @@ interface ZoneContext {
   biomechanicalConstraints: string[];
 }
 
+/** Summarize previous phase schedule for Architect context (days, split, exercise names). */
+function summarizePreviousPhaseForArchitect(previousPhaseWorkouts: ProgramSchedule[]): string {
+  if (previousPhaseWorkouts.length === 0) return '';
+  const lastWeek = previousPhaseWorkouts[previousPhaseWorkouts.length - 1];
+  const daySummaries = (lastWeek?.workouts ?? []).map((w, i) => {
+    const blocks = w.exerciseBlocks ?? (w.blocks ? [{ exercises: w.blocks }] : []);
+    const names = blocks.flatMap((b) =>
+      (b.exercises ?? []).map((e) => (e as { exerciseName?: string }).exerciseName ?? '')
+    );
+    return `Day ${i + 1}: ${w.title} — ${names.filter(Boolean).join(', ') || '(no exercises)'}`;
+  });
+  return `
+=== PREVIOUS PHASE STRUCTURE (progress from this) ===
+Weeks already built: ${previousPhaseWorkouts.length}. Last week structure:
+${daySummaries.join('\n')}
+
+Design this phase to progress from that (e.g. same or similar split, increased volume or intensity).`;
+}
+
 /**
  * Build the prompt for Step 1: The Architect
+ * When phaseContext is provided, designs for that phase only (phase-scoped build).
+ * When previousPhaseWorkouts is provided, includes context so this phase progresses from it.
  */
-export function buildArchitectPrompt(persona: ProgramPersona, zoneContext?: ZoneContext): string {
-  const { title, description, demographics, medical, goals, durationWeeks } = persona;
-  const programDuration = durationWeeks || 6;
+export function buildArchitectPrompt(
+  persona: ProgramPersona,
+  zoneContext?: ZoneContext,
+  phaseContext?: PhaseScaffold,
+  previousPhaseWorkouts?: ProgramSchedule[]
+): string {
+  const { title, description, demographics, medical, goals, durationWeeks, daysPerWeek } = persona;
+  const programDuration = phaseContext ? phaseContext.weeks : (durationWeeks || 6);
+  const phaseSection = phaseContext
+    ? `
+=== PHASE CONTEXT (this phase only) ===
+Phase: ${phaseContext.name}
+Weeks in this phase: ${phaseContext.weeks}
+Focus: ${phaseContext.focus}
+${phaseContext.instructions ? `Instructions: ${phaseContext.instructions}` : ''}
+${phaseContext.daysPerWeek ? `Training days per week for this phase: ${phaseContext.daysPerWeek}` : ''}
+`
+    : '';
+  const previousPhaseSection =
+    previousPhaseWorkouts && previousPhaseWorkouts.length > 0
+      ? summarizePreviousPhaseForArchitect(previousPhaseWorkouts)
+      : '';
+  const experienceLine =
+    demographics.experienceLevel === 'any'
+      ? '- Experience Level: Any (suitable for all levels)'
+      : `- Experience Level: ${demographics.experienceLevel}`;
+  const effectiveDays =
+    phaseContext?.daysPerWeek ?? (typeof daysPerWeek === 'number' && daysPerWeek >= 2 && daysPerWeek <= 6 ? daysPerWeek : undefined);
+  const daysHint = effectiveDays
+    ? `\nPreferred training frequency: ${effectiveDays} days per week.`
+    : '';
 
   const equipmentSection = zoneContext
     ? `
@@ -37,25 +92,27 @@ ${medical.conditions ? `- Conditions: ${medical.conditions}` : ''}`
       : '';
 
   return `Role: You are the Macro-Cycle Architect (PhD Exercise Physiology).
-Task: Establish the constraints and progression logic for a ${programDuration}-week program BEFORE picking any exercises.
-
+Task: Establish the constraints and progression logic for ${phaseContext ? `this ${programDuration}-week phase only` : `a ${programDuration}-week program`} BEFORE picking any exercises.
+${phaseSection}
 === USER PROFILE ===
 Title: ${title || '(Auto-generate)'}
 Description: ${description || '(Auto-generate based on goals)'}
 
 Demographics:
 - Age Range: ${demographics.ageRange}
-- Sex: ${demographics.sex}
+- ${demographics.sex === 'Universal' ? 'Target: Universal (gender-neutral; design for any user without gender-specific programming)' : `Sex: ${demographics.sex}`}
 - Weight: ${demographics.weight} lbs
-- Experience Level: ${demographics.experienceLevel}
+${experienceLine}
 ${medicalSection}
+${daysHint}
 
 Goals:
 - Primary: ${goals.primary}
 - Secondary: ${goals.secondary}
 ${equipmentSection}
 
-Program Duration: ${programDuration} weeks
+Program Duration: ${programDuration} weeks${phaseContext ? ' (this phase only)' : ''}
+${previousPhaseSection}
 
 === YOUR TASK ===
 Select ONE of these three progression protocols based on the user profile:

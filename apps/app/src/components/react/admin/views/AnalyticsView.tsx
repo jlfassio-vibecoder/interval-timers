@@ -26,7 +26,6 @@ import {
   CartesianGrid,
   PieChart,
   Pie,
-  Cell,
   Legend,
   BarChart,
   Bar,
@@ -855,8 +854,8 @@ const AnalyticsView: React.FC = () => {
                     <PieChart>
                       <Pie
                         data={[
-                          { name: 'OAuth', value: authFunnel.oauthVsEmail.oauth, color: '#22c55e' },
-                          { name: 'Email', value: authFunnel.oauthVsEmail.email, color: '#ffbf00' },
+                          { name: 'OAuth', value: authFunnel.oauthVsEmail.oauth, fill: '#22c55e' },
+                          { name: 'Email', value: authFunnel.oauthVsEmail.email, fill: '#ffbf00' },
                         ]}
                         dataKey="value"
                         nameKey="name"
@@ -868,11 +867,7 @@ const AnalyticsView: React.FC = () => {
                         label={({ name, percent }) =>
                           `${name} ${((percent ?? 0) * 100).toFixed(0)}%`
                         }
-                      >
-                        {[{ color: '#22c55e' }, { color: '#ffbf00' }].map((c, i) => (
-                          <Cell key={i} fill={c.color} />
-                        ))}
-                      </Pie>
+                      />
                       <Tooltip
                         contentStyle={{
                           backgroundColor: 'rgba(0,0,0,0.8)',

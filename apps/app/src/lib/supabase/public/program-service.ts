@@ -6,6 +6,7 @@
  * Fetches published programs and Week 1 preview; Weeks 2+ only via entitlements.
  */
 
+import { difficultyFromPersonaFields } from '@/lib/program-difficulty';
 import { getSupabaseServer } from '@/lib/supabase/server';
 import type {
   ProgramMetadata,
@@ -38,22 +39,16 @@ type ProgramRow = {
   updated_at: string;
 };
 
-function parseDifficulty(
-  val: string | null | undefined,
-  fallback: UserDemographics['experienceLevel']
-): 'beginner' | 'intermediate' | 'advanced' {
-  if (val === 'beginner' || val === 'intermediate' || val === 'advanced') return val;
-  return fallback;
-}
-
 function rowToMetadata(row: ProgramRow): ProgramMetadata & { id: string } {
   const config = row.config ?? {};
-  const fallback = config.targetAudience?.experienceLevel ?? 'intermediate';
   return {
     id: row.id,
     title: row.title || 'Untitled Program',
     description: row.description ?? '',
-    difficulty: parseDifficulty(row.difficulty, fallback),
+    difficulty: difficultyFromPersonaFields(
+      row.difficulty,
+      config.targetAudience?.experienceLevel
+    ),
     durationWeeks: row.duration_weeks ?? 12,
     targetAudience: config.targetAudience ?? DEFAULT_TARGET_AUDIENCE,
     equipmentProfile: config.equipmentProfile,

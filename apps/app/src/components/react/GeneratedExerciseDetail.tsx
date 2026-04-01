@@ -31,6 +31,7 @@ import type {
   GeneratedExercise,
   GeneratedExerciseStatus,
   ExerciseImage,
+  SerializedGeneratedExercise,
 } from '@/types/generated-exercise';
 import { getExerciseImages } from '@/lib/supabase/client/exercise-gallery';
 import { normalizeListItems, filterRealSources } from '@/lib/parse-biomechanics';
@@ -39,7 +40,7 @@ import ExerciseImageCarousel from './ExerciseImageCarousel';
 import VideoPlayer from './VideoPlayer';
 
 interface GeneratedExerciseDetailProps {
-  exercise: GeneratedExercise;
+  exercise: GeneratedExercise | SerializedGeneratedExercise;
   /** Show admin controls (approve/reject) */
   isAdmin?: boolean;
   /** Handler for status updates (admin only) */

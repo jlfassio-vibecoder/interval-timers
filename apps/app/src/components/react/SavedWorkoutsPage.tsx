@@ -5,7 +5,7 @@
  * Lists saved workouts with Open (start session) and Schedule actions.
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAppContext } from '@/contexts/AppContext';
 import { listSavedWorkouts } from '@/lib/supabase/client/user-saved-workouts';
 import type { UserSavedWorkout } from '@/lib/supabase/client/user-saved-workouts';

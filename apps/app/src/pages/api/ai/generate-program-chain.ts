@@ -16,6 +16,7 @@ import type {
   PromptChainMetadata,
   ChainGenerationResponse,
 } from '@/types/ai-program';
+import { verifyTrainerOrAdminRequest } from '@/lib/supabase/admin/auth';
 import {
   getZoneByIdServer,
   getAllEquipmentItemsServer,
@@ -32,7 +33,7 @@ import {
   validateMathematicianOutput,
 } from '@/lib/prompt-chain';
 import { normalizeProgramSchedule } from '@/lib/program-schedule-utils';
-import { callVertexAI } from '@/lib/vertex-ai-client';
+import { callVertexAI, getVertexAICredentials } from '@/lib/vertex-ai-client';
 
 interface ZoneContext {
   zoneName: string;
@@ -44,9 +45,23 @@ interface ZoneContext {
 // Main Endpoint
 // ============================================================================
 
-export const POST: APIRoute = async ({ request }) => {
+export const POST: APIRoute = async ({ request, cookies }) => {
   const startTime = Date.now();
-
+  let caller: { uid: string };
+  try {
+    caller = await verifyTrainerOrAdminRequest(request, cookies);
+  } catch (e) {
+    if (e instanceof Error && (e.message === 'UNAUTHENTICATED' || e.message === 'UNAUTHORIZED')) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized. Sign in as a trainer or admin.' }),
+        { status: 401, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
   try {
     if (!request.body) {
       return new Response(JSON.stringify({ error: 'Request body is required' }), {
@@ -98,38 +113,9 @@ export const POST: APIRoute = async ({ request }) => {
       }
     }
 
-    // Get credentials
-    const projectId =
-      import.meta.env.GOOGLE_PROJECT_ID || import.meta.env.PUBLIC_FIREBASE_PROJECT_ID;
-    if (!projectId) {
-      return new Response(
-        JSON.stringify({ error: 'GOOGLE_PROJECT_ID environment variable is not set' }),
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const region = import.meta.env.GOOGLE_LOCATION || 'global';
-
-    let accessToken: string;
-    try {
-      const { GoogleAuth } = await import('google-auth-library');
-      const auth = new GoogleAuth({
-        scopes: ['https://www.googleapis.com/auth/cloud-platform'],
-        projectId,
-      });
-      const client = await auth.getClient();
-      const tokenResponse = await client.getAccessToken();
-      if (!tokenResponse.token) throw new Error('Failed to get access token');
-      accessToken = tokenResponse.token;
-    } catch (err) {
-      console.error('[generate-program-chain] Auth error:', err);
-      return new Response(
-        JSON.stringify({
-          error: 'Authentication failed. Run: gcloud auth application-default login',
-        }),
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
+    const creds = await getVertexAICredentials('[generate-program-chain]');
+    if ('error' in creds) return creds.error;
+    const { projectId, region, accessToken } = creds;
 
     // ========================================================================
     // STEP 1: THE ARCHITECT (or use provided blueprint from two-phase flow)
@@ -236,11 +222,11 @@ export const POST: APIRoute = async ({ request }) => {
     );
 
     // ========================================================================
-    // STEP 4: THE MATHEMATICIAN
+    // STEP 4: THE MATHEMATICIAN (heavy request; retry once on upstream/timeout)
     // ========================================================================
     console.warn('[generate-program-chain] Step 4: Mathematician...');
     const step4Prompt = buildMathematicianPrompt(architect, exercises, durationWeeks);
-    const step4Response = await callVertexAI({
+    const step4Options = {
       systemPrompt:
         'You are the Progression Mathematician. Generate week-by-week numbers. Output ONLY valid JSON.',
       userPrompt: step4Prompt,
@@ -248,10 +234,24 @@ export const POST: APIRoute = async ({ request }) => {
       projectId,
       region,
       temperature: 0.3,
-      maxTokens: 16384, // Large token limit for full schedule
-      timeoutMs: 900000, // 15 minutes timeout for large schedule generation
+      maxTokens: 16384,
+      timeoutMs: 900000,
       logPrefix: '[generate-program-chain]',
-    });
+    };
+    let step4Response: string;
+    try {
+      step4Response = await callVertexAI(step4Options);
+    } catch (step4Err) {
+      const msg = step4Err instanceof Error ? step4Err.message : String(step4Err);
+      const isRetryable = /non-JSON|upstream|timeout|gateway/i.test(msg);
+      if (isRetryable) {
+        console.warn('[generate-program-chain] Step 4 failed (upstream/timeout), retrying once in 5s...');
+        await new Promise((r) => setTimeout(r, 5000));
+        step4Response = await callVertexAI(step4Options);
+      } else {
+        throw step4Err;
+      }
+    }
 
     const step4Parsed = parseJSONWithRepair(step4Response);
     const step4Validation = validateMathematicianOutput(step4Parsed.data);
@@ -267,10 +267,14 @@ export const POST: APIRoute = async ({ request }) => {
     // ========================================================================
     // COMBINE RESULTS
     // ========================================================================
+    const difficulty =
+      persona.demographics.experienceLevel === 'any'
+        ? 'intermediate'
+        : persona.demographics.experienceLevel;
     const program: ProgramTemplate = normalizeProgramSchedule({
       title: persona.title || architect.program_name,
       description: persona.description || architect.rationale,
-      difficulty: persona.demographics.experienceLevel,
+      difficulty,
       durationWeeks,
       schedule,
     });
@@ -286,6 +290,7 @@ export const POST: APIRoute = async ({ request }) => {
     const response: ChainGenerationResponse = {
       program,
       chain_metadata: chainMetadata,
+      authorId: caller.uid,
     };
 
     const elapsedMs = Date.now() - startTime;

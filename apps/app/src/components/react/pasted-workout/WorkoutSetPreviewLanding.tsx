@@ -6,7 +6,6 @@
  * Mirrors Universal Activity Hub WorkoutSetPreview layout; adds Start Workout and back link.
  */
 
-import React from 'react';
 import { getExercisesFromWorkout } from '@/lib/program-schedule-utils';
 import type { WorkoutSetTemplate } from '@/types/ai-workout';
 import type { Exercise } from '@/types/ai-program';

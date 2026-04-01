@@ -6,7 +6,7 @@
  * Consumes handoff from Universal Activity Hub Log Past flow.
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAppContext } from '@/contexts/AppContext';
 import { normalizeFitnessGoalRanking } from '@/lib/fitness-goal-taxonomy';
 import { saveWorkoutLog } from '@/lib/supabase/client/workout-logs';

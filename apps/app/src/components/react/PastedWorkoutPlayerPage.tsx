@@ -6,7 +6,7 @@
  * renders reusable pasted-workout flow, saves to user_workout_logs.
  */
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import PastedWorkoutFromHandoff from '@/components/react/pasted-workout/PastedWorkoutFromHandoff';
 import PastedWorkoutTextEntry from '@/components/react/pasted-workout/PastedWorkoutTextEntry';
 import { getSavedWorkout } from '@/lib/supabase/client/user-saved-workouts';

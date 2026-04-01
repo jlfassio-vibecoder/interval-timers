@@ -65,7 +65,7 @@ const ExerciseBlockEditor: React.FC<ExerciseBlockEditorProps> = ({
     block.rounds,
   ]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
     const name = exerciseName.trim() || block.exerciseName || '';
     if (timerMode) {

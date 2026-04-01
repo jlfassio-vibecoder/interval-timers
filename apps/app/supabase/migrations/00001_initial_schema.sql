@@ -68,6 +68,7 @@ CREATE TABLE IF NOT EXISTS public.program_weeks (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   program_id uuid NOT NULL REFERENCES public.programs(id) ON DELETE CASCADE,
   week_number integer NOT NULL,
+  phase_number integer,
   content jsonb,
   created_at timestamptz DEFAULT now(),
   UNIQUE(program_id, week_number)

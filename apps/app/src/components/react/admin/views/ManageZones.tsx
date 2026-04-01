@@ -83,7 +83,7 @@ const ManageZones: React.FC = () => {
   };
 
   // Equipment handlers
-  const handleCreateEquipment = async (e: React.FormEvent) => {
+  const handleCreateEquipment = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!equipmentFormData.name.trim()) {
       setError('Equipment name is required');
@@ -139,7 +139,7 @@ const ManageZones: React.FC = () => {
     setShowZoneModal(true);
   };
 
-  const handleSaveZone = async (e: React.FormEvent) => {
+  const handleSaveZone = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!zoneFormData.name.trim()) {
       setError('Zone name is required');
