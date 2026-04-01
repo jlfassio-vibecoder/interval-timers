@@ -9,6 +9,8 @@ dist-ssr
 .vite
 .astro
 .vercel
+!apps/app/.vercel/
+!apps/app/.vercel/project.json
 *.local
 
 # Logs
