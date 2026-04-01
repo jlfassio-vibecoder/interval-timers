@@ -29,6 +29,7 @@ import {
 import type { WODIterationContext } from '@/lib/prompt-chain/wod-prescriber';
 import { parsePhaseDurationMinutes } from '@/lib/parse-phase-duration';
 import { getNextIterationNumber, getLineageId } from '@/lib/wod-utils';
+import { getVertexAICredentials } from '@/lib/vertex-ai-client';
 
 const MAX_ERROR_LOG_LENGTH = 500;
 const WOD_LEVELS: WODLevel[] = ['beginner', 'intermediate', 'advanced'];
@@ -218,36 +219,9 @@ export const POST: APIRoute = async ({ request }) => {
       }
     }
 
-    const projectId =
-      import.meta.env.GOOGLE_PROJECT_ID || import.meta.env.PUBLIC_FIREBASE_PROJECT_ID;
-    if (!projectId) {
-      return new Response(
-        JSON.stringify({ error: 'GOOGLE_PROJECT_ID environment variable is not set' }),
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const region = import.meta.env.GOOGLE_LOCATION || 'global';
-    let accessToken: string;
-    try {
-      const { GoogleAuth } = await import('google-auth-library');
-      const auth = new GoogleAuth({
-        scopes: ['https://www.googleapis.com/auth/cloud-platform'],
-        projectId,
-      });
-      const client = await auth.getClient();
-      const tokenResponse = await client.getAccessToken();
-      if (!tokenResponse.token) throw new Error('Failed to get access token');
-      accessToken = tokenResponse.token;
-    } catch (err) {
-      console.error('[generate-wod] Auth error:', err);
-      return new Response(
-        JSON.stringify({
-          error: 'Authentication failed. Run: gcloud auth application-default login',
-        }),
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
+    const creds = await getVertexAICredentials('[generate-wod]');
+    if ('error' in creds) return creds.error;
+    const { projectId, region, accessToken } = creds;
 
     // Build iteration context if in iteration mode
     let iterationContext: WODIterationContext | undefined;

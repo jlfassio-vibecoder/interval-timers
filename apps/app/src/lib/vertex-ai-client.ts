@@ -136,6 +136,36 @@ function hasAnyServiceAccountEnv(): boolean {
 }
 
 /**
+ * GCP project ID for API routes that still duplicate Vertex auth (prefer migrating to
+ * `getVertexAICredentials`). Order matches original `getVertexAICredentials`: **import.meta first**
+ * (Astro bakes `PUBLIC_*` at build), then `process.env` (Vercel runtime). Putting `process.env`
+ * first broke production when only `PUBLIC_FIREBASE_PROJECT_ID` was baked into `import.meta` and
+ * not present on `process.env` at runtime.
+ */
+export function resolveGoogleProjectId(): string | undefined {
+  hydrateVertexEnvFromDisk();
+  return (
+    import.meta.env?.GOOGLE_PROJECT_ID ||
+    import.meta.env?.PUBLIC_FIREBASE_PROJECT_ID ||
+    readProcessEnv('GOOGLE_PROJECT_ID') ||
+    readProcessEnv('GOOGLE_CLOUD_PROJECT_ID') ||
+    readProcessEnv('PUBLIC_FIREBASE_PROJECT_ID')
+  );
+}
+
+/** Vertex / Gemini region (e.g. us-central1, global). */
+export function resolveGoogleLocation(): string {
+  hydrateVertexEnvFromDisk();
+  return (
+    import.meta.env?.GOOGLE_LOCATION ||
+    readProcessEnv('GOOGLE_LOCATION') ||
+    readProcessEnv('GOOGLE_CLOUD_LOCATION') ||
+    readProcessEnv('VERTEX_LOCATION') ||
+    'global'
+  );
+}
+
+/**
  * Resolves project ID, region, and access token for Vertex AI.
  * Use in API routes: if ('error' in creds) return creds.error; then use creds.projectId, etc.
  *
@@ -146,21 +176,11 @@ export async function getVertexAICredentials(
 ): Promise<VertexAICredentials> {
   hydrateVertexEnvFromDisk();
 
-  const envProjectId =
-    import.meta.env?.GOOGLE_PROJECT_ID ||
-    import.meta.env?.PUBLIC_FIREBASE_PROJECT_ID ||
-    readProcessEnv('GOOGLE_PROJECT_ID') ||
-    readProcessEnv('GOOGLE_CLOUD_PROJECT_ID') ||
-    readProcessEnv('PUBLIC_FIREBASE_PROJECT_ID');
+  const envProjectId = resolveGoogleProjectId();
 
   const credentialsJsonRaw = resolveServiceAccountJsonRaw(logPrefix);
 
-  const region =
-    import.meta.env?.GOOGLE_LOCATION ||
-    readProcessEnv('GOOGLE_LOCATION') ||
-    readProcessEnv('GOOGLE_CLOUD_LOCATION') ||
-    readProcessEnv('VERTEX_LOCATION') ||
-    'global';
+  const region = resolveGoogleLocation();
 
   try {
     let projectId = envProjectId ?? undefined;

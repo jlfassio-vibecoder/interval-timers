@@ -16,7 +16,7 @@ import { parseJSONWithRepair } from '@/lib/json-parser';
 import { get as getParseCache, set as setParseCache } from '@/lib/parse-pasted-cache';
 import { normalizeWorkoutSet } from '@/lib/program-schedule-utils';
 import { buildParsePastedWorkoutPrompt } from '@/lib/prompt-chain/parse-pasted-workout-prompt';
-import { callVertexAI } from '@/lib/vertex-ai-client';
+import { callVertexAI, getVertexAICredentials } from '@/lib/vertex-ai-client';
 
 /** Max pasted text length (chars) to cap AI cost and abuse. */
 const MAX_RAW_TEXT_LENGTH = 48_000;
@@ -138,37 +138,28 @@ export const POST: APIRoute = async ({ request }) => {
     const userPrompt = buildParsePastedWorkoutPrompt(rawText);
     let responseText: string | null = null;
 
-    // Try Vertex AI first (requires GOOGLE_PROJECT_ID + gcloud auth)
-    const projectId =
-      import.meta.env.GOOGLE_PROJECT_ID || import.meta.env.PUBLIC_FIREBASE_PROJECT_ID;
-
-    if (projectId) {
-      const region = import.meta.env.GOOGLE_LOCATION || 'global';
+    // Try Vertex AI first (service account + project; same path as other /api/ai routes)
+    const vertexCreds = await getVertexAICredentials('[parse-pasted-workout]');
+    if (!('error' in vertexCreds)) {
+      const { projectId, region, accessToken } = vertexCreds;
       try {
-        const { GoogleAuth } = await import('google-auth-library');
-        const auth = new GoogleAuth({
-          scopes: ['https://www.googleapis.com/auth/cloud-platform'],
+        responseText = await callVertexAI({
+          systemPrompt: 'You are a fitness data parser. Output ONLY valid JSON, no markdown.',
+          userPrompt,
+          accessToken,
           projectId,
+          region,
+          temperature: 0.3,
+          maxTokens: 4096,
+          logPrefix: '[parse-pasted-workout]',
         });
-        const client = await auth.getClient();
-        const tokenResponse = await client.getAccessToken();
-        if (tokenResponse.token) {
-          responseText = await callVertexAI({
-            systemPrompt: 'You are a fitness data parser. Output ONLY valid JSON, no markdown.',
-            userPrompt,
-            accessToken: tokenResponse.token,
-            projectId,
-            region,
-            temperature: 0.3,
-            maxTokens: 4096,
-            logPrefix: '[parse-pasted-workout]',
-          });
-        }
       } catch (err) {
         if (import.meta.env.DEV) {
-          console.warn('[parse-pasted-workout] Vertex auth failed, trying Gemini:', err);
+          console.warn('[parse-pasted-workout] Vertex call failed, trying Gemini:', err);
         }
       }
+    } else if (import.meta.env.DEV) {
+      console.warn('[parse-pasted-workout] Vertex unavailable, trying Gemini');
     }
 
     // Fallback to Gemini when Vertex fails or is not configured
