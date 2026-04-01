@@ -9,6 +9,7 @@
 
 import type { APIRoute } from 'astro';
 import type { WODLevel } from '@/types';
+import { resolveGoogleLocation, resolveGoogleProjectId } from '@/lib/vertex-ai-client';
 
 const MAX_TITLE_LENGTH = 80;
 const WOD_LEVELS: WODLevel[] = ['beginner', 'intermediate', 'advanced'];
@@ -75,8 +76,7 @@ export const POST: APIRoute = async ({ request }) => {
       typeof body.description === 'string' ? body.description.slice(0, 500) : undefined;
     const genre = typeof body.genre === 'string' ? body.genre.slice(0, 200) : undefined;
 
-    const projectId =
-      import.meta.env.GOOGLE_PROJECT_ID || import.meta.env.PUBLIC_FIREBASE_PROJECT_ID;
+    const projectId = resolveGoogleProjectId();
     if (!projectId) {
       return new Response(
         JSON.stringify({ error: 'GOOGLE_PROJECT_ID environment variable is not set' }),
@@ -84,7 +84,7 @@ export const POST: APIRoute = async ({ request }) => {
       );
     }
 
-    const region = import.meta.env.GOOGLE_LOCATION || 'global';
+    const region = resolveGoogleLocation();
     let accessToken: string;
     try {
       const { GoogleAuth } = await import('google-auth-library');

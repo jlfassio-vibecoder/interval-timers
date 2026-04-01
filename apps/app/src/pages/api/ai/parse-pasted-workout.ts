@@ -16,7 +16,7 @@ import { parseJSONWithRepair } from '@/lib/json-parser';
 import { get as getParseCache, set as setParseCache } from '@/lib/parse-pasted-cache';
 import { normalizeWorkoutSet } from '@/lib/program-schedule-utils';
 import { buildParsePastedWorkoutPrompt } from '@/lib/prompt-chain/parse-pasted-workout-prompt';
-import { callVertexAI } from '@/lib/vertex-ai-client';
+import { callVertexAI, resolveGoogleLocation, resolveGoogleProjectId } from '@/lib/vertex-ai-client';
 
 /** Max pasted text length (chars) to cap AI cost and abuse. */
 const MAX_RAW_TEXT_LENGTH = 48_000;
@@ -139,11 +139,10 @@ export const POST: APIRoute = async ({ request }) => {
     let responseText: string | null = null;
 
     // Try Vertex AI first (requires GOOGLE_PROJECT_ID + gcloud auth)
-    const projectId =
-      import.meta.env.GOOGLE_PROJECT_ID || import.meta.env.PUBLIC_FIREBASE_PROJECT_ID;
+    const projectId = resolveGoogleProjectId();
 
     if (projectId) {
-      const region = import.meta.env.GOOGLE_LOCATION || 'global';
+      const region = resolveGoogleLocation();
       try {
         const { GoogleAuth } = await import('google-auth-library');
         const auth = new GoogleAuth({

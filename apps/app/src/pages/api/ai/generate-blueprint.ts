@@ -14,6 +14,7 @@ import {
   getAllEquipmentItemsServer,
 } from '@/lib/supabase/admin/server-equipment';
 import { parseJSONWithRepair } from '@/lib/json-parser';
+import { resolveGoogleLocation, resolveGoogleProjectId } from '@/lib/vertex-ai-client';
 
 // Maximum characters to log for API errors
 const MAX_ERROR_LOG_LENGTH = 500;
@@ -256,8 +257,7 @@ export const POST: APIRoute = async ({ request }) => {
     }
 
     // Check for required environment variable
-    const projectId =
-      import.meta.env.GOOGLE_PROJECT_ID || import.meta.env.PUBLIC_FIREBASE_PROJECT_ID;
+    const projectId = resolveGoogleProjectId();
     if (!projectId) {
       return new Response(
         JSON.stringify({
@@ -270,7 +270,7 @@ export const POST: APIRoute = async ({ request }) => {
       );
     }
 
-    const region = import.meta.env.GOOGLE_LOCATION || 'global';
+    const region = resolveGoogleLocation();
     const endpoint = `https://aiplatform.googleapis.com/v1/projects/${projectId}/locations/${region}/endpoints/openapi/chat/completions`;
 
     // Build prompt

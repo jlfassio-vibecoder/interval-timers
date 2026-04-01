@@ -38,7 +38,7 @@ import {
   validateWorkoutMathematicianOutput,
 } from '@/lib/prompt-chain/step4-workout-mathematician';
 import { normalizeWorkoutSet } from '@/lib/program-schedule-utils';
-import { callVertexAI } from '@/lib/vertex-ai-client';
+import { callVertexAI, resolveGoogleLocation, resolveGoogleProjectId } from '@/lib/vertex-ai-client';
 
 interface ZoneContext {
   zoneName: string;
@@ -212,8 +212,7 @@ export const POST: APIRoute = async ({ request }) => {
       }
     }
 
-    const projectId =
-      import.meta.env.GOOGLE_PROJECT_ID || import.meta.env.PUBLIC_FIREBASE_PROJECT_ID;
+    const projectId = resolveGoogleProjectId();
     if (!projectId) {
       return new Response(
         JSON.stringify({ error: 'GOOGLE_PROJECT_ID environment variable is not set' }),
@@ -221,7 +220,7 @@ export const POST: APIRoute = async ({ request }) => {
       );
     }
 
-    const region = import.meta.env.GOOGLE_LOCATION || 'global';
+    const region = resolveGoogleLocation();
 
     let accessToken: string;
     try {

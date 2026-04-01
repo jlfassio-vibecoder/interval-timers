@@ -11,6 +11,7 @@ import type { ProgramTemplate } from '@/types/ai-program';
 import { parseJSONWithRepair } from '@/lib/json-parser';
 import { normalizeProgramSchedule } from '@/lib/program-schedule-utils';
 import { requestScheduleLengthFix } from './generate-program';
+import { resolveGoogleLocation, resolveGoogleProjectId } from '@/lib/vertex-ai-client';
 
 interface ExtendProgramRequest {
   program: ProgramTemplate;
@@ -50,8 +51,7 @@ export const POST: APIRoute = async ({ request }) => {
     }
 
     // Check for required environment variable
-    const projectId =
-      import.meta.env.GOOGLE_PROJECT_ID || import.meta.env.PUBLIC_FIREBASE_PROJECT_ID;
+    const projectId = resolveGoogleProjectId();
     if (!projectId) {
       return new Response(
         JSON.stringify({
@@ -64,7 +64,7 @@ export const POST: APIRoute = async ({ request }) => {
       );
     }
 
-    const region = import.meta.env.GOOGLE_LOCATION || 'global';
+    const region = resolveGoogleLocation();
 
     // Get access token
     let accessToken: string;
