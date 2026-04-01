@@ -136,17 +136,20 @@ function hasAnyServiceAccountEnv(): boolean {
 }
 
 /**
- * GCP project ID for Vertex AI. Prefer `process.env` (Vercel injects at runtime) over
- * `import.meta.env`, which Vite does not populate for arbitrary keys unless defined in astro.config.
+ * GCP project ID for API routes that still duplicate Vertex auth (prefer migrating to
+ * `getVertexAICredentials`). Order matches original `getVertexAICredentials`: **import.meta first**
+ * (Astro bakes `PUBLIC_*` at build), then `process.env` (Vercel runtime). Putting `process.env`
+ * first broke production when only `PUBLIC_FIREBASE_PROJECT_ID` was baked into `import.meta` and
+ * not present on `process.env` at runtime.
  */
 export function resolveGoogleProjectId(): string | undefined {
   hydrateVertexEnvFromDisk();
   return (
+    import.meta.env?.GOOGLE_PROJECT_ID ||
+    import.meta.env?.PUBLIC_FIREBASE_PROJECT_ID ||
     readProcessEnv('GOOGLE_PROJECT_ID') ||
     readProcessEnv('GOOGLE_CLOUD_PROJECT_ID') ||
-    readProcessEnv('PUBLIC_FIREBASE_PROJECT_ID') ||
-    import.meta.env?.GOOGLE_PROJECT_ID ||
-    import.meta.env?.PUBLIC_FIREBASE_PROJECT_ID
+    readProcessEnv('PUBLIC_FIREBASE_PROJECT_ID')
   );
 }
 
@@ -154,10 +157,10 @@ export function resolveGoogleProjectId(): string | undefined {
 export function resolveGoogleLocation(): string {
   hydrateVertexEnvFromDisk();
   return (
+    import.meta.env?.GOOGLE_LOCATION ||
     readProcessEnv('GOOGLE_LOCATION') ||
     readProcessEnv('GOOGLE_CLOUD_LOCATION') ||
     readProcessEnv('VERTEX_LOCATION') ||
-    import.meta.env?.GOOGLE_LOCATION ||
     'global'
   );
 }

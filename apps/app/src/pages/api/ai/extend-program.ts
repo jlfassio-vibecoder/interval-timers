@@ -11,7 +11,7 @@ import type { ProgramTemplate } from '@/types/ai-program';
 import { parseJSONWithRepair } from '@/lib/json-parser';
 import { normalizeProgramSchedule } from '@/lib/program-schedule-utils';
 import { requestScheduleLengthFix } from './generate-program';
-import { resolveGoogleLocation, resolveGoogleProjectId } from '@/lib/vertex-ai-client';
+import { getVertexAICredentials } from '@/lib/vertex-ai-client';
 
 interface ExtendProgramRequest {
   program: ProgramTemplate;
@@ -50,49 +50,9 @@ export const POST: APIRoute = async ({ request }) => {
       });
     }
 
-    // Check for required environment variable
-    const projectId = resolveGoogleProjectId();
-    if (!projectId) {
-      return new Response(
-        JSON.stringify({
-          error: 'GOOGLE_PROJECT_ID or PUBLIC_FIREBASE_PROJECT_ID environment variable is not set',
-        }),
-        {
-          status: 500,
-          headers: { 'Content-Type': 'application/json' },
-        }
-      );
-    }
-
-    const region = resolveGoogleLocation();
-
-    // Get access token
-    let accessToken: string;
-    try {
-      const { GoogleAuth } = await import('google-auth-library');
-      const auth = new GoogleAuth({
-        scopes: ['https://www.googleapis.com/auth/cloud-platform'],
-        projectId: projectId,
-      });
-      const client = await auth.getClient();
-      const tokenResponse = await client.getAccessToken();
-      if (!tokenResponse.token) {
-        throw new Error('Failed to get access token');
-      }
-      accessToken = tokenResponse.token;
-    } catch (tokenError) {
-      console.error('[extend-program] Failed to get access token:', tokenError);
-      return new Response(
-        JSON.stringify({
-          error:
-            'Failed to authenticate. Please ensure you have run: gcloud auth application-default login',
-        }),
-        {
-          status: 500,
-          headers: { 'Content-Type': 'application/json' },
-        }
-      );
-    }
+    const creds = await getVertexAICredentials('[extend-program]');
+    if ('error' in creds) return creds.error;
+    const { projectId, region, accessToken } = creds;
 
     // Call the AI to add missing weeks
     if (import.meta.env.DEV) {

@@ -102,14 +102,6 @@ export default defineConfig({
       // Custom domain for AMRAP (e.g. amrapwithfriends.com); used by amrap-urls.ts and app-registry.ts
       'import.meta.env.PUBLIC_AMRAP_BASE_URL': JSON.stringify(
         (process.env.PUBLIC_AMRAP_BASE_URL || '').trim()
-      ),
-      // Vertex / GCP: Vite does not expose arbitrary env keys on import.meta.env; API routes use
-      // resolveGoogleProjectId() (process.env first). These defines align build-time with Vercel env.
-      'import.meta.env.GOOGLE_PROJECT_ID': JSON.stringify(
-        process.env.GOOGLE_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT_ID || ''
-      ),
-      'import.meta.env.GOOGLE_LOCATION': JSON.stringify(
-        process.env.GOOGLE_LOCATION || process.env.GOOGLE_CLOUD_LOCATION || process.env.VERTEX_LOCATION || ''
       )
     },
     server: {

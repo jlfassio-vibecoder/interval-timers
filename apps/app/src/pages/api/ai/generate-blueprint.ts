@@ -14,7 +14,7 @@ import {
   getAllEquipmentItemsServer,
 } from '@/lib/supabase/admin/server-equipment';
 import { parseJSONWithRepair } from '@/lib/json-parser';
-import { resolveGoogleLocation, resolveGoogleProjectId } from '@/lib/vertex-ai-client';
+import { getVertexAICredentials } from '@/lib/vertex-ai-client';
 
 // Maximum characters to log for API errors
 const MAX_ERROR_LOG_LENGTH = 500;
@@ -256,21 +256,10 @@ export const POST: APIRoute = async ({ request }) => {
       }
     }
 
-    // Check for required environment variable
-    const projectId = resolveGoogleProjectId();
-    if (!projectId) {
-      return new Response(
-        JSON.stringify({
-          error: 'GOOGLE_PROJECT_ID or PUBLIC_FIREBASE_PROJECT_ID environment variable is not set',
-        }),
-        {
-          status: 500,
-          headers: { 'Content-Type': 'application/json' },
-        }
-      );
-    }
+    const creds = await getVertexAICredentials('[generate-blueprint]');
+    if ('error' in creds) return creds.error;
+    const { projectId, region, accessToken } = creds;
 
-    const region = resolveGoogleLocation();
     const endpoint = `https://aiplatform.googleapis.com/v1/projects/${projectId}/locations/${region}/endpoints/openapi/chat/completions`;
 
     // Build prompt
@@ -278,34 +267,6 @@ export const POST: APIRoute = async ({ request }) => {
 
     const systemInstruction =
       'You are AI Fitcopilot, a Clinical Exercise Physiologist with a PhD in Exercise Science. Your task is to create high-level program blueprints that define structure, periodization, and weekly focus patterns. Output ONLY valid JSON.';
-
-    // Get access token
-    let accessToken: string;
-    try {
-      const { GoogleAuth } = await import('google-auth-library');
-      const auth = new GoogleAuth({
-        scopes: ['https://www.googleapis.com/auth/cloud-platform'],
-        projectId: projectId,
-      });
-      const client = await auth.getClient();
-      const tokenResponse = await client.getAccessToken();
-      if (!tokenResponse.token) {
-        throw new Error('Failed to get access token');
-      }
-      accessToken = tokenResponse.token;
-    } catch (tokenError) {
-      console.error('[generate-blueprint] Failed to get access token:', tokenError);
-      return new Response(
-        JSON.stringify({
-          error:
-            'Failed to authenticate. Please ensure you have run: gcloud auth application-default login',
-        }),
-        {
-          status: 500,
-          headers: { 'Content-Type': 'application/json' },
-        }
-      );
-    }
 
     // Call API with retry logic
     let apiResponse: Response | undefined;

@@ -9,7 +9,7 @@
 
 import type { APIRoute } from 'astro';
 import type { WODLevel } from '@/types';
-import { resolveGoogleLocation, resolveGoogleProjectId } from '@/lib/vertex-ai-client';
+import { getVertexAICredentials } from '@/lib/vertex-ai-client';
 
 const MAX_TITLE_LENGTH = 80;
 const WOD_LEVELS: WODLevel[] = ['beginner', 'intermediate', 'advanced'];
@@ -76,35 +76,9 @@ export const POST: APIRoute = async ({ request }) => {
       typeof body.description === 'string' ? body.description.slice(0, 500) : undefined;
     const genre = typeof body.genre === 'string' ? body.genre.slice(0, 200) : undefined;
 
-    const projectId = resolveGoogleProjectId();
-    if (!projectId) {
-      return new Response(
-        JSON.stringify({ error: 'GOOGLE_PROJECT_ID environment variable is not set' }),
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const region = resolveGoogleLocation();
-    let accessToken: string;
-    try {
-      const { GoogleAuth } = await import('google-auth-library');
-      const auth = new GoogleAuth({
-        scopes: ['https://www.googleapis.com/auth/cloud-platform'],
-        projectId,
-      });
-      const client = await auth.getClient();
-      const tokenResponse = await client.getAccessToken();
-      if (!tokenResponse.token) throw new Error('Failed to get access token');
-      accessToken = tokenResponse.token;
-    } catch (err) {
-      console.error('[suggest-wod-name] Auth error:', err);
-      return new Response(
-        JSON.stringify({
-          error: 'Authentication failed. Run: gcloud auth application-default login',
-        }),
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
+    const creds = await getVertexAICredentials('[suggest-wod-name]');
+    if ('error' in creds) return creds.error;
+    const { projectId, region, accessToken } = creds;
 
     const systemPrompt = `You suggest short, memorable titles for workout-of-the-day (WOD) sessions. The site has a military/tactical fitness theme. Output ONLY the title: 2-5 words, no quotes, no "WOD" suffix, no explanation. Examples: Operation Phoenix, Bravo Grinder, Recon Run, Drop Zone, Boot Camp Alpha, Hammer Down, Steel Dawn.`;
 

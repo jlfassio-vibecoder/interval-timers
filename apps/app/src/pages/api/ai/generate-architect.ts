@@ -14,7 +14,7 @@ import {
 } from '@/lib/supabase/admin/server-equipment';
 import { parseJSONWithRepair } from '@/lib/json-parser';
 import { buildArchitectPrompt, validateArchitectOutput } from '@/lib/prompt-chain';
-import { callVertexAI, resolveGoogleLocation, resolveGoogleProjectId } from '@/lib/vertex-ai-client';
+import { callVertexAI, getVertexAICredentials } from '@/lib/vertex-ai-client';
 
 interface ZoneContext {
   zoneName: string;
@@ -65,36 +65,9 @@ export const POST: APIRoute = async ({ request }) => {
       }
     }
 
-    const projectId = resolveGoogleProjectId();
-    if (!projectId) {
-      return new Response(
-        JSON.stringify({ error: 'GOOGLE_PROJECT_ID environment variable is not set' }),
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const region = resolveGoogleLocation();
-
-    let accessToken: string;
-    try {
-      const { GoogleAuth } = await import('google-auth-library');
-      const auth = new GoogleAuth({
-        scopes: ['https://www.googleapis.com/auth/cloud-platform'],
-        projectId,
-      });
-      const client = await auth.getClient();
-      const tokenResponse = await client.getAccessToken();
-      if (!tokenResponse.token) throw new Error('Failed to get access token');
-      accessToken = tokenResponse.token;
-    } catch (err) {
-      console.error('[generate-architect] Auth error:', err);
-      return new Response(
-        JSON.stringify({
-          error: 'Authentication failed. Run: gcloud auth application-default login',
-        }),
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
+    const creds = await getVertexAICredentials('[generate-architect]');
+    if ('error' in creds) return creds.error;
+    const { projectId, region, accessToken } = creds;
 
     const step1Prompt = buildArchitectPrompt(persona, zoneContext);
     const step1Response = await callVertexAI({
