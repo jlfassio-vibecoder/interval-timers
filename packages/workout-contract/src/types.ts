@@ -30,6 +30,8 @@ export interface WarmupBlock {
   exerciseName: string;
   instructions: string[];
   exerciseQuery?: string;
+  /** Stable id for round-trips (editor / server change tracking); optional for legacy data. */
+  id?: string;
 }
 
 export interface WorkoutInSet {
