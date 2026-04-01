@@ -107,4 +107,44 @@ describe('workout-editor-map', () => {
     expect(next.warmupBlocks![0].instructions).toEqual([]);
     expect(next.cooldownBlocks![0].instructions).toEqual([]);
   });
+
+  it('preserves warmup / finisher / cooldown exercise ids through load → save', () => {
+    const prev: WorkoutInSet = {
+      title: 'T',
+      description: 'D',
+      warmupBlocks: [
+        { order: 1, exerciseName: 'Arm circles', instructions: ['Easy pace'], id: 'warm-id-1' },
+      ],
+      exerciseBlocks: [
+        {
+          order: 1,
+          name: 'Main',
+          exercises: [
+            {
+              order: 1,
+              exerciseName: 'Squat',
+              sets: 3,
+              reps: '5',
+              restSeconds: 120,
+              id: 'main-ex-1',
+            },
+          ],
+        },
+      ],
+      finisherBlocks: [{ order: 1, exerciseName: 'Sprint', instructions: [], id: 'fin-id-1' }],
+      cooldownBlocks: [{ order: 1, exerciseName: 'Stretch', instructions: [], id: 'cool-id-1' }],
+    };
+
+    const blocks = workoutInSetToBlocks(prev);
+    expect(blocks.find((b) => b.type === 'warmup')?.exercises[0]?.id).toBe('warm-id-1');
+    expect(blocks.find((b) => b.type === 'finisher')?.exercises[0]?.id).toBe('fin-id-1');
+    expect(blocks.find((b) => b.type === 'cooldown')?.exercises[0]?.id).toBe('cool-id-1');
+    expect(blocks.find((b) => b.type === 'main')?.exercises[0]?.id).toBe('main-ex-1');
+
+    const next = blocksToWorkoutInSet(blocks, prev, { title: 'T', description: 'D' });
+    expect(next.warmupBlocks![0].id).toBe('warm-id-1');
+    expect(next.finisherBlocks![0].id).toBe('fin-id-1');
+    expect(next.cooldownBlocks![0].id).toBe('cool-id-1');
+    expect(next.exerciseBlocks![0].exercises[0].id).toBe('main-ex-1');
+  });
 });

@@ -264,6 +264,8 @@ export interface WarmupBlock {
   instructions: string[];
   /** Link to approved exercise for mapping / View mapped. */
   exerciseQuery?: string;
+  /** Stable id for round-trips (editor / server change tracking); optional for legacy data. */
+  id?: string;
 }
 
 /**

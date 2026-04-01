@@ -39,6 +39,7 @@ export function workoutInSetToBlocks(w: WorkoutInSet | undefined): WorkoutBlock[
 
   const warmupEx: BlockExercise[] = (w.warmupBlocks ?? []).map((wb) =>
     newBlockExercise({
+      id: wb.id,
       name: wb.exerciseName,
       sets: 1,
       reps: '',
@@ -79,6 +80,7 @@ export function workoutInSetToBlocks(w: WorkoutInSet | undefined): WorkoutBlock[
 
   const finisherEx: BlockExercise[] = (w.finisherBlocks ?? []).map((fb) =>
     newBlockExercise({
+      id: fb.id,
       name: fb.exerciseName,
       sets: 1,
       reps: '',
@@ -97,6 +99,7 @@ export function workoutInSetToBlocks(w: WorkoutInSet | undefined): WorkoutBlock[
 
   const coolEx: BlockExercise[] = (w.cooldownBlocks ?? []).map((wb) =>
     newBlockExercise({
+      id: wb.id,
       name: wb.exerciseName,
       sets: 1,
       reps: '',
@@ -132,6 +135,7 @@ function blockExerciseToWarmupBlock(ex: BlockExercise, order: number): WarmupBlo
     exerciseName: ex.name,
     // Empty notes → no placeholder instruction rows (avoids blank UI lines downstream).
     instructions: ex.notes ? [ex.notes] : [],
+    ...(ex.id ? { id: ex.id } : {}),
   };
 }
 
