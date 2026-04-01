@@ -86,7 +86,7 @@ const ProgramEditor: React.FC = () => {
           workoutConfig,
           undefined
         );
-        navigate(`/workouts/sets/${workoutId}`, {
+        navigate(`/workouts/${workoutId}`, {
           state: { fromProgram: { programId: id, weekNumber, workoutIndex } },
         });
         toast.success('Workout extracted to Workout Factory.');

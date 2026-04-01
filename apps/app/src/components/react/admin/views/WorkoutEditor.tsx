@@ -6,13 +6,14 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, Save, Loader2, Trash2 } from 'lucide-react';
+import type { WorkoutBlock, BlockExercise } from '@/lib/supabase/admin/workout-details';
 import {
-  fetchWorkout,
-  updateWorkoutDetails,
-  type SupabaseWorkout,
-  type WorkoutBlock,
-  type BlockExercise,
-} from '@/lib/supabase/admin/workout-details';
+  fetchWorkoutDocument,
+  updateWorkout,
+  type WorkoutDocument,
+} from '@/lib/supabase/client/workout-persistence';
+import type { WorkoutSetTemplate, WorkoutConfig } from '@/types/ai-workout';
+import { blocksToWorkoutInSet, workoutInSetToBlocks } from '@/lib/admin/workout-editor-map';
 import { useAppContext } from '@/contexts/AppContext';
 import StatusMessage from '../StatusMessage';
 
@@ -27,7 +28,9 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId }) => {
   const navigate = useNavigate();
   const { user } = useAppContext();
 
-  const [workout, setWorkout] = useState<SupabaseWorkout | null>(null);
+  /** Workout Factory library document (`workout_sets` table), not legacy `workouts`. */
+  const [workoutDoc, setWorkoutDoc] = useState<WorkoutDocument | null>(null);
+  const [workoutConfig, setWorkoutConfig] = useState<WorkoutConfig | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -52,25 +55,25 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId }) => {
     try {
       setLoading(true);
       setError(null);
-      const data = await fetchWorkout(id!);
-      setWorkout(data);
+      const data = await fetchWorkoutDocument(id!);
+      setWorkoutDoc(data);
+      setWorkoutConfig(data.workoutConfig);
 
       setTitle(data.title);
       setDescription(data.description || '');
-      setDuration(data.duration_minutes || 60);
-      setDifficulty(data.difficulty_level || 'intermediate');
+      setDuration(data.workoutConfig?.requirements?.sessionDurationMinutes ?? 60);
+      setDifficulty(data.difficulty || 'intermediate');
 
-      // Normalize blocks if empty or null
-      const loadedBlocks = (data.blocks as WorkoutBlock[]) || [];
-      if (loadedBlocks.length === 0) {
-        setBlocks([
-          { type: 'warmup', name: 'Warmup', order: 1, exercises: [] },
-          { type: 'main', name: 'Main Circuit', order: 2, exercises: [] },
-          { type: 'cooldown', name: 'Cooldown', order: 3, exercises: [] },
-        ]);
-      } else {
-        setBlocks(loadedBlocks);
-      }
+      const loadedBlocks = workoutInSetToBlocks(data.workouts[0]);
+      setBlocks(
+        loadedBlocks.length > 0
+          ? loadedBlocks
+          : [
+              { type: 'warmup', name: 'Warmup', order: 1, exercises: [] },
+              { type: 'main', name: 'Main Circuit', order: 2, exercises: [] },
+              { type: 'cooldown', name: 'Cooldown', order: 3, exercises: [] },
+            ]
+      );
     } catch (err) {
       console.error('Failed to load workout:', err);
       setError('Failed to load workout details.');
@@ -86,13 +89,33 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId }) => {
       setError(null);
       setSaveSuccess(false);
 
-      await updateWorkoutDetails(id, {
+      if (!workoutDoc) return;
+
+      const first = workoutDoc.workouts[0];
+      const workoutInSet = blocksToWorkoutInSet(blocks, first, { title, description });
+      const workoutSet: WorkoutSetTemplate = {
         title,
         description,
-        duration_minutes: duration,
-        difficulty_level: difficulty,
-        blocks: blocks, // Save the JSON structure
+        difficulty: difficulty as WorkoutSetTemplate['difficulty'],
+        workouts: [workoutInSet],
+      };
+
+      const nextConfig: WorkoutConfig | undefined = workoutConfig
+        ? {
+            ...workoutConfig,
+            workoutInfo: { title, description },
+            requirements: {
+              ...workoutConfig.requirements,
+              sessionDurationMinutes: duration,
+            },
+          }
+        : undefined;
+
+      await updateWorkout(id, {
+        workoutSet,
+        ...(nextConfig ? { workoutConfig: nextConfig } : {}),
       });
+      if (nextConfig) setWorkoutConfig(nextConfig);
 
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
@@ -145,7 +168,7 @@ const WorkoutEditor: React.FC<WorkoutEditorProps> = ({ workoutId }) => {
     );
   }
 
-  if (error || !workout) {
+  if (error || !workoutDoc) {
     return (
       <div className="space-y-6">
         <button

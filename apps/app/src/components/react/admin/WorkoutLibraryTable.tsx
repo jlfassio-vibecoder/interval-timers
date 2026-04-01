@@ -256,7 +256,7 @@ const WorkoutLibraryTable: React.FC<WorkoutLibraryTableProps> = ({ onEdit }) => 
                           </button>
                         ) : (
                           <Link
-                            to={item.id}
+                            to={`/workouts/${item.id}`}
                             className="rounded-lg p-2 text-white/70 transition-colors hover:bg-white/10 hover:text-orange-light"
                             title="Edit workout"
                           >
