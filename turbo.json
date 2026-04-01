@@ -18,7 +18,15 @@
     "app#build": {
       "dependsOn": ["^build"],
       "outputs": [".vercel/output/**"],
-      "env": ["VITE_*", "PUBLIC_*", "SUPABASE_*", "VERCEL"]
+      "env": [
+        "VITE_*",
+        "PUBLIC_*",
+        "SUPABASE_*",
+        "VERCEL",
+        "GOOGLE_*",
+        "GEMINI_*",
+        "RUNWAYML_*"
+      ]
     }
   },
   "globalEnv": ["NODE_ENV", "CI"]
