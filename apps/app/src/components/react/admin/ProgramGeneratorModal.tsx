@@ -197,6 +197,8 @@ const ProgramGeneratorModal: React.FC<ProgramGeneratorModalProps> = ({
       setGeneratedProgram(null);
       setProgramConfig(defaultConfig);
       setSelectedInjuryIds([]);
+      setSelectedZone(null);
+      setSelectedEquipmentIds([]);
       setStep('config');
       setBlueprint(null);
       setArchitectBlueprint(null);
