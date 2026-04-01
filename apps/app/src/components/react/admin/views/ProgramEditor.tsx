@@ -240,7 +240,7 @@ const ProgramEditor: React.FC = () => {
         setBuildingPhaseIndex(null);
       }
     },
-    [id, scaffold, buildPersonaForPhase]
+    [id, scaffold, buildPersonaForPhase, programData?.schedule]
   );
 
   const handlePublishToggle = useCallback(async () => {

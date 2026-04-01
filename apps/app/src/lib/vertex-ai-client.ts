@@ -39,7 +39,8 @@ function hydrateVertexEnvFromDisk(): void {
   ];
   for (const p of paths) {
     if (!existsSync(p)) continue;
-    loadDotenv({ path: p, override: true });
+    // Do not override keys already set by the host (Vercel, CI, shell) so runtime env wins over .env on disk.
+    loadDotenv({ path: p, override: false });
   }
 }
 

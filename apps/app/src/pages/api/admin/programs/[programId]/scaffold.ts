@@ -69,10 +69,11 @@ export const PUT: APIRoute = async ({ request, params, cookies }) => {
 
     await assertUserCanAccessProgram(programId, uid);
 
+    // Always derive totalWeeks from phases server-side so duration_weeks stays consistent with scaffold.
     const totalWeeks = body.scaffold.phases.reduce((sum, p) => sum + (p.weeks || 0), 0);
     const scaffold: ProgramTemplateScaffold = {
       phases: body.scaffold.phases,
-      totalWeeks: body.scaffold.totalWeeks ?? totalWeeks,
+      totalWeeks,
     };
 
     await updateProgramScaffold(programId, scaffold);

@@ -174,7 +174,6 @@ export async function updateWorkout(
     workoutSet?: WorkoutSetTemplate;
     workoutConfig?: WorkoutConfig;
     status?: 'draft' | 'published';
-    featured_on_landing?: boolean;
   }
 ): Promise<void> {
   const token = await getAccessToken();

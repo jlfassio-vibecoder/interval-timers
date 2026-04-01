@@ -292,8 +292,9 @@ export async function getProgramScaffold(
 }
 
 /**
- * Replace program_weeks for a single phase. Deletes existing rows for that week range, then inserts new ones.
- * Uses week_number range so it works even when phase_number is null (legacy).
+ * Replace program_weeks for a single phase.
+ * Upserts rows first (UNIQUE program_id, week_number) so a failed step does not wipe the phase;
+ * then deletes week_numbers in [min,max] that are no longer in this schedule (same range semantics as before).
  */
 export async function upsertPhaseWeeks(
   programId: string,
@@ -301,20 +302,6 @@ export async function upsertPhaseWeeks(
   schedule: ProgramSchedule[]
 ): Promise<void> {
   const supabase = getSupabaseServer();
-
-  if (schedule.length > 0) {
-    const weekNumbers = schedule.map((w) => w.weekNumber);
-    const minWeek = Math.min(...weekNumbers);
-    const maxWeek = Math.max(...weekNumbers);
-    const { error: deleteError } = await supabase
-      .from('program_weeks')
-      .delete()
-      .eq('program_id', programId)
-      .gte('week_number', minWeek)
-      .lte('week_number', maxWeek);
-
-    if (deleteError) throw new Error(deleteError.message);
-  }
 
   if (schedule.length === 0) return;
 
@@ -325,8 +312,37 @@ export async function upsertPhaseWeeks(
     content: { weekNumber: week.weekNumber, workouts: week.workouts },
   }));
 
-  const { error: insertError } = await supabase.from('program_weeks').insert(weekRows);
-  if (insertError) throw new Error(insertError.message);
+  const weekNumbers = schedule.map((w) => w.weekNumber);
+  const minWeek = Math.min(...weekNumbers);
+  const maxWeek = Math.max(...weekNumbers);
+  const newWeekSet = new Set(weekNumbers);
+
+  const { error: upsertError } = await supabase
+    .from('program_weeks')
+    .upsert(weekRows, { onConflict: 'program_id,week_number' });
+  if (upsertError) throw new Error(upsertError.message);
+
+  const { data: inRangeRows, error: selectError } = await supabase
+    .from('program_weeks')
+    .select('week_number')
+    .eq('program_id', programId)
+    .gte('week_number', minWeek)
+    .lte('week_number', maxWeek);
+
+  if (selectError) throw new Error(selectError.message);
+
+  const toDelete = (inRangeRows ?? [])
+    .map((r) => r.week_number as number)
+    .filter((wn) => !newWeekSet.has(wn));
+
+  if (toDelete.length > 0) {
+    const { error: deleteError } = await supabase
+      .from('program_weeks')
+      .delete()
+      .eq('program_id', programId)
+      .in('week_number', toDelete);
+    if (deleteError) throw new Error(deleteError.message);
+  }
 }
 
 /**
