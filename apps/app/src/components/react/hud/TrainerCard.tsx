@@ -5,8 +5,9 @@
  * Trainer card for Program Sidebar: avatar + name + "Your coach" label. Phase 0: static only.
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useAppContext } from '@/contexts/AppContext';
+import CoachMessagesModal from '@/components/react/hud/CoachMessagesModal';
 
 function getInitials(displayName: string): string {
   const parts = displayName.trim().split(/\s+/);
@@ -16,6 +17,7 @@ function getInitials(displayName: string): string {
 
 const TrainerCard: React.FC = () => {
   const { trainerProfile } = useAppContext();
+  const [messagesOpen, setMessagesOpen] = useState(false);
 
   return (
     <div className="rounded-xl border border-white/10 bg-black/20 p-4 backdrop-blur-sm">
@@ -35,10 +37,22 @@ const TrainerCard: React.FC = () => {
               {getInitials(trainerProfile.displayName)}
             </div>
           )}
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <p className="truncate font-heading text-sm font-bold text-white">
               {trainerProfile.displayName}
             </p>
+            <button
+              type="button"
+              onClick={() => setMessagesOpen(true)}
+              className="mt-2 w-full rounded-lg border border-orange-light/40 bg-orange-light/10 px-2 py-1.5 font-mono text-[10px] font-bold uppercase tracking-wide text-orange-light hover:bg-orange-light/20"
+            >
+              Message coach
+            </button>
+            <CoachMessagesModal
+              open={messagesOpen}
+              onClose={() => setMessagesOpen(false)}
+              trainerUserId={trainerProfile.uid}
+            />
           </div>
         </div>
       ) : (

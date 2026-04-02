@@ -290,6 +290,31 @@ export interface Database {
         };
         Relationships: [];
       };
+      trainer_client_messages: {
+        Row: {
+          id: string;
+          trainer_user_id: string;
+          client_user_id: string;
+          author_user_id: string;
+          author_role: string;
+          body: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          trainer_user_id: string;
+          client_user_id: string;
+          author_user_id: string;
+          author_role: string;
+          body: string;
+          created_at?: string;
+        };
+        Update: {
+          body?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       workout_logs: {
         Row: {
           id: string;

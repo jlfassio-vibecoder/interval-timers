@@ -6,7 +6,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { X, Trophy, Calendar, Moon, Flame, Dumbbell } from 'lucide-react';
+import { X, Trophy, Calendar, Moon, Flame, Dumbbell, MessageSquare } from 'lucide-react';
 import { useAppContext } from '@/contexts/AppContext';
 import type {
   DerivedNotification,
@@ -19,6 +19,10 @@ export interface NotificationPanelProps {
   notifications: DerivedNotification[];
   /** After coach assignment dismiss, bump to refetch derived notifications. */
   onCoachAssignmentsChanged?: () => void;
+  /** When set with onOpenCoachMessages, shows P3 coach thread entry (does not affect bell count). */
+  coachMessagesTrainerUserId?: string | null;
+  coachMessagesCoachName?: string | null;
+  onOpenCoachMessages?: () => void;
 }
 
 function iconForType(type: NotificationType): React.ReactNode {
@@ -43,6 +47,9 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({
   onClose,
   notifications,
   onCoachAssignmentsChanged,
+  coachMessagesTrainerUserId,
+  coachMessagesCoachName,
+  onOpenCoachMessages,
 }) => {
   const { setActiveProgramId } = useAppContext();
   const [dismissingId, setDismissingId] = useState<string | null>(null);
@@ -112,7 +119,29 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({
             <X className="h-5 w-5" />
           </button>
         </div>
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="flex-1 space-y-4 overflow-y-auto p-4">
+          {coachMessagesTrainerUserId && onOpenCoachMessages ? (
+            <div className="flex gap-3 rounded-lg border border-orange-light/30 bg-orange-light/10 p-3">
+              <MessageSquare className="h-4 w-4 shrink-0 text-orange-light" aria-hidden />
+              <div className="min-w-0 flex-1">
+                <p className="font-mono text-xs font-semibold uppercase text-orange-light">
+                  Coach messages
+                </p>
+                <p className="mt-0.5 text-sm text-white/80">
+                  {coachMessagesCoachName?.trim()
+                    ? `Chat with ${coachMessagesCoachName.trim()}.`
+                    : 'Send and read messages with your coach.'}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => onOpenCoachMessages()}
+                  className="mt-2 rounded-md border border-orange-light/40 bg-orange-light/10 px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-wide text-orange-light hover:bg-orange-light/20"
+                >
+                  Open
+                </button>
+              </div>
+            </div>
+          ) : null}
           {notifications.length === 0 ? (
             <p className="font-mono text-sm text-white/50">No notifications right now.</p>
           ) : (
