@@ -24,6 +24,8 @@ import { supabase } from '@/lib/supabase/supabase-instance';
 import TrainerDashboard from './TrainerDashboard';
 import RosterView from './views/RosterView';
 import ClientDetailView from './views/ClientDetailView';
+import ClientMissionControlLayout from './views/ClientMissionControlLayout';
+import PerformanceLabView from './views/PerformanceLabView';
 import IntelView from './views/IntelView';
 import StudioWelcomeEditorView from './views/StudioWelcomeEditorView';
 import TrainerWelcomeEditorView from './views/TrainerWelcomeEditorView';
@@ -238,8 +240,11 @@ const TrainerGuard = () => {
           />
           <Route
             path="roster/:userId"
-            element={isTrainer ? <ClientDetailView /> : <Navigate to="/" replace />}
-          />
+            element={isTrainer ? <ClientMissionControlLayout /> : <Navigate to="/" replace />}
+          >
+            <Route index element={<ClientDetailView />} />
+            <Route path="lab" element={<PerformanceLabView />} />
+          </Route>
           <Route path="intel" element={isTrainer ? <IntelView /> : <Navigate to="/" replace />} />
         </Route>
       </Routes>

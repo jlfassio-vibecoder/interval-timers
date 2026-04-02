@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Search, User, ChevronRight, Mail, Phone, Copy, UserPlus } from 'lucide-react';
+import { Search, User, ChevronRight, Mail, Phone, Copy, UserPlus, FlaskConical } from 'lucide-react';
 import { useAppContext } from '@/contexts/AppContext';
 import { ROSTER_INVITE_STORAGE_KEY } from '@/lib/roster-invite-handoff';
 
@@ -665,14 +665,26 @@ const RosterView: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 text-white/70">{formatDate(client.created_at)}</td>
                     <td className="px-6 py-4 text-right">
-                      <button
-                        type="button"
-                        onClick={() => navigate(`/roster/${client.id}`)}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-1.5 text-sm text-white/70 transition-colors hover:bg-white/10 hover:text-white"
-                      >
-                        View Stats
-                        <ChevronRight className="h-4 w-4" />
-                      </button>
+                      <div className="flex flex-wrap justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/roster/${client.id}`)}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-1.5 text-sm text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+                        >
+                          View Stats
+                          <ChevronRight className="h-4 w-4" />
+                        </button>
+                        {(client.relationship === 'client' || client.programIds.length > 0) && (
+                          <button
+                            type="button"
+                            onClick={() => navigate(`/roster/${client.id}/lab`)}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-orange-light/30 px-3 py-1.5 text-sm text-orange-light/90 transition-colors hover:bg-orange-light/10 hover:text-orange-light"
+                          >
+                            <FlaskConical className="h-4 w-4" />
+                            Lab
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))

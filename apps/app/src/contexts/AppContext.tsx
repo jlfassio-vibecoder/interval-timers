@@ -145,7 +145,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const next = await resolveActiveProgramIdForSession(
           sessionUserId,
           activeProgramIdRef.current,
-          data.assignedProgramIds
+          data.assignedProgramIds,
+          null
         );
         if (next != null && next !== activeProgramIdRef.current) {
           setActiveProgramId(next);
@@ -281,9 +282,29 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     let cancelled = false;
     (async () => {
       try {
-        const next = await resolveActiveProgramIdForSession(user.uid, activeProgramId, null);
+        let trainerRecommended: string | null = null;
+        try {
+          const res = await fetch('/api/me/trainer-recommended-program', {
+            credentials: 'include',
+          });
+          if (res.ok) {
+            const data = (await res.json()) as { programId?: string | null };
+            trainerRecommended =
+              typeof data.programId === 'string' && data.programId.trim()
+                ? data.programId.trim()
+                : null;
+          }
+        } catch {
+          /* offline / optional */
+        }
+        const next = await resolveActiveProgramIdForSession(
+          user.uid,
+          activeProgramId,
+          null,
+          trainerRecommended
+        );
         if (cancelled) return;
-        if (next === null) {
+        if (next == null) {
           if (activeProgramId) setActiveProgramId(null);
           return;
         }

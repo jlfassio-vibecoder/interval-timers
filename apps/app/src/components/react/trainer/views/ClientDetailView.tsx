@@ -4,8 +4,8 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Activity, Target, Star, User } from 'lucide-react';
+import { useParams } from 'react-router-dom';
+import { Activity, Target, Star, User } from 'lucide-react';
 import {
   labelForMedicalId,
   labelForPhysicalId,
@@ -50,7 +50,6 @@ interface ClientStats {
 
 const ClientDetailView: React.FC = () => {
   const { userId } = useParams<{ userId: string }>();
-  const navigate = useNavigate();
   const [stats, setStats] = useState<ClientStats | null>(null);
   const [profile, setProfile] = useState<MissionControlProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -118,42 +117,14 @@ const ClientDetailView: React.FC = () => {
 
   if (error || !stats) {
     return (
-      <div className="space-y-6">
-        <button
-          type="button"
-          onClick={() => navigate('/roster')}
-          className="flex items-center gap-2 rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-white transition-colors hover:bg-white/5"
-        >
-          <ArrowLeft className="h-5 w-5" />
-          Back to Roster
-        </button>
-        <div className="rounded-lg border border-red-500/50 bg-red-500/10 p-6">
-          <p className="text-red-400">{error ?? 'Client not found'}</p>
-        </div>
+      <div className="rounded-lg border border-red-500/50 bg-red-500/10 p-6">
+        <p className="text-red-400">{error ?? 'Client not found'}</p>
       </div>
     );
   }
 
-  const displayName = stats.full_name || stats.email || 'Client';
-
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <button
-            type="button"
-            onClick={() => navigate('/roster')}
-            className="flex items-center gap-2 rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-white transition-colors hover:bg-white/5"
-          >
-            <ArrowLeft className="h-5 w-5" />
-            Back to Roster
-          </button>
-          <h1 className="font-heading text-3xl font-bold">{displayName}</h1>
-        </div>
-      </div>
-
-      {stats.email && <p className="text-white/60">{stats.email}</p>}
-
       {profile && (
         <div className="rounded-lg border border-white/10 bg-black/20 backdrop-blur-sm">
           <h2 className="flex items-center gap-2 border-b border-white/10 px-6 py-4 font-heading text-xl font-bold">

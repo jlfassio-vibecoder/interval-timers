@@ -445,7 +445,8 @@ const WelcomeInviteInner: React.FC<WelcomeInviteLandingProps> = ({
             const next = await resolveActiveProgramIdForSession(
               user.uid,
               activeProgramId,
-              body.assignedProgramIds
+              body.assignedProgramIds,
+              null
             );
             if (next != null) {
               setActiveProgramId(next);
