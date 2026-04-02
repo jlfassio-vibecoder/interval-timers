@@ -392,7 +392,7 @@ export async function getCoachAssignmentPayloadForClient(
   const { data: row, error } = await supabase
     .from('client_coach_assignments')
     .select(
-      'id, client_user_id, assignment_type, resource_id, title_snapshot, dismissed_at, revoked_at, expires_on'
+      'id, client_user_id, trainer_user_id, assignment_type, resource_id, title_snapshot, dismissed_at, revoked_at, expires_on'
     )
     .eq('id', assignmentId)
     .maybeSingle();
@@ -400,6 +400,7 @@ export async function getCoachAssignmentPayloadForClient(
   if (error || !row) return { ok: false, error: 'Assignment not found' };
   const r = row as {
     client_user_id?: string;
+    trainer_user_id?: string;
     assignment_type?: string;
     resource_id?: string;
     title_snapshot?: string;
@@ -413,6 +414,9 @@ export async function getCoachAssignmentPayloadForClient(
     return { ok: false, error: 'Assignment has expired' };
   }
 
+  const trainerUserId = typeof r.trainer_user_id === 'string' ? r.trainer_user_id : '';
+  if (!trainerUserId) return { ok: false, error: 'Assignment not found' };
+
   const assignmentType = r.assignment_type as CoachAssignmentType;
   const resourceId = r.resource_id as string;
   const title =
@@ -420,17 +424,24 @@ export async function getCoachAssignmentPayloadForClient(
       ? r.title_snapshot.trim()
       : 'Assignment';
 
+  // Defense-in-depth: service role bypasses RLS — require resource owner to match assignment trainer
+  // so poisoned rows (e.g. from a compromised JWT path) cannot leak other trainers' content.
+
   if (assignmentType === 'program') {
+    const owns = await assertTrainerOwnsProgramDb(supabase, trainerUserId, resourceId);
+    if (!owns) return { ok: false, error: 'Assignment not found' };
     return { ok: true, assignmentType: 'program', programId: resourceId, title };
   }
 
   if (assignmentType === 'workout') {
     const { data: w, error: wErr } = await supabase
       .from('workouts')
-      .select('id, title, description, blocks')
+      .select('id, title, description, blocks, trainer_id')
       .eq('id', resourceId)
       .maybeSingle();
     if (wErr || !w) return { ok: false, error: 'Workout not found' };
+    const wr = w as { trainer_id?: string };
+    if (wr.trainer_id !== trainerUserId) return { ok: false, error: 'Workout not found' };
     try {
       const artist = supabaseWorkoutRowToArtist(
         w as { id: string; title: string; description: string | null; blocks: unknown }
@@ -445,13 +456,14 @@ export async function getCoachAssignmentPayloadForClient(
     const { data: wod, error: wodErr } = await supabase
       .from('generated_wods')
       .select(
-        'id, level, name, title, genre, image, day, description, intensity, workout_detail, exercise_overrides, target_volume_minutes, window_minutes, rest_load, status'
+        'id, level, name, title, genre, image, day, description, intensity, workout_detail, exercise_overrides, target_volume_minutes, window_minutes, rest_load, status, author_id'
       )
       .eq('id', resourceId)
       .maybeSingle();
     if (wodErr || !wod) return { ok: false, error: 'WOD not found' };
-    const w = wod as { status?: string | null };
+    const w = wod as { status?: string | null; author_id?: string | null };
     if (w.status !== 'approved') return { ok: false, error: 'WOD is not available' };
+    if (w.author_id !== trainerUserId) return { ok: false, error: 'WOD not found' };
     try {
       const artist = generatedWodRowToArtist(
         wod as Parameters<typeof generatedWodRowToArtist>[0]
