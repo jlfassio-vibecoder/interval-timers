@@ -8,7 +8,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Play, Check } from 'lucide-react';
 import { getTodaysWorkoutOrRest } from '@/lib/supabase/client/schedule-resolver';
+import {
+  getUserProgramStartDate,
+  getProgramWithSchedule,
+} from '@/lib/supabase/client/user-programs';
 import { getTodaysWorkoutLog } from '@/lib/supabase/client/progress-analytics';
+import { localCalendarDateISO } from '@/lib/local-date-iso';
 import { getExercisesFromWorkout } from '@/lib/program-schedule-utils';
 import WorkoutPlayer from '@/components/react/tracking/WorkoutPlayer';
 
@@ -48,6 +53,11 @@ export interface TodayWorkoutCardProps {
 type ScheduleState =
   | { status: 'loading' }
   | { status: 'no_program' }
+  | { status: 'upcoming'; startDateISO: string }
+  | {
+      status: 'schedule_unavailable';
+      hint: 'no_start_date' | 'load_failed' | 'schedule_not_built';
+    }
   | { status: 'rest'; tip: string }
   | {
       status: 'workout';
@@ -56,6 +66,21 @@ type ScheduleState =
       workoutIndex: number;
       programId: string;
     };
+
+function formatReadableDate(isoYmd: string): string {
+  const [y, m, d] = isoYmd.split('-').map(Number);
+  if (!y || !m || !d) return isoYmd;
+  try {
+    return new Date(y, m - 1, d).toLocaleDateString(undefined, {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  } catch {
+    return isoYmd;
+  }
+}
 
 const TodayWorkoutCard: React.FC<TodayWorkoutCardProps> = ({
   userId,
@@ -86,7 +111,23 @@ const TodayWorkoutCard: React.FC<TodayWorkoutCardProps> = ({
       return;
     }
     if (!scheduleResult) {
-      setSchedule({ status: 'no_program' });
+      const startISO = await getUserProgramStartDate(userId, activeProgramId);
+      const today = localCalendarDateISO();
+      if (!startISO) {
+        setSchedule({ status: 'schedule_unavailable', hint: 'no_start_date' });
+        return;
+      }
+      if (startISO > today) {
+        setSchedule({ status: 'upcoming', startDateISO: startISO });
+        return;
+      }
+      const full = await getProgramWithSchedule(activeProgramId);
+      const totalW = full?.schedule.reduce((n, w) => n + w.workouts.length, 0) ?? 0;
+      if (totalW === 0) {
+        setSchedule({ status: 'schedule_unavailable', hint: 'schedule_not_built' });
+      } else {
+        setSchedule({ status: 'schedule_unavailable', hint: 'load_failed' });
+      }
       return;
     }
     if (scheduleResult.type === 'rest') {
@@ -144,6 +185,58 @@ const TodayWorkoutCard: React.FC<TodayWorkoutCardProps> = ({
           className="border-orange-light/30 bg-orange-light/10 inline-block rounded-full border px-6 py-3 font-mono text-xs font-bold uppercase tracking-widest text-orange-light transition-colors hover:bg-orange-light hover:text-black"
         >
           Go to Program
+        </a>
+      </div>
+    );
+  }
+
+  if (schedule.status === 'upcoming') {
+    return (
+      <div className="rounded-3xl border border-white/10 bg-black/20 p-6 backdrop-blur-sm">
+        <span className="bg-orange-light/10 mb-2 inline-block rounded px-2 py-0.5 font-mono text-[10px] uppercase text-orange-light">
+          Upcoming
+        </span>
+        <h4 className="mb-2 font-heading text-lg font-black uppercase tracking-tighter text-white">
+          Program starts {formatReadableDate(schedule.startDateISO)}
+        </h4>
+        <p className="mb-4 text-sm text-white/60">
+          Your first workout will appear here on that day. You can preview it on the schedule in the
+          calendar below.
+        </p>
+        <a
+          href="#schedule-zone"
+          className="border-orange-light/30 bg-orange-light/10 inline-block rounded-full border px-6 py-3 font-mono text-xs font-bold uppercase tracking-widest text-orange-light transition-colors hover:bg-orange-light hover:text-black"
+        >
+          View Schedule
+        </a>
+      </div>
+    );
+  }
+
+  if (schedule.status === 'schedule_unavailable') {
+    const isNoStart = schedule.hint === 'no_start_date';
+    const isNotBuilt = schedule.hint === 'schedule_not_built';
+    return (
+      <div className="rounded-3xl border border-white/10 bg-black/20 p-6 backdrop-blur-sm">
+        <h4 className="mb-2 font-heading text-lg font-black uppercase tracking-tighter text-white">
+          {isNoStart
+            ? 'Set a program start date'
+            : isNotBuilt
+              ? 'Program schedule not ready'
+              : "Couldn't load today's workout"}
+        </h4>
+        <p className="mb-4 text-sm text-white/60">
+          {isNoStart
+            ? 'Set when your program begins in the Program sidebar (Sync to Calendar) so we can show your schedule.'
+            : isNotBuilt
+              ? 'This program has no saved week workouts yet. Ask your coach to finish building it (Build phase for each phase). The calendar will populate once weeks exist.'
+              : 'Your program may still be publishing, or there was a connection issue. Check the calendar below or try again later.'}
+        </p>
+        <a
+          href={isNoStart ? '#program-sidebar' : '#schedule-zone'}
+          className="border-orange-light/30 bg-orange-light/10 inline-block rounded-full border px-6 py-3 font-mono text-xs font-bold uppercase tracking-widest text-orange-light transition-colors hover:bg-orange-light hover:text-black"
+        >
+          {isNoStart ? 'Go to Program' : 'View schedule'}
         </a>
       </div>
     );

@@ -97,10 +97,10 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     const scaffold = await getProgramScaffold(programId);
     const phase = scaffold.phases.find((p) => p.phaseIndex === phaseIndex);
     if (!phase) {
-      return new Response(
-        JSON.stringify({ error: `Phase ${phaseIndex} not found in scaffold` }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ error: `Phase ${phaseIndex} not found in scaffold` }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
 
     // Previous phase workouts for context (client sends edited schedule; fallback to DB when omitted)
@@ -118,10 +118,13 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       await assertUserCanAccessProgram(programId, caller.uid);
     } catch (accessErr) {
       if (accessErr instanceof Error && accessErr.message === PROGRAM_ACCESS_FORBIDDEN) {
-        return new Response(JSON.stringify({ error: 'Forbidden. You do not have access to this program.' }), {
-          status: 403,
-          headers: { 'Content-Type': 'application/json' },
-        });
+        return new Response(
+          JSON.stringify({ error: 'Forbidden. You do not have access to this program.' }),
+          {
+            status: 403,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        );
       }
       if (accessErr instanceof Error && accessErr.message.includes('not found')) {
         return new Response(JSON.stringify({ error: accessErr.message }), {
@@ -184,10 +187,10 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     const step1Parsed = parseJSONWithRepair(step1Response);
     const step1Validation = validateArchitectOutput(step1Parsed.data);
     if (!step1Validation.valid) {
-      return new Response(
-        JSON.stringify({ error: `Architect failed: ${step1Validation.error}` }),
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ error: `Architect failed: ${step1Validation.error}` }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
     const architect: ArchitectBlueprint = step1Validation.data;
 
@@ -236,10 +239,10 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     const step3Parsed = parseJSONWithRepair(step3Response);
     const step3Validation = validateCoachOutput(step3Parsed.data, patterns.days.length);
     if (!step3Validation.valid) {
-      return new Response(
-        JSON.stringify({ error: `Coach failed: ${step3Validation.error}` }),
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ error: `Coach failed: ${step3Validation.error}` }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
     const exercises: ExerciseSelection[] = step3Validation.data;
 

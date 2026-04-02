@@ -56,10 +56,13 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       await assertUserCanAccessProgram(programId, caller.uid);
     } catch (accessErr) {
       if (accessErr instanceof Error && accessErr.message === PROGRAM_ACCESS_FORBIDDEN) {
-        return new Response(JSON.stringify({ error: 'Forbidden. You do not have access to this program.' }), {
-          status: 403,
-          headers: { 'Content-Type': 'application/json' },
-        });
+        return new Response(
+          JSON.stringify({ error: 'Forbidden. You do not have access to this program.' }),
+          {
+            status: 403,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        );
       }
       if (accessErr instanceof Error && accessErr.message.includes('not found')) {
         return new Response(JSON.stringify({ error: accessErr.message }), {
@@ -89,7 +92,9 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     const schedule = program.schedule ?? [];
     if (!schedule.length) {
       return new Response(
-        JSON.stringify({ error: 'Program has no schedule; add workouts before generating public copy.' }),
+        JSON.stringify({
+          error: 'Program has no schedule; add workouts before generating public copy.',
+        }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       );
     }
@@ -111,10 +116,10 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     const parsed = parseJSONWithRepair(response);
     const validation = validatePublicCopyOutput(parsed.data);
     if (!validation.valid) {
-      return new Response(
-        JSON.stringify({ error: `Invalid response: ${validation.error}` }),
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ error: `Invalid response: ${validation.error}` }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
 
     return new Response(JSON.stringify(validation.data), {

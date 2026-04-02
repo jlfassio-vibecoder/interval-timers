@@ -80,7 +80,7 @@ export default function ScaffoldEditor({
         {scaffold.phases.map((phase, index) => (
           <div
             key={phase.phaseIndex}
-            className="rounded-lg border border-white/10 bg-black/20 p-4 space-y-3"
+            className="space-y-3 rounded-lg border border-white/10 bg-black/20 p-4"
           >
             <div className="font-medium text-white">
               Phase {phase.phaseIndex}: {phase.name}
@@ -92,7 +92,7 @@ export default function ScaffoldEditor({
                   type="text"
                   value={phase.name}
                   onChange={(e) => handlePhaseChange(index, 'name', e.target.value)}
-                  className="w-full rounded border border-white/10 bg-black/30 px-3 py-2 text-sm text-white focus:border-orange-light/50 focus:outline-none focus:ring-1 focus:ring-orange-light/30"
+                  className="focus:border-orange-light/50 focus:ring-orange-light/30 w-full rounded border border-white/10 bg-black/30 px-3 py-2 text-sm text-white focus:outline-none focus:ring-1"
                 />
               </div>
               <div>
@@ -104,7 +104,7 @@ export default function ScaffoldEditor({
                   onChange={(e) =>
                     handlePhaseChange(index, 'weeks', parseInt(e.target.value, 10) || 1)
                   }
-                  className="w-full rounded border border-white/10 bg-black/30 px-3 py-2 text-sm text-white focus:border-orange-light/50 focus:outline-none focus:ring-1 focus:ring-orange-light/30"
+                  className="focus:border-orange-light/50 focus:ring-orange-light/30 w-full rounded border border-white/10 bg-black/30 px-3 py-2 text-sm text-white focus:outline-none focus:ring-1"
                 />
               </div>
             </div>
@@ -114,7 +114,7 @@ export default function ScaffoldEditor({
                 type="text"
                 value={phase.focus}
                 onChange={(e) => handlePhaseChange(index, 'focus', e.target.value)}
-                className="w-full rounded border border-white/10 bg-black/30 px-3 py-2 text-sm text-white focus:border-orange-light/50 focus:outline-none focus:ring-1 focus:ring-orange-light/30"
+                className="focus:border-orange-light/50 focus:ring-orange-light/30 w-full rounded border border-white/10 bg-black/30 px-3 py-2 text-sm text-white focus:outline-none focus:ring-1"
                 placeholder="e.g. Build work capacity"
               />
             </div>
@@ -123,10 +123,8 @@ export default function ScaffoldEditor({
               <input
                 type="text"
                 value={phase.instructions ?? ''}
-                onChange={(e) =>
-                  handlePhaseChange(index, 'instructions', e.target.value)
-                }
-                className="w-full rounded border border-white/10 bg-black/30 px-3 py-2 text-sm text-white focus:border-orange-light/50 focus:outline-none focus:ring-1 focus:ring-orange-light/30"
+                onChange={(e) => handlePhaseChange(index, 'instructions', e.target.value)}
+                className="focus:border-orange-light/50 focus:ring-orange-light/30 w-full rounded border border-white/10 bg-black/30 px-3 py-2 text-sm text-white focus:outline-none focus:ring-1"
                 placeholder="e.g. Emphasize technique; higher reps"
               />
             </div>
@@ -163,18 +161,16 @@ export default function ScaffoldEditor({
             type="button"
             onClick={() => onBuildPhase(p.phaseIndex)}
             disabled={loading || buildingPhaseIndex !== null}
-            className="rounded-lg bg-orange-light/20 px-4 py-2 text-sm font-medium text-orange-light hover:bg-orange-light/30 disabled:opacity-50"
+            className="bg-orange-light/20 hover:bg-orange-light/30 rounded-lg px-4 py-2 text-sm font-medium text-orange-light disabled:opacity-50"
           >
-            {buildingPhaseIndex === p.phaseIndex
-              ? 'Building...'
-              : `Build Phase ${p.phaseIndex}`}
+            {buildingPhaseIndex === p.phaseIndex ? 'Building...' : `Build Phase ${p.phaseIndex}`}
           </button>
         ))}
         <button
           type="button"
           onClick={onBuildAllPhases}
           disabled={loading || buildingPhaseIndex !== null}
-          className="rounded-lg bg-orange-light px-4 py-2 text-sm font-medium text-black hover:bg-orange-light/90 disabled:opacity-50"
+          className="hover:bg-orange-light/90 rounded-lg bg-orange-light px-4 py-2 text-sm font-medium text-black disabled:opacity-50"
         >
           {buildingPhaseIndex !== null ? 'Building...' : 'Build all phases'}
         </button>

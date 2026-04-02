@@ -30,7 +30,9 @@ function summarizePreviousPhaseForMathematician(previousPhaseWorkouts: ProgramSc
         };
         const reps = ex.reps != null ? String(ex.reps) : '—';
         const rpe = ex.rpe != null ? `RPE ${ex.rpe}` : '';
-        lines.push(`  - ${ex.exerciseName ?? 'Unknown'}: ${ex.sets ?? '?'} sets × ${reps} ${rpe}`.trim());
+        lines.push(
+          `  - ${ex.exerciseName ?? 'Unknown'}: ${ex.sets ?? '?'} sets × ${reps} ${rpe}`.trim()
+        );
       }
     }
   }

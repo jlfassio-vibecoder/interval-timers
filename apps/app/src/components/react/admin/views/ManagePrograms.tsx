@@ -38,7 +38,10 @@ const ManagePrograms: React.FC = () => {
     }
   };
 
-  const handleGenerate = (_programData: Omit<ProgramTemplate, 'id' | 'createdAt'>, savedProgramId?: string) => {
+  const handleGenerate = (
+    _programData: Omit<ProgramTemplate, 'id' | 'createdAt'>,
+    savedProgramId?: string
+  ) => {
     if (savedProgramId) {
       setRefreshKey((k) => k + 1);
       navigate(`/programs/${savedProgramId}`);
@@ -70,7 +73,7 @@ const ManagePrograms: React.FC = () => {
           <button
             type="button"
             onClick={() => setGeneratorOpen(true)}
-            className="flex items-center gap-2 rounded-lg border border-orange-light/50 bg-orange-light/10 px-4 py-2 font-medium text-orange-light transition-colors hover:bg-orange-light/20"
+            className="border-orange-light/50 bg-orange-light/10 hover:bg-orange-light/20 flex items-center gap-2 rounded-lg border px-4 py-2 font-medium text-orange-light transition-colors"
           >
             <Sparkles className="h-5 w-5" />
             <span>Generate with AI</span>

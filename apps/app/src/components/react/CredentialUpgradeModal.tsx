@@ -6,10 +6,7 @@ import { useState, useCallback, useEffect, type SyntheticEvent } from 'react';
 import { createPortal } from 'react-dom';
 import type { Session, SupabaseClient, User } from '@supabase/supabase-js';
 import { buildOAuthRedirectUrl } from '@interval-timers/auth-ui';
-import {
-  CREDENTIAL_GATE_META_KEY,
-  shouldShowCredentialGate,
-} from '@/lib/auth/credential-gate';
+import { CREDENTIAL_GATE_META_KEY, shouldShowCredentialGate } from '@/lib/auth/credential-gate';
 
 const MIN_PASSWORD_LEN = 6;
 
@@ -124,7 +121,7 @@ export default function CredentialUpgradeModal({
             type="button"
             onClick={() => void handleGoogleLink()}
             disabled={loading}
-            className="w-full rounded-xl border border-white/20 bg-white/5 px-4 py-3 font-medium text-white hover:bg-white/10 focus:border-orange-500 focus:outline-none disabled:opacity-50"
+            className="focus:border-orange-500 w-full rounded-xl border border-white/20 bg-white/5 px-4 py-3 font-medium text-white hover:bg-white/10 focus:outline-none disabled:opacity-50"
           >
             Continue with Google
           </button>
@@ -154,7 +151,7 @@ export default function CredentialUpgradeModal({
               autoComplete="new-password"
               required
               minLength={MIN_PASSWORD_LEN}
-              className="w-full rounded-xl border border-white/20 bg-black/30 px-4 py-3 pr-24 text-white placeholder:text-white/50 focus:border-orange-500 focus:outline-none"
+              className="focus:border-orange-500 w-full rounded-xl border border-white/20 bg-black/30 px-4 py-3 pr-24 text-white placeholder:text-white/50 focus:outline-none"
             />
             <button
               type="button"
@@ -172,14 +169,14 @@ export default function CredentialUpgradeModal({
             autoComplete="new-password"
             required
             minLength={MIN_PASSWORD_LEN}
-            className="w-full rounded-xl border border-white/20 bg-black/30 px-4 py-3 text-white placeholder:text-white/50 focus:border-orange-500 focus:outline-none"
+            className="focus:border-orange-500 w-full rounded-xl border border-white/20 bg-black/30 px-4 py-3 text-white placeholder:text-white/50 focus:outline-none"
           />
           <p className="text-xs text-white/50">At least {MIN_PASSWORD_LEN} characters</p>
           {error && <p className="text-sm text-red-400">{error}</p>}
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-xl border-2 border-orange-500 bg-orange-600 px-4 py-3 font-bold text-white hover:bg-orange-500 disabled:opacity-50"
+            className="border-orange-500 bg-orange-600 hover:bg-orange-500 w-full rounded-xl border-2 px-4 py-3 font-bold text-white disabled:opacity-50"
           >
             {loading ? 'Please wait…' : 'Save password'}
           </button>

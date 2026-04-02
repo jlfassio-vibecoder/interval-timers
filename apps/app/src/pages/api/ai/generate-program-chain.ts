@@ -245,7 +245,9 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       const msg = step4Err instanceof Error ? step4Err.message : String(step4Err);
       const isRetryable = /non-JSON|upstream|timeout|gateway/i.test(msg);
       if (isRetryable) {
-        console.warn('[generate-program-chain] Step 4 failed (upstream/timeout), retrying once in 5s...');
+        console.warn(
+          '[generate-program-chain] Step 4 failed (upstream/timeout), retrying once in 5s...'
+        );
         await new Promise((r) => setTimeout(r, 5000));
         step4Response = await callVertexAI(step4Options);
       } else {

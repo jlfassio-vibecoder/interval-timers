@@ -6,40 +6,7 @@
 import { getSupabaseServer } from '@/lib/supabase/server';
 import { buildEffectiveInviteStudioPreviewFromRow } from '@/lib/supabase/admin/roster-invitations';
 import type { RosterInviteStudioPreview } from '@/types/roster-invite-preview';
-
-/** Tie-break when multiple active enrollments share the same `source`. */
-const SOURCE_PRIORITY: Record<string, number> = {
-  trainer_assigned: 0,
-  cohort: 1,
-  self: 2,
-};
-
-type ActiveEnrollmentRow = {
-  program_id: string;
-  source: string;
-  created_at: string | null;
-};
-
-function pickActiveEnrollment(
-  rows: ActiveEnrollmentRow[],
-  preferredProgramId?: string | null
-): ActiveEnrollmentRow | null {
-  if (!rows.length) return null;
-  const pref = preferredProgramId?.trim();
-  if (pref) {
-    const match = rows.find((r) => r.program_id === pref);
-    if (match) return match;
-  }
-  const sorted = [...rows].sort((a, b) => {
-    const pa = SOURCE_PRIORITY[a.source] ?? 99;
-    const pb = SOURCE_PRIORITY[b.source] ?? 99;
-    if (pa !== pb) return pa - pb;
-    const ta = a.created_at ? new Date(a.created_at).getTime() : 0;
-    const tb = b.created_at ? new Date(b.created_at).getTime() : 0;
-    return tb - ta;
-  });
-  return sorted[0] ?? null;
-}
+import { pickActiveEnrollment, type ActiveEnrollmentRow } from '@/lib/enrollment-pick';
 
 function resolveTrainerDisplayName(row: {
   full_name: string | null;

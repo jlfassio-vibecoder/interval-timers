@@ -88,7 +88,13 @@ export default function RoundConsistencyChart({ roundDurations }: RoundConsisten
               dataKey="seconds"
               radius={[4, 4, 0, 0]}
               shape={(props) => {
-                const { x = 0, y = 0, width = 0, height = 0, payload } = props as {
+                const {
+                  x = 0,
+                  y = 0,
+                  width = 0,
+                  height = 0,
+                  payload,
+                } = props as {
                   x?: number;
                   y?: number;
                   width?: number;
@@ -103,7 +109,14 @@ export default function RoundConsistencyChart({ roundDurations }: RoundConsisten
                       ? 'rgba(16,185,129,0.6)'
                       : 'rgba(148,163,184,0.5)';
                 return (
-                  <Rectangle x={x} y={y} width={width} height={height} radius={[4, 4, 0, 0]} fill={fill} />
+                  <Rectangle
+                    x={x}
+                    y={y}
+                    width={width}
+                    height={height}
+                    radius={[4, 4, 0, 0]}
+                    fill={fill}
+                  />
                 );
               }}
             />

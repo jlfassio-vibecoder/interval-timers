@@ -142,7 +142,10 @@ export function validateScaffoldOutput(
     }
 
     const daysPerWeek = phase.daysPerWeek;
-    if (daysPerWeek !== undefined && (typeof daysPerWeek !== 'number' || daysPerWeek < 2 || daysPerWeek > 6)) {
+    if (
+      daysPerWeek !== undefined &&
+      (typeof daysPerWeek !== 'number' || daysPerWeek < 2 || daysPerWeek > 6)
+    ) {
       return { valid: false, error: `phases[${i}].daysPerWeek must be 2-6 if set` };
     }
 

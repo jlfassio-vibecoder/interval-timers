@@ -372,7 +372,14 @@ const WingateInterval: React.FC<WingateIntervalProps> = ({ onNavigate }) => {
                               ? '#a21caf'
                               : 'rgba(148,163,184,0.5)';
                         return (
-                          <Rectangle x={x} y={y} width={width} height={height} radius={[6, 6, 0, 0]} fill={fill} />
+                          <Rectangle
+                            x={x}
+                            y={y}
+                            width={width}
+                            height={height}
+                            radius={[6, 6, 0, 0]}
+                            fill={fill}
+                          />
                         );
                       }}
                     />

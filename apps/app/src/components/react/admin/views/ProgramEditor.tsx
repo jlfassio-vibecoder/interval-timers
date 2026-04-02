@@ -81,11 +81,7 @@ const ProgramEditor: React.FC = () => {
       setExtractingWorkout(true);
       try {
         const { workoutSet, workoutConfig } = programWorkoutToWorkoutSet(workout);
-        const workoutId = await saveWorkoutToLibrary(
-          workoutSet,
-          workoutConfig,
-          undefined
-        );
+        const workoutId = await saveWorkoutToLibrary(workoutSet, workoutConfig, undefined);
         navigate(`/workouts/${workoutId}`, {
           state: { fromProgram: { programId: id, weekNumber, workoutIndex } },
         });
@@ -115,7 +111,9 @@ const ProgramEditor: React.FC = () => {
       setTitle(data.title);
       setDescription(data.description ?? '');
       setDifficulty(
-        data.difficulty === 'beginner' || data.difficulty === 'intermediate' || data.difficulty === 'advanced'
+        data.difficulty === 'beginner' ||
+          data.difficulty === 'intermediate' ||
+          data.difficulty === 'advanced'
           ? data.difficulty
           : 'intermediate'
       );
@@ -397,14 +395,22 @@ const ProgramEditor: React.FC = () => {
             ) : (
               <Star className={`h-5 w-5 ${featuredOnLanding ? 'fill-orange-light' : ''}`} />
             )}
-            {featuredLoading ? 'Updating...' : featuredOnLanding ? 'Featured' : 'Feature on Homepage'}
+            {featuredLoading
+              ? 'Updating...'
+              : featuredOnLanding
+                ? 'Featured'
+                : 'Feature on Homepage'}
           </button>
           <button
             type="button"
             onClick={handlePublishToggle}
             disabled={publishLoading}
             className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 font-medium text-white/80 transition-colors hover:bg-white/10 disabled:opacity-50"
-            title={isPublished ? 'Unpublish (remove from programs landing)' : 'Publish (show on programs landing)'}
+            title={
+              isPublished
+                ? 'Unpublish (remove from programs landing)'
+                : 'Publish (show on programs landing)'
+            }
           >
             {publishLoading ? (
               <Loader2 className="h-5 w-5 animate-spin" />
@@ -418,7 +424,7 @@ const ProgramEditor: React.FC = () => {
           <button
             type="button"
             onClick={() => setGeneratorOpen(true)}
-            className="flex items-center gap-2 rounded-lg border border-orange-light/50 bg-orange-light/10 px-4 py-2.5 font-medium text-orange-light transition-colors hover:bg-orange-light/20"
+            className="border-orange-light/50 bg-orange-light/10 hover:bg-orange-light/20 flex items-center gap-2 rounded-lg border px-4 py-2.5 font-medium text-orange-light transition-colors"
             title="Open AI program editor (scaffold, phases)"
           >
             <Sparkles className="h-5 w-5" />
@@ -479,7 +485,7 @@ const ProgramEditor: React.FC = () => {
                   onClick={handleGeneratePublicCopy}
                   disabled={generatingPublicCopy || !(programData?.schedule?.length ?? 0)}
                   title="AI will write a public-facing title and phase-by-phase description based on the finished program."
-                  className="mt-2 flex items-center gap-2 rounded-lg border border-orange-light/30 bg-orange-light/10 px-3 py-2 text-sm font-medium text-orange-light transition-colors hover:bg-orange-light/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="border-orange-light/30 bg-orange-light/10 hover:bg-orange-light/20 mt-2 flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium text-orange-light transition-colors disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {generatingPublicCopy ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -489,7 +495,8 @@ const ProgramEditor: React.FC = () => {
                   {generatingPublicCopy ? 'Generating...' : 'Generate Public Title & Description'}
                 </button>
                 <p className="mt-1 text-xs text-white/50">
-                  Writes a public-facing title and description with phase breakdown from the finished program.
+                  Writes a public-facing title and description with phase breakdown from the
+                  finished program.
                 </p>
               </div>
             </div>
@@ -506,7 +513,7 @@ const ProgramEditor: React.FC = () => {
 
         <div className="space-y-6">
           {scaffold && (
-            <div className="rounded-2xl border border-orange-light/20 bg-orange-light/5 p-6 backdrop-blur-sm">
+            <div className="border-orange-light/20 bg-orange-light/5 rounded-2xl border p-6 backdrop-blur-sm">
               <h2 className="mb-2 text-lg font-bold">Rebuild phases</h2>
               <p className="mb-4 text-sm text-white/60">
                 This program has a scaffold. Rebuild a phase to regenerate its workouts with AI.
@@ -518,7 +525,7 @@ const ProgramEditor: React.FC = () => {
                     type="button"
                     onClick={() => handleBuildPhase(p.phaseIndex)}
                     disabled={buildingPhaseIndex !== null}
-                    className="rounded-lg border border-orange-light/30 bg-orange-light/10 px-4 py-2 text-sm font-medium text-orange-light hover:bg-orange-light/20 disabled:opacity-50"
+                    className="border-orange-light/30 bg-orange-light/10 hover:bg-orange-light/20 rounded-lg border px-4 py-2 text-sm font-medium text-orange-light disabled:opacity-50"
                   >
                     {buildingPhaseIndex === p.phaseIndex
                       ? 'Building...'
@@ -574,7 +581,9 @@ const ProgramEditor: React.FC = () => {
         existingProgram={programData}
         programConfig={programConfigForModal}
         editingProgramId={id ?? undefined}
-        editingChainMetadata={(programData as { chain_metadata?: PromptChainMetadata })?.chain_metadata}
+        editingChainMetadata={
+          (programData as { chain_metadata?: PromptChainMetadata })?.chain_metadata
+        }
       />
     </div>
   );

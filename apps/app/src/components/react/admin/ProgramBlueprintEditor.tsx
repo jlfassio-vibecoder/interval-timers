@@ -43,7 +43,10 @@ import { validateWorkoutDescriptions } from '@/lib/validate-program-schedule';
 import { normalizeWorkoutForEditor } from '@/lib/program-schedule-utils';
 import { getGeneratedExercises } from '@/lib/supabase/client/generated-exercises';
 import type { GeneratedExercise } from '@/types/generated-exercise';
-import { buildApprovedExerciseMaps, normalizeExerciseName } from '@interval-timers/exercise-mapping';
+import {
+  buildApprovedExerciseMaps,
+  normalizeExerciseName,
+} from '@interval-timers/exercise-mapping';
 import type { Exercise as PublicExercise } from '@/types';
 import type { ExtendedBiomechanics } from '@/components/react/ExerciseDetailModal';
 import ExerciseMapPickerModal from '@/components/react/admin/ExerciseMapPickerModal';
@@ -265,8 +268,9 @@ const ProgramBlueprintEditor: React.FC<ProgramBlueprintEditorProps> = ({
     scaffold && scaffold.phases.length > 0
       ? getNextPhaseIndex(scaffold, program.schedule.length)
       : undefined;
-  const useScaffoldFlow =
-    Boolean(scaffold && scaffoldProgramId && onBuildPhase && nextPhaseIndex !== undefined);
+  const useScaffoldFlow = Boolean(
+    scaffold && scaffoldProgramId && onBuildPhase && nextPhaseIndex !== undefined
+  );
   const handleBuildPhaseClick = async () => {
     if (!useScaffoldFlow || nextPhaseIndex == null || !onBuildPhase) return;
     await onBuildPhase(nextPhaseIndex, program);

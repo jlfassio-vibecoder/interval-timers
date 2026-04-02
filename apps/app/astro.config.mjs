@@ -155,7 +155,8 @@ export default defineConfig({
           }
         }
       },
-      chunkSizeWarningLimit: 500, // Encourage smaller chunks; Firebase and vendor are split separately
+      // Consolidated `vendor` manualChunk is ~1.6MB (React kept in-app per comment above; recharts, etc.).
+      chunkSizeWarningLimit: 1700,
       commonjsOptions: {
         // Transform CommonJS modules to ES modules
         transformMixedEsModules: true

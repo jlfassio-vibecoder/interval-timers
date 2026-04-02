@@ -65,7 +65,10 @@ describe('getLatestAmrMethod', () => {
     expect(getLatestAmrMethod({ amr: [{ method: 'password', timestamp: 1 }] })).toBe('password');
     expect(
       getLatestAmrMethod({
-        amr: [{ method: 'oauth', timestamp: 1 }, { method: 'otp', timestamp: 2 }],
+        amr: [
+          { method: 'oauth', timestamp: 1 },
+          { method: 'otp', timestamp: 2 },
+        ],
       })
     ).toBe('otp');
   });
@@ -113,7 +116,9 @@ describe('shouldShowCredentialGate', () => {
       makeAccessToken({ amr: [{ method: 'password', timestamp: 1 }] })
     );
     expect(shouldShowCredentialGate(session, minimalUser({}))).toBe(false);
-    const sessionOauth = minimalSession(makeAccessToken({ amr: [{ method: 'oauth', timestamp: 1 }] }));
+    const sessionOauth = minimalSession(
+      makeAccessToken({ amr: [{ method: 'oauth', timestamp: 1 }] })
+    );
     expect(shouldShowCredentialGate(sessionOauth, minimalUser({}))).toBe(false);
   });
 

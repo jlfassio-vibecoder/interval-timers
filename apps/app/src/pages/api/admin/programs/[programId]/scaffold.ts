@@ -54,10 +54,13 @@ export const PUT: APIRoute = async ({ request, params, cookies }) => {
     try {
       body = await request.json();
     } catch {
-      return new Response(JSON.stringify({ error: 'Invalid request body. Expected JSON with scaffold.' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return new Response(
+        JSON.stringify({ error: 'Invalid request body. Expected JSON with scaffold.' }),
+        {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
     }
 
     if (!body.scaffold || !Array.isArray(body.scaffold.phases)) {

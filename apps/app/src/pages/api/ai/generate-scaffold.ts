@@ -89,11 +89,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       selectedEquipmentIds: persona.selectedEquipmentIds,
     };
 
-    const programId = await createProgramWithScaffold(
-      caller.uid,
-      scaffold,
-      programConfig
-    );
+    const programId = await createProgramWithScaffold(caller.uid, scaffold, programConfig);
 
     return new Response(
       JSON.stringify({

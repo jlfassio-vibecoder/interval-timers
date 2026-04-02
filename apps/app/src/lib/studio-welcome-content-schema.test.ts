@@ -36,9 +36,7 @@ describe('welcomeContentForPublicInvitePreview', () => {
 
   it('returns null when only internal note was set', () => {
     expect(
-      welcomeContentForPublicInvitePreview(
-        parseStudioWelcomeContent({ emailSenderNote: 'secret' })
-      )
+      welcomeContentForPublicInvitePreview(parseStudioWelcomeContent({ emailSenderNote: 'secret' }))
     ).toBeNull();
   });
 });

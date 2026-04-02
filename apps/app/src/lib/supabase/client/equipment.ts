@@ -8,7 +8,9 @@
 
 import { supabase } from '../client';
 
-function isTableMissingError(err: { code?: string; message?: string; status?: number } | null): boolean {
+function isTableMissingError(
+  err: { code?: string; message?: string; status?: number } | null
+): boolean {
   if (!err) return false;
   if (err.code === '42P01') return true;
   if ((err as { status?: number }).status === 404) return true;
@@ -93,13 +95,48 @@ function mapZone(row: ZoneRow): Zone {
 }
 
 const EQUIPMENT_CATEGORIES_FALLBACK: EquipmentCategory[] = [
-  { code: 'free_weights', commonTerm: 'Free Weights', technicalTerm: 'Isoinertial', examples: 'Barbells, Dumbbells, Kettlebells' },
-  { code: 'machines', commonTerm: 'Machines', technicalTerm: 'Mechanically Guided', examples: 'Selectorized (pin-loaded) and plate-loaded equipment' },
-  { code: 'cables_bands', commonTerm: 'Cables & Bands', technicalTerm: 'Variable/Constant Tension', examples: 'Functional trainers, resistance bands, pulleys' },
-  { code: 'bodyweight', commonTerm: 'Bodyweight', technicalTerm: 'Closed-Kinetic Chain', examples: 'Pull-up bars, rings, dip stations, floor space' },
-  { code: 'benches_racks', commonTerm: 'Benches & Racks', technicalTerm: 'Structural/Utility', examples: 'Power cages, adjustable benches, squat stands' },
-  { code: 'conditioning', commonTerm: 'Conditioning', technicalTerm: 'Metabolic Ergometers', examples: 'Rowers, bikes, treadmills, stair climbers' },
-  { code: 'functional_training', commonTerm: 'Functional Training', technicalTerm: 'Multi-Planar / Task-Specific', examples: 'Medicine balls, battle ropes, sleds, stability balls, weight vests' },
+  {
+    code: 'free_weights',
+    commonTerm: 'Free Weights',
+    technicalTerm: 'Isoinertial',
+    examples: 'Barbells, Dumbbells, Kettlebells',
+  },
+  {
+    code: 'machines',
+    commonTerm: 'Machines',
+    technicalTerm: 'Mechanically Guided',
+    examples: 'Selectorized (pin-loaded) and plate-loaded equipment',
+  },
+  {
+    code: 'cables_bands',
+    commonTerm: 'Cables & Bands',
+    technicalTerm: 'Variable/Constant Tension',
+    examples: 'Functional trainers, resistance bands, pulleys',
+  },
+  {
+    code: 'bodyweight',
+    commonTerm: 'Bodyweight',
+    technicalTerm: 'Closed-Kinetic Chain',
+    examples: 'Pull-up bars, rings, dip stations, floor space',
+  },
+  {
+    code: 'benches_racks',
+    commonTerm: 'Benches & Racks',
+    technicalTerm: 'Structural/Utility',
+    examples: 'Power cages, adjustable benches, squat stands',
+  },
+  {
+    code: 'conditioning',
+    commonTerm: 'Conditioning',
+    technicalTerm: 'Metabolic Ergometers',
+    examples: 'Rowers, bikes, treadmills, stair climbers',
+  },
+  {
+    code: 'functional_training',
+    commonTerm: 'Functional Training',
+    technicalTerm: 'Multi-Planar / Task-Specific',
+    examples: 'Medicine balls, battle ropes, sleds, stability balls, weight vests',
+  },
 ];
 
 export async function getEquipmentCategories(): Promise<EquipmentCategory[]> {
@@ -109,12 +146,14 @@ export async function getEquipmentCategories(): Promise<EquipmentCategory[]> {
     .order('code');
   if (error && isTableMissingError(error)) return EQUIPMENT_CATEGORIES_FALLBACK;
   if (error) throw error;
-  const mapped = (data ?? []).map((row: { code: string; common_term: string; technical_term: string; examples: string }) => ({
-    code: row.code as EquipmentCategoryCode,
-    commonTerm: row.common_term,
-    technicalTerm: row.technical_term,
-    examples: row.examples,
-  }));
+  const mapped = (data ?? []).map(
+    (row: { code: string; common_term: string; technical_term: string; examples: string }) => ({
+      code: row.code as EquipmentCategoryCode,
+      commonTerm: row.common_term,
+      technicalTerm: row.technical_term,
+      examples: row.examples,
+    })
+  );
   return mapped.length > 0 ? mapped : EQUIPMENT_CATEGORIES_FALLBACK;
 }
 
@@ -261,7 +300,7 @@ export async function seedDefaultData(): Promise<{
     { name: 'StairMill / StepMill', category: 'conditioning' },
     { name: 'Pedaling Stepper', category: 'conditioning' },
     { name: 'Vertical Climber (VersaClimber)', category: 'conditioning' },
-    { name: 'Jacob\'s Ladder', category: 'conditioning' },
+    { name: "Jacob's Ladder", category: 'conditioning' },
     { name: 'Jump Rope', category: 'conditioning' },
     // Bodyweight (canonical 20)
     { name: 'Pull-up Bar (Straight/Multi-grip)', category: 'bodyweight' },
