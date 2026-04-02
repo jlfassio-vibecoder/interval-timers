@@ -1,0 +1,24 @@
+---
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Client opens coach-assigned workout/WOD (or program handoff) via query ?assignmentId=
+ */
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import AppWrapper from '../../components/react/AppWrapper';
+import AssignedCoachWorkoutPage from '../../components/react/hud/AssignedCoachWorkoutPage';
+
+export const prerender = false;
+---
+
+<BaseLayout title="Assigned workout | AI Fitcopilot">
+  <div
+    class="relative min-h-screen overflow-x-hidden text-white selection:bg-orange-light selection:text-black"
+  >
+    <AppWrapper client:load pathname={Astro.url.pathname} />
+    <main>
+      <AssignedCoachWorkoutPage client:load />
+    </main>
+  </div>
+</BaseLayout>

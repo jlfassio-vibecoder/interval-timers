@@ -1,7 +1,7 @@
 # Technical Design: Performance Lab (Mission Control)
 
-**Status:** Draft  
-**Last updated:** April 2, 2026  
+**Status:** Draft — **P0 + P1 implemented** (see section 6 and implementation summaries below).  
+**Last updated:** April 4, 2026  
 **Related:** [ROSTER_TRAINER_HUD_WORKFLOW_SWOT.md](./ROSTER_TRAINER_HUD_WORKFLOW_SWOT.md), `ClientDetailView` (“View Stats”), `RosterView`
 
 ---
@@ -36,9 +36,9 @@ The **Performance Lab** is a trainer-facing workspace for a **single roster clie
 
 ### Placement
 
-- **Entry:** From Roster row actions, alongside **View Stats** — e.g. **Performance Lab** → `/trainer/roster/:userId/lab` (or `/trainer/roster/:userId/performance` — pick one slug and keep stable).
-- **View Stats** remains `/trainer/roster/:userId` (existing `ClientDetailView`).
-- Optional: tabs inside a thin **client shell** layout shared by Stats + Lab to reduce navigation churn.
+- **Entry (done):** Roster row **Lab** → `/trainer/roster/:userId/lab` (basename `/trainer`); slug **`lab`** is stable.
+- **View Stats:** `/trainer/roster/:userId` index route (`ClientDetailView`).
+- **Client shell (done):** `ClientMissionControlLayout` — shared header, **Back to Roster**, **View Stats** / **Performance Lab** tabs, `<Outlet />` for child routes.
 
 ### Suggested in-Lab navigation
 
@@ -49,6 +49,8 @@ The **Performance Lab** is a trainer-facing workspace for a **single roster clie
 | Calendar | `calendar` | Week / month; respects `profiles.timezone` |
 | Message board | `messages` | Threaded or chronological |
 | Weekly activity board | `week` | Mon–Sun Kanban |
+
+**P0 note:** The shell uses **View Stats** vs **Performance Lab** only. The Lab route currently surfaces **programs & enrollments** (table + actions) plus a “Coming soon” list for assign/calendar/messages/week; the slug rows above are the **target** in-Lab IA for later phases.
 
 ---
 
@@ -61,15 +63,16 @@ The **Performance Lab** is a trainer-facing workspace for a **single roster clie
 **Behavioral requirements**
 
 - **Swap / set primary:** **Decision:** implement **server-authoritative** “trainer recommended active program” (see section 7). The client app reads this on load and aligns with `active-program-sync` / `enrollment-pick`; `localStorage` may still cache the resolved id for UX but must not override stale server state. Storage sketch: `user_programs` metadata and/or `client_training_preferences` keyed by `user_id` + `trainer_id`.
-- **End program:** Set enrollment `status` to `completed` / `paused` / `cancelled` (normalize enum with existing schema). Define whether **end** removes from roster listing (probably not — roster is enrollment-based; “ended” still visible with filter).
+- **End program:** Set enrollment `status` to `completed` / `paused` / `cancelled` (normalize enum with existing schema). **P0:** only **`completed`** is implemented (`user_programs` today is `active` | `completed`). Define whether **end** removes from roster listing (probably not — roster is enrollment-based; “ended” still visible with filter).
 - **Edit:** Distinguish **edit assignment** (start date, week offset, notes) from **edit program template** (Builder). Lab focuses on assignment + deep link “Open in Builder” for template edits.
 
 **API sketch**
 
-- `GET /api/trainer/clients/:userId/enrollments`
-- `PATCH /api/trainer/clients/:userId/enrollments/:programId` — start_date, status, trainer notes
-- `POST /api/trainer/clients/:userId/enrollments/:programId/end`
-- `POST /api/trainer/clients/:userId/active-program` — **required:** trainer sets server-side recommended active program id
+- `GET /api/trainer/clients/:userId/enrollments` — **done** (P0)
+- `PATCH /api/trainer/clients/:userId/enrollments/:programId` — start_date, status, trainer notes — **not yet** (post-P0)
+- `POST /api/trainer/clients/:userId/enrollments/:programId/end` — **done** (P0; sets `user_programs.status` to `completed` per current schema)
+- `POST /api/trainer/clients/:userId/active-program` — **done** (P0); body `{ programId: string | null }` upserts `client_training_preferences`
+- `GET /api/me/trainer-recommended-program` — **done** (P0); user JWT + RLS (not service-role–only); HUD reads recommendation via `AppContext` + `resolveActiveProgramIdForSession`
 
 **Existing anchors:** `user_programs`, `source: 'trainer_assigned'`, `grantProgramAccess`, `fetchTrainerRoster`.
 
@@ -90,6 +93,8 @@ The **Performance Lab** is a trainer-facing workspace for a **single roster clie
 **Workouts / WODs:** May be **instances** (scheduled) or **templates** assigned to a library. If workouts live inside `program_weeks`, assignment might be “inject workout into week N” vs standalone “send this WOD for Tuesday.”
 
 **Client surfacing:** **Decision:** support **both** **in-app notifications** and **mobile web push** (see section 7). **Assignment table** should carry enough metadata for channels; email may remain a later channel.
+
+**P1:** In-app HUD notifications for open assignments (`coach_assignment` in derived notifications + bell panel). Web push still future.
 
 ---
 
@@ -179,20 +184,51 @@ The **Performance Lab** is a trainer-facing workspace for a **single roster clie
 
 - Setting **start_date** and **server-side recommended active program** from Lab should directly improve **Continue** and **Your coach** consistency; coordinate with `active-program-sync` / `enrollment-pick` so client resolution prefers trainer recommendation over orphan `localStorage`.
 
+**P0 done:** Trainer recommendation is persisted in `client_training_preferences`; client resolution prefers a **valid** server recommendation first, then `localStorage`, then hints / default pick (`resolveActiveProgramIdForSession`). `/api/me/trainer-recommended-program` uses the same JWT + anon Supabase pattern as invitation accept routes; recommendation fetch is **cached per user id** in `AppContext` so it does not refire on every `activeProgramId` change.
+
+### 5.5 Data layer (P0)
+
+- **Table:** `client_training_preferences` (`client_user_id`, `trainer_user_id`, `recommended_active_program_id`, `updated_at`), migration `20260402120000_client_training_preferences.sql`.
+- **RLS (post–PR #127 review):** `20260403120000_client_training_preferences_rls.sql` — `authenticated` may `SELECT` own client rows and `FOR ALL` rows where `auth.uid() = trainer_user_id`; service role used by Mission Control APIs bypasses RLS as usual.
+
 ---
 
 ## 6. Phased delivery (suggested)
 
-| Phase | Scope |
-|-------|--------|
-| **P0** | Route + shell UI; enrollments read-only; end/swap program (minimal API); link to Builder |
-| **P1** | Assign programs + workouts/WODs (MVP assignment table + client HUD surfacing) |
-| **P2** | Calendar read API + basic drag-to-reschedule for assignment instances |
-| **P3** | Message board MVP |
-| **P4** | Weekly Kanban + exercise assignments |
-| **P5** | Challenges: Challenge Factory import + assign flow (AI generation feeds factory, same pattern as Program Factory) |
+| Phase | Scope | Status |
+|-------|--------|--------|
+| **P0** | Route + shell UI; enrollments read-only; end program + set/clear recommended active program (APIs); Builder links; HUD sync + RLS + `/api/me` user-scoped read | **Completed** |
+| **P1** | Assign programs + workouts/WODs (MVP assignment table + client HUD surfacing) | **Completed** |
+| **P2** | Calendar read API + basic drag-to-reschedule for assignment instances | Pending |
+| **P3** | Message board MVP | Pending |
+| **P4** | Weekly Kanban + exercise assignments | Pending |
+| **P5** | Challenges: Challenge Factory import + assign flow (AI generation feeds factory, same pattern as Program Factory) | Pending |
 
 Order can change if messaging is higher priority for your cohort.
+
+### P0 implementation summary (reference)
+
+| Item | Notes |
+|------|--------|
+| Routing | `TrainerRoute`: nested `roster/:userId` → `ClientMissionControlLayout`; index = stats; `lab` = `PerformanceLabView` |
+| UI | `PerformanceLabView`: enrollment table, Set active / Clear recommendation / End / Builder; “Coming soon” for later tabs |
+| Roster | **Lab** button (program clients or rows with `programIds.length > 0`) |
+| Server | `trainer-client-enrollments.ts`: enrollments fetch, end enrollment, set recommendation, `fetchTrainerRecommendationForAuthenticatedSupabaseUser` |
+| Client HUD | `AppContext` + `active-program-sync.ts` (4th arg: trainer recommendation) |
+| Not in P0 | `PATCH` enrollment; audit logging; in-app/push surfacing for assignments |
+
+### P1 implementation summary (reference)
+
+| Item | Notes |
+|------|--------|
+| Table | `client_coach_assignments`; migrations `20260404120000_client_coach_assignments.sql`, `20260404120001_client_coach_assignments_rls.sql` |
+| Server | `trainer-client-assignments.ts`: list/create/revoke; program assign upserts `user_programs` with `trainer_assigned`; workout/WOD ownership checks |
+| Trainer APIs | `GET/POST .../clients/[userId]/assignments`, `POST .../assignments/[assignmentId]/revoke`, `GET /api/trainer/workouts`, `GET /api/trainer/wods` |
+| Client APIs | `GET /api/me/coach-assignments`, `PATCH /api/me/coach-assignments/[assignmentId]` (dismiss), `GET .../payload` (workout/WOD Artist or program id) |
+| Lab UI | `PerformanceLabView`: type picker, assign, assignments table + revoke |
+| Client play | `/workout/assigned?assignmentId=` + `AssignedCoachWorkoutPage` + `WorkoutDetailModal` |
+| HUD | `derive-notifications` merges coach assignments; `NotificationPanel` Open / Dismiss; `useDerivedNotifications` refresh key from HUD shell |
+| Not in P1 | Challenges; web push; `PATCH` enrollment dates |
 
 ---
 
@@ -257,3 +293,5 @@ Your six pillars cover the **core coaching loop** (programming, scheduling, educ
 | 2026-04-02 | — | Initial draft |
 | 2026-04-02 | — | Resolved section 7 decisions: Challenge Factory, server active program, Kanban toggle, in-app + web push |
 | 2026-04-02 | — | P0 shipped: `client_training_preferences`, `/trainer/roster/:userId/lab`, enrollments + active-program APIs, `GET /api/me/trainer-recommended-program`, HUD merge in `resolveActiveProgramIdForSession` |
+| 2026-04-03 | — | Doc: P0 marked complete; implementation summary, API/RLS notes, phase status column; Copilot follow-ups: RLS migration, user-scoped `/api/me`, AppContext recommendation cache |
+| 2026-04-04 | — | P1 shipped: `client_coach_assignments`, trainer + `/api/me` assignment APIs, Performance Lab assign UI, HUD notification panel + `/workout/assigned`; doc P1 summary |

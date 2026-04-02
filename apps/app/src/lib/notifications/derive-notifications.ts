@@ -11,6 +11,7 @@ import { getTodaysWorkoutOrRest } from '@/lib/supabase/client/schedule-resolver'
 import { getTodaysWorkoutLog, getStreakData } from '@/lib/supabase/client/progress-analytics';
 
 export type NotificationType =
+  | 'coach_assignment'
   | 'new_workout_available'
   | 'rest_day_reminder'
   | 'streak_at_risk'
@@ -21,6 +22,11 @@ export interface DerivedNotification {
   type: NotificationType;
   title: string;
   message: string;
+  /** Coach assignment (from /api/me/coach-assignments). */
+  assignmentId?: string;
+  coachAction?: 'set_program' | 'open_workout';
+  coachHref?: string;
+  coachProgramId?: string;
 }
 
 const LAST_WEEK_KEY_PREFIX = 'ai-fit-last-week-';
@@ -39,7 +45,7 @@ function setLastSeenWeek(programId: string, week: number): void {
 }
 
 /**
- * Derive up to 4 notifications in order: program_complete, new_workout_available,
+ * Derive notifications: coach assignments first, then program_complete, new_workout_available,
  * rest_day_reminder, streak_at_risk. Requires userId; activeProgramId optional (streak_at_risk still applies).
  */
 export async function deriveNotifications(
@@ -47,9 +53,49 @@ export async function deriveNotifications(
   activeProgramId: string | null
 ): Promise<DerivedNotification[]> {
   const out: DerivedNotification[] = [];
+  const coachOut: DerivedNotification[] = [];
   const id = () => `n-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
   if (!userId) return [];
+
+  if (typeof window !== 'undefined') {
+    try {
+      const res = await fetch('/api/me/coach-assignments', { credentials: 'include' });
+      if (res.ok) {
+        const data = (await res.json()) as { assignments?: unknown[] };
+        const list = Array.isArray(data.assignments) ? data.assignments : [];
+        for (const raw of list.slice(0, 5)) {
+          const a = raw as {
+            id?: string;
+            assignmentType?: string;
+            titleSnapshot?: string;
+            action?: string;
+            programId?: string;
+            href?: string;
+          };
+          if (typeof a.id !== 'string' || !a.id) continue;
+          const title =
+            a.action === 'set_program' ? 'Program from your coach' : 'Workout from your coach';
+          const message =
+            typeof a.titleSnapshot === 'string' && a.titleSnapshot.trim()
+              ? a.titleSnapshot.trim()
+              : 'Open to view';
+          coachOut.push({
+            id: `coach-${a.id}`,
+            type: 'coach_assignment',
+            title,
+            message,
+            assignmentId: a.id,
+            coachAction: a.action === 'set_program' ? 'set_program' : 'open_workout',
+            coachProgramId: typeof a.programId === 'string' ? a.programId : undefined,
+            coachHref: typeof a.href === 'string' ? a.href : undefined,
+          });
+        }
+      }
+    } catch {
+      /* ignore coach assignment fetch errors */
+    }
+  }
 
   let startDate: string | null = null;
   let durationWeeks = 4;
@@ -136,5 +182,5 @@ export async function deriveNotifications(
     }
   }
 
-  return out.slice(0, 4);
+  return [...coachOut, ...out].slice(0, 8);
 }

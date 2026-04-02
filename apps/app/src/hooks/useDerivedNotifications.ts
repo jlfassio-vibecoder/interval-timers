@@ -13,7 +13,8 @@ import {
 
 export function useDerivedNotifications(
   userId: string | undefined,
-  activeProgramId: string | null
+  activeProgramId: string | null,
+  refreshKey?: number
 ): {
   notifications: DerivedNotification[];
   count: number;
@@ -45,7 +46,7 @@ export function useDerivedNotifications(
     return () => {
       cancelled = true;
     };
-  }, [userId, activeProgramId]);
+  }, [userId, activeProgramId, refreshKey]);
 
   return {
     notifications,

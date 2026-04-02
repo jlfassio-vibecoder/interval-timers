@@ -7,8 +7,16 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { ExternalLink, FlaskConical } from 'lucide-react';
+import { ExternalLink, FlaskConical, ClipboardList } from 'lucide-react';
 import { adminPaths } from '@/lib/admin/config';
+import type { CoachAssignmentListItem } from '@/lib/supabase/admin/trainer-client-assignments';
+
+type AssignKind = 'program' | 'workout' | 'wod';
+
+interface PickerItem {
+  id: string;
+  title: string;
+}
 
 interface EnrollmentRow {
   programId: string;
@@ -30,6 +38,13 @@ const PerformanceLabView: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+
+  const [assignments, setAssignments] = useState<CoachAssignmentListItem[]>([]);
+  const [assignLoading, setAssignLoading] = useState(true);
+  const [assignKind, setAssignKind] = useState<AssignKind>('program');
+  const [pickerItems, setPickerItems] = useState<PickerItem[]>([]);
+  const [pickerLoading, setPickerLoading] = useState(false);
+  const [selectedResourceId, setSelectedResourceId] = useState('');
 
   const load = useCallback(async () => {
     if (!userId) return;
@@ -58,6 +73,70 @@ const PerformanceLabView: React.FC = () => {
     void load();
   }, [load]);
 
+  const loadAssignments = useCallback(async () => {
+    if (!userId) return;
+    setAssignLoading(true);
+    try {
+      const res = await fetch(
+        `/api/trainer/clients/${encodeURIComponent(userId)}/assignments`,
+        { credentials: 'include' }
+      );
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setAssignments([]);
+        return;
+      }
+      const list = (body as { assignments?: CoachAssignmentListItem[] }).assignments ?? [];
+      setAssignments(list);
+    } catch {
+      setAssignments([]);
+    } finally {
+      setAssignLoading(false);
+    }
+  }, [userId]);
+
+  useEffect(() => {
+    void loadAssignments();
+  }, [loadAssignments]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const path =
+      assignKind === 'program'
+        ? '/api/trainer/programs'
+        : assignKind === 'workout'
+          ? '/api/trainer/workouts'
+          : '/api/trainer/wods';
+    setPickerLoading(true);
+    setSelectedResourceId('');
+    fetch(path, { credentials: 'include' })
+      .then(async (r) => {
+        const raw = await r.json().catch(() => []);
+        if (cancelled) return;
+        const arr = Array.isArray(raw) ? raw : [];
+        setPickerItems(
+          arr
+            .map((x: unknown) => {
+              const o = x as { id?: string; title?: string };
+              return {
+                id: typeof o.id === 'string' ? o.id : '',
+                title: typeof o.title === 'string' && o.title.trim() ? o.title : 'Item',
+              };
+            })
+            .filter((x) => x.id)
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setPickerItems([]);
+      })
+      .finally(() => {
+        if (!cancelled) setPickerLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [assignKind]);
+
   const setRecommended = async (programId: string | null) => {
     if (!userId) return;
     setBusy(programId ? `rec:${programId}` : 'rec:clear');
@@ -77,6 +156,57 @@ const PerformanceLabView: React.FC = () => {
         return;
       }
       await load();
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const createAssignment = async () => {
+    if (!userId || !selectedResourceId) return;
+    setBusy('assign:create');
+    try {
+      const res = await fetch(
+        `/api/trainer/clients/${encodeURIComponent(userId)}/assignments`,
+        {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            assignmentType: assignKind,
+            resourceId: selectedResourceId,
+          }),
+        }
+      );
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        window.alert(typeof body.error === 'string' ? body.error : 'Could not assign');
+        return;
+      }
+      setSelectedResourceId('');
+      await loadAssignments();
+      await load();
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const revokeAssignment = async (assignmentId: string) => {
+    if (!userId) return;
+    if (!window.confirm('Revoke this assignment? The client will no longer see it in notifications.')) {
+      return;
+    }
+    setBusy(`revoke:${assignmentId}`);
+    try {
+      const res = await fetch(
+        `/api/trainer/clients/${encodeURIComponent(userId)}/assignments/${encodeURIComponent(assignmentId)}/revoke`,
+        { method: 'POST', credentials: 'include' }
+      );
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        window.alert(typeof body.error === 'string' ? body.error : 'Could not revoke');
+        return;
+      }
+      await loadAssignments();
     } finally {
       setBusy(null);
     }
@@ -236,10 +366,106 @@ const PerformanceLabView: React.FC = () => {
         </table>
       </div>
 
+      <div className="flex items-start gap-3 rounded-lg border border-white/10 bg-black/20 p-4 backdrop-blur-sm">
+        <ClipboardList className="mt-0.5 h-6 w-6 shrink-0 text-orange-light" />
+        <div className="min-w-0 flex-1">
+          <h2 className="font-heading text-xl font-bold">Assignments</h2>
+          <p className="mt-1 text-sm text-white/60">
+            Assign programs (enrolls client), workouts, or approved WODs. Clients see open items in HUD
+            notifications.
+          </p>
+
+          <div className="mt-4 flex flex-wrap items-end gap-3">
+            <div>
+              <label className="mb-1 block font-mono text-[10px] uppercase text-white/50">Type</label>
+              <select
+                value={assignKind}
+                onChange={(e) => setAssignKind(e.target.value as AssignKind)}
+                className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
+              >
+                <option value="program">Program</option>
+                <option value="workout">Workout</option>
+                <option value="wod">WOD</option>
+              </select>
+            </div>
+            <div className="min-w-[12rem] flex-1">
+              <label className="mb-1 block font-mono text-[10px] uppercase text-white/50">Resource</label>
+              <select
+                value={selectedResourceId}
+                onChange={(e) => setSelectedResourceId(e.target.value)}
+                disabled={pickerLoading}
+                className="w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white disabled:opacity-50"
+              >
+                <option value="">{pickerLoading ? 'Loading…' : 'Select…'}</option>
+                {pickerItems.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <button
+              type="button"
+              disabled={!!busy || !selectedResourceId}
+              onClick={() => void createAssignment()}
+              className="rounded-lg border border-orange-light/40 bg-orange-light/10 px-4 py-2 font-mono text-xs font-bold uppercase text-orange-light hover:bg-orange-light/20 disabled:opacity-40"
+            >
+              {busy === 'assign:create' ? '…' : 'Assign'}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="overflow-hidden rounded-lg border border-white/10 bg-black/20 backdrop-blur-sm">
+        <table className="w-full">
+          <thead className="border-b border-white/10 bg-black/30">
+            <tr>
+              <th className="px-6 py-3 text-left text-sm font-semibold text-white/80">Type</th>
+              <th className="px-6 py-3 text-left text-sm font-semibold text-white/80">Title</th>
+              <th className="px-6 py-3 text-left text-sm font-semibold text-white/80">Assigned</th>
+              <th className="px-6 py-3 text-right text-sm font-semibold text-white/80">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-white/5">
+            {assignLoading ? (
+              <tr>
+                <td colSpan={4} className="px-6 py-8 text-center text-white/50">
+                  Loading assignments…
+                </td>
+              </tr>
+            ) : assignments.length === 0 ? (
+              <tr>
+                <td colSpan={4} className="px-6 py-10 text-center text-white/60">
+                  No active assignments. Use the form above to assign a program, workout, or WOD.
+                </td>
+              </tr>
+            ) : (
+              assignments.map((row) => (
+                <tr key={row.id} className="hover:bg-white/5">
+                  <td className="px-6 py-4 text-white/70">{row.assignmentType}</td>
+                  <td className="px-6 py-4 font-medium">{row.titleSnapshot}</td>
+                  <td className="px-6 py-4 text-white/70">{formatDate(row.assignedAt)}</td>
+                  <td className="px-6 py-4 text-right">
+                    <button
+                      type="button"
+                      disabled={!!busy}
+                      onClick={() => void revokeAssignment(row.id)}
+                      className="rounded-lg border border-white/15 px-3 py-1.5 text-xs font-medium text-white/80 hover:bg-white/10 disabled:opacity-40"
+                    >
+                      {busy === `revoke:${row.id}` ? '…' : 'Revoke'}
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
       <div className="rounded-lg border border-dashed border-white/15 bg-black/10 p-6">
         <p className="text-sm font-semibold uppercase tracking-wide text-white/50">Coming soon</p>
         <ul className="mt-2 list-inside list-disc text-sm text-white/45">
-          <li>Assignments (programs, challenges, workouts)</li>
+          <li>Challenge assignments (Challenge Factory)</li>
           <li>Calendar</li>
           <li>Message board</li>
           <li>Weekly activity board</li>
