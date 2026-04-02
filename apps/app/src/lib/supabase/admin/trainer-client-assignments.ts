@@ -321,9 +321,14 @@ export async function dismissCoachAssignmentForClient(
     .maybeSingle();
 
   if (fetchErr || !row) return { ok: false, error: 'Assignment not found' };
-  const r = row as { client_user_id?: string; revoked_at?: string | null };
+  const r = row as {
+    client_user_id?: string;
+    revoked_at?: string | null;
+    dismissed_at?: string | null;
+  };
   if (r.client_user_id !== clientUserId) return { ok: false, error: 'Assignment not found' };
   if (r.revoked_at) return { ok: false, error: 'Assignment is no longer active' };
+  if (r.dismissed_at) return { ok: false, error: 'Assignment already dismissed' };
 
   const { error: updErr } = await supabase
     .from('client_coach_assignments')
