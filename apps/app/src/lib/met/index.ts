@@ -176,7 +176,10 @@ export function resolveTotalActiveMultiplier(baseline: ProfileBaseline): number 
       workout && workout !== '' ? workout : 'none'
     );
   }
-  const legacyActivity = Reflect.get(baseline, 'activityLevelBaseline') as string | null | undefined;
+  const legacyActivity = Reflect.get(baseline, 'activityLevelBaseline') as
+    | string
+    | null
+    | undefined;
   return getActivityMultiplier(legacyActivity);
 }
 

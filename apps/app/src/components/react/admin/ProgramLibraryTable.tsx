@@ -47,11 +47,19 @@ const ProgramLibraryTable: React.FC<ProgramLibraryTableProps> = ({ onEdit, onDel
     } catch (err: unknown) {
       console.error('[ProgramLibraryTable] Error fetching programs:', err);
       const is404 =
-        (err && typeof err === 'object' && 'code' in err && (err as { code?: string }).code === 'PGRST204') ||
-        (err && typeof err === 'object' && 'status' in err && (err as { status?: number }).status === 404);
+        (err &&
+          typeof err === 'object' &&
+          'code' in err &&
+          (err as { code?: string }).code === 'PGRST204') ||
+        (err &&
+          typeof err === 'object' &&
+          'status' in err &&
+          (err as { status?: number }).status === 404);
       const message = is404
         ? 'Programs table not set up. Run docs/RUN_PROGRAMS_SCHEMA.sql in the Supabase SQL Editor for this project.'
-        : err instanceof Error ? err.message : 'Failed to fetch programs';
+        : err instanceof Error
+          ? err.message
+          : 'Failed to fetch programs';
       setError(message);
       setPrograms([]);
     } finally {
@@ -163,7 +171,7 @@ const ProgramLibraryTable: React.FC<ProgramLibraryTableProps> = ({ onEdit, onDel
           <select
             value={filter}
             onChange={(e) => setFilter((e.target.value as 'all' | 'draft' | 'active') || 'all')}
-            className="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-white focus:border-orange-light/50 focus:outline-none"
+            className="focus:border-orange-light/50 rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-white focus:outline-none"
           >
             <option value="all">All</option>
             <option value="draft">Draft</option>
@@ -226,14 +234,21 @@ const ProgramLibraryTable: React.FC<ProgramLibraryTableProps> = ({ onEdit, onDel
                     <div className="flex justify-end gap-2">
                       <button
                         onClick={() => handleFeaturedToggle(program)}
-                        disabled={featuredLoadingId === program.id || (program.featuredOnLanding === false && !program.isPublic)}
+                        disabled={
+                          featuredLoadingId === program.id ||
+                          (program.featuredOnLanding === false && !program.isPublic)
+                        }
                         className="rounded-lg p-2 text-white/60 hover:bg-white/10 hover:text-orange-light disabled:opacity-50"
-                        title={program.featuredOnLanding ? 'Remove from homepage' : 'Feature on homepage'}
+                        title={
+                          program.featuredOnLanding ? 'Remove from homepage' : 'Feature on homepage'
+                        }
                       >
                         {featuredLoadingId === program.id ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
-                          <Star className={`h-4 w-4 ${program.featuredOnLanding ? 'fill-orange-light text-orange-light' : ''}`} />
+                          <Star
+                            className={`h-4 w-4 ${program.featuredOnLanding ? 'fill-orange-light text-orange-light' : ''}`}
+                          />
                         )}
                       </button>
                       <button

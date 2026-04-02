@@ -7,6 +7,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { toast } from 'sonner';
 import { Activity, Lock, Calendar, TrendingUp, Play } from 'lucide-react';
 import { useAppContext } from '@/contexts/AppContext';
 import {
@@ -77,14 +78,18 @@ const ProgramSidebar: React.FC<ProgramSidebarProps> = ({
 
   const handleSaveStartDate = async (startDate: string) => {
     if (!user?.uid || !syncModalProgram) return;
+    const wasUpdate = !!syncModalProgram.startDate;
     setSaving(true);
     try {
       await setProgramStartDate(user.uid, syncModalProgram.programId, startDate);
       await loadPrograms();
       onProgramsChange?.();
       setSyncModalProgram(null);
+      toast.success(wasUpdate ? 'Calendar start date updated' : 'Program added to your calendar');
     } catch (e) {
       if (import.meta.env.DEV) console.error('[ProgramSidebar] setProgramStartDate', e);
+      toast.error(e instanceof Error ? e.message : 'Could not save start date');
+      throw e;
     } finally {
       setSaving(false);
     }
@@ -98,8 +103,11 @@ const ProgramSidebar: React.FC<ProgramSidebarProps> = ({
       await loadPrograms();
       onProgramsChange?.();
       setSyncModalProgram(null);
+      toast.success('Program removed from your calendar');
     } catch (e) {
       if (import.meta.env.DEV) console.error('[ProgramSidebar] remove startDate', e);
+      toast.error(e instanceof Error ? e.message : 'Could not remove from calendar');
+      throw e;
     } finally {
       setSaving(false);
     }
@@ -132,6 +140,8 @@ const ProgramSidebar: React.FC<ProgramSidebarProps> = ({
 
   const showLock = (source: ProgramItem['source']) =>
     !isPaid && source !== 'trainer_assigned' && source !== 'cohort';
+
+  const activeProgramCanSync = !!activeProgram && !showLock(activeProgram.source ?? 'self');
 
   return (
     <div
@@ -192,6 +202,16 @@ const ProgramSidebar: React.FC<ProgramSidebarProps> = ({
               <p className="mb-3 font-mono text-[10px] text-white/50">
                 Started {activeProgram.startDate}
               </p>
+            )}
+            {activeProgramCanSync && (
+              <button
+                type="button"
+                onClick={() => setSyncModalProgram(activeProgram)}
+                className="mb-3 flex w-full items-center justify-center gap-2 rounded-full border border-white/10 bg-white/5 py-2.5 font-mono text-[10px] uppercase tracking-widest text-white transition-colors hover:bg-white/10"
+              >
+                <Calendar className="h-3.5 w-3.5" />
+                {activeProgram.startDate ? 'Change calendar date' : 'Set calendar start date'}
+              </button>
             )}
             <button
               type="button"

@@ -28,9 +28,7 @@ describe('workout-editor-map', () => {
           ],
         },
       ],
-      finisherBlocks: [
-        { order: 1, exerciseName: 'Assault Bike', instructions: [] },
-      ],
+      finisherBlocks: [{ order: 1, exerciseName: 'Assault Bike', instructions: [] }],
     };
 
     const blocks = workoutInSetToBlocks(prev);

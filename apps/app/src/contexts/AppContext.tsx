@@ -1,7 +1,16 @@
-import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  type ReactNode,
+} from 'react';
 import { HEALTH_GUIDELINE_WEEKLY_MINUTES } from '@/lib/training-log-constants';
 import { supabase } from '@/lib/supabase/supabase-instance';
 import { getTrainerForUser } from '@/lib/supabase/client/trainer-resolver';
+import { resolveActiveProgramIdForSession } from '@/lib/active-program-sync';
 import { updateWeeklyGoalMinutes } from '@/lib/supabase/client/profiles';
 import { setAuthCookie, clearAuthCookie } from '@/lib/auth-cookie';
 import CredentialUpgradeModal from '@/components/react/CredentialUpgradeModal';
@@ -12,26 +21,6 @@ import type { UserProfile, WorkoutLog } from '@/types';
 export type AppUser = UserProfile;
 
 const ACTIVE_PROGRAM_STORAGE_KEY = 'ai-fit-active-program-id';
-
-/** Complete roster invites when auth redirects dropped ?invite= (server matches session email). */
-function requestAcceptPendingRosterInvites(accessToken?: string | null) {
-  if (typeof window === 'undefined') return;
-  queueMicrotask(() => {
-    const headers: Record<string, string> = {};
-    if (accessToken?.trim()) {
-      headers.Authorization = `Bearer ${accessToken.trim()}`;
-    }
-    void fetch('/api/invitations/accept-pending', {
-      method: 'POST',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-        ...headers,
-      },
-      body: '{}',
-    }).catch(() => {});
-  });
-}
 
 interface AppContextType {
   user: AppUser | null;
@@ -133,6 +122,41 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, []);
 
+  const activeProgramIdRef = useRef(activeProgramId);
+  activeProgramIdRef.current = activeProgramId;
+
+  /** Complete roster invites when auth redirects dropped ?invite=; sync active program from assigned ids. */
+  const runAcceptPendingInvites = useCallback(
+    async (accessToken: string | null | undefined, sessionUserId: string) => {
+      if (typeof window === 'undefined') return;
+      try {
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (accessToken?.trim()) {
+          headers.Authorization = `Bearer ${accessToken.trim()}`;
+        }
+        const res = await fetch('/api/invitations/accept-pending', {
+          method: 'POST',
+          credentials: 'include',
+          headers,
+          body: '{}',
+        });
+        const data = (await res.json()) as { assignedProgramIds?: string[] };
+        if (!res.ok || !data.assignedProgramIds?.length) return;
+        const next = await resolveActiveProgramIdForSession(
+          sessionUserId,
+          activeProgramIdRef.current,
+          data.assignedProgramIds
+        );
+        if (next != null && next !== activeProgramIdRef.current) {
+          setActiveProgramId(next);
+        }
+      } catch (e) {
+        if (import.meta.env.DEV) console.error('[AppContext] accept-pending', e);
+      }
+    },
+    [setActiveProgramId]
+  );
+
   // Legacy state
   const [workoutLogs, setWorkoutLogs] = useState<WorkoutLog[]>([]);
   const [completedWorkouts, setCompletedWorkouts] = useState<Set<string>>(new Set());
@@ -196,7 +220,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           setAuthCookie(s);
           if (s?.user) {
             await fetchProfile(s.user.id, s.user.email || undefined);
-            requestAcceptPendingRosterInvites(s.access_token);
+            void runAcceptPendingInvites(s.access_token, s.user.id);
           }
         }
       } catch (err) {
@@ -219,7 +243,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (session?.user) {
         fetchProfile(session.user.id, session.user.email || undefined);
         if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
-          requestAcceptPendingRosterInvites(session?.access_token);
+          void runAcceptPendingInvites(session.access_token, session.user.id);
         }
       } else {
         setUser(null);
@@ -234,7 +258,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       clearTimeout(safetyTimer);
       subscription.unsubscribe();
     };
-  }, []);
+  }, [runAcceptPendingInvites]);
 
   useEffect(() => {
     if (!user?.uid) {
@@ -251,6 +275,28 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       cancelled = true;
     };
   }, [user?.uid, activeProgramId]);
+
+  useEffect(() => {
+    if (!user?.uid) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const next = await resolveActiveProgramIdForSession(user.uid, activeProgramId, null);
+        if (cancelled) return;
+        if (next === null) {
+          if (activeProgramId) setActiveProgramId(null);
+          return;
+        }
+        if (next === activeProgramId) return;
+        setActiveProgramId(next);
+      } catch (e) {
+        if (import.meta.env.DEV) console.error('[AppContext] active program hydrate', e);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.uid, activeProgramId, setActiveProgramId]);
 
   const fetchProfile = async (userId: string, email?: string) => {
     const setMinimalUser = () => {

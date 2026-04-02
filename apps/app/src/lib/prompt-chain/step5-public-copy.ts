@@ -12,7 +12,10 @@ import type { ProgramTemplate, ProgramTemplateScaffold, ProgramSchedule } from '
  * Build a condensed program summary for the public-copy prompt.
  * Groups schedule weeks by phase using scaffold week ranges.
  */
-function buildProgramSummary(program: ProgramTemplate, scaffold: ProgramTemplateScaffold | null): string {
+function buildProgramSummary(
+  program: ProgramTemplate,
+  scaffold: ProgramTemplateScaffold | null
+): string {
   const { title, difficulty, durationWeeks, schedule } = program;
   const scheduleByWeek = new Map<number, ProgramSchedule>();
   for (const week of schedule ?? []) {
@@ -97,7 +100,9 @@ export interface PublicCopyOutput {
 /**
  * Validate AI response has required title and description (non-empty strings).
  */
-export function validatePublicCopyOutput(data: unknown): { valid: true; data: PublicCopyOutput } | { valid: false; error: string } {
+export function validatePublicCopyOutput(
+  data: unknown
+): { valid: true; data: PublicCopyOutput } | { valid: false; error: string } {
   if (!data || typeof data !== 'object') {
     return { valid: false, error: 'Response is not an object' };
   }

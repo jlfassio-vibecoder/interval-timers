@@ -146,6 +146,10 @@ const ScheduleZone: React.FC<ScheduleZoneProps> = ({
   const [year, setYear] = useState(() => new Date().getFullYear());
   const [month, setMonth] = useState(() => new Date().getMonth() + 1);
   const [_programs, setPrograms] = useState<ProgramForCalendar[]>([]);
+  /** User set calendar start date(s) but schedule cannot render (missing program row or empty program_weeks). */
+  const [scheduleGap, setScheduleGap] = useState<null | 'missing_program' | 'no_workout_content'>(
+    null
+  );
   const [monthEvents, setMonthEvents] = useState<CalendarEvent[]>([]);
   const [stripDays, setStripDays] = useState<UpcomingStripDay[]>([]);
   const [loading, setLoading] = useState(true);
@@ -252,8 +256,14 @@ const ScheduleZone: React.FC<ScheduleZoneProps> = ({
     };
   }, [user?.uid]);
 
-  const loadPrograms = useCallback(async () => {
-    if (!user?.uid) return [];
+  const loadPrograms = useCallback(async (): Promise<{
+    programs: ProgramForCalendar[];
+    enrolledWithStartCount: number;
+    totalWorkouts: number;
+  }> => {
+    if (!user?.uid) {
+      return { programs: [], enrolledWithStartCount: 0, totalWorkouts: 0 };
+    }
     const accessList = await fetchUserPrograms(user.uid);
     const withStart = accessList.filter((a) => a.startDate);
     const results = await Promise.all(
@@ -270,12 +280,36 @@ const ScheduleZone: React.FC<ScheduleZoneProps> = ({
         return null;
       })
     );
-    return results.filter((p): p is ProgramForCalendar => p !== null);
+    const progList = results.filter((p): p is ProgramForCalendar => p !== null);
+
+    const totalWorkouts = progList.reduce(
+      (n, p) => n + p.schedule.reduce((m, w) => m + w.workouts.length, 0),
+      0
+    );
+
+    if (import.meta.env.DEV) {
+      if (withStart.length > 0 && progList.length === 0) {
+        console.warn(
+          '[ScheduleZone] start_date set but programs row not readable or missing. program_ids:',
+          withStart.map((a) => a.programId)
+        );
+      }
+      if (withStart.length > 0 && progList.length > 0 && totalWorkouts === 0) {
+        console.warn(
+          '[ScheduleZone] start_date set but program_weeks has no rows or empty content.workouts for:',
+          progList.map((p) => p.programId),
+          '(finish building the program in the admin builder / Build phase)'
+        );
+      }
+    }
+
+    return { programs: progList, enrolledWithStartCount: withStart.length, totalWorkouts };
   }, [user?.uid]);
 
   useEffect(() => {
     if (!user?.uid) {
       setPrograms([]);
+      setScheduleGap(null);
       setMonthEvents([]);
       setStripDays([]);
       setWeekEvents([]);
@@ -288,9 +322,16 @@ const ScheduleZone: React.FC<ScheduleZoneProps> = ({
     setLoading(true);
     (async () => {
       try {
-        const progList = await loadPrograms();
+        const { programs: progList, enrolledWithStartCount, totalWorkouts } = await loadPrograms();
         if (cancelled) return;
         setPrograms(progList);
+        if (enrolledWithStartCount > 0) {
+          if (progList.length === 0) setScheduleGap('missing_program');
+          else if (totalWorkouts === 0) setScheduleGap('no_workout_content');
+          else setScheduleGap(null);
+        } else {
+          setScheduleGap(null);
+        }
 
         if (viewMode === 'month') {
           const { start: monthStart, end: monthEnd } = getMonthRange(year, month);
@@ -369,6 +410,7 @@ const ScheduleZone: React.FC<ScheduleZoneProps> = ({
       } catch (e) {
         if (import.meta.env.DEV) console.error('[ScheduleZone]', e);
         if (!cancelled) {
+          setScheduleGap(null);
           setMonthEvents([]);
           setStripDays([]);
           setWeekEvents([]);
@@ -604,7 +646,7 @@ const ScheduleZone: React.FC<ScheduleZoneProps> = ({
     try {
       const rangeStart = addDays(today, -7);
       const rangeEnd = addDays(today, 30);
-      const progList = await loadPrograms();
+      const { programs: progList } = await loadPrograms();
       const loggedMap = await getLoggedDatesForCalendar(user.uid, rangeStart, rangeEnd);
       const raw = await getUnifiedCalendarEvents(user.uid, rangeStart, rangeEnd, {
         programs: progList,
@@ -800,7 +842,7 @@ const ScheduleZone: React.FC<ScheduleZoneProps> = ({
   );
 
   return (
-    <div>
+    <div id="schedule-zone">
       <div className="mb-3 flex items-center justify-between gap-2 border-b border-white/10">
         <div className="flex items-center gap-2">
           {(['month', 'week', 'list'] as const).map((mode) => (
@@ -826,6 +868,30 @@ const ScheduleZone: React.FC<ScheduleZoneProps> = ({
           Order events
         </button>
       </div>
+      {scheduleGap === 'no_workout_content' && (
+        <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-white/90">
+          <p className="font-mono text-[10px] uppercase tracking-wider text-amber-200/90">
+            No workouts on your calendar yet
+          </p>
+          <p className="mt-1 text-white/70">
+            Your program has a start date, but there are no saved week workouts for it in the
+            database. Your coach needs to finish building the program (each phase: Build) so weeks
+            appear here. If you were assigned the wrong program, ask them to assign one that already
+            has weeks.
+          </p>
+        </div>
+      )}
+      {scheduleGap === 'missing_program' && (
+        <div className="mb-4 rounded-xl border border-red-500/25 bg-red-500/10 px-4 py-3 text-sm text-white/90">
+          <p className="font-mono text-[10px] uppercase tracking-wider text-red-200/90">
+            Could not load program details
+          </p>
+          <p className="mt-1 text-white/70">
+            You have a calendar start date, but the program record could not be loaded. Refresh the
+            page or contact support if this persists.
+          </p>
+        </div>
+      )}
       {eventOrderModalOpen && (
         <EventOrderSettings
           currentOrder={eventTypeOrder}

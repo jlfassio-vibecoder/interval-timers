@@ -22,4 +22,6 @@ export interface UserProgramAccess {
   trainerId?: string;
   /** From programs.title; for list display without extra fetch. */
   title?: string;
+  /** Enrollment row created_at (ISO); used for tie-break when picking active program. */
+  createdAt?: string;
 }

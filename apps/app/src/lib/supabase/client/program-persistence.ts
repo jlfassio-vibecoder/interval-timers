@@ -227,9 +227,7 @@ export async function fetchFullProgram(programId: string): Promise<ProgramTempla
  * Fetch program scaffold (program_template). Returns null if the program was never scaffolded
  * (e.g. manual programs). API returns 200 with scaffold: null in that case.
  */
-export async function fetchScaffold(
-  programId: string
-): Promise<ProgramTemplateScaffold | null> {
+export async function fetchScaffold(programId: string): Promise<ProgramTemplateScaffold | null> {
   const token = await getAccessToken();
   const response = await fetch(`/api/admin/programs/${programId}/scaffold`, {
     method: 'GET',

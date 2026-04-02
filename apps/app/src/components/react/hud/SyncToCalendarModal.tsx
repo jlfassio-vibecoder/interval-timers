@@ -2,12 +2,14 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  *
- * Modal to set or change program start date for the native app calendar.
+ * Modal to set or change program start date for the in-app HUD calendar (Schedule zone).
+ * Dates are stored as calendar YYYY-MM-DD; see localCalendarDateISO for "today" default.
  */
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { X, Calendar } from 'lucide-react';
+import { localCalendarDateISO } from '@/lib/local-date-iso';
 
 export interface SyncToCalendarModalProps {
   isOpen: boolean;
@@ -16,14 +18,9 @@ export interface SyncToCalendarModalProps {
   programName: string;
   /** Current start date if already synced (ISO YYYY-MM-DD). */
   currentStartDate?: string | null;
-  onSave: (startDate: string) => void;
-  onRemove?: () => void;
+  onSave: (startDate: string) => void | Promise<void>;
+  onRemove?: () => void | Promise<void>;
   saving?: boolean;
-}
-
-function todayISO(): string {
-  const d = new Date();
-  return d.toISOString().slice(0, 10);
 }
 
 const SyncToCalendarModal: React.FC<SyncToCalendarModalProps> = ({
@@ -37,17 +34,21 @@ const SyncToCalendarModal: React.FC<SyncToCalendarModalProps> = ({
   saving = false,
 }) => {
   const reduceMotion = useReducedMotion();
-  const [startDate, setStartDate] = useState(todayISO());
+  const [startDate, setStartDate] = useState(() => localCalendarDateISO());
 
   useEffect(() => {
     if (isOpen) {
-      setStartDate(currentStartDate ?? todayISO());
+      setStartDate(currentStartDate ?? localCalendarDateISO());
     }
   }, [isOpen, currentStartDate]);
 
-  const handleSubmit = (e: React.SyntheticEvent) => {
+  const handleSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
-    onSave(startDate);
+    try {
+      await Promise.resolve(onSave(startDate));
+    } catch {
+      /* Parent shows toast */
+    }
   };
 
   if (!isOpen) return null;
@@ -81,12 +82,19 @@ const SyncToCalendarModal: React.FC<SyncToCalendarModalProps> = ({
           <div className="mb-6 flex items-center gap-3 text-orange-light">
             <Calendar className="h-8 w-8" />
             <h3 className="font-heading text-xl font-black uppercase tracking-tighter text-white">
-              Sync to Calendar
+              Program start date
             </h3>
           </div>
-          <p className="mb-4 text-gray-300">
-            Set the start date for <strong className="text-white">{programName}</strong>. Workouts
-            will appear on the app calendar from this date.
+          <p className="mb-2 text-gray-300">
+            Set when <strong className="text-white">{programName}</strong> begins on{' '}
+            <strong className="text-white">this app&apos;s calendar</strong> (below in Schedule).
+            Workouts map forward from that day; week progress on your active program uses the same
+            date.
+          </p>
+          <p className="mb-4 text-sm text-white/50">
+            This is not a live link to Google or Apple Calendar. To download an{' '}
+            <code className="text-white/70">.ics</code> file for another app, use{' '}
+            <strong className="text-white/80">Export</strong> in the Schedule toolbar.
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -95,7 +103,7 @@ const SyncToCalendarModal: React.FC<SyncToCalendarModalProps> = ({
                 htmlFor="sync-start-date"
                 className="mb-2 block font-mono text-[10px] uppercase tracking-widest text-white/60"
               >
-                Start date
+                Start date (your local calendar day)
               </label>
               <input
                 id="sync-start-date"
@@ -119,9 +127,13 @@ const SyncToCalendarModal: React.FC<SyncToCalendarModalProps> = ({
               {currentStartDate && onRemove && (
                 <button
                   type="button"
-                  onClick={() => {
-                    onRemove();
-                    onClose();
+                  onClick={async () => {
+                    try {
+                      await Promise.resolve(onRemove());
+                      onClose();
+                    } catch {
+                      /* Parent shows toast */
+                    }
                   }}
                   disabled={saving}
                   className="font-mono text-[10px] uppercase tracking-widest text-white/50 transition-colors hover:text-white/80 disabled:opacity-50"

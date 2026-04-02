@@ -271,9 +271,7 @@ export async function createProgramWithScaffold(
 /**
  * Fetch program scaffold (program_template). Throws if not found or no scaffold.
  */
-export async function getProgramScaffold(
-  programId: string
-): Promise<ProgramTemplateScaffold> {
+export async function getProgramScaffold(programId: string): Promise<ProgramTemplateScaffold> {
   const supabase = getSupabaseServer();
   const { data, error } = await supabase
     .from('programs')

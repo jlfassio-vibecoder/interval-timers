@@ -73,10 +73,13 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     // Handle authentication/authorization errors
     if (error instanceof Error) {
       if (error.message === 'UNAUTHENTICATED' || error.message === 'UNAUTHORIZED') {
-        return new Response(JSON.stringify({ error: 'Unauthorized. Sign in as a trainer or admin.' }), {
-          status: 401,
-          headers: { 'Content-Type': 'application/json' },
-        });
+        return new Response(
+          JSON.stringify({ error: 'Unauthorized. Sign in as a trainer or admin.' }),
+          {
+            status: 401,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        );
       }
     }
 

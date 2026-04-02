@@ -369,7 +369,9 @@ export async function callVertexAI(options: VertexAICallOptions): Promise<string
       continue;
     }
     if (isRetryable && retries >= maxRetries) {
-      console.warn(`${logPrefix} Attempt ${totalAttempts}/${totalAttempts} failed (${response.status}).`);
+      console.warn(
+        `${logPrefix} Attempt ${totalAttempts}/${totalAttempts} failed (${response.status}).`
+      );
     }
 
     const errorText = await response.text();
@@ -397,10 +399,17 @@ export async function callVertexAI(options: VertexAICallOptions): Promise<string
       return choices[0].message.content;
     }
   }
-  if (apiData && typeof apiData === 'object' && 'content' in apiData && typeof (apiData as { content: string }).content === 'string') {
+  if (
+    apiData &&
+    typeof apiData === 'object' &&
+    'content' in apiData &&
+    typeof (apiData as { content: string }).content === 'string'
+  ) {
     return (apiData as { content: string }).content;
   }
-  throw new Error(`Unexpected API response format. Body: ${rawBody.substring(0, MAX_ERROR_LOG_LENGTH)}`);
+  throw new Error(
+    `Unexpected API response format. Body: ${rawBody.substring(0, MAX_ERROR_LOG_LENGTH)}`
+  );
 }
 
 /**
@@ -481,9 +490,13 @@ export async function callVertexAIGemini(options: VertexGeminiOptions): Promise<
       continue;
     }
     if (isRetryable && retries >= maxRetries) {
-      console.warn(`${logPrefix} Attempt ${totalAttempts}/${totalAttempts} failed (${response.status}).`);
+      console.warn(
+        `${logPrefix} Attempt ${totalAttempts}/${totalAttempts} failed (${response.status}).`
+      );
     }
-    throw new Error(`Vertex AI Gemini error: ${response.status} - ${errText.substring(0, MAX_ERROR_LOG_LENGTH)}`);
+    throw new Error(
+      `Vertex AI Gemini error: ${response.status} - ${errText.substring(0, MAX_ERROR_LOG_LENGTH)}`
+    );
   }
 
   if (!response || !response.ok) {
@@ -495,7 +508,9 @@ export async function callVertexAIGemini(options: VertexGeminiOptions): Promise<
   };
   const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
   if (typeof text !== 'string') {
-    throw new Error(`Vertex AI Gemini unexpected response: ${JSON.stringify(data).substring(0, 300)}`);
+    throw new Error(
+      `Vertex AI Gemini unexpected response: ${JSON.stringify(data).substring(0, 300)}`
+    );
   }
   return text.trim();
 }

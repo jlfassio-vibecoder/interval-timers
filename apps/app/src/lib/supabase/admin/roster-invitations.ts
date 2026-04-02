@@ -38,12 +38,14 @@ function hashToken(token: string): string {
 }
 
 /** Unique / conflict on insert — PostgREST may surface 23505, 409, or message text. */
-function isUniqueOrConflictInsertError(err: {
-  code?: string;
-  message?: string;
-  status?: number;
-  statusCode?: number;
-} | null): boolean {
+function isUniqueOrConflictInsertError(
+  err: {
+    code?: string;
+    message?: string;
+    status?: number;
+    statusCode?: number;
+  } | null
+): boolean {
   if (!err) return false;
   if (err.code === '23505') return true;
   const m = (err.message ?? '').toLowerCase();
@@ -340,6 +342,31 @@ export async function createRosterInvite(
     if (!programs || programs.length !== programIds.length) {
       return { ok: false, code: 'VALIDATION', message: 'Invalid or foreign program selection' };
     }
+    // Project only workouts JSON (not full week content) to cut payload and DB→app transfer on invite validation.
+    const { data: weekRows, error: weeksErr } = await supabase
+      .from('program_weeks')
+      .select('program_id, workouts:content->workouts')
+      .in('program_id', programIds);
+    if (weeksErr) {
+      return { ok: false, code: 'DB', message: 'Failed to validate program schedules' };
+    }
+    const withWorkouts = new Set<string>();
+    for (const row of weekRows ?? []) {
+      const pid = row.program_id as string;
+      const workouts = row.workouts as unknown[] | null | undefined;
+      if (Array.isArray(workouts) && workouts.length > 0) {
+        withWorkouts.add(pid);
+      }
+    }
+    const missingSchedule = programIds.filter((id) => !withWorkouts.has(id));
+    if (missingSchedule.length > 0) {
+      return {
+        ok: false,
+        code: 'VALIDATION',
+        message:
+          'Each selected program must have at least one week with workouts. Open the program in the builder and finish building (run Build phase for each phase) before assigning it to a client.',
+      };
+    }
   } else {
     return { ok: false, code: 'VALIDATION', message: 'Unsupported inviter role for invites' };
   }
@@ -575,7 +602,7 @@ export async function resendRosterInvitation(
 }
 
 export type AcceptRosterInviteResult =
-  | { ok: true; kind: 'friend' | 'client' }
+  | { ok: true; kind: 'friend' | 'client'; assignedProgramIds?: string[] }
   | { ok: false; code: 'NOT_FOUND' | 'EXPIRED' | 'MISMATCH' | 'DB' | 'CONFLICT'; message: string };
 
 function sessionMatchesInviteeContact(
@@ -609,7 +636,9 @@ async function ensureInviteeProfileRow(
 ): Promise<AcceptRosterInviteResult | null> {
   const canUseServiceRole = hasServiceRoleKey();
   const supabase = getSupabaseServer() as unknown as SupabaseClient<Database>;
-  const profileClient = (canUseServiceRole ? supabase : userClient) as SupabaseClient<Database> | undefined;
+  const profileClient = (canUseServiceRole ? supabase : userClient) as
+    | SupabaseClient<Database>
+    | undefined;
   if (!profileClient) {
     // Without service role and without a user JWT client, we cannot verify/create profiles under RLS.
     return { ok: false, code: 'DB', message: 'Server configuration error (missing service role)' };
@@ -652,18 +681,18 @@ async function ensureInviteeProfileRow(
   type ProfilesInsert = Database['public']['Tables']['profiles']['Insert'];
   type ProfilesInsertError = { code?: string; message?: string } | null;
   type ProfilesClient = {
-    from: (
-      table: 'profiles'
-    ) => {
+    from: (table: 'profiles') => {
       insert: (values: ProfilesInsert) => Promise<{ error: ProfilesInsertError }>;
     };
   };
 
-  const { error: insErr } = await (profileClient as unknown as ProfilesClient).from('profiles').insert({
-    id: userId,
-    full_name: fullName ?? undefined,
-    role: 'client',
-  });
+  const { error: insErr } = await (profileClient as unknown as ProfilesClient)
+    .from('profiles')
+    .insert({
+      id: userId,
+      full_name: fullName ?? undefined,
+      role: 'client',
+    });
   if (!insErr) return null;
   if (insErr.code === '23505') return null;
   if (import.meta.env.DEV || import.meta.env.PUBLIC_ENABLE_ERROR_LOGGING === 'true') {
@@ -740,17 +769,31 @@ async function finalizeRosterInvitationAfterInviteeVerified(
   }
 
   if (updatedRows?.length) {
-    return { ok: true, kind: inv.kind as 'friend' | 'client' };
+    const kind = inv.kind as 'friend' | 'client';
+    if (kind === 'client') {
+      const assignedProgramIds = Array.isArray(inv.program_ids)
+        ? (inv.program_ids as unknown[]).filter((x): x is string => typeof x === 'string')
+        : [];
+      return { ok: true, kind: 'client', assignedProgramIds };
+    }
+    return { ok: true, kind: 'friend' };
   }
 
   const { data: finalized } = await supabase
     .from('roster_invitations')
-    .select('status, accepted_user_id, kind')
+    .select('status, accepted_user_id, kind, program_ids')
     .eq('id', inv.id)
     .maybeSingle();
 
   if (finalized?.status === 'accepted' && finalized.accepted_user_id === sessionUserId) {
-    return { ok: true, kind: finalized.kind as 'friend' | 'client' };
+    const fk = finalized.kind as 'friend' | 'client';
+    if (fk === 'client') {
+      const assignedProgramIds = Array.isArray(finalized.program_ids)
+        ? (finalized.program_ids as unknown[]).filter((x): x is string => typeof x === 'string')
+        : [];
+      return { ok: true, kind: 'client', assignedProgramIds };
+    }
+    return { ok: true, kind: 'friend' };
   }
 
   return { ok: false, code: 'DB', message: 'Failed to finalize invitation' };
@@ -765,7 +808,7 @@ export async function acceptPendingRosterInvitesForSession(
   sessionEmails: string[],
   sessionPhone: string | null | undefined,
   userClient?: SupabaseClient<Database>
-): Promise<{ acceptedCount: number }> {
+): Promise<{ acceptedCount: number; assignedProgramIds: string[] }> {
   const supabase = getSupabaseServer();
   const nowIso = new Date().toISOString();
   const normEmails = [
@@ -820,6 +863,7 @@ export async function acceptPendingRosterInvitesForSession(
   );
 
   let acceptedCount = 0;
+  const mergedAssignedIds: string[] = [];
   for (const inv of candidates) {
     if (!sessionMatchesInviteeContact(inv, sessionEmails, sessionPhone)) continue;
     if (inv.kind === 'friend' && sessionUserId === inv.inviter_id) continue;
@@ -833,10 +877,17 @@ export async function acceptPendingRosterInvitesForSession(
       sessionUserId,
       userClient
     );
-    if (res.ok) acceptedCount += 1;
+    if (res.ok) {
+      acceptedCount += 1;
+      if (res.kind === 'client' && res.assignedProgramIds?.length) {
+        for (const pid of res.assignedProgramIds) {
+          if (!mergedAssignedIds.includes(pid)) mergedAssignedIds.push(pid);
+        }
+      }
+    }
   }
 
-  return { acceptedCount };
+  return { acceptedCount, assignedProgramIds: mergedAssignedIds };
 }
 
 /**

@@ -383,7 +383,14 @@ const PhosphagenInterval: React.FC<PhosphagenIntervalProps> = ({ onNavigate }) =
                         const fill =
                           metric === 'power' && index === 2 ? '#eab308' : 'rgba(148,163,184,0.5)';
                         return (
-                          <Rectangle x={x} y={y} width={width} height={height} radius={[6, 6, 0, 0]} fill={fill} />
+                          <Rectangle
+                            x={x}
+                            y={y}
+                            width={width}
+                            height={height}
+                            radius={[6, 6, 0, 0]}
+                            fill={fill}
+                          />
                         );
                       }}
                     />

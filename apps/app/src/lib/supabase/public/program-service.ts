@@ -45,10 +45,7 @@ function rowToMetadata(row: ProgramRow): ProgramMetadata & { id: string } {
     id: row.id,
     title: row.title || 'Untitled Program',
     description: row.description ?? '',
-    difficulty: difficultyFromPersonaFields(
-      row.difficulty,
-      config.targetAudience?.experienceLevel
-    ),
+    difficulty: difficultyFromPersonaFields(row.difficulty, config.targetAudience?.experienceLevel),
     durationWeeks: row.duration_weeks ?? 12,
     targetAudience: config.targetAudience ?? DEFAULT_TARGET_AUDIENCE,
     equipmentProfile: config.equipmentProfile,

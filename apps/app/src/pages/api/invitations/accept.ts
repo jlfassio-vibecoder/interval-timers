@@ -19,9 +19,9 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 
     const { supabase, user } = auth;
 
-    let body: { token?: string };
+    let parseBody: { token?: string };
     try {
-      body = (await request.json()) as { token?: string };
+      parseBody = (await request.json()) as { token?: string };
     } catch {
       return new Response(JSON.stringify({ error: 'Invalid JSON body' }), {
         status: 400,
@@ -29,7 +29,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       });
     }
 
-    const raw = typeof body.token === 'string' ? body.token : '';
+    const raw = typeof parseBody.token === 'string' ? parseBody.token : '';
     if (!looksLikeRosterInviteToken(raw)) {
       return new Response(JSON.stringify({ error: 'Invalid invitation token' }), {
         status: 400,
@@ -62,7 +62,14 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       });
     }
 
-    return new Response(JSON.stringify({ ok: true, kind: result.kind }), {
+    const responseBody: { ok: true; kind: string; assignedProgramIds?: string[] } = {
+      ok: true,
+      kind: result.kind,
+    };
+    if (result.ok && result.kind === 'client' && result.assignedProgramIds?.length) {
+      responseBody.assignedProgramIds = result.assignedProgramIds;
+    }
+    return new Response(JSON.stringify(responseBody), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });

@@ -28,7 +28,11 @@ import BlueprintPreview from './BlueprintPreview';
 import ArchitectBlueprintPreview from './ArchitectBlueprintPreview';
 import ChainDebugPanel from './ChainDebugPanel';
 import ScaffoldEditor from './ScaffoldEditor';
-import { saveProgramToLibrary, updateProgram, fetchFullProgram } from '@/lib/supabase/client/program-persistence';
+import {
+  saveProgramToLibrary,
+  updateProgram,
+  fetchFullProgram,
+} from '@/lib/supabase/client/program-persistence';
 import { supabase } from '@/lib/supabase/client';
 
 /** The steps of program generation: config → scaffold (or architect) → preview */
@@ -38,7 +42,10 @@ interface ProgramGeneratorModalProps {
   isOpen: boolean;
   onClose: () => void;
   /** When creating, savedProgramId is the new program id after save. */
-  onGenerate: (programData: Omit<ProgramTemplate, 'id' | 'createdAt'>, savedProgramId?: string) => void;
+  onGenerate: (
+    programData: Omit<ProgramTemplate, 'id' | 'createdAt'>,
+    savedProgramId?: string
+  ) => void;
   existingProgram?: ProgramTemplate; // For edit mode
   programConfig?: ProgramConfig; // For edit mode - needed to reconstruct config
   editingProgramId?: string; // Program ID when editing
@@ -316,7 +323,9 @@ const ProgramGeneratorModal: React.FC<ProgramGeneratorModalProps> = ({
     const injuryParts =
       selectedInjuryIds.length > 0
         ? selectedInjuryIds
-            .map((id) => INJURY_PILLS_BY_REGION.flatMap((r) => r.pills).find((p) => p.id === id)?.label)
+            .map(
+              (id) => INJURY_PILLS_BY_REGION.flatMap((r) => r.pills).find((p) => p.id === id)?.label
+            )
             .filter(Boolean)
             .join(', ')
         : '';
@@ -1286,7 +1295,8 @@ const ProgramGeneratorModal: React.FC<ProgramGeneratorModalProps> = ({
                         Suggested days per week (optional)
                       </label>
                       <p className="mb-2 text-xs text-white/60">
-                        The AI can set different days per week per phase. This is only a starting preference; leave as &quot;Any&quot; to let the AI decide for each phase.
+                        The AI can set different days per week per phase. This is only a starting
+                        preference; leave as &quot;Any&quot; to let the AI decide for each phase.
                       </p>
                       <div className="flex flex-wrap items-center gap-2">
                         <select
@@ -1536,7 +1546,8 @@ const ProgramGeneratorModal: React.FC<ProgramGeneratorModalProps> = ({
                         </select>
                         {programConfig.targetAudience.sex === 'Universal' && (
                           <p className="mt-1 text-xs text-white/60">
-                            Design a workout suitable for any user, without gender-specific programming.
+                            Design a workout suitable for any user, without gender-specific
+                            programming.
                           </p>
                         )}
                       </div>
@@ -1567,11 +1578,7 @@ const ProgramGeneratorModal: React.FC<ProgramGeneratorModalProps> = ({
                           onChange={(e) =>
                             handleTargetAudienceChange(
                               'experienceLevel',
-                              e.target.value as
-                                | 'beginner'
-                                | 'intermediate'
-                                | 'advanced'
-                                | 'any'
+                              e.target.value as 'beginner' | 'intermediate' | 'advanced' | 'any'
                             )
                           }
                           className="focus:border-orange-light/50 focus:ring-orange-light/20 w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-white focus:outline-none focus:ring-2"
@@ -1628,12 +1635,14 @@ const ProgramGeneratorModal: React.FC<ProgramGeneratorModalProps> = ({
                                         type="button"
                                         onClick={() => {
                                           setSelectedInjuryIds((prev) =>
-                                            prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+                                            prev.includes(id)
+                                              ? prev.filter((x) => x !== id)
+                                              : [...prev, id]
                                           );
                                         }}
                                         className={`rounded-full border px-3 py-1.5 text-sm transition-colors ${
                                           isSelected
-                                            ? 'border-orange-light bg-orange-light/20 text-orange-light'
+                                            ? 'bg-orange-light/20 border-orange-light text-orange-light'
                                             : 'border-white/20 bg-white/5 text-white/80 hover:border-white/30 hover:text-white'
                                         }`}
                                       >
@@ -1651,7 +1660,9 @@ const ProgramGeneratorModal: React.FC<ProgramGeneratorModalProps> = ({
                             </label>
                             <textarea
                               value={programConfig.medicalContext?.injuries || ''}
-                              onChange={(e) => handleMedicalContextChange('injuries', e.target.value)}
+                              onChange={(e) =>
+                                handleMedicalContextChange('injuries', e.target.value)
+                              }
                               rows={2}
                               className="focus:border-orange-light/50 focus:ring-orange-light/20 w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-white placeholder:text-white/40 focus:outline-none focus:ring-2"
                               placeholder="e.g., Right shoulder impingement"

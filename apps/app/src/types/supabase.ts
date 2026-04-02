@@ -282,6 +282,10 @@ export interface Database {
         Args: Record<PropertyKey, never>;
         Returns: boolean;
       };
+      get_trainer_profile_for_client: {
+        Args: { p_program_id: string };
+        Returns: Record<string, unknown> | null;
+      };
     };
   };
 }

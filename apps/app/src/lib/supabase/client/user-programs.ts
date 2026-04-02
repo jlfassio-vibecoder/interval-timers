@@ -42,7 +42,7 @@ export async function fetchUserPrograms(
   const { data, error } = await supabase
     .from('user_programs')
     .select(
-      'program_id, purchased_at, status, start_date, source, programs(duration_weeks, trainer_id, title)'
+      'program_id, purchased_at, status, start_date, source, created_at, programs(duration_weeks, trainer_id, title)'
     )
     .eq('user_id', uid);
 
@@ -64,8 +64,27 @@ export async function fetchUserPrograms(
       durationWeeks: programs?.duration_weeks ?? undefined,
       trainerId: programs?.trainer_id ?? undefined,
       title,
+      createdAt:
+        row.created_at != null && typeof row.created_at === 'string' ? row.created_at : undefined,
     };
   });
+}
+
+/** Enrollment start_date (YYYY-MM-DD) for HUD Today card / schedule resolver. */
+export async function getUserProgramStartDate(
+  uid: string,
+  programId: string
+): Promise<string | null> {
+  const { data, error } = await supabase
+    .from('user_programs')
+    .select('start_date')
+    .eq('user_id', uid)
+    .eq('program_id', programId)
+    .maybeSingle();
+
+  if (error || !data) return null;
+  const d = data.start_date;
+  return typeof d === 'string' && d.trim() ? d.trim() : null;
 }
 
 export async function setProgramStartDate(

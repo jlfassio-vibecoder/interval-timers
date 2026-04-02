@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  *
  * Resolve trainer profile from the user's first active program.
- * Chain: user_programs (active) → programs.trainer_id → profiles.
+ * Chain: user_programs (active) → programs.trainer_id → get_trainer_profile_for_client RPC.
  */
 
 import { supabase } from '../supabase-instance';
@@ -12,29 +12,6 @@ export interface TrainerProfile {
   uid: string;
   displayName: string;
   avatarUrl?: string;
-}
-
-function resolveTrainerDisplayName(row: {
-  full_name: string | null;
-  username: string | null;
-  email: string | null;
-}): string {
-  const n = row.full_name?.trim();
-  if (n) return n;
-  const u = row.username?.trim();
-  if (u) return u;
-  const e = row.email?.trim();
-  if (e) {
-    const local = e.split('@')[0]?.trim() ?? '';
-    if (local) {
-      const t = local
-        .replace(/[._-]+/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
-      if (t) return t;
-    }
-  }
-  return 'Coach';
 }
 
 /**
@@ -72,30 +49,32 @@ export async function getTrainerForUser(
       programId = enrollment.program_id;
     }
 
-    const { data: program, error: programError } = await supabase
-      .from('programs')
-      .select('trainer_id')
-      .eq('id', programId)
-      .maybeSingle();
+    const { data: rpcData, error: rpcError } = await supabase.rpc(
+      'get_trainer_profile_for_client',
+      {
+        p_program_id: programId,
+      }
+    );
 
-    if (programError || !program?.trainer_id) return null;
+    if (rpcError || rpcData == null || typeof rpcData !== 'object' || Array.isArray(rpcData)) {
+      return null;
+    }
 
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('full_name, username, email, avatar_url')
-      .eq('id', program.trainer_id)
-      .maybeSingle();
+    const o = rpcData as Record<string, unknown>;
+    const trainerUid = o.trainer_user_id;
+    const displayName = o.display_name;
+    if (typeof trainerUid !== 'string' || typeof displayName !== 'string') {
+      return null;
+    }
 
-    if (profileError || !profile) return null;
+    const avatarRaw = o.avatar_url;
+    const avatarUrl =
+      typeof avatarRaw === 'string' && avatarRaw.trim() ? avatarRaw.trim() : undefined;
 
     return {
-      uid: program.trainer_id,
-      displayName: resolveTrainerDisplayName({
-        full_name: profile.full_name ?? null,
-        username: profile.username ?? null,
-        email: profile.email ?? null,
-      }),
-      avatarUrl: profile.avatar_url ?? undefined,
+      uid: trainerUid,
+      displayName: displayName.trim() || 'Coach',
+      avatarUrl,
     };
   } catch {
     return null;

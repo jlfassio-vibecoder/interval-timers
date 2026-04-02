@@ -27,11 +27,7 @@ export interface ScheduleBuilderProps {
   onScheduleChange: (schedule: ProgramSchedule[]) => void;
   readOnly?: boolean;
   /** Called when user clicks "Edit in Workout Factory" for a workout */
-  onEditWorkout?: (
-    weekNumber: number,
-    workoutIndex: number,
-    workout: ScheduleWorkout
-  ) => void;
+  onEditWorkout?: (weekNumber: number, workoutIndex: number, workout: ScheduleWorkout) => void;
 }
 
 const ScheduleBuilder: React.FC<ScheduleBuilderProps> = ({
@@ -90,9 +86,7 @@ const ScheduleBuilder: React.FC<ScheduleBuilderProps> = ({
             className="overflow-hidden rounded-xl border border-white/10 bg-[#120800]"
           >
             <div
-              onClick={() =>
-                setExpandedWeeks((prev) => ({ ...prev, [weekNum]: !prev[weekNum] }))
-              }
+              onClick={() => setExpandedWeeks((prev) => ({ ...prev, [weekNum]: !prev[weekNum] }))}
               className="flex cursor-pointer items-center justify-between bg-white/5 px-6 py-4 transition-colors hover:bg-white/10"
             >
               <div className="flex items-center gap-4">
@@ -145,7 +139,7 @@ const ScheduleBuilder: React.FC<ScheduleBuilderProps> = ({
                                 e.stopPropagation();
                                 onEditWorkout(weekNum, idx, workout);
                               }}
-                              className="rounded p-1.5 text-white/40 transition-colors hover:bg-orange-500/20 hover:text-orange-light"
+                              className="hover:bg-orange-500/20 rounded p-1.5 text-white/40 transition-colors hover:text-orange-light"
                               title="Edit in Workout Factory"
                             >
                               <Pencil className="h-4 w-4" />

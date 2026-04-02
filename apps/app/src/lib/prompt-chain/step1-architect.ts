@@ -51,7 +51,7 @@ export function buildArchitectPrompt(
   previousPhaseWorkouts?: ProgramSchedule[]
 ): string {
   const { title, description, demographics, medical, goals, durationWeeks, daysPerWeek } = persona;
-  const programDuration = phaseContext ? phaseContext.weeks : (durationWeeks || 6);
+  const programDuration = phaseContext ? phaseContext.weeks : durationWeeks || 6;
   const phaseSection = phaseContext
     ? `
 === PHASE CONTEXT (this phase only) ===
@@ -71,7 +71,10 @@ ${phaseContext.daysPerWeek ? `Training days per week for this phase: ${phaseCont
       ? '- Experience Level: Any (suitable for all levels)'
       : `- Experience Level: ${demographics.experienceLevel}`;
   const effectiveDays =
-    phaseContext?.daysPerWeek ?? (typeof daysPerWeek === 'number' && daysPerWeek >= 2 && daysPerWeek <= 6 ? daysPerWeek : undefined);
+    phaseContext?.daysPerWeek ??
+    (typeof daysPerWeek === 'number' && daysPerWeek >= 2 && daysPerWeek <= 6
+      ? daysPerWeek
+      : undefined);
   const daysHint = effectiveDays
     ? `\nPreferred training frequency: ${effectiveDays} days per week.`
     : '';

@@ -18,14 +18,14 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     const { supabase, user } = auth;
     const candidateEmails = await collectRosterInviteCandidateEmails(supabase, user);
 
-    const { acceptedCount } = await acceptPendingRosterInvitesForSession(
+    const { acceptedCount, assignedProgramIds } = await acceptPendingRosterInvitesForSession(
       user.id,
       candidateEmails,
       user.phone ?? undefined,
       supabase
     );
 
-    return new Response(JSON.stringify({ ok: true, acceptedCount }), {
+    return new Response(JSON.stringify({ ok: true, acceptedCount, assignedProgramIds }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });

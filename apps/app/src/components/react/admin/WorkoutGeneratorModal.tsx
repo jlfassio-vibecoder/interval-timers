@@ -337,11 +337,7 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
         });
         toast.success('Workout updated.');
       } else {
-        await saveWorkoutToLibrary(
-          generatedWorkout,
-          workoutConfig,
-          chainMetadata ?? undefined
-        );
+        await saveWorkoutToLibrary(generatedWorkout, workoutConfig, chainMetadata ?? undefined);
         toast.success('Workout saved to library.');
         onGenerate();
       }

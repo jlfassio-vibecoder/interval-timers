@@ -27,16 +27,19 @@ if (!exercise) {
 const { deepDiveHtmlContent } = exercise;
 
 if (deepDiveHtmlContent) {
-  return (await import('@/lib/deep-dive-learn-response')).deepDiveLearnResponse(deepDiveHtmlContent, {
-    exerciseName: exercise.exerciseName,
-    slug,
-    baseUrl: Astro.site?.href?.replace(/\/$/, '') || new URL(Astro.request.url).origin,
-    imageUrl: exercise.imageUrl ?? '',
-    performanceCues: exercise.biomechanics?.performanceCues ?? [],
-    complexityLevel: exercise.complexityLevel,
-    nonce: (await import('node:crypto')).randomBytes(16).toString('base64'),
-    sources: exercise.sources ?? [],
-  });
+  return (await import('@/lib/deep-dive-learn-response')).deepDiveLearnResponse(
+    deepDiveHtmlContent,
+    {
+      exerciseName: exercise.exerciseName,
+      slug,
+      baseUrl: Astro.site?.href?.replace(/\/$/, '') || new URL(Astro.request.url).origin,
+      imageUrl: exercise.imageUrl ?? '',
+      performanceCues: exercise.biomechanics?.performanceCues ?? [],
+      complexityLevel: exercise.complexityLevel,
+      nonce: (await import('node:crypto')).randomBytes(16).toString('base64'),
+      sources: exercise.sources ?? [],
+    }
+  );
 }
 
 // Fallback if no content exists (shouldn't happen if we only link to it when generated)

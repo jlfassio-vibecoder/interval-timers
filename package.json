@@ -80,6 +80,8 @@
     "generate:timer": "node scripts/generate-timer-app.cjs"
   },
   "overrides": {
+    "@astrojs/node": "9.5.5",
+    "@astrojs/vercel": "9.0.4",
     "serialize-javascript": "7.0.4",
     "path-to-regexp": "6.3.0",
     "react": "^19.2.0",

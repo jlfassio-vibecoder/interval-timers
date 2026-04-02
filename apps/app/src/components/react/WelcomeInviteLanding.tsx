@@ -30,6 +30,7 @@ import {
 } from '@/lib/welcome-landing-strings';
 import type { RosterInvitePreview, RosterInviteStudioPreview } from '@/types/roster-invite-preview';
 import { parseStudioWelcomeContent } from '@/lib/studio-welcome-content-schema';
+import { resolveActiveProgramIdForSession } from '@/lib/active-program-sync';
 import {
   mergeAcceptSuccessCopy,
   mergeOpenAppCta,
@@ -103,8 +104,15 @@ const WelcomeInviteInner: React.FC<WelcomeInviteLandingProps> = ({
   initialWelcomeStudio,
   initialActiveProgramCount = 0,
 }) => {
-  const { user, session, loading, activeProgramId, isMissionControlStaff, handleLogout } =
-    useAppContext();
+  const {
+    user,
+    session,
+    loading,
+    activeProgramId,
+    isMissionControlStaff,
+    handleLogout,
+    setActiveProgramId,
+  } = useAppContext();
   const [token, setToken] = useState('');
   const [preview, setPreview] = useState<RosterInvitePreview | null | undefined>(undefined);
   const [previewError, setPreviewError] = useState<string | null>(null);
@@ -406,7 +414,11 @@ const WelcomeInviteInner: React.FC<WelcomeInviteLandingProps> = ({
           headers: authHeaders,
           body: JSON.stringify({ token }),
         });
-        const body = (await res.json().catch(() => ({}))) as { kind?: string; error?: string };
+        const body = (await res.json().catch(() => ({}))) as {
+          kind?: string;
+          error?: string;
+          assignedProgramIds?: string[];
+        };
         if (cancelled) return;
 
         const clearStored = () => {
@@ -424,6 +436,21 @@ const WelcomeInviteInner: React.FC<WelcomeInviteLandingProps> = ({
           const kind = body.kind === 'friend' ? 'friend' : 'client';
           setAcceptedKind(kind);
           void trackEvent(supabase, 'invite_accept_success', { kind }, { appId: 'app' });
+          if (
+            kind === 'client' &&
+            user?.uid &&
+            Array.isArray(body.assignedProgramIds) &&
+            body.assignedProgramIds.length > 0
+          ) {
+            const next = await resolveActiveProgramIdForSession(
+              user.uid,
+              activeProgramId,
+              body.assignedProgramIds
+            );
+            if (next != null) {
+              setActiveProgramId(next);
+            }
+          }
           return;
         }
 
