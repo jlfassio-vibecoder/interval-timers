@@ -3,34 +3,26 @@
  * SPDX-License-Identifier: Apache-2.0
  *
  * GET — authenticated client: trainer-recommended active program id for HUD (if any).
+ * Uses user-scoped Supabase (JWT) + RLS so this works without service role (PR #127).
  */
 
 import type { APIRoute } from 'astro';
-import { getCurrentUserFromRequest } from '@/lib/supabase/admin/auth';
-import {
-  getTrainerRecommendedActiveProgramForClient,
-  resolvePrimaryTrainerIdForClient,
-} from '@/lib/supabase/admin/trainer-client-enrollments';
+import { authenticateInvitationsApiRequest } from '@/lib/supabase/admin/auth';
+import { fetchTrainerRecommendationForAuthenticatedSupabaseUser } from '@/lib/supabase/admin/trainer-client-enrollments';
 
 export const GET: APIRoute = async ({ request, cookies }) => {
   try {
-    const user = await getCurrentUserFromRequest(request, cookies);
-    if (!user) {
-      return new Response(JSON.stringify({ error: 'Authentication required' }), {
-        status: 401,
-        headers: { 'Content-Type': 'application/json' },
-      });
+    const auth = await authenticateInvitationsApiRequest(request, cookies);
+    if (!auth.ok) {
+      return auth.response;
     }
+    const { supabase, user } = auth;
 
-    const trainerId = await resolvePrimaryTrainerIdForClient(user.uid);
-    if (!trainerId) {
-      return new Response(JSON.stringify({ programId: null, trainerId: null }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
+    const { programId, trainerId } = await fetchTrainerRecommendationForAuthenticatedSupabaseUser(
+      supabase,
+      user.id
+    );
 
-    const programId = await getTrainerRecommendedActiveProgramForClient(user.uid, trainerId);
     return new Response(JSON.stringify({ programId, trainerId }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },

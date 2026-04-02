@@ -182,6 +182,7 @@ const PerformanceLabView: React.FC = () => {
               enrollments.map((row) => {
                 const rowBusyEnd = busy === `end:${row.programId}`;
                 const rowBusyRec = busy === `rec:${row.programId}`;
+                // user_programs.status is only active|completed (00005_user_programs.sql); no paused/cancelled until schema changes.
                 const canSetActive = row.status === 'active';
                 return (
                   <tr key={row.programId} className="hover:bg-white/5">

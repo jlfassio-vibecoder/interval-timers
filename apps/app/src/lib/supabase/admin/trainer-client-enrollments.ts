@@ -6,14 +6,11 @@
  * end enrollment, and trainer-recommended active program (client_training_preferences).
  */
 
+import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from '@/types/supabase';
 import { getSupabaseServer } from '@/lib/supabase/server';
-import {
-  isUserInViewerRoster,
-} from '@/lib/supabase/admin/trainer-roster';
-import {
-  pickActiveEnrollment,
-  type ActiveEnrollmentRow,
-} from '@/lib/enrollment-pick';
+import { isUserInViewerRoster } from '@/lib/supabase/admin/trainer-roster';
+import { pickActiveEnrollment, type ActiveEnrollmentRow } from '@/lib/enrollment-pick';
 
 export interface ClientEnrollmentForTrainer {
   programId: string;
@@ -269,28 +266,18 @@ export async function getTrainerRecommendedActiveProgramForClient(
 
 type EnrollmentWithTrainer = ActiveEnrollmentRow & { trainerId: string };
 
-/**
- * Pick primary coach for preference lookup: same priority as enrollment-pick (trainer_assigned first).
- */
-export async function resolvePrimaryTrainerIdForClient(
-  clientUserId: string
-): Promise<string | null> {
-  const supabase = getSupabaseServer();
-  const { data: rows, error } = await supabase
-    .from('user_programs')
-    .select('program_id, source, created_at, programs!inner(trainer_id)')
-    .eq('user_id', clientUserId)
-    .eq('status', 'active');
-
-  if (error || !rows?.length) {
-    if (import.meta.env.DEV && error)
-      console.warn('[trainer-client-enrollments] resolvePrimaryTrainer', error);
-    return null;
-  }
-
+function mapEnrollmentRowsToPrimaryTrainerId(
+  rows: Array<{
+    program_id: string;
+    source?: string | null;
+    created_at?: string | null;
+    programs?: { trainer_id?: string } | { trainer_id?: string }[] | null;
+  }>
+): string | null {
   const withTrainer: EnrollmentWithTrainer[] = rows
     .map((row) => {
-      const p = row.programs as { trainer_id?: string } | null;
+      const rawP = row.programs;
+      const p = Array.isArray(rawP) ? rawP[0] : rawP;
       const trainerId = typeof p?.trainer_id === 'string' ? p.trainer_id : '';
       if (!trainerId) return null;
       return {
@@ -304,9 +291,50 @@ export async function resolvePrimaryTrainerIdForClient(
     .filter((x): x is EnrollmentWithTrainer => x != null);
 
   if (!withTrainer.length) return null;
-
   const picked = pickActiveEnrollment(withTrainer, null);
   if (!picked) return null;
   const match = withTrainer.find((w) => w.program_id === picked.program_id);
   return match?.trainerId ?? null;
+}
+
+/**
+ * HUD: resolve recommendation using the caller's JWT (RLS), not service role — works when
+ * SUPABASE_SERVICE_ROLE_KEY is unset (Copilot PR #127). Matches authenticateInvitationsApiRequest pattern.
+ */
+export async function fetchTrainerRecommendationForAuthenticatedSupabaseUser(
+  supabase: SupabaseClient<Database>,
+  authUserId: string
+): Promise<{ programId: string | null; trainerId: string | null }> {
+  const { data: rows, error } = await supabase
+    .from('user_programs')
+    .select('program_id, source, created_at, programs!inner(trainer_id)')
+    .eq('user_id', authUserId)
+    .eq('status', 'active');
+
+  if (error || !rows?.length) {
+    if (import.meta.env.DEV && error)
+      console.warn('[trainer-client-enrollments] recommendation user_programs', error);
+    return { programId: null, trainerId: null };
+  }
+
+  const trainerId = mapEnrollmentRowsToPrimaryTrainerId(rows);
+  if (!trainerId) return { programId: null, trainerId: null };
+
+  const { data: pref, error: prefErr } = await supabase
+    .from('client_training_preferences')
+    .select('recommended_active_program_id')
+    .eq('client_user_id', authUserId)
+    .eq('trainer_user_id', trainerId)
+    .maybeSingle();
+
+  if (prefErr) {
+    if (import.meta.env.DEV)
+      console.warn('[trainer-client-enrollments] recommendation preferences', prefErr);
+    return { programId: null, trainerId };
+  }
+
+  const prefRow = pref as { recommended_active_program_id?: string | null } | null;
+  const raw = prefRow?.recommended_active_program_id;
+  const programId = typeof raw === 'string' && raw.trim() ? raw.trim() : null;
+  return { programId, trainerId };
 }
