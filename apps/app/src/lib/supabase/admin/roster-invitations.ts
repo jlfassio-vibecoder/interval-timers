@@ -342,9 +342,10 @@ export async function createRosterInvite(
     if (!programs || programs.length !== programIds.length) {
       return { ok: false, code: 'VALIDATION', message: 'Invalid or foreign program selection' };
     }
+    // Project only workouts JSON (not full week content) to cut payload and DB→app transfer on invite validation.
     const { data: weekRows, error: weeksErr } = await supabase
       .from('program_weeks')
-      .select('program_id, content')
+      .select('program_id, workouts:content->workouts')
       .in('program_id', programIds);
     if (weeksErr) {
       return { ok: false, code: 'DB', message: 'Failed to validate program schedules' };
@@ -352,8 +353,8 @@ export async function createRosterInvite(
     const withWorkouts = new Set<string>();
     for (const row of weekRows ?? []) {
       const pid = row.program_id as string;
-      const c = row.content as { workouts?: unknown[] } | null | undefined;
-      if (Array.isArray(c?.workouts) && c.workouts.length > 0) {
+      const workouts = row.workouts as unknown[] | null | undefined;
+      if (Array.isArray(workouts) && workouts.length > 0) {
         withWorkouts.add(pid);
       }
     }

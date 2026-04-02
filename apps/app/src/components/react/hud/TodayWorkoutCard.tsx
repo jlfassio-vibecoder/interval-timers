@@ -122,7 +122,8 @@ const TodayWorkoutCard: React.FC<TodayWorkoutCardProps> = ({
         return;
       }
       const full = await getProgramWithSchedule(activeProgramId);
-      const totalW = full?.schedule.reduce((n, w) => n + w.workouts.length, 0) ?? 0;
+      // Optional-chain schedule: program row can exist with missing schedule while resolving hints.
+      const totalW = full?.schedule?.reduce((n, w) => n + w.workouts.length, 0) ?? 0;
       if (totalW === 0) {
         setSchedule({ status: 'schedule_unavailable', hint: 'schedule_not_built' });
       } else {
