@@ -7,6 +7,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { MessageSquare } from 'lucide-react';
+import { useAppContext } from '@/contexts/AppContext';
 
 export interface LabMessagePayload {
   id: string;
@@ -21,6 +22,7 @@ interface PerformanceLabMessagesSectionProps {
 }
 
 const PerformanceLabMessagesSection: React.FC<PerformanceLabMessagesSectionProps> = ({ userId }) => {
+  const { user } = useAppContext();
   const [messages, setMessages] = useState<LabMessagePayload[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -29,9 +31,19 @@ const PerformanceLabMessagesSection: React.FC<PerformanceLabMessagesSectionProps
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  /** Bumped on every full replace load so in-flight "load older" cannot apply after a newer full refresh (e.g. post-send). */
+  const fullLoadGenerationRef = useRef(0);
 
   const loadPage = useCallback(
     async (cursor: string | null, appendOlder: boolean) => {
+      let generationAtStart: number;
+      if (!appendOlder) {
+        fullLoadGenerationRef.current += 1;
+        generationAtStart = fullLoadGenerationRef.current;
+      } else {
+        generationAtStart = fullLoadGenerationRef.current;
+      }
+
       const q = new URLSearchParams();
       if (cursor) q.set('cursor', cursor);
       q.set('limit', '50');
@@ -45,6 +57,8 @@ const PerformanceLabMessagesSection: React.FC<PerformanceLabMessagesSectionProps
       }
       const list = Array.isArray(body.messages) ? (body.messages as LabMessagePayload[]) : [];
       const next = typeof body.nextCursor === 'string' ? body.nextCursor : null;
+      if (generationAtStart !== fullLoadGenerationRef.current) return;
+
       if (appendOlder) {
         setMessages((prev) => [...list, ...prev]);
       } else {
@@ -103,7 +117,22 @@ const PerformanceLabMessagesSection: React.FC<PerformanceLabMessagesSectionProps
         return;
       }
       setDraft('');
-      await loadPage(null, false);
+      const newId = typeof body.id === 'string' ? body.id : null;
+      const trainerUid = user?.uid;
+      if (newId && trainerUid) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: newId,
+            author_user_id: trainerUid,
+            author_role: 'trainer',
+            body: text,
+            created_at: new Date().toISOString(),
+          },
+        ]);
+      } else {
+        await loadPage(null, false);
+      }
       bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
     } finally {
       setSending(false);
@@ -193,7 +222,7 @@ const PerformanceLabMessagesSection: React.FC<PerformanceLabMessagesSectionProps
         <button
           type="button"
           onClick={() => void onSend()}
-          disabled={sending || !draft.trim()}
+          disabled={sending || loading || !draft.trim()}
           className="rounded-lg bg-orange-light px-4 py-2 font-mono text-xs font-bold uppercase text-black hover:opacity-90 disabled:opacity-40"
         >
           {sending ? 'Sending…' : 'Send'}

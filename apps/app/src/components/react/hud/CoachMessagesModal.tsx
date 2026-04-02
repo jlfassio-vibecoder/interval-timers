@@ -6,6 +6,7 @@
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useAppContext } from '@/contexts/AppContext';
 
 export interface CoachMessagePayload {
   id: string;
@@ -22,6 +23,7 @@ interface CoachMessagesModalProps {
 }
 
 const CoachMessagesModal: React.FC<CoachMessagesModalProps> = ({ open, onClose, trainerUserId }) => {
+  const { user } = useAppContext();
   const [messages, setMessages] = useState<CoachMessagePayload[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -30,9 +32,19 @@ const CoachMessagesModal: React.FC<CoachMessagesModalProps> = ({ open, onClose, 
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  /** Bumped on every full replace load so in-flight "load older" cannot apply after a newer full refresh (e.g. post-send). */
+  const fullLoadGenerationRef = useRef(0);
 
   const loadPage = useCallback(
     async (cursor: string | null, appendOlder: boolean) => {
+      let generationAtStart: number;
+      if (!appendOlder) {
+        fullLoadGenerationRef.current += 1;
+        generationAtStart = fullLoadGenerationRef.current;
+      } else {
+        generationAtStart = fullLoadGenerationRef.current;
+      }
+
       const q = new URLSearchParams({ trainerUserId });
       if (cursor) q.set('cursor', cursor);
       q.set('limit', '50');
@@ -43,6 +55,8 @@ const CoachMessagesModal: React.FC<CoachMessagesModalProps> = ({ open, onClose, 
       }
       const list = Array.isArray(body.messages) ? (body.messages as CoachMessagePayload[]) : [];
       const next = typeof body.nextCursor === 'string' ? body.nextCursor : null;
+      if (generationAtStart !== fullLoadGenerationRef.current) return;
+
       if (appendOlder) {
         setMessages((prev) => [...list, ...prev]);
       } else {
@@ -106,7 +120,22 @@ const CoachMessagesModal: React.FC<CoachMessagesModalProps> = ({ open, onClose, 
         return;
       }
       setDraft('');
-      await loadPage(null, false);
+      const newId = typeof body.id === 'string' ? body.id : null;
+      const clientUid = user?.uid;
+      if (newId && clientUid) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: newId,
+            author_user_id: clientUid,
+            author_role: 'client',
+            body: text,
+            created_at: new Date().toISOString(),
+          },
+        ]);
+      } else {
+        await loadPage(null, false);
+      }
       bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
     } finally {
       setSending(false);
@@ -203,7 +232,7 @@ const CoachMessagesModal: React.FC<CoachMessagesModalProps> = ({ open, onClose, 
           <button
             type="button"
             onClick={() => void onSend()}
-            disabled={sending || !draft.trim()}
+            disabled={sending || loading || !draft.trim()}
             className="w-full rounded-lg bg-orange-light py-2 font-mono text-xs font-bold uppercase text-black hover:opacity-90 disabled:opacity-40"
           >
             {sending ? 'Sending…' : 'Send'}
