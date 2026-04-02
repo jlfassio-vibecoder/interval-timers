@@ -46,6 +46,23 @@ function clampPageSize(n: number | undefined): number {
   return Math.min(Math.max(x, 1), MAX_TRAINER_CLIENT_MESSAGE_PAGE_SIZE);
 }
 
+/**
+ * PostgREST `.range(from, to)` is inclusive on both ends; supabase-js sets `limit = to - from + 1`.
+ * We intentionally fetch `pageSize + 1` rows, return only the first `pageSize` in `page`, and advance
+ * the cursor by `pageSize`. The extra row is a has-more probe only — it is not included in `page`, so
+ * it cannot duplicate the first row of the next request in API responses.
+ */
+export function partitionTrainerClientMessageFetch<T extends { id: string }>(
+  rows: T[],
+  pageSize: number,
+  offsetBeforeFetch: number
+): { page: T[]; nextCursorOffset: number | null } {
+  const hasMore = rows.length > pageSize;
+  const page = hasMore ? rows.slice(0, pageSize) : rows;
+  const nextCursorOffset = hasMore ? offsetBeforeFetch + pageSize : null;
+  return { page, nextCursorOffset };
+}
+
 /** On failure, `error` may be `Not allowed` (roster), `Invalid cursor`, or `Failed to load messages`. */
 export async function listTrainerClientMessages(
   trainerUserId: string,
@@ -65,7 +82,8 @@ export async function listTrainerClientMessages(
     offset = dec.offset;
   }
   const pageSize = clampPageSize(options?.limit);
-  const fetchEnd = offset + pageSize; // inclusive range → pageSize + 1 rows
+  // Inclusive end index → (pageSize + 1) rows fetched (probe row for hasMore). See partitionTrainerClientMessageFetch.
+  const rangeToInclusive = offset + pageSize;
 
   const supabase = getSupabaseServer();
   const { data, error } = await supabase
@@ -75,7 +93,7 @@ export async function listTrainerClientMessages(
     .eq('client_user_id', clientUserId)
     .order('created_at', { ascending: false })
     .order('id', { ascending: false })
-    .range(offset, fetchEnd);
+    .range(offset, rangeToInclusive);
 
   if (error) {
     if (import.meta.env.DEV) console.warn('[trainer-client-messages] list', error);
@@ -83,10 +101,10 @@ export async function listTrainerClientMessages(
   }
 
   const rows = (data ?? []) as TrainerClientMessageRow[];
-  const hasMore = rows.length > pageSize;
-  const page = hasMore ? rows.slice(0, pageSize) : rows;
+  const { page, nextCursorOffset } = partitionTrainerClientMessageFetch(rows, pageSize, offset);
   const chronological = [...page].reverse();
-  const nextCursor = hasMore ? encodeTrainerClientMessagesCursor(offset + pageSize) : null;
+  const nextCursor =
+    nextCursorOffset !== null ? encodeTrainerClientMessagesCursor(nextCursorOffset) : null;
 
   return { ok: true, messages: chronological, nextCursor };
 }
