@@ -66,6 +66,16 @@ const CoachMessagesModal: React.FC<CoachMessagesModalProps> = ({ open, onClose, 
       .finally(() => setLoading(false));
   }, [open, trainerUserId, loadPage]);
 
+  // Match CalendarClearConfirmModal / HUD drawers: Escape closes while open.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, onClose]);
+
   const onLoadOlder = async () => {
     if (!nextCursor || loadingMore) return;
     setLoadingMore(true);
@@ -106,19 +116,19 @@ const CoachMessagesModal: React.FC<CoachMessagesModalProps> = ({ open, onClose, 
   if (!open) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-[100] flex items-end justify-center bg-black/70 p-4 sm:items-center"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="coach-messages-title"
-    >
-      <button
-        type="button"
-        className="absolute inset-0 cursor-default"
-        aria-label="Close"
+    <>
+      <div
+        className="fixed inset-0 z-[100] bg-black/70"
+        aria-hidden
         onClick={onClose}
       />
-      <div className="relative z-[1] flex max-h-[min(520px,85vh)] w-full max-w-lg flex-col rounded-xl border border-white/15 bg-bg-dark shadow-xl">
+      <div className="fixed inset-0 z-[101] flex items-end justify-center p-4 pointer-events-none sm:items-center">
+        <div
+          className="pointer-events-auto flex max-h-[min(520px,85vh)] w-full max-w-lg flex-col rounded-xl border border-white/15 bg-bg-dark shadow-xl"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="coach-messages-title"
+        >
         <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
           <h2 id="coach-messages-title" className="font-heading text-lg font-bold text-white">
             Messages with coach
@@ -199,8 +209,9 @@ const CoachMessagesModal: React.FC<CoachMessagesModalProps> = ({ open, onClose, 
             {sending ? 'Sending…' : 'Send'}
           </button>
         </div>
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 

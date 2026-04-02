@@ -25,7 +25,7 @@ CREATE INDEX IF NOT EXISTS idx_tcm_trainer_client_created
   ON public.trainer_client_messages (trainer_user_id, client_user_id, created_at DESC, id DESC);
 
 COMMENT ON TABLE public.trainer_client_messages IS
-  'Coach–client async messages; Mission Control + /api/me write via service role; SELECT via RLS.';
+  'Coach–client async messages; app list/create uses service role (bypasses RLS) with API roster checks. RLS SELECT policies apply for authenticated JWT clients (direct PostgREST), not service role.';
 
 ALTER TABLE public.trainer_client_messages ENABLE ROW LEVEL SECURITY;
 

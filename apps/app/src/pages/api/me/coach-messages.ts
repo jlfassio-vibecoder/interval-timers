@@ -41,6 +41,12 @@ export const GET: APIRoute = async ({ request, cookies, url }) => {
 
     const result = await listTrainerClientMessages(trainerUserId, clientUserId, { cursor, limit });
     if (!result.ok) {
+      if (result.error === 'Not allowed') {
+        return new Response(JSON.stringify({ error: 'Coach not found' }), {
+          status: 404,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
       const status = result.error === 'Invalid cursor' ? 400 : 500;
       return new Response(JSON.stringify({ error: result.error }), {
         status,
@@ -111,6 +117,12 @@ export const POST: APIRoute = async ({ request, cookies }) => {
         result.error === 'Message body required' ||
         result.error.includes('at most') ||
         result.error === 'Invalid author';
+      if (result.error === 'Not allowed') {
+        return new Response(JSON.stringify({ error: 'Coach not found' }), {
+          status: 404,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
       return new Response(JSON.stringify({ error: result.error }), {
         status: badInput ? 400 : 500,
         headers: { 'Content-Type': 'application/json' },

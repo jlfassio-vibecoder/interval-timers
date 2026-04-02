@@ -46,6 +46,7 @@ function clampPageSize(n: number | undefined): number {
   return Math.min(Math.max(x, 1), MAX_TRAINER_CLIENT_MESSAGE_PAGE_SIZE);
 }
 
+/** On failure, `error` may be `Not allowed` (roster), `Invalid cursor`, or `Failed to load messages`. */
 export async function listTrainerClientMessages(
   trainerUserId: string,
   clientUserId: string,
@@ -90,6 +91,7 @@ export async function listTrainerClientMessages(
   return { ok: true, messages: chronological, nextCursor };
 }
 
+/** On failure, `error` may include `Not allowed`, validation strings, or `Failed to send message`. */
 export async function createTrainerClientMessage(params: {
   trainerUserId: string;
   clientUserId: string;

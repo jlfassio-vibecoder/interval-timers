@@ -44,6 +44,13 @@ export const GET: APIRoute = async ({ request, cookies, params, url }) => {
 
     const result = await listTrainerClientMessages(viewerId, clientUserId, { cursor, limit });
     if (!result.ok) {
+      // Align with roster 404; service-layer "Not allowed" should not surface as 500.
+      if (result.error === 'Not allowed') {
+        return new Response(JSON.stringify({ error: 'Client not found or not in your roster' }), {
+          status: 404,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
       const status = result.error === 'Invalid cursor' ? 400 : 500;
       return new Response(JSON.stringify({ error: result.error }), {
         status,
@@ -125,6 +132,12 @@ export const POST: APIRoute = async ({ request, cookies, params }) => {
         result.error === 'Message body required' ||
         result.error.includes('at most') ||
         result.error === 'Invalid author';
+      if (result.error === 'Not allowed') {
+        return new Response(JSON.stringify({ error: 'Client not found or not in your roster' }), {
+          status: 404,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
       return new Response(JSON.stringify({ error: result.error }), {
         status: badInput ? 400 : 500,
         headers: { 'Content-Type': 'application/json' },
