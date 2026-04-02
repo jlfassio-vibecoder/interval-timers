@@ -11,8 +11,9 @@ import { ExternalLink, FlaskConical, ClipboardList } from 'lucide-react';
 import { adminPaths } from '@/lib/admin/config';
 import type { CoachAssignmentListItem } from '@/lib/supabase/admin/trainer-client-assignments';
 import PerformanceLabCalendarSection from '@/components/react/trainer/views/PerformanceLabCalendarSection';
+import PerformanceLabMessagesSection from '@/components/react/trainer/views/PerformanceLabMessagesSection';
 
-type LabTab = 'programs' | 'calendar';
+type LabTab = 'programs' | 'calendar' | 'messages';
 
 type AssignKind = 'program' | 'workout' | 'wod';
 
@@ -296,6 +297,17 @@ const PerformanceLabView: React.FC = () => {
         >
           Calendar
         </button>
+        <button
+          type="button"
+          onClick={() => setLabTab('messages')}
+          className={`rounded-lg px-4 py-2 font-mono text-xs font-bold uppercase tracking-wide ${
+            labTab === 'messages'
+              ? 'bg-orange-light/20 text-orange-light'
+              : 'text-white/50 hover:bg-white/5 hover:text-white/80'
+          }`}
+        >
+          Messages
+        </button>
       </div>
 
       {labTab === 'calendar' && userId ? (
@@ -305,6 +317,8 @@ const PerformanceLabView: React.FC = () => {
           onRefreshAssignments={() => void loadAssignments()}
         />
       ) : null}
+
+      {labTab === 'messages' && userId ? <PerformanceLabMessagesSection userId={userId} /> : null}
 
       {labTab === 'programs' ? (
         <>
@@ -505,7 +519,6 @@ const PerformanceLabView: React.FC = () => {
         <p className="text-sm font-semibold uppercase tracking-wide text-white/50">Coming soon</p>
         <ul className="mt-2 list-inside list-disc text-sm text-white/45">
           <li>Challenge assignments (Challenge Factory)</li>
-          <li>Message board</li>
           <li>Weekly activity board</li>
         </ul>
       </div>

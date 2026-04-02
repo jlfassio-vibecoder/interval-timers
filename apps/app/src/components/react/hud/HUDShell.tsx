@@ -12,6 +12,7 @@ import { useAppContext } from '@/contexts/AppContext';
 import { useDerivedNotifications } from '@/hooks/useDerivedNotifications';
 import HUDHeader from './HUDHeader';
 import NotificationPanel from './NotificationPanel';
+import CoachMessagesModal from './CoachMessagesModal';
 
 export interface HUDShellProps {
   isPaid: boolean;
@@ -36,8 +37,9 @@ const HUDShell: React.FC<HUDShellProps> = ({
 }) => {
   const reduceMotion = useReducedMotion();
   const isOverlay = typeof onClose === 'function';
-  const { user, activeProgramId } = useAppContext();
+  const { user, activeProgramId, trainerProfile } = useAppContext();
   const [notifRefresh, setNotifRefresh] = useState(0);
+  const [coachMessagesOpen, setCoachMessagesOpen] = useState(false);
   const { notifications, count: notificationCount } = useDerivedNotifications(
     user?.uid,
     activeProgramId ?? null,
@@ -46,29 +48,48 @@ const HUDShell: React.FC<HUDShellProps> = ({
   const [notificationPanelOpen, setNotificationPanelOpen] = useState(false);
 
   const content = (
-    <div className="mx-auto flex max-w-7xl flex-col gap-10">
-      {/* Optional sticky upgrade banner (free users only) */}
-      {!isPaid && banner ? <div className="sticky top-0 z-10 shrink-0">{banner}</div> : null}
+    <>
+      <div className="mx-auto flex max-w-7xl flex-col gap-10">
+        {/* Optional sticky upgrade banner (free users only) */}
+        {!isPaid && banner ? <div className="sticky top-0 z-10 shrink-0">{banner}</div> : null}
 
-      {/* Header */}
-      <HUDHeader
-        onClose={isOverlay ? onClose : undefined}
-        notificationCount={notificationCount}
-        onBellClick={() => setNotificationPanelOpen(true)}
-      />
-      <NotificationPanel
-        isOpen={notificationPanelOpen}
-        onClose={() => setNotificationPanelOpen(false)}
-        notifications={notifications}
-        onCoachAssignmentsChanged={() => setNotifRefresh((k) => k + 1)}
-      />
+        {/* Header */}
+        <HUDHeader
+          onClose={isOverlay ? onClose : undefined}
+          notificationCount={notificationCount}
+          onBellClick={() => setNotificationPanelOpen(true)}
+        />
+        <NotificationPanel
+          isOpen={notificationPanelOpen}
+          onClose={() => setNotificationPanelOpen(false)}
+          notifications={notifications}
+          onCoachAssignmentsChanged={() => setNotifRefresh((k) => k + 1)}
+          coachMessagesTrainerUserId={trainerProfile?.uid ?? null}
+          coachMessagesCoachName={trainerProfile?.displayName ?? null}
+          onOpenCoachMessages={
+            trainerProfile?.uid
+              ? () => {
+                  setCoachMessagesOpen(true);
+                  setNotificationPanelOpen(false);
+                }
+              : undefined
+          }
+        />
 
-      {/* Two-column: sidebar + main */}
-      <div className="grid grid-cols-1 gap-10 lg:grid-cols-12">
-        {sidebar ? <aside className="space-y-6 lg:col-span-3">{sidebar}</aside> : null}
-        <main className={sidebar ? 'lg:col-span-9' : 'lg:col-span-12'}>{children}</main>
+        {/* Two-column: sidebar + main */}
+        <div className="grid grid-cols-1 gap-10 lg:grid-cols-12">
+          {sidebar ? <aside className="space-y-6 lg:col-span-3">{sidebar}</aside> : null}
+          <main className={sidebar ? 'lg:col-span-9' : 'lg:col-span-12'}>{children}</main>
+        </div>
       </div>
-    </div>
+      {trainerProfile?.uid ? (
+        <CoachMessagesModal
+          open={coachMessagesOpen}
+          onClose={() => setCoachMessagesOpen(false)}
+          trainerUserId={trainerProfile.uid}
+        />
+      ) : null}
+    </>
   );
 
   if (isOverlay) {

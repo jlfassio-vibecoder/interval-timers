@@ -183,6 +183,15 @@ export async function isUserInViewerRoster(
   return roster.some((r) => r.id === targetUserId);
 }
 
+/** Program-roster client only (excludes host–buddy). Used for trainer–client message board (P3). */
+export async function isProgramClientOfTrainer(
+  trainerUserId: string,
+  clientUserId: string
+): Promise<boolean> {
+  const roster = await fetchTrainerRoster(trainerUserId);
+  return roster.some((r) => r.id === clientUserId);
+}
+
 export interface TrainerStats {
   totalClients: number;
   totalWorkoutsLogged: number;
