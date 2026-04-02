@@ -125,6 +125,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const activeProgramIdRef = useRef(activeProgramId);
   activeProgramIdRef.current = activeProgramId;
 
+  /** Cache /api/me/trainer-recommended-program per uid so we do not refetch on every activeProgramId change (PR #127). */
+  const trainerRecStatusRef = useRef<{
+    uid: string | null;
+    /** undefined = not loaded yet for uid; null = loaded, no recommendation */
+    programId: string | null | undefined;
+  }>({ uid: null, programId: undefined });
+
   /** Complete roster invites when auth redirects dropped ?invite=; sync active program from assigned ids. */
   const runAcceptPendingInvites = useCallback(
     async (accessToken: string | null | undefined, sessionUserId: string) => {
@@ -145,7 +152,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const next = await resolveActiveProgramIdForSession(
           sessionUserId,
           activeProgramIdRef.current,
-          data.assignedProgramIds
+          data.assignedProgramIds,
+          null
         );
         if (next != null && next !== activeProgramIdRef.current) {
           setActiveProgramId(next);
@@ -277,13 +285,50 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [user?.uid, activeProgramId]);
 
   useEffect(() => {
-    if (!user?.uid) return;
+    if (!user?.uid) {
+      trainerRecStatusRef.current = { uid: null, programId: undefined };
+      return;
+    }
     let cancelled = false;
     (async () => {
       try {
-        const next = await resolveActiveProgramIdForSession(user.uid, activeProgramId, null);
+        const st = trainerRecStatusRef.current;
+        let trainerRecommended: string | null = null;
+        if (st.uid !== user.uid || st.programId === undefined) {
+          try {
+            const res = await fetch('/api/me/trainer-recommended-program', {
+              credentials: 'include',
+            });
+            if (res.ok) {
+              const data = (await res.json()) as { programId?: string | null };
+              trainerRecommended =
+                typeof data.programId === 'string' && data.programId.trim()
+                  ? data.programId.trim()
+                  : null;
+            } else {
+              trainerRecommended = null;
+            }
+          } catch {
+            trainerRecommended = null;
+          }
+          if (!cancelled) {
+            trainerRecStatusRef.current = {
+              uid: user.uid,
+              programId: trainerRecommended,
+            };
+          }
+        } else {
+          trainerRecommended = st.programId;
+        }
+
+        const next = await resolveActiveProgramIdForSession(
+          user.uid,
+          activeProgramId,
+          null,
+          trainerRecommended
+        );
         if (cancelled) return;
-        if (next === null) {
+        if (next == null) {
           if (activeProgramId) setActiveProgramId(null);
           return;
         }

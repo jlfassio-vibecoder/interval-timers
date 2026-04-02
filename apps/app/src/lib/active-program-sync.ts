@@ -26,17 +26,24 @@ export function mapProgramsToEnrollmentRows(
 }
 
 /**
- * Keeps current active id when it is still a valid active enrollment; otherwise picks using
- * optional invite hint (trainer-assigned program ids) to narrow candidates.
+ * Resolves HUD active program: trainer server recommendation (when valid) wins over localStorage,
+ * then invite hints, then default pick order. See Performance Lab / client_training_preferences.
  */
 export async function resolveActiveProgramIdForSession(
   userId: string,
   currentActiveId: string | null,
-  assignedProgramIdsHint?: string[] | null
+  assignedProgramIdsHint?: string[] | null,
+  trainerRecommendedProgramId?: string | null
 ): Promise<string | null> {
   const programs = await fetchUserPrograms(userId);
   const allRows = mapProgramsToEnrollmentRows(programs);
   const validAll = new Set(allRows.map((r) => r.program_id));
+
+  const rec = trainerRecommendedProgramId?.trim();
+  if (rec && validAll.has(rec)) {
+    return rec;
+  }
+
   if (currentActiveId && validAll.has(currentActiveId)) {
     return currentActiveId;
   }

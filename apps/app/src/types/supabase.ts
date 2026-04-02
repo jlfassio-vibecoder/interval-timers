@@ -208,6 +208,25 @@ export interface Database {
         Update: Record<string, never>;
         Relationships: [];
       };
+      client_training_preferences: {
+        Row: {
+          client_user_id: string;
+          trainer_user_id: string;
+          recommended_active_program_id: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          client_user_id: string;
+          trainer_user_id: string;
+          recommended_active_program_id?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          recommended_active_program_id?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       workout_logs: {
         Row: {
           id: string;
