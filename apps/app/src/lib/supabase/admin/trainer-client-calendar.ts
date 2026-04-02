@@ -20,12 +20,27 @@ export function parseISODateOnly(s: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(s);
 }
 
+/** True if `iso` is YYYY-MM-DD and that calendar day exists in UTC (regex alone admits e.g. 2026-02-31). */
+function isValidUtcCalendarDateOnly(iso: string): boolean {
+  if (!parseISODateOnly(iso)) return false;
+  const t = new Date(`${iso}T00:00:00.000Z`).getTime();
+  if (!Number.isFinite(t)) return false;
+  const d = new Date(t);
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(d.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${day}` === iso;
+}
+
 export function validateCalendarRange(
   from: string,
   to: string
 ): { ok: true } | { ok: false; error: string } {
   if (!parseISODateOnly(from) || !parseISODateOnly(to)) {
     return { ok: false, error: 'from and to must be YYYY-MM-DD' };
+  }
+  if (!isValidUtcCalendarDateOnly(from) || !isValidUtcCalendarDateOnly(to)) {
+    return { ok: false, error: 'from and to must be valid calendar dates' };
   }
   if (from > to) return { ok: false, error: 'from must be <= to' };
   const d0 = new Date(`${from}T00:00:00.000Z`).getTime();
@@ -59,41 +74,16 @@ async function fetchClientTimezone(clientUserId: string): Promise<string> {
   return typeof tz === 'string' && tz.trim() ? tz.trim() : 'UTC';
 }
 
-interface ProgramWithScheduleRow {
-  programId: string;
-  title: string;
-  schedule: ProgramSchedule[];
+interface ProgramWeekRow {
+  week_number: number;
+  content?: { weekNumber?: number; workouts?: ProgramSchedule['workouts'] } | null;
 }
 
-async function getProgramWithScheduleServer(programId: string): Promise<ProgramWithScheduleRow | null> {
-  const supabase = getSupabaseServer();
-  const { data: program, error: programError } = await supabase
-    .from('programs')
-    .select('title')
-    .eq('id', programId)
-    .single();
-
-  if (programError || !program) return null;
-  const title = typeof program.title === 'string' ? program.title : 'Program';
-
-  const { data: weeks, error: weeksError } = await supabase
-    .from('program_weeks')
-    .select('week_number, content')
-    .eq('program_id', programId)
-    .order('week_number', { ascending: true });
-
-  if (weeksError) return { programId, title, schedule: [] };
-
-  interface WeekRow {
-    week_number: number;
-    content?: { weekNumber?: number; workouts?: ProgramSchedule['workouts'] } | null;
-  }
-  const schedule: ProgramSchedule[] = (weeks ?? []).map((row: WeekRow) => ({
+function scheduleFromProgramWeekRows(rows: ProgramWeekRow[]): ProgramSchedule[] {
+  return rows.map((row) => ({
     weekNumber: row.content?.weekNumber ?? row.week_number ?? 0,
     workouts: (row.content?.workouts ?? []) as ProgramSchedule['workouts'],
   }));
-
-  return { programId, title, schedule };
 }
 
 export async function fetchProgramsForCalendarForClient(clientUserId: string): Promise<ProgramForCalendar[]> {
@@ -105,20 +95,62 @@ export async function fetchProgramsForCalendarForClient(clientUserId: string): P
 
   if (error || !rows?.length) return [];
 
+  const programIds = [...new Set(rows.map((r) => r.program_id as string).filter(Boolean))];
+  if (programIds.length === 0) return [];
+
+  // Batched reads: one programs rowset + one program_weeks rowset (avoids N+1 per enrollment).
+  const { data: programRows, error: programsError } = await supabase
+    .from('programs')
+    .select('id, title')
+    .in('id', programIds);
+
+  if (programsError || !programRows?.length) return [];
+
+  const titleByProgramId = new Map<string, string>();
+  for (const p of programRows) {
+    const id = p.id as string;
+    titleByProgramId.set(id, typeof p.title === 'string' ? p.title : 'Program');
+  }
+
+  const { data: allWeeks, error: weeksError } = await supabase
+    .from('program_weeks')
+    .select('program_id, week_number, content')
+    .in('program_id', programIds);
+
+  const weeksByProgramId = new Map<string, ProgramWeekRow[]>();
+  if (!weeksError) {
+    for (const w of allWeeks ?? []) {
+      const pid = w.program_id as string;
+      const list = weeksByProgramId.get(pid);
+      const row: ProgramWeekRow = {
+        week_number: w.week_number as number,
+        content: (w as { content?: ProgramWeekRow['content'] }).content,
+      };
+      if (list) list.push(row);
+      else weeksByProgramId.set(pid, [row]);
+    }
+    for (const list of weeksByProgramId.values()) {
+      list.sort((a, b) => (a.week_number ?? 0) - (b.week_number ?? 0));
+    }
+  }
+
   const results: ProgramForCalendar[] = [];
   for (const r of rows) {
     const startDate = r.start_date;
     if (typeof startDate !== 'string' || !startDate.trim()) continue;
+    const programId = r.program_id as string;
+    const title = titleByProgramId.get(programId);
+    if (title == null) continue;
 
-    const pw = await getProgramWithScheduleServer(r.program_id as string);
-    if (pw) {
-      results.push({
-        programId: pw.programId,
-        title: pw.title,
-        startDate: startDate.trim(),
-        schedule: pw.schedule,
-      });
-    }
+    const weekRows = weeksByProgramId.get(programId) ?? [];
+    const schedule = weeksError ? [] : scheduleFromProgramWeekRows(weekRows);
+
+    results.push({
+      programId,
+      title,
+      startDate: startDate.trim(),
+      schedule,
+    });
   }
   return results;
 }
@@ -320,11 +352,13 @@ export async function patchCoachScheduleInstance(
 
   const { data: asg } = await supabase
     .from('client_coach_assignments')
-    .select('revoked_at')
+    .select('revoked_at, dismissed_at')
     .eq('id', r.assignment_id as string)
     .maybeSingle();
-  const rev = (asg as { revoked_at?: string | null } | null)?.revoked_at;
-  if (rev) return { ok: false, error: 'Assignment is no longer active' };
+  const aPatch = asg as { revoked_at?: string | null; dismissed_at?: string | null } | null;
+  if (aPatch?.revoked_at || aPatch?.dismissed_at) {
+    return { ok: false, error: 'Assignment is no longer active' };
+  }
 
   const now = new Date().toISOString();
   const { error: updErr } = await supabase

@@ -34,4 +34,10 @@ describe('trainer-client-calendar range validation', () => {
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.error).toContain(String(MAX_CALENDAR_RANGE_DAYS));
   });
+
+  it('validateCalendarRange rejects non-existent calendar days (regex is insufficient)', () => {
+    const r = validateCalendarRange('2026-02-31', '2026-02-31');
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toContain('valid calendar');
+  });
 });
