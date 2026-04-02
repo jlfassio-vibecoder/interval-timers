@@ -227,6 +227,44 @@ export interface Database {
         };
         Relationships: [];
       };
+      client_coach_assignments: {
+        Row: {
+          id: string;
+          trainer_user_id: string;
+          client_user_id: string;
+          assignment_type: 'program' | 'workout' | 'wod';
+          resource_id: string;
+          assigned_at: string;
+          starts_on: string | null;
+          expires_on: string | null;
+          title_snapshot: string;
+          dismissed_at: string | null;
+          revoked_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          trainer_user_id: string;
+          client_user_id: string;
+          assignment_type: 'program' | 'workout' | 'wod';
+          resource_id: string;
+          assigned_at?: string;
+          starts_on?: string | null;
+          expires_on?: string | null;
+          title_snapshot?: string;
+          dismissed_at?: string | null;
+          revoked_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          dismissed_at?: string | null;
+          revoked_at?: string | null;
+          starts_on?: string | null;
+          expires_on?: string | null;
+          title_snapshot?: string;
+        };
+        Relationships: [];
+      };
       workout_logs: {
         Row: {
           id: string;

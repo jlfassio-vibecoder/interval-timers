@@ -5,8 +5,9 @@
  * Slide-out notifications panel from the HUD header bell. Notifications are derived client-side.
  */
 
-import React, { useEffect } from 'react';
-import { X, Trophy, Calendar, Moon, Flame } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { X, Trophy, Calendar, Moon, Flame, Dumbbell } from 'lucide-react';
+import { useAppContext } from '@/contexts/AppContext';
 import type {
   DerivedNotification,
   NotificationType,
@@ -16,10 +17,14 @@ export interface NotificationPanelProps {
   isOpen: boolean;
   onClose: () => void;
   notifications: DerivedNotification[];
+  /** After coach assignment dismiss, bump to refetch derived notifications. */
+  onCoachAssignmentsChanged?: () => void;
 }
 
 function iconForType(type: NotificationType): React.ReactNode {
   switch (type) {
+    case 'coach_assignment':
+      return <Dumbbell className="h-4 w-4 shrink-0 text-orange-light" />;
     case 'program_complete':
       return <Trophy className="h-4 w-4 shrink-0 text-orange-light" />;
     case 'new_workout_available':
@@ -37,7 +42,36 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({
   isOpen,
   onClose,
   notifications,
+  onCoachAssignmentsChanged,
 }) => {
+  const { setActiveProgramId } = useAppContext();
+  const [dismissingId, setDismissingId] = useState<string | null>(null);
+
+  const handleOpenCoach = (n: DerivedNotification) => {
+    if (n.coachAction === 'set_program' && n.coachProgramId) {
+      setActiveProgramId(n.coachProgramId);
+      onClose();
+      window.location.hash = 'program-sidebar';
+      return;
+    }
+    if (n.coachHref) {
+      window.location.assign(n.coachHref);
+    }
+  };
+
+  const handleDismissCoach = async (assignmentId: string) => {
+    setDismissingId(assignmentId);
+    try {
+      const res = await fetch(`/api/me/coach-assignments/${encodeURIComponent(assignmentId)}`, {
+        method: 'PATCH',
+        credentials: 'include',
+      });
+      if (res.ok) onCoachAssignmentsChanged?.();
+    } finally {
+      setDismissingId(null);
+    }
+  };
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -94,6 +128,25 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({
                       {n.title}
                     </p>
                     <p className="mt-0.5 text-sm text-white/80">{n.message}</p>
+                    {n.type === 'coach_assignment' && n.assignmentId ? (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenCoach(n)}
+                          className="rounded-md border border-orange-light/40 bg-orange-light/10 px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-wide text-orange-light hover:bg-orange-light/20"
+                        >
+                          Open
+                        </button>
+                        <button
+                          type="button"
+                          disabled={dismissingId === n.assignmentId}
+                          onClick={() => void handleDismissCoach(n.assignmentId!)}
+                          className="rounded-md border border-white/15 px-2 py-1 font-mono text-[10px] uppercase text-white/70 hover:bg-white/10 disabled:opacity-40"
+                        >
+                          {dismissingId === n.assignmentId ? '…' : 'Dismiss'}
+                        </button>
+                      </div>
+                    ) : null}
                   </div>
                 </li>
               ))}

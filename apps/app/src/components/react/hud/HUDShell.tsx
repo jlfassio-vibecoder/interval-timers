@@ -37,9 +37,11 @@ const HUDShell: React.FC<HUDShellProps> = ({
   const reduceMotion = useReducedMotion();
   const isOverlay = typeof onClose === 'function';
   const { user, activeProgramId } = useAppContext();
+  const [notifRefresh, setNotifRefresh] = useState(0);
   const { notifications, count: notificationCount } = useDerivedNotifications(
     user?.uid,
-    activeProgramId ?? null
+    activeProgramId ?? null,
+    notifRefresh
   );
   const [notificationPanelOpen, setNotificationPanelOpen] = useState(false);
 
@@ -58,6 +60,7 @@ const HUDShell: React.FC<HUDShellProps> = ({
         isOpen={notificationPanelOpen}
         onClose={() => setNotificationPanelOpen(false)}
         notifications={notifications}
+        onCoachAssignmentsChanged={() => setNotifRefresh((k) => k + 1)}
       />
 
       {/* Two-column: sidebar + main */}
