@@ -265,6 +265,31 @@ export interface Database {
         };
         Relationships: [];
       };
+      client_coach_schedule_instances: {
+        Row: {
+          id: string;
+          assignment_id: string;
+          client_user_id: string;
+          trainer_user_id: string;
+          scheduled_at: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          assignment_id: string;
+          client_user_id: string;
+          trainer_user_id: string;
+          scheduled_at: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          scheduled_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       workout_logs: {
         Row: {
           id: string;
