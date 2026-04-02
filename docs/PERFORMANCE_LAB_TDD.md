@@ -1,7 +1,7 @@
 # Technical Design: Performance Lab (Mission Control)
 
-**Status:** Draft — **P0 + P1 implemented** (see section 6 and implementation summaries below).  
-**Last updated:** April 4, 2026  
+**Status:** Draft — **P0 + P1 + P2 (MVP) implemented** (see section 6 and implementation summaries below).  
+**Last updated:** April 5, 2026  
 **Related:** [ROSTER_TRAINER_HUD_WORKFLOW_SWOT.md](./ROSTER_TRAINER_HUD_WORKFLOW_SWOT.md), `ClientDetailView` (“View Stats”), `RosterView`
 
 ---
@@ -50,7 +50,7 @@ The **Performance Lab** is a trainer-facing workspace for a **single roster clie
 | Message board | `messages` | Threaded or chronological |
 | Weekly activity board | `week` | Mon–Sun Kanban |
 
-**P0 note:** The shell uses **View Stats** vs **Performance Lab** only. The Lab route currently surfaces **programs & enrollments** (table + actions) plus a “Coming soon” list for assign/calendar/messages/week; the slug rows above are the **target** in-Lab IA for later phases.
+**P0–P2 note:** The shell uses **View Stats** vs **Performance Lab** only. The Lab route has **Programs & assignments** vs **Calendar** tabs; calendar P2 is MVP (program read model + coach instances, not full unified AMRAP/timer merge). “Coming soon” remains for messages/week/challenges; the slug rows above are the **target** in-Lab IA for later phases.
 
 ---
 
@@ -199,7 +199,7 @@ The **Performance Lab** is a trainer-facing workspace for a **single roster clie
 |-------|--------|--------|
 | **P0** | Route + shell UI; enrollments read-only; end program + set/clear recommended active program (APIs); Builder links; HUD sync + RLS + `/api/me` user-scoped read | **Completed** |
 | **P1** | Assign programs + workouts/WODs (MVP assignment table + client HUD surfacing) | **Completed** |
-| **P2** | Calendar read API + basic drag-to-reschedule for assignment instances | Pending |
+| **P2** | Calendar read API + basic drag-to-reschedule for assignment instances | **Completed** (MVP — see P2 summary) |
 | **P3** | Message board MVP | Pending |
 | **P4** | Weekly Kanban + exercise assignments | Pending |
 | **P5** | Challenges: Challenge Factory import + assign flow (AI generation feeds factory, same pattern as Program Factory) | Pending |
@@ -211,7 +211,7 @@ Order can change if messaging is higher priority for your cohort.
 | Item | Notes |
 |------|--------|
 | Routing | `TrainerRoute`: nested `roster/:userId` → `ClientMissionControlLayout`; index = stats; `lab` = `PerformanceLabView` |
-| UI | `PerformanceLabView`: enrollment table, Set active / Clear recommendation / End / Builder; “Coming soon” for later tabs |
+| UI | `PerformanceLabView`: Programs & Calendar tabs; enrollment table, assignments, Set active / Clear / End / Builder; “Coming soon” for messages/week/challenges |
 | Roster | **Lab** button (program clients or rows with `programIds.length > 0`) |
 | Server | `trainer-client-enrollments.ts`: enrollments fetch, end enrollment, set recommendation, `fetchTrainerRecommendationForAuthenticatedSupabaseUser` |
 | Client HUD | `AppContext` + `active-program-sync.ts` (4th arg: trainer recommendation) |
@@ -229,6 +229,17 @@ Order can change if messaging is higher priority for your cohort.
 | Client play | `/workout/assigned?assignmentId=` + `AssignedCoachWorkoutPage` + `WorkoutDetailModal` |
 | HUD | `derive-notifications` merges coach assignments; `NotificationPanel` Open / Dismiss; `useDerivedNotifications` refresh key from HUD shell |
 | Not in P1 | Challenges; web push; `PATCH` enrollment dates |
+
+### P2 implementation summary (reference)
+
+| Item | Notes |
+|------|--------|
+| Table | `client_coach_schedule_instances`; migration `20260430112000_client_coach_schedule_instances.sql` (root + `apps/app` mirror) |
+| RLS | Client `SELECT` own rows; trainer `SELECT` with `is_mission_control_staff()`; writes via service-role APIs only |
+| Server | `trainer-client-calendar.ts`: program events via `getCalendarEventsForRange` + `user_workout_logs` completion map; coach instances merged; roster gate |
+| Trainer APIs | `GET .../clients/[userId]/calendar?from=&to=` (max 93 days); `POST .../calendar/instances`; `PATCH .../calendar/instances/[instanceId]` |
+| Lab UI | `PerformanceLabView` tabs; `PerformanceLabCalendarSection`: week nav, dnd-kit drag for coach instances, add-instance row |
+| Not in P2 (deferred) | Full unified trainer calendar (AMRAP/timer/readiness) without refactoring client `calendar-unified` to server; `PATCH user_programs.start_date` from Lab; instance auto-create on assign; audit log for moves |
 
 ---
 
@@ -295,3 +306,4 @@ Your six pillars cover the **core coaching loop** (programming, scheduling, educ
 | 2026-04-02 | — | P0 shipped: `client_training_preferences`, `/trainer/roster/:userId/lab`, enrollments + active-program APIs, `GET /api/me/trainer-recommended-program`, HUD merge in `resolveActiveProgramIdForSession` |
 | 2026-04-03 | — | Doc: P0 marked complete; implementation summary, API/RLS notes, phase status column; Copilot follow-ups: RLS migration, user-scoped `/api/me`, AppContext recommendation cache |
 | 2026-04-04 | — | P1 shipped: `client_coach_assignments`, trainer + `/api/me` assignment APIs, Performance Lab assign UI, HUD notification panel + `/workout/assigned`; doc P1 summary |
+| 2026-04-05 | — | P2 MVP: `client_coach_schedule_instances`, `GET/PATCH/POST` trainer calendar APIs, `trainer-client-calendar.ts`, Lab Calendar tab + dnd-kit; doc P2 summary + deferred list |

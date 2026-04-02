@@ -10,6 +10,9 @@ import { useParams } from 'react-router-dom';
 import { ExternalLink, FlaskConical, ClipboardList } from 'lucide-react';
 import { adminPaths } from '@/lib/admin/config';
 import type { CoachAssignmentListItem } from '@/lib/supabase/admin/trainer-client-assignments';
+import PerformanceLabCalendarSection from '@/components/react/trainer/views/PerformanceLabCalendarSection';
+
+type LabTab = 'programs' | 'calendar';
 
 type AssignKind = 'program' | 'workout' | 'wod';
 
@@ -34,6 +37,7 @@ interface EnrollmentsResponse {
 
 const PerformanceLabView: React.FC = () => {
   const { userId } = useParams<{ userId: string }>();
+  const [labTab, setLabTab] = useState<LabTab>('programs');
   const [data, setData] = useState<EnrollmentsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -269,6 +273,41 @@ const PerformanceLabView: React.FC = () => {
 
   return (
     <div className="space-y-8">
+      <div className="flex gap-2 border-b border-white/10 pb-3">
+        <button
+          type="button"
+          onClick={() => setLabTab('programs')}
+          className={`rounded-lg px-4 py-2 font-mono text-xs font-bold uppercase tracking-wide ${
+            labTab === 'programs'
+              ? 'bg-orange-light/20 text-orange-light'
+              : 'text-white/50 hover:bg-white/5 hover:text-white/80'
+          }`}
+        >
+          Programs & assignments
+        </button>
+        <button
+          type="button"
+          onClick={() => setLabTab('calendar')}
+          className={`rounded-lg px-4 py-2 font-mono text-xs font-bold uppercase tracking-wide ${
+            labTab === 'calendar'
+              ? 'bg-orange-light/20 text-orange-light'
+              : 'text-white/50 hover:bg-white/5 hover:text-white/80'
+          }`}
+        >
+          Calendar
+        </button>
+      </div>
+
+      {labTab === 'calendar' && userId ? (
+        <PerformanceLabCalendarSection
+          userId={userId}
+          assignments={assignments}
+          onRefreshAssignments={() => void loadAssignments()}
+        />
+      ) : null}
+
+      {labTab === 'programs' ? (
+        <>
       <div className="flex items-start gap-3 rounded-lg border border-white/10 bg-black/20 p-4 backdrop-blur-sm">
         <FlaskConical className="mt-0.5 h-6 w-6 shrink-0 text-orange-light" />
         <div>
@@ -466,11 +505,12 @@ const PerformanceLabView: React.FC = () => {
         <p className="text-sm font-semibold uppercase tracking-wide text-white/50">Coming soon</p>
         <ul className="mt-2 list-inside list-disc text-sm text-white/45">
           <li>Challenge assignments (Challenge Factory)</li>
-          <li>Calendar</li>
           <li>Message board</li>
           <li>Weekly activity board</li>
         </ul>
       </div>
+        </>
+      ) : null}
     </div>
   );
 };
