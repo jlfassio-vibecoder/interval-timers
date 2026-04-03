@@ -91,7 +91,7 @@ function SortableWeekCard({
       ref={setNodeRef}
       style={style}
       className={`flex gap-1 rounded border border-white/10 bg-black/40 p-2 text-sm ${
-        isDragging ? 'z-10 opacity-60 ring-1 ring-orange-light/40' : ''
+        isDragging ? 'ring-orange-light/40 z-10 opacity-60 ring-1' : ''
       }`}
     >
       <button
@@ -108,7 +108,7 @@ function SortableWeekCard({
         type="button"
         disabled={!!busy}
         onClick={() => onOpenDetail(card)}
-        className="min-w-0 flex-1 rounded px-0.5 text-left focus:outline-none focus-visible:ring-1 focus-visible:ring-orange-light/50"
+        className="focus-visible:ring-orange-light/50 min-w-0 flex-1 rounded px-0.5 text-left focus:outline-none focus-visible:ring-1"
       >
         <div className="truncate font-medium text-white" title={card.title}>
           {truncateCardTitle(card.title, 20)}
@@ -150,13 +150,13 @@ function WeekColumn({
 
   return (
     <div className="flex min-h-[12rem] flex-col rounded-lg border border-white/10 bg-black/30 p-2">
-      <div className="mb-2 border-b border-white/10 pb-2 font-mono text-[11px] font-bold uppercase text-orange-light/90">
+      <div className="text-orange-light/90 mb-2 border-b border-white/10 pb-2 font-mono text-[11px] font-bold uppercase">
         {formatColumnTitle(dateStr)}
       </div>
       <div
         ref={setNodeRef}
         className={`flex min-h-[6rem] flex-1 flex-col gap-2 overflow-y-auto rounded-md p-0.5 ${
-          isOver ? 'bg-orange-light/5 ring-1 ring-orange-light/30' : ''
+          isOver ? 'bg-orange-light/5 ring-orange-light/30 ring-1' : ''
         }`}
       >
         <SortableContext items={ids} strategy={verticalListSortingStrategy}>
@@ -287,9 +287,7 @@ const PerformanceLabWeekSection: React.FC<PerformanceLabWeekSectionProps> = ({ u
     setModalTitle(detailCard.title);
     setModalNotes(detailCard.notes ?? '');
     setModalActivityType(detailCard.activityType);
-    setModalDuration(
-      detailCard.durationMinutes != null ? String(detailCard.durationMinutes) : ''
-    );
+    setModalDuration(detailCard.durationMinutes != null ? String(detailCard.durationMinutes) : '');
   }, [detailCard]);
 
   useEffect(() => {
@@ -313,22 +311,19 @@ const PerformanceLabWeekSection: React.FC<PerformanceLabWeekSectionProps> = ({ u
     try {
       const auth = await missionControlApiAuthHeaders();
       const dur = newDuration.trim() ? parseInt(newDuration, 10) : null;
-      const res = await fetch(
-        `/api/trainer/clients/${encodeURIComponent(userId)}/weekly-board`,
-        {
-          method: 'POST',
-          credentials: 'include',
-          headers: { ...auth, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            weekStartDate: weekStartForNewCard,
-            scheduledDate: scheduledDateForNewCard,
-            title: newTitle.trim(),
-            activityType: newActivityType.trim() || 'activity',
-            durationMinutes: dur != null && Number.isFinite(dur) ? dur : null,
-            notes: newNotes.trim() || null,
-          }),
-        }
-      );
+      const res = await fetch(`/api/trainer/clients/${encodeURIComponent(userId)}/weekly-board`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { ...auth, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          weekStartDate: weekStartForNewCard,
+          scheduledDate: scheduledDateForNewCard,
+          title: newTitle.trim(),
+          activityType: newActivityType.trim() || 'activity',
+          durationMinutes: dur != null && Number.isFinite(dur) ? dur : null,
+          notes: newNotes.trim() || null,
+        }),
+      });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
         window.alert(typeof body.error === 'string' ? body.error : 'Could not create card');
@@ -522,9 +517,9 @@ const PerformanceLabWeekSection: React.FC<PerformanceLabWeekSectionProps> = ({ u
           <div>
             <h2 className="font-heading text-xl font-bold">Weekly activity</h2>
             <p className="mt-1 text-sm text-white/60">
-              Plan activities by day. Drag cards by the grip to reorder or move days. Click a card for
-              full details. Clients on your program roster can view the board and mark items done or
-              skipped. Weeks start on Monday (local).
+              Plan activities by day. Drag cards by the grip to reorder or move days. Click a card
+              for full details. Clients on your program roster can view the board and mark items
+              done or skipped. Weeks start on Monday (local).
             </p>
           </div>
         </div>
@@ -592,9 +587,9 @@ const PerformanceLabWeekSection: React.FC<PerformanceLabWeekSectionProps> = ({ u
 
       {viewMode === 'rolling_7' && (
         <p className="text-sm text-white/50">
-          Showing the last seven calendar days ending today. Activities may load from two ISO weeks if
-          the range crosses a Monday boundary; dragging across that boundary updates the stored week
-          automatically.
+          Showing the last seven calendar days ending today. Activities may load from two ISO weeks
+          if the range crosses a Monday boundary; dragging across that boundary updates the stored
+          week automatically.
         </p>
       )}
 
@@ -605,7 +600,9 @@ const PerformanceLabWeekSection: React.FC<PerformanceLabWeekSectionProps> = ({ u
       )}
 
       <div className="rounded-lg border border-white/10 bg-black/20 p-4 backdrop-blur-sm">
-        <h3 className="font-mono text-xs font-bold uppercase tracking-wide text-white/50">Add card</h3>
+        <h3 className="font-mono text-xs font-bold uppercase tracking-wide text-white/50">
+          Add card
+        </h3>
         <div className="mt-3 flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-end">
           <div>
             <label className="mb-1 block font-mono text-[10px] uppercase text-white/50">Day</label>
@@ -622,7 +619,9 @@ const PerformanceLabWeekSection: React.FC<PerformanceLabWeekSectionProps> = ({ u
             </select>
           </div>
           <div className="min-w-[10rem] flex-1">
-            <label className="mb-1 block font-mono text-[10px] uppercase text-white/50">Title</label>
+            <label className="mb-1 block font-mono text-[10px] uppercase text-white/50">
+              Title
+            </label>
             <input
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
@@ -639,7 +638,9 @@ const PerformanceLabWeekSection: React.FC<PerformanceLabWeekSectionProps> = ({ u
             />
           </div>
           <div>
-            <label className="mb-1 block font-mono text-[10px] uppercase text-white/50">Minutes</label>
+            <label className="mb-1 block font-mono text-[10px] uppercase text-white/50">
+              Minutes
+            </label>
             <input
               value={newDuration}
               onChange={(e) => setNewDuration(e.target.value)}
@@ -649,7 +650,9 @@ const PerformanceLabWeekSection: React.FC<PerformanceLabWeekSectionProps> = ({ u
             />
           </div>
           <div className="min-w-[12rem] flex-[2]">
-            <label className="mb-1 block font-mono text-[10px] uppercase text-white/50">Notes</label>
+            <label className="mb-1 block font-mono text-[10px] uppercase text-white/50">
+              Notes
+            </label>
             <input
               value={newNotes}
               onChange={(e) => setNewNotes(e.target.value)}
@@ -660,7 +663,7 @@ const PerformanceLabWeekSection: React.FC<PerformanceLabWeekSectionProps> = ({ u
             type="button"
             disabled={!!busy || !newTitle.trim() || loading}
             onClick={() => void createCard()}
-            className="rounded-lg border border-orange-light/40 bg-orange-light/10 px-4 py-2 font-mono text-xs font-bold uppercase text-orange-light hover:bg-orange-light/20 disabled:opacity-40"
+            className="border-orange-light/40 bg-orange-light/10 hover:bg-orange-light/20 rounded-lg border px-4 py-2 font-mono text-xs font-bold uppercase text-orange-light disabled:opacity-40"
           >
             {busy === 'create' ? '…' : 'Add'}
           </button>
@@ -670,7 +673,11 @@ const PerformanceLabWeekSection: React.FC<PerformanceLabWeekSectionProps> = ({ u
       {loading ? (
         <div className="flex justify-center py-16 text-white/50">Loading board…</div>
       ) : (
-        <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={(e) => void handleDragEnd(e)}>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCorners}
+          onDragEnd={(e) => void handleDragEnd(e)}
+        >
           <div className="grid grid-cols-1 gap-3 md:grid-cols-7">
             {columnDates.map((dateStr) => (
               <WeekColumn
@@ -692,7 +699,7 @@ const PerformanceLabWeekSection: React.FC<PerformanceLabWeekSectionProps> = ({ u
             aria-hidden
             onClick={() => setDetailCard(null)}
           />
-          <div className="fixed inset-0 z-[101] flex items-end justify-center p-4 pointer-events-none sm:items-center">
+          <div className="pointer-events-none fixed inset-0 z-[101] flex items-end justify-center p-4 sm:items-center">
             <div
               className="pointer-events-auto flex max-h-[min(560px,90vh)] w-full max-w-lg flex-col rounded-xl border border-white/15 bg-bg-dark shadow-xl"
               role="dialog"
@@ -717,7 +724,8 @@ const PerformanceLabWeekSection: React.FC<PerformanceLabWeekSectionProps> = ({ u
               </div>
               <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4 text-sm text-white/80">
                 <p className="font-mono text-[10px] uppercase text-white/45">
-                  Scheduled · {formatColumnTitle(detailCard.scheduledDate)} ({detailCard.scheduledDate})
+                  Scheduled · {formatColumnTitle(detailCard.scheduledDate)} (
+                  {detailCard.scheduledDate})
                 </p>
                 <div>
                   <label className="mb-1 block font-mono text-[10px] uppercase text-white/50">
@@ -797,7 +805,7 @@ const PerformanceLabWeekSection: React.FC<PerformanceLabWeekSectionProps> = ({ u
                   type="button"
                   disabled={!!busy}
                   onClick={() => void saveDetailModal()}
-                  className="rounded-lg border border-orange-light/40 bg-orange-light/15 px-4 py-2 font-mono text-xs font-bold uppercase text-orange-light hover:bg-orange-light/25"
+                  className="border-orange-light/40 bg-orange-light/15 hover:bg-orange-light/25 rounded-lg border px-4 py-2 font-mono text-xs font-bold uppercase text-orange-light"
                 >
                   Save
                 </button>

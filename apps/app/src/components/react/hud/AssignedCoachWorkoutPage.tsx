@@ -56,7 +56,9 @@ const AssignedCoachWorkoutPage: React.FC = () => {
       .then(async (res) => {
         const body = await res.json().catch(() => ({}));
         if (!res.ok) {
-          throw new Error(typeof body.error === 'string' ? body.error : 'Could not load assignment');
+          throw new Error(
+            typeof body.error === 'string' ? body.error : 'Could not load assignment'
+          );
         }
         if (cancelled) return;
         if (body.assignmentType === 'program' && typeof body.programId === 'string') {

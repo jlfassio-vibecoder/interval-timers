@@ -33,27 +33,36 @@ export const GET: APIRoute = async ({ request, cookies, params, url }) => {
 
     const weekStart = url.searchParams.get('weekStart')?.trim() ?? '';
     if (!isLocalMondayDateOnly(weekStart)) {
-      return new Response(JSON.stringify({ error: 'weekStart query required (YYYY-MM-DD, Monday of week)' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return new Response(
+        JSON.stringify({ error: 'weekStart query required (YYYY-MM-DD, Monday of week)' }),
+        {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
     }
 
     const inRoster = await isProgramClientOfTrainer(viewerId, clientUserId);
     if (!inRoster) {
-      return new Response(JSON.stringify({ error: 'Client not found or not in your program roster' }), {
-        status: 404,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return new Response(
+        JSON.stringify({ error: 'Client not found or not in your program roster' }),
+        {
+          status: 404,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
     }
 
     const result = await getWeeklyBoardForTrainer(viewerId, clientUserId, weekStart);
     if (!result.ok) {
       if (result.reason === 'not_in_program_roster') {
-        return new Response(JSON.stringify({ error: 'Client not found or not in your program roster' }), {
-          status: 404,
-          headers: { 'Content-Type': 'application/json' },
-        });
+        return new Response(
+          JSON.stringify({ error: 'Client not found or not in your program roster' }),
+          {
+            status: 404,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        );
       }
       if (result.reason === 'invalid_date') {
         return new Response(
@@ -114,10 +123,13 @@ export const POST: APIRoute = async ({ request, cookies, params }) => {
 
     const inRoster = await isProgramClientOfTrainer(viewerId, clientUserId);
     if (!inRoster) {
-      return new Response(JSON.stringify({ error: 'Client not found or not in your program roster' }), {
-        status: 404,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return new Response(
+        JSON.stringify({ error: 'Client not found or not in your program roster' }),
+        {
+          status: 404,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
     }
 
     let body: {

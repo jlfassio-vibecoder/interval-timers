@@ -122,7 +122,7 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({
         </div>
         <div className="flex-1 space-y-4 overflow-y-auto p-4">
           {coachMessagesTrainerUserId && onOpenCoachMessages ? (
-            <div className="flex gap-3 rounded-lg border border-orange-light/30 bg-orange-light/10 p-3">
+            <div className="border-orange-light/30 bg-orange-light/10 flex gap-3 rounded-lg border p-3">
               <MessageSquare className="h-4 w-4 shrink-0 text-orange-light" aria-hidden />
               <div className="min-w-0 flex-1">
                 <p className="font-mono text-xs font-semibold uppercase text-orange-light">
@@ -136,7 +136,7 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({
                 <button
                   type="button"
                   onClick={() => onOpenCoachMessages()}
-                  className="mt-2 rounded-md border border-orange-light/40 bg-orange-light/10 px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-wide text-orange-light hover:bg-orange-light/20"
+                  className="border-orange-light/40 bg-orange-light/10 hover:bg-orange-light/20 mt-2 rounded-md border px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-wide text-orange-light"
                 >
                   Open
                 </button>
@@ -163,7 +163,7 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({
                         <button
                           type="button"
                           onClick={() => handleOpenCoach(n)}
-                          className="rounded-md border border-orange-light/40 bg-orange-light/10 px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-wide text-orange-light hover:bg-orange-light/20"
+                          className="border-orange-light/40 bg-orange-light/10 hover:bg-orange-light/20 rounded-md border px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-wide text-orange-light"
                         >
                           Open
                         </button>

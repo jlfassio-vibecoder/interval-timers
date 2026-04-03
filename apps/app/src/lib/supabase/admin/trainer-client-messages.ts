@@ -42,7 +42,10 @@ export function decodeTrainerClientMessagesCursor(
 }
 
 function clampPageSize(n: number | undefined): number {
-  const x = typeof n === 'number' && Number.isFinite(n) ? Math.floor(n) : DEFAULT_TRAINER_CLIENT_MESSAGE_PAGE_SIZE;
+  const x =
+    typeof n === 'number' && Number.isFinite(n)
+      ? Math.floor(n)
+      : DEFAULT_TRAINER_CLIENT_MESSAGE_PAGE_SIZE;
   return Math.min(Math.max(x, 1), MAX_TRAINER_CLIENT_MESSAGE_PAGE_SIZE);
 }
 
@@ -119,7 +122,10 @@ export async function createTrainerClientMessage(params: {
   const trimmed = params.body.trim();
   if (!trimmed) return { ok: false, error: 'Message body required' };
   if (trimmed.length > MAX_TRAINER_CLIENT_MESSAGE_BODY) {
-    return { ok: false, error: `Message must be at most ${MAX_TRAINER_CLIENT_MESSAGE_BODY} characters` };
+    return {
+      ok: false,
+      error: `Message must be at most ${MAX_TRAINER_CLIENT_MESSAGE_BODY} characters`,
+    };
   }
 
   const allowed = await isProgramClientOfTrainer(params.trainerUserId, params.clientUserId);

@@ -102,10 +102,13 @@ export default defineConfig({
       // Custom domain for AMRAP (e.g. amrapwithfriends.com); used by amrap-urls.ts and app-registry.ts
       'import.meta.env.PUBLIC_AMRAP_BASE_URL': JSON.stringify(
         (process.env.PUBLIC_AMRAP_BASE_URL || '').trim()
+      ),
+      'import.meta.env.VITE_AGORA_APP_ID': JSON.stringify(
+        (process.env.VITE_AGORA_APP_ID || '').trim()
       )
     },
     server: {
-      // Dev: proxy /amrap and /api/agora-token (npm run dev:amrap:video)
+      // Dev: proxy /amrap and Agora token routes (npm run dev:amrap:video, dev:trainer:live)
       proxy: {
         '/amrap': {
           target: 'http://localhost:5177',
@@ -116,6 +119,11 @@ export default defineConfig({
           target: 'http://localhost:9517',
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/api\/agora-token/, '/token')
+        },
+        '/api/trainer-live/agora-token': {
+          target: 'http://localhost:9517',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/api\/trainer-live\/agora-token/, '/token')
         }
       }
     },

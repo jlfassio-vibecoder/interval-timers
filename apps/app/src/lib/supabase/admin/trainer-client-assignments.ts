@@ -102,7 +102,8 @@ export async function fetchClientCoachAssignmentsForTrainer(
     .filter((row) => {
       const t = row.assignment_type as string;
       if (!t) return false;
-      if (t === 'exercise') return typeof row.exercise_slug === 'string' && row.exercise_slug.trim() !== '';
+      if (t === 'exercise')
+        return typeof row.exercise_slug === 'string' && row.exercise_slug.trim() !== '';
       return typeof row.resource_id === 'string' && row.resource_id.length > 0;
     })
     .map((row) => ({
@@ -174,8 +175,7 @@ async function fetchTitleAndValidateResource(
     if (ch.status !== 'published') {
       return { ok: false, error: 'Challenge must be published before assigning' };
     }
-    const title =
-      typeof ch.title === 'string' && ch.title.trim() ? ch.title.trim() : 'Challenge';
+    const title = typeof ch.title === 'string' && ch.title.trim() ? ch.title.trim() : 'Challenge';
     return { ok: true, title };
   }
 
@@ -193,7 +193,8 @@ async function fetchTitleAndValidateResource(
       title?: string | null;
     };
     if (row.author_id !== viewerId) return { ok: false, error: 'WOD not owned by you' };
-    if (row.status !== 'approved') return { ok: false, error: 'WOD must be approved before assigning' };
+    if (row.status !== 'approved')
+      return { ok: false, error: 'WOD must be approved before assigning' };
     const title =
       (typeof row.name === 'string' && row.name.trim()) ||
       (typeof row.title === 'string' && row.title.trim()) ||
@@ -211,9 +212,7 @@ async function validateExerciseSlugForAssign(
     const ex = await getGeneratedExerciseBySlug(slug, true);
     if (!ex) return { ok: false, error: 'Exercise not found or not approved' };
     const title =
-      typeof ex.exerciseName === 'string' && ex.exerciseName.trim()
-        ? ex.exerciseName.trim()
-        : slug;
+      typeof ex.exerciseName === 'string' && ex.exerciseName.trim() ? ex.exerciseName.trim() : slug;
     return { ok: true, title };
   } catch {
     return { ok: false, error: 'Failed to validate exercise' };
@@ -252,7 +251,11 @@ export async function createClientCoachAssignment(
 
   if (type === 'exercise') {
     const slug = normalizeExerciseSlug(body.exerciseSlug ?? '');
-    if (!slug) return { ok: false, error: 'Valid exerciseSlug required (lowercase letters, numbers, hyphens)' };
+    if (!slug)
+      return {
+        ok: false,
+        error: 'Valid exerciseSlug required (lowercase letters, numbers, hyphens)',
+      };
     validated = await validateExerciseSlugForAssign(slug);
     if (!validated.ok) return validated;
     exerciseSlug = slug;
@@ -397,8 +400,7 @@ export async function listOpenCoachAssignmentsForClient(
       id,
       assignmentType,
       resourceId: assignmentType === 'exercise' ? '' : resourceId,
-      titleSnapshot:
-        typeof row.title_snapshot === 'string' ? row.title_snapshot : 'Untitled',
+      titleSnapshot: typeof row.title_snapshot === 'string' ? row.title_snapshot : 'Untitled',
       assignedAt: row.assigned_at as string,
       startsOn: row.starts_on != null ? String(row.starts_on) : null,
       expiresOn,
@@ -638,9 +640,7 @@ export async function getCoachAssignmentPayloadForClient(
     if (w.status !== 'approved') return { ok: false, error: 'WOD is not available' };
     if (w.author_id !== trainerUserId) return { ok: false, error: 'WOD not found' };
     try {
-      const artist = generatedWodRowToArtist(
-        wod as Parameters<typeof generatedWodRowToArtist>[0]
-      );
+      const artist = generatedWodRowToArtist(wod as Parameters<typeof generatedWodRowToArtist>[0]);
       return { ok: true, assignmentType: 'wod', artist };
     } catch {
       return { ok: false, error: 'WOD could not be loaded' };

@@ -21,7 +21,9 @@ interface PerformanceLabMessagesSectionProps {
   userId: string;
 }
 
-const PerformanceLabMessagesSection: React.FC<PerformanceLabMessagesSectionProps> = ({ userId }) => {
+const PerformanceLabMessagesSection: React.FC<PerformanceLabMessagesSectionProps> = ({
+  userId,
+}) => {
   const { user } = useAppContext();
   const [messages, setMessages] = useState<LabMessagePayload[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -47,10 +49,9 @@ const PerformanceLabMessagesSection: React.FC<PerformanceLabMessagesSectionProps
       const q = new URLSearchParams();
       if (cursor) q.set('cursor', cursor);
       q.set('limit', '50');
-      const res = await fetch(
-        `/api/trainer/clients/${encodeURIComponent(userId)}/messages?${q}`,
-        { credentials: 'include' }
-      );
+      const res = await fetch(`/api/trainer/clients/${encodeURIComponent(userId)}/messages?${q}`, {
+        credentials: 'include',
+      });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
         throw new Error(typeof body.error === 'string' ? body.error : 'Failed to load messages');
@@ -158,8 +159,8 @@ const PerformanceLabMessagesSection: React.FC<PerformanceLabMessagesSectionProps
       </div>
 
       <p className="text-sm text-white/55">
-        Async thread with this client. Messages are stored for both of you; the client can reply from the
-        app sidebar when they have an active program with you.
+        Async thread with this client. Messages are stored for both of you; the client can reply
+        from the app sidebar when they have an active program with you.
       </p>
 
       {error ? <p className="text-sm text-red-300">{error}</p> : null}
@@ -170,22 +171,21 @@ const PerformanceLabMessagesSection: React.FC<PerformanceLabMessagesSectionProps
             type="button"
             onClick={() => void onLoadOlder()}
             disabled={loadingMore}
-            className="border-b border-white/10 px-3 py-2 text-center font-mono text-[10px] uppercase text-orange-light/90 hover:bg-white/5 disabled:opacity-40"
+            className="text-orange-light/90 border-b border-white/10 px-3 py-2 text-center font-mono text-[10px] uppercase hover:bg-white/5 disabled:opacity-40"
           >
             {loadingMore ? 'Loading…' : 'Load older messages'}
           </button>
         ) : null}
         <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
           {messages.length === 0 ? (
-            <p className="text-center text-sm text-white/40">No messages yet. Send the first one below.</p>
+            <p className="text-center text-sm text-white/40">
+              No messages yet. Send the first one below.
+            </p>
           ) : (
             messages.map((m) => {
               const isTrainer = m.author_role === 'trainer';
               return (
-                <div
-                  key={m.id}
-                  className={`flex ${isTrainer ? 'justify-end' : 'justify-start'}`}
-                >
+                <div key={m.id} className={`flex ${isTrainer ? 'justify-end' : 'justify-start'}`}>
                   <div
                     className={`max-w-[85%] rounded-lg px-3 py-2 font-mono text-xs leading-relaxed ${
                       isTrainer

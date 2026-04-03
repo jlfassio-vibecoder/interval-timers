@@ -49,6 +49,8 @@
     "@supabase/auth-ui-shared": "^0.1.8",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.97.0",
+    "agora-rtc-sdk-ng": "^4.24.2",
+    "agora-token": "^2.0.5",
     "clsx": "^2.1.1",
     "common-ancestor-path": "^1.0.1",
     "compression": "^1.8.1",

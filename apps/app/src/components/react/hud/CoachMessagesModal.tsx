@@ -22,7 +22,11 @@ interface CoachMessagesModalProps {
   trainerUserId: string;
 }
 
-const CoachMessagesModal: React.FC<CoachMessagesModalProps> = ({ open, onClose, trainerUserId }) => {
+const CoachMessagesModal: React.FC<CoachMessagesModalProps> = ({
+  open,
+  onClose,
+  trainerUserId,
+}) => {
   const { user } = useAppContext();
   const [messages, setMessages] = useState<CoachMessagePayload[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -146,98 +150,99 @@ const CoachMessagesModal: React.FC<CoachMessagesModalProps> = ({ open, onClose, 
 
   return (
     <>
-      <div
-        className="fixed inset-0 z-[100] bg-black/70"
-        aria-hidden
-        onClick={onClose}
-      />
-      <div className="fixed inset-0 z-[101] flex items-end justify-center p-4 pointer-events-none sm:items-center">
+      <div className="fixed inset-0 z-[100] bg-black/70" aria-hidden onClick={onClose} />
+      <div className="pointer-events-none fixed inset-0 z-[101] flex items-end justify-center p-4 sm:items-center">
         <div
           className="pointer-events-auto flex max-h-[min(520px,85vh)] w-full max-w-lg flex-col rounded-xl border border-white/15 bg-bg-dark shadow-xl"
           role="dialog"
           aria-modal="true"
           aria-labelledby="coach-messages-title"
         >
-        <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
-          <h2 id="coach-messages-title" className="font-heading text-lg font-bold text-white">
-            Messages with coach
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg px-2 py-1 font-mono text-xs text-white/60 hover:bg-white/10 hover:text-white"
-          >
-            Close
-          </button>
-        </div>
-
-        {error ? <p className="px-4 pt-2 text-sm text-red-300">{error}</p> : null}
-
-        <div className="flex min-h-0 flex-1 flex-col">
-          {nextCursor ? (
+          <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
+            <h2 id="coach-messages-title" className="font-heading text-lg font-bold text-white">
+              Messages with coach
+            </h2>
             <button
               type="button"
-              onClick={() => void onLoadOlder()}
-              disabled={loadingMore}
-              className="border-b border-white/10 px-3 py-2 text-center font-mono text-[10px] uppercase text-orange-light/90 hover:bg-white/5 disabled:opacity-40"
+              onClick={onClose}
+              className="rounded-lg px-2 py-1 font-mono text-xs text-white/60 hover:bg-white/10 hover:text-white"
             >
-              {loadingMore ? 'Loading…' : 'Load older messages'}
+              Close
             </button>
-          ) : null}
-          <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-4">
-            {loading && messages.length === 0 ? (
-              <div className="flex justify-center py-8">
-                <div className="h-8 w-8 animate-spin rounded-full border-4 border-orange-light border-t-transparent" />
-              </div>
-            ) : messages.length === 0 ? (
-              <p className="text-center text-sm text-white/40">No messages yet. Say hello below.</p>
-            ) : (
-              messages.map((m) => {
-                const isClient = m.author_role === 'client';
-                return (
-                  <div key={m.id} className={`flex ${isClient ? 'justify-end' : 'justify-start'}`}>
-                    <div
-                      className={`max-w-[88%] rounded-lg px-3 py-2 font-mono text-xs leading-relaxed ${
-                        isClient
-                          ? 'bg-orange-light/20 text-orange-light'
-                          : 'border border-white/15 bg-white/5 text-white/80'
-                      }`}
-                    >
-                      <p className="mb-1 text-[9px] uppercase tracking-wide text-white/35">
-                        {isClient ? 'You' : 'Coach'} ·{' '}
-                        {new Date(m.created_at).toLocaleString(undefined, {
-                          dateStyle: 'short',
-                          timeStyle: 'short',
-                        })}
-                      </p>
-                      <p className="whitespace-pre-wrap break-words">{m.body}</p>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-            <div ref={bottomRef} />
           </div>
-        </div>
 
-        <div className="border-t border-white/10 p-3">
-          <textarea
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            rows={2}
-            placeholder="Message your coach…"
-            className="mb-2 w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/30"
-            maxLength={8000}
-          />
-          <button
-            type="button"
-            onClick={() => void onSend()}
-            disabled={sending || loading || !draft.trim()}
-            className="w-full rounded-lg bg-orange-light py-2 font-mono text-xs font-bold uppercase text-black hover:opacity-90 disabled:opacity-40"
-          >
-            {sending ? 'Sending…' : 'Send'}
-          </button>
-        </div>
+          {error ? <p className="px-4 pt-2 text-sm text-red-300">{error}</p> : null}
+
+          <div className="flex min-h-0 flex-1 flex-col">
+            {nextCursor ? (
+              <button
+                type="button"
+                onClick={() => void onLoadOlder()}
+                disabled={loadingMore}
+                className="text-orange-light/90 border-b border-white/10 px-3 py-2 text-center font-mono text-[10px] uppercase hover:bg-white/5 disabled:opacity-40"
+              >
+                {loadingMore ? 'Loading…' : 'Load older messages'}
+              </button>
+            ) : null}
+            <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-4">
+              {loading && messages.length === 0 ? (
+                <div className="flex justify-center py-8">
+                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-orange-light border-t-transparent" />
+                </div>
+              ) : messages.length === 0 ? (
+                <p className="text-center text-sm text-white/40">
+                  No messages yet. Say hello below.
+                </p>
+              ) : (
+                messages.map((m) => {
+                  const isClient = m.author_role === 'client';
+                  return (
+                    <div
+                      key={m.id}
+                      className={`flex ${isClient ? 'justify-end' : 'justify-start'}`}
+                    >
+                      <div
+                        className={`max-w-[88%] rounded-lg px-3 py-2 font-mono text-xs leading-relaxed ${
+                          isClient
+                            ? 'bg-orange-light/20 text-orange-light'
+                            : 'border border-white/15 bg-white/5 text-white/80'
+                        }`}
+                      >
+                        <p className="mb-1 text-[9px] uppercase tracking-wide text-white/35">
+                          {isClient ? 'You' : 'Coach'} ·{' '}
+                          {new Date(m.created_at).toLocaleString(undefined, {
+                            dateStyle: 'short',
+                            timeStyle: 'short',
+                          })}
+                        </p>
+                        <p className="whitespace-pre-wrap break-words">{m.body}</p>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+              <div ref={bottomRef} />
+            </div>
+          </div>
+
+          <div className="border-t border-white/10 p-3">
+            <textarea
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              rows={2}
+              placeholder="Message your coach…"
+              className="mb-2 w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/30"
+              maxLength={8000}
+            />
+            <button
+              type="button"
+              onClick={() => void onSend()}
+              disabled={sending || loading || !draft.trim()}
+              className="w-full rounded-lg bg-orange-light py-2 font-mono text-xs font-bold uppercase text-black hover:opacity-90 disabled:opacity-40"
+            >
+              {sending ? 'Sending…' : 'Send'}
+            </button>
+          </div>
         </div>
       </div>
     </>

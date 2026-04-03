@@ -601,9 +601,7 @@ const ChallengeGeneratorModal: React.FC<ChallengeGeneratorModalProps> = ({
   if (!isOpen) return null;
 
   const chainProgressDotsFilled =
-    chainProgressMode === 'steps234'
-      ? Math.min(4, chainStep + 2)
-      : Math.min(4, chainStep + 1);
+    chainProgressMode === 'steps234' ? Math.min(4, chainStep + 2) : Math.min(4, chainStep + 1);
 
   return (
     <AnimatePresence>
@@ -675,9 +673,10 @@ const ChallengeGeneratorModal: React.FC<ChallengeGeneratorModalProps> = ({
                   <p className="mt-2 max-w-sm text-center text-sm text-white/60">
                     {loadingMessage.startsWith('Step') ? (
                       <>
-                        Full generation can take several minutes (especially the final progression step). If
-                        a request fails, use <span className="text-white/80">Review Structure First</span>{' '}
-                        for a shorter first request, then generate details.
+                        Full generation can take several minutes (especially the final progression
+                        step). If a request fails, use{' '}
+                        <span className="text-white/80">Review Structure First</span> for a shorter
+                        first request, then generate details.
                       </>
                     ) : (
                       <>Usually under two minutes.</>
@@ -1172,8 +1171,8 @@ const ChallengeGeneratorModal: React.FC<ChallengeGeneratorModalProps> = ({
                         <span>{loading ? 'Generating...' : 'Generate in one request'}</span>
                       </button>
                       <p className="w-full text-right text-xs text-white/45 sm:order-last">
-                        One request runs all four AI steps and may time out on slow connections. Prefer
-                        Review Structure First for reliability.
+                        One request runs all four AI steps and may time out on slow connections.
+                        Prefer Review Structure First for reliability.
                       </p>
                     </div>
                   </div>

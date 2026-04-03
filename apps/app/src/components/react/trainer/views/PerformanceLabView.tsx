@@ -89,10 +89,10 @@ const PerformanceLabView: React.FC = () => {
     setAssignLoading(true);
     try {
       const auth = await missionControlApiAuthHeaders();
-      const res = await fetch(
-        `/api/trainer/clients/${encodeURIComponent(userId)}/assignments`,
-        { credentials: 'include', headers: { ...auth } }
-      );
+      const res = await fetch(`/api/trainer/clients/${encodeURIComponent(userId)}/assignments`, {
+        credentials: 'include',
+        headers: { ...auth },
+      });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
         setAssignments([]);
@@ -137,12 +137,7 @@ const PerformanceLabView: React.FC = () => {
           arr
             .map((x: unknown) => {
               const o = x as { id?: string; title?: string; slug?: string };
-              const id =
-                typeof o.id === 'string'
-                  ? o.id
-                  : typeof o.slug === 'string'
-                    ? o.slug
-                    : '';
+              const id = typeof o.id === 'string' ? o.id : typeof o.slug === 'string' ? o.slug : '';
               return {
                 id,
                 title: typeof o.title === 'string' && o.title.trim() ? o.title : 'Item',
@@ -166,15 +161,12 @@ const PerformanceLabView: React.FC = () => {
     setBusy(programId ? `rec:${programId}` : 'rec:clear');
     try {
       const auth = await missionControlApiAuthHeaders();
-      const res = await fetch(
-        `/api/trainer/clients/${encodeURIComponent(userId)}/active-program`,
-        {
-          method: 'POST',
-          credentials: 'include',
-          headers: { ...auth, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ programId }),
-        }
-      );
+      const res = await fetch(`/api/trainer/clients/${encodeURIComponent(userId)}/active-program`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { ...auth, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ programId }),
+      });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
         window.alert(typeof body.error === 'string' ? body.error : 'Could not update');
@@ -203,15 +195,12 @@ const PerformanceLabView: React.FC = () => {
               assignmentType: assignKind,
               resourceId: selectedResourceId,
             };
-      const res = await fetch(
-        `/api/trainer/clients/${encodeURIComponent(userId)}/assignments`,
-        {
-          method: 'POST',
-          credentials: 'include',
-          headers: { ...auth, 'Content-Type': 'application/json' },
-          body: JSON.stringify(bodyPayload),
-        }
-      );
+      const res = await fetch(`/api/trainer/clients/${encodeURIComponent(userId)}/assignments`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { ...auth, 'Content-Type': 'application/json' },
+        body: JSON.stringify(bodyPayload),
+      });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
         window.alert(typeof body.error === 'string' ? body.error : 'Could not assign');
@@ -229,7 +218,9 @@ const PerformanceLabView: React.FC = () => {
 
   const revokeAssignment = async (assignmentId: string) => {
     if (!userId) return;
-    if (!window.confirm('Revoke this assignment? The client will no longer see it in notifications.')) {
+    if (
+      !window.confirm('Revoke this assignment? The client will no longer see it in notifications.')
+    ) {
       return;
     }
     setBusy(`revoke:${assignmentId}`);
@@ -252,7 +243,11 @@ const PerformanceLabView: React.FC = () => {
 
   const endEnrollment = async (programId: string) => {
     if (!userId) return;
-    if (!window.confirm('End this program for the client? They will keep history but enrollment becomes completed.')) {
+    if (
+      !window.confirm(
+        'End this program for the client? They will keep history but enrollment becomes completed.'
+      )
+    ) {
       return;
     }
     setBusy(`end:${programId}`);
@@ -369,243 +364,259 @@ const PerformanceLabView: React.FC = () => {
 
       {labTab === 'programs' ? (
         <>
-      <div className="flex items-start gap-3 rounded-lg border border-white/10 bg-black/20 p-4 backdrop-blur-sm">
-        <FlaskConical className="mt-0.5 h-6 w-6 shrink-0 text-orange-light" />
-        <div>
-          <h2 className="font-heading text-xl font-bold">Programs & enrollments</h2>
-          <p className="mt-1 text-sm text-white/60">
-            Set the client&apos;s recommended active program (shown in their HUD when valid). End
-            enrollments when they should no longer run the program. Edit templates in the Builder.
-          </p>
-          {hasRec && (
-            <button
-              type="button"
-              disabled={busy === 'rec:clear'}
-              onClick={() => void setRecommended(null)}
-              className="mt-3 text-sm font-medium text-orange-light underline decoration-orange-light/50 hover:decoration-orange-light disabled:opacity-40"
-            >
-              Clear recommended active program
-            </button>
-          )}
-        </div>
-      </div>
+          <div className="flex items-start gap-3 rounded-lg border border-white/10 bg-black/20 p-4 backdrop-blur-sm">
+            <FlaskConical className="mt-0.5 h-6 w-6 shrink-0 text-orange-light" />
+            <div>
+              <h2 className="font-heading text-xl font-bold">Programs & enrollments</h2>
+              <p className="mt-1 text-sm text-white/60">
+                Set the client&apos;s recommended active program (shown in their HUD when valid).
+                End enrollments when they should no longer run the program. Edit templates in the
+                Builder.
+              </p>
+              {hasRec && (
+                <button
+                  type="button"
+                  disabled={busy === 'rec:clear'}
+                  onClick={() => void setRecommended(null)}
+                  className="decoration-orange-light/50 mt-3 text-sm font-medium text-orange-light underline hover:decoration-orange-light disabled:opacity-40"
+                >
+                  Clear recommended active program
+                </button>
+              )}
+            </div>
+          </div>
 
-      <div className="overflow-hidden rounded-lg border border-white/10 bg-black/20 backdrop-blur-sm">
-        <table className="w-full">
-          <thead className="border-b border-white/10 bg-black/30">
-            <tr>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-white/80">Program</th>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-white/80">Status</th>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-white/80">Start</th>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-white/80">Source</th>
-              <th className="px-6 py-3 text-right text-sm font-semibold text-white/80">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-white/5">
-            {enrollments.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-6 py-10 text-center text-white/60">
-                  No program enrollments for this client on your programs.
-                </td>
-              </tr>
-            ) : (
-              enrollments.map((row) => {
-                const rowBusyEnd = busy === `end:${row.programId}`;
-                const rowBusyRec = busy === `rec:${row.programId}`;
-                // user_programs.status is only active|completed (00005_user_programs.sql); no paused/cancelled until schema changes.
-                const canSetActive = row.status === 'active';
-                return (
-                  <tr key={row.programId} className="hover:bg-white/5">
-                    <td className="px-6 py-4">
-                      <div className="font-medium">{row.title}</div>
-                      {row.isRecommended && (
-                        <span className="mt-1 inline-block rounded bg-orange-light/20 px-2 py-0.5 text-xs font-bold uppercase text-orange-light">
-                          Recommended active
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-white/70">{row.status}</td>
-                    <td className="px-6 py-4 text-white/70">{formatDate(row.startDate)}</td>
-                    <td className="px-6 py-4 text-white/70">{row.source ?? '—'}</td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex flex-wrap justify-end gap-2">
-                        {canSetActive && !row.isRecommended && (
-                          <button
-                            type="button"
-                            disabled={!!busy}
-                            onClick={() => void setRecommended(row.programId)}
-                            className="rounded-lg border border-orange-light/40 px-3 py-1.5 text-xs font-bold uppercase text-orange-light hover:bg-orange-light/10 disabled:opacity-40"
-                          >
-                            {rowBusyRec ? '…' : 'Set active'}
-                          </button>
-                        )}
-                        {canSetActive && (
-                          <button
-                            type="button"
-                            disabled={!!busy}
-                            onClick={() => void endEnrollment(row.programId)}
-                            className="rounded-lg border border-white/15 px-3 py-1.5 text-xs font-medium text-white/80 hover:bg-white/10 disabled:opacity-40"
-                          >
-                            {rowBusyEnd ? '…' : 'End'}
-                          </button>
-                        )}
-                        <a
-                          href={`${adminPaths.root}/programs/${row.programId}`}
-                          className="inline-flex items-center gap-1 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-medium text-white/80 hover:bg-white/10"
-                        >
-                          Builder
-                          <ExternalLink className="h-3 w-3" />
-                        </a>
-                      </div>
+          <div className="overflow-hidden rounded-lg border border-white/10 bg-black/20 backdrop-blur-sm">
+            <table className="w-full">
+              <thead className="border-b border-white/10 bg-black/30">
+                <tr>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-white/80">
+                    Program
+                  </th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-white/80">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-white/80">Start</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-white/80">
+                    Source
+                  </th>
+                  <th className="px-6 py-3 text-right text-sm font-semibold text-white/80">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {enrollments.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-10 text-center text-white/60">
+                      No program enrollments for this client on your programs.
                     </td>
                   </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="flex items-start gap-3 rounded-lg border border-white/10 bg-black/20 p-4 backdrop-blur-sm">
-        <ClipboardList className="mt-0.5 h-6 w-6 shrink-0 text-orange-light" />
-        <div className="min-w-0 flex-1">
-          <h2 className="font-heading text-xl font-bold">Assignments</h2>
-          <p className="mt-1 text-sm text-white/60">
-            Assign programs (enrolls client), published challenges (grants access), workouts, approved
-            WODs, or published exercises. Clients see open items in HUD notifications; challenges and
-            exercises deep-link to the app.
-          </p>
-          <p className="mt-2 text-sm text-white/45">
-            Create or publish challenges in{' '}
-            <a
-              href={`${adminPaths.root}/challenges`}
-              className="text-orange-light underline decoration-orange-light/40 hover:decoration-orange-light"
-            >
-              Challenge Factory
-            </a>
-            .
-          </p>
-
-          <div className="mt-4 flex flex-wrap items-end gap-3">
-            <div>
-              <label className="mb-1 block font-mono text-[10px] uppercase text-white/50">Type</label>
-              <select
-                value={assignKind}
-                onChange={(e) => setAssignKind(e.target.value as AssignKind)}
-                className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
-              >
-                <option value="program">Program</option>
-                <option value="challenge">Challenge</option>
-                <option value="workout">Workout</option>
-                <option value="wod">WOD</option>
-                <option value="exercise">Exercise</option>
-              </select>
-            </div>
-            <div className="min-w-[12rem] flex-1">
-              <label className="mb-1 block font-mono text-[10px] uppercase text-white/50">
-                {assignKind === 'exercise'
-                  ? 'Exercise'
-                  : assignKind === 'challenge'
-                    ? 'Challenge'
-                    : 'Resource'}
-              </label>
-              <select
-                value={selectedResourceId}
-                onChange={(e) => setSelectedResourceId(e.target.value)}
-                disabled={pickerLoading}
-                className="w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white disabled:opacity-50"
-              >
-                <option value="">{pickerLoading ? 'Loading…' : 'Select…'}</option>
-                {pickerItems.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.title}
-                  </option>
-                ))}
-              </select>
-            </div>
-            {assignKind === 'exercise' ? (
-              <>
-                <div className="min-w-[10rem] flex-1">
-                  <label className="mb-1 block font-mono text-[10px] uppercase text-white/50">
-                    Coach note
-                  </label>
-                  <input
-                    value={coachNote}
-                    onChange={(e) => setCoachNote(e.target.value)}
-                    placeholder="Optional"
-                    className="w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/30"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block font-mono text-[10px] uppercase text-white/50">Due</label>
-                  <input
-                    type="date"
-                    value={dueOn}
-                    onChange={(e) => setDueOn(e.target.value)}
-                    className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
-                  />
-                </div>
-              </>
-            ) : null}
-            <button
-              type="button"
-              disabled={!!busy || !selectedResourceId}
-              onClick={() => void createAssignment()}
-              className="rounded-lg border border-orange-light/40 bg-orange-light/10 px-4 py-2 font-mono text-xs font-bold uppercase text-orange-light hover:bg-orange-light/20 disabled:opacity-40"
-            >
-              {busy === 'assign:create' ? '…' : 'Assign'}
-            </button>
+                ) : (
+                  enrollments.map((row) => {
+                    const rowBusyEnd = busy === `end:${row.programId}`;
+                    const rowBusyRec = busy === `rec:${row.programId}`;
+                    // user_programs.status is only active|completed (00005_user_programs.sql); no paused/cancelled until schema changes.
+                    const canSetActive = row.status === 'active';
+                    return (
+                      <tr key={row.programId} className="hover:bg-white/5">
+                        <td className="px-6 py-4">
+                          <div className="font-medium">{row.title}</div>
+                          {row.isRecommended && (
+                            <span className="bg-orange-light/20 mt-1 inline-block rounded px-2 py-0.5 text-xs font-bold uppercase text-orange-light">
+                              Recommended active
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-white/70">{row.status}</td>
+                        <td className="px-6 py-4 text-white/70">{formatDate(row.startDate)}</td>
+                        <td className="px-6 py-4 text-white/70">{row.source ?? '—'}</td>
+                        <td className="px-6 py-4 text-right">
+                          <div className="flex flex-wrap justify-end gap-2">
+                            {canSetActive && !row.isRecommended && (
+                              <button
+                                type="button"
+                                disabled={!!busy}
+                                onClick={() => void setRecommended(row.programId)}
+                                className="border-orange-light/40 hover:bg-orange-light/10 rounded-lg border px-3 py-1.5 text-xs font-bold uppercase text-orange-light disabled:opacity-40"
+                              >
+                                {rowBusyRec ? '…' : 'Set active'}
+                              </button>
+                            )}
+                            {canSetActive && (
+                              <button
+                                type="button"
+                                disabled={!!busy}
+                                onClick={() => void endEnrollment(row.programId)}
+                                className="rounded-lg border border-white/15 px-3 py-1.5 text-xs font-medium text-white/80 hover:bg-white/10 disabled:opacity-40"
+                              >
+                                {rowBusyEnd ? '…' : 'End'}
+                              </button>
+                            )}
+                            <a
+                              href={`${adminPaths.root}/programs/${row.programId}`}
+                              className="inline-flex items-center gap-1 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-medium text-white/80 hover:bg-white/10"
+                            >
+                              Builder
+                              <ExternalLink className="h-3 w-3" />
+                            </a>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
           </div>
-        </div>
-      </div>
 
-      <div className="overflow-hidden rounded-lg border border-white/10 bg-black/20 backdrop-blur-sm">
-        <table className="w-full">
-          <thead className="border-b border-white/10 bg-black/30">
-            <tr>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-white/80">Type</th>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-white/80">Title</th>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-white/80">Assigned</th>
-              <th className="px-6 py-3 text-right text-sm font-semibold text-white/80">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-white/5">
-            {assignLoading ? (
-              <tr>
-                <td colSpan={4} className="px-6 py-8 text-center text-white/50">
-                  Loading assignments…
-                </td>
-              </tr>
-            ) : assignments.length === 0 ? (
-              <tr>
-                <td colSpan={4} className="px-6 py-10 text-center text-white/60">
-                  No active assignments. Use the form above to assign a program, challenge, workout,
-                  WOD, or exercise.
-                </td>
-              </tr>
-            ) : (
-              assignments.map((row) => (
-                <tr key={row.id} className="hover:bg-white/5">
-                  <td className="px-6 py-4 text-white/70">{row.assignmentType}</td>
-                  <td className="px-6 py-4 font-medium">{row.titleSnapshot}</td>
-                  <td className="px-6 py-4 text-white/70">{formatDate(row.assignedAt)}</td>
-                  <td className="px-6 py-4 text-right">
-                    <button
-                      type="button"
-                      disabled={!!busy}
-                      onClick={() => void revokeAssignment(row.id)}
-                      className="rounded-lg border border-white/15 px-3 py-1.5 text-xs font-medium text-white/80 hover:bg-white/10 disabled:opacity-40"
-                    >
-                      {busy === `revoke:${row.id}` ? '…' : 'Revoke'}
-                    </button>
-                  </td>
+          <div className="flex items-start gap-3 rounded-lg border border-white/10 bg-black/20 p-4 backdrop-blur-sm">
+            <ClipboardList className="mt-0.5 h-6 w-6 shrink-0 text-orange-light" />
+            <div className="min-w-0 flex-1">
+              <h2 className="font-heading text-xl font-bold">Assignments</h2>
+              <p className="mt-1 text-sm text-white/60">
+                Assign programs (enrolls client), published challenges (grants access), workouts,
+                approved WODs, or published exercises. Clients see open items in HUD notifications;
+                challenges and exercises deep-link to the app.
+              </p>
+              <p className="mt-2 text-sm text-white/45">
+                Create or publish challenges in{' '}
+                <a
+                  href={`${adminPaths.root}/challenges`}
+                  className="decoration-orange-light/40 text-orange-light underline hover:decoration-orange-light"
+                >
+                  Challenge Factory
+                </a>
+                .
+              </p>
+
+              <div className="mt-4 flex flex-wrap items-end gap-3">
+                <div>
+                  <label className="mb-1 block font-mono text-[10px] uppercase text-white/50">
+                    Type
+                  </label>
+                  <select
+                    value={assignKind}
+                    onChange={(e) => setAssignKind(e.target.value as AssignKind)}
+                    className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
+                  >
+                    <option value="program">Program</option>
+                    <option value="challenge">Challenge</option>
+                    <option value="workout">Workout</option>
+                    <option value="wod">WOD</option>
+                    <option value="exercise">Exercise</option>
+                  </select>
+                </div>
+                <div className="min-w-[12rem] flex-1">
+                  <label className="mb-1 block font-mono text-[10px] uppercase text-white/50">
+                    {assignKind === 'exercise'
+                      ? 'Exercise'
+                      : assignKind === 'challenge'
+                        ? 'Challenge'
+                        : 'Resource'}
+                  </label>
+                  <select
+                    value={selectedResourceId}
+                    onChange={(e) => setSelectedResourceId(e.target.value)}
+                    disabled={pickerLoading}
+                    className="w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white disabled:opacity-50"
+                  >
+                    <option value="">{pickerLoading ? 'Loading…' : 'Select…'}</option>
+                    {pickerItems.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.title}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {assignKind === 'exercise' ? (
+                  <>
+                    <div className="min-w-[10rem] flex-1">
+                      <label className="mb-1 block font-mono text-[10px] uppercase text-white/50">
+                        Coach note
+                      </label>
+                      <input
+                        value={coachNote}
+                        onChange={(e) => setCoachNote(e.target.value)}
+                        placeholder="Optional"
+                        className="w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/30"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block font-mono text-[10px] uppercase text-white/50">
+                        Due
+                      </label>
+                      <input
+                        type="date"
+                        value={dueOn}
+                        onChange={(e) => setDueOn(e.target.value)}
+                        className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
+                      />
+                    </div>
+                  </>
+                ) : null}
+                <button
+                  type="button"
+                  disabled={!!busy || !selectedResourceId}
+                  onClick={() => void createAssignment()}
+                  className="border-orange-light/40 bg-orange-light/10 hover:bg-orange-light/20 rounded-lg border px-4 py-2 font-mono text-xs font-bold uppercase text-orange-light disabled:opacity-40"
+                >
+                  {busy === 'assign:create' ? '…' : 'Assign'}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="overflow-hidden rounded-lg border border-white/10 bg-black/20 backdrop-blur-sm">
+            <table className="w-full">
+              <thead className="border-b border-white/10 bg-black/30">
+                <tr>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-white/80">Type</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-white/80">Title</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-white/80">
+                    Assigned
+                  </th>
+                  <th className="px-6 py-3 text-right text-sm font-semibold text-white/80">
+                    Actions
+                  </th>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {assignLoading ? (
+                  <tr>
+                    <td colSpan={4} className="px-6 py-8 text-center text-white/50">
+                      Loading assignments…
+                    </td>
+                  </tr>
+                ) : assignments.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-6 py-10 text-center text-white/60">
+                      No active assignments. Use the form above to assign a program, challenge,
+                      workout, WOD, or exercise.
+                    </td>
+                  </tr>
+                ) : (
+                  assignments.map((row) => (
+                    <tr key={row.id} className="hover:bg-white/5">
+                      <td className="px-6 py-4 text-white/70">{row.assignmentType}</td>
+                      <td className="px-6 py-4 font-medium">{row.titleSnapshot}</td>
+                      <td className="px-6 py-4 text-white/70">{formatDate(row.assignedAt)}</td>
+                      <td className="px-6 py-4 text-right">
+                        <button
+                          type="button"
+                          disabled={!!busy}
+                          onClick={() => void revokeAssignment(row.id)}
+                          className="rounded-lg border border-white/15 px-3 py-1.5 text-xs font-medium text-white/80 hover:bg-white/10 disabled:opacity-40"
+                        >
+                          {busy === `revoke:${row.id}` ? '…' : 'Revoke'}
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </>
       ) : null}
     </div>

@@ -122,6 +122,13 @@ Runs app, amrap, and landing together. Give the servers ~5 seconds to start befo
    - **Standalone:** `http://localhost:5177/amrap/`
 Both work locally; production uses the same origin (e.g. `https://yoursite.com/amrap/`).
 
+**Trainer Live Video (Mission Control)**
+
+1. Run `npm run dev:trainer:live` (starts App on 3006 and Agora token server on 9517; `/api/trainer-live/agora-token` is proxied like AMRAP).
+2. Trainer: `http://localhost:3006/trainer/live` — start a session, then share `/trainer/live/join/<sessionId>` with clients.
+3. Requires root `.env` with `VITE_AGORA_APP_ID` and `VITE_AGORA_APP_CERTIFICATE`. Apply the `trainer_live_*` Supabase migrations (P0, P1 roster invite, **P2 second shell** `countdown_timer` + `join_hints.shell`) before using create/join RPCs.
+4. **Roster-targeted live:** From Mission Control **View Stats** or **Performance Lab** for a client, use **Live video** to create a session only that client can join (they must sign in with the invited account).
+
 ---
 
 ## Landing and Standalone Timers
