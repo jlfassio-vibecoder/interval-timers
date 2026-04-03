@@ -1,7 +1,7 @@
 # Technical Design: Performance Lab (Mission Control)
 
-**Status:** Draft — **P0 + P1 + P2 + P3 + P4 (MVP) implemented** (see section 6 and implementation summaries below).  
-**Last updated:** April 2, 2026  
+**Status:** Draft — **P0 + P1 + P2 + P3 + P4 + P5 (MVP) implemented** (see section 6 and implementation summaries below).  
+**Last updated:** April 8, 2026  
 **Related:** [ROSTER_TRAINER_HUD_WORKFLOW_SWOT.md](./ROSTER_TRAINER_HUD_WORKFLOW_SWOT.md), `ClientDetailView` (“View Stats”), `RosterView`
 
 ---
@@ -50,7 +50,7 @@ The **Performance Lab** is a trainer-facing workspace for a **single roster clie
 | Message board | `messages` | Threaded or chronological |
 | Weekly activity board | `week` | Mon–Sun Kanban |
 
-**P0–P4 note:** The Lab route has **Programs**, **Calendar**, **Week**, and **Messages** tabs. Calendar P2 is MVP (program read model + coach instances, not full unified AMRAP/timer merge). P4 adds exercise assignments and the weekly activity board. “Coming soon” remains for **challenges** (P5) only.
+**P0–P5 note:** The Lab route has **Programs**, **Calendar**, **Week**, and **Messages** tabs. P5 adds **challenge** assignments (published challenges from Challenge Factory). Calendar P2 is MVP (program read model + coach instances, not full unified AMRAP/timer merge). P4 adds exercise assignments and the weekly activity board.
 
 ---
 
@@ -204,7 +204,7 @@ The **Performance Lab** is a trainer-facing workspace for a **single roster clie
 | **P2** | Calendar read API + basic drag-to-reschedule for assignment instances | **Completed** (MVP — see P2 summary) |
 | **P3** | Message board MVP | **Completed** (MVP — see P3 summary) |
 | **P4** | Weekly Kanban + exercise assignments | **Completed** (MVP — see P4 summary) |
-| **P5** | Challenges: Challenge Factory import + assign flow (AI generation feeds factory, same pattern as Program Factory) | Pending |
+| **P5** | Challenges: Challenge Factory import + assign flow (AI generation feeds factory, same pattern as Program Factory) | **Completed** (MVP — see P5 summary) |
 
 Order can change if messaging is higher priority for your cohort.
 
@@ -213,7 +213,7 @@ Order can change if messaging is higher priority for your cohort.
 | Item | Notes |
 |------|--------|
 | Routing | `TrainerRoute`: nested `roster/:userId` → `ClientMissionControlLayout`; index = stats; `lab` = `PerformanceLabView` |
-| UI | `PerformanceLabView`: Programs, Calendar, Week, Messages tabs; enrollment table, assignments, Set active / Clear / End / Builder; “Coming soon” for challenges (P5) |
+| UI | `PerformanceLabView`: Programs, Calendar, Week, Messages tabs; enrollment table, assignments (incl. challenges), Set active / Clear / End / Builder; Challenge Factory deep link from Programs tab |
 | Roster | **Lab** button (program clients or rows with `programIds.length > 0`) |
 | Server | `trainer-client-enrollments.ts`: enrollments fetch, end enrollment, set recommendation, `fetchTrainerRecommendationForAuthenticatedSupabaseUser` |
 | Client HUD | `AppContext` + `active-program-sync.ts` (4th arg: trainer recommendation) |
@@ -272,6 +272,18 @@ Order can change if messaging is higher priority for your cohort.
 | Lab UI | `PerformanceLabView`: **Week** tab, `PerformanceLabWeekSection` (calendar week vs rolling 7 days, Mon–Sun columns, CRUD); Programs tab: **Exercise** assign + note/due; “Coming soon” no longer lists weekly board |
 | HUD | `derive-notifications` + `NotificationPanel` exercise deep links (`open_exercise`); payload route JSON for exercise type |
 | Not in P4 (deferred) | Kanban hybrid hydration from calendar; “Copy last week”; exercise video form check; assignment/board telemetry; audit tables for board edits |
+
+### P5 implementation summary (reference)
+
+| Item | Notes |
+|------|--------|
+| Schema | `20260408120000_client_coach_assignments_challenge.sql` (root + `apps/app` mirror): `assignment_type` includes `challenge`; same `resource_id` + exercise-column NULL shape as program/workout/wod |
+| Server | `trainer-client-assignments.ts`: validate `challenges.author_id` + `status = published`; `grantChallengeAccess` → `user_challenges`; list client rows with `action: open_challenge`, `href` `/challenges/[id]`; payload branch for client |
+| Trainer API | `GET /api/trainer/challenges` — published challenges by `author_id`; hosts get `[]` (picker parity with programs) |
+| Client API | `GET .../coach-assignments/[id]/payload` JSON for `challenge` |
+| Lab UI | `PerformanceLabView`: **Challenge** assign type + picker; copy + link to admin Challenge Factory |
+| HUD | `derive-notifications` + `open_challenge`; `NotificationPanel` uses `coachHref` (unchanged) |
+| Not in P5 (deferred) | Challenge rows on trainer calendar; revoke assignment removes `user_challenges`; assigning draft challenges; new AI chain changes (factory + `generate-challenge-chain` already exist) |
 
 ---
 
@@ -342,3 +354,4 @@ Your six pillars cover the **core coaching loop** (programming, scheduling, educ
 | 2026-04-06 | — | P3 MVP: `trainer_client_messages`, `GET/POST` trainer + `/api/me/coach-messages`, `trainer-client-messages.ts`, Lab Messages tab, `CoachMessagesModal` in `TrainerCard`; doc P3 summary + deferred list |
 | 2026-04-07 | — | P3 marked complete in narrative: section 3 (Messages tab shipped), section 4.5 cross-link; P3 summary expanded (HUD bell + shell, API 404 mapping, pagination helper/tests, race + modal follow-ups); last-updated bump |
 | 2026-04-02 | — | P4 MVP: exercise assignments + weekly board migrations, trainer + `/api/me/weekly-activity`, Lab Week tab + exercise assign UI, doc P4 summary + phase status; deferred hybrid calendar, copy week, telemetry, audit |
+| 2026-04-08 | — | P5 MVP: `challenge` assignment type migration, `grantChallengeAccess`, `GET /api/trainer/challenges`, Lab assign + Challenge Factory link, HUD `open_challenge` + payload; doc P5 summary + phase status |

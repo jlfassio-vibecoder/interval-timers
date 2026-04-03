@@ -55,6 +55,18 @@ export const GET: APIRoute = async ({ request, cookies, params }) => {
       );
     }
 
+    if (payload.assignmentType === 'challenge') {
+      return new Response(
+        JSON.stringify({
+          assignmentType: 'challenge',
+          challengeId: payload.challengeId,
+          title: payload.title,
+          href: payload.href,
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
     return new Response(
       JSON.stringify({
         assignmentType: payload.assignmentType,

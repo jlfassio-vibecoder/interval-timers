@@ -10,6 +10,7 @@ import { getSupabaseServer } from '@/lib/supabase/server';
 import { isUserInViewerRoster } from '@/lib/supabase/admin/trainer-roster';
 import { supabaseWorkoutRowToArtist } from '@/lib/coach-assignment-map';
 import { getGeneratedExerciseBySlug } from '@/lib/supabase/public/generated-exercise-service';
+import { grantChallengeAccess } from '@/lib/supabase/server/entitlements';
 
 async function assertTrainerOwnsProgramDb(
   supabase: ReturnType<typeof getSupabaseServer>,
@@ -29,7 +30,7 @@ async function assertTrainerOwnsProgramDb(
   return !!data;
 }
 
-export type CoachAssignmentType = 'program' | 'workout' | 'wod' | 'exercise';
+export type CoachAssignmentType = 'program' | 'workout' | 'wod' | 'exercise' | 'challenge';
 
 export interface CoachAssignmentListItem {
   id: string;
@@ -46,7 +47,7 @@ export interface CoachAssignmentListItem {
 }
 
 export interface ClientCoachAssignmentApiRow extends CoachAssignmentListItem {
-  action: 'set_program' | 'open_workout' | 'open_exercise';
+  action: 'set_program' | 'open_workout' | 'open_exercise' | 'open_challenge';
   programId?: string;
   href?: string;
 }
@@ -55,7 +56,8 @@ const DEFAULT_WOD_IMAGE = '/images/outdoor-calisthenics-workout-001.jpg';
 
 function normalizeType(raw: string): CoachAssignmentType | null {
   const t = raw.trim().toLowerCase();
-  if (t === 'program' || t === 'workout' || t === 'wod' || t === 'exercise') return t;
+  if (t === 'program' || t === 'workout' || t === 'wod' || t === 'exercise' || t === 'challenge')
+    return t;
   return null;
 }
 
@@ -160,25 +162,46 @@ async function fetchTitleAndValidateResource(
     return { ok: true, title };
   }
 
-  const { data, error } = await supabase
-    .from('generated_wods')
-    .select('id, title, name, author_id, status')
-    .eq('id', resourceId)
-    .maybeSingle();
-  if (error || !data) return { ok: false, error: 'WOD not found' };
-  const row = data as {
-    author_id?: string | null;
-    status?: string | null;
-    name?: string | null;
-    title?: string | null;
-  };
-  if (row.author_id !== viewerId) return { ok: false, error: 'WOD not owned by you' };
-  if (row.status !== 'approved') return { ok: false, error: 'WOD must be approved before assigning' };
-  const title =
-    (typeof row.name === 'string' && row.name.trim()) ||
-    (typeof row.title === 'string' && row.title.trim()) ||
-    'WOD';
-  return { ok: true, title };
+  if (type === 'challenge') {
+    const { data, error } = await supabase
+      .from('challenges')
+      .select('id, title, author_id, status')
+      .eq('id', resourceId)
+      .maybeSingle();
+    if (error || !data) return { ok: false, error: 'Challenge not found' };
+    const ch = data as { author_id?: string; status?: string; title?: string };
+    if (ch.author_id !== viewerId) return { ok: false, error: 'Challenge not owned by you' };
+    if (ch.status !== 'published') {
+      return { ok: false, error: 'Challenge must be published before assigning' };
+    }
+    const title =
+      typeof ch.title === 'string' && ch.title.trim() ? ch.title.trim() : 'Challenge';
+    return { ok: true, title };
+  }
+
+  if (type === 'wod') {
+    const { data, error } = await supabase
+      .from('generated_wods')
+      .select('id, title, name, author_id, status')
+      .eq('id', resourceId)
+      .maybeSingle();
+    if (error || !data) return { ok: false, error: 'WOD not found' };
+    const row = data as {
+      author_id?: string | null;
+      status?: string | null;
+      name?: string | null;
+      title?: string | null;
+    };
+    if (row.author_id !== viewerId) return { ok: false, error: 'WOD not owned by you' };
+    if (row.status !== 'approved') return { ok: false, error: 'WOD must be approved before assigning' };
+    const title =
+      (typeof row.name === 'string' && row.name.trim()) ||
+      (typeof row.title === 'string' && row.title.trim()) ||
+      'WOD';
+    return { ok: true, title };
+  }
+
+  return { ok: false, error: 'Invalid assignment type' };
 }
 
 async function validateExerciseSlugForAssign(
@@ -256,6 +279,15 @@ export async function createClientCoachAssignment(
     if (upErr) {
       if (import.meta.env.DEV) console.warn('[trainer-client-assignments] upsert program', upErr);
       return { ok: false, error: 'Failed to enroll client in program' };
+    }
+  }
+
+  if (type === 'challenge' && resourceId) {
+    try {
+      await grantChallengeAccess(clientUserId, resourceId);
+    } catch (e) {
+      if (import.meta.env.DEV) console.warn('[trainer-client-assignments] grantChallengeAccess', e);
+      return { ok: false, error: 'Failed to grant challenge access' };
     }
   }
 
@@ -383,6 +415,12 @@ export async function listOpenCoachAssignmentsForClient(
         action: 'open_exercise',
         href: `/exercises/${encodeURIComponent(slug)}/learn`,
       });
+    } else if (assignmentType === 'challenge') {
+      out.push({
+        ...base,
+        action: 'open_challenge',
+        href: `/challenges/${encodeURIComponent(resourceId)}`,
+      });
     } else {
       out.push({
         ...base,
@@ -473,6 +511,7 @@ export type CoachAssignmentPayloadResult =
   | { ok: true; assignmentType: 'program'; programId: string; title: string }
   | { ok: true; assignmentType: 'workout' | 'wod'; artist: Artist }
   | { ok: true; assignmentType: 'exercise'; slug: string; title: string; href: string }
+  | { ok: true; assignmentType: 'challenge'; challengeId: string; title: string; href: string }
   | { ok: false; error: string };
 
 export async function getCoachAssignmentPayloadForClient(
@@ -539,6 +578,26 @@ export async function getCoachAssignmentPayloadForClient(
     const owns = await assertTrainerOwnsProgramDb(supabase, trainerUserId, resourceId);
     if (!owns) return { ok: false, error: 'Assignment not found' };
     return { ok: true, assignmentType: 'program', programId: resourceId, title };
+  }
+
+  if (assignmentType === 'challenge') {
+    if (!resourceId) return { ok: false, error: 'Assignment not found' };
+    const { data: ch, error: chErr } = await supabase
+      .from('challenges')
+      .select('id, author_id, status')
+      .eq('id', resourceId)
+      .maybeSingle();
+    if (chErr || !ch) return { ok: false, error: 'Assignment not found' };
+    const crow = ch as { author_id?: string; status?: string };
+    if (crow.author_id !== trainerUserId) return { ok: false, error: 'Assignment not found' };
+    if (crow.status !== 'published') return { ok: false, error: 'Challenge is not available' };
+    return {
+      ok: true,
+      assignmentType: 'challenge',
+      challengeId: resourceId,
+      title,
+      href: `/challenges/${encodeURIComponent(resourceId)}`,
+    };
   }
 
   if (!resourceId) return { ok: false, error: 'Assignment not found' };

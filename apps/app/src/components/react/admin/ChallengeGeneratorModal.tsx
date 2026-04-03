@@ -28,6 +28,7 @@ import {
   updateChallenge,
 } from '@/lib/supabase/client/challenge-persistence';
 import { useAppContext } from '@/contexts/AppContext';
+import { supabase } from '@/lib/supabase/client';
 
 interface ChallengeChainResponse {
   challenge: ChallengeTemplate;
@@ -113,6 +114,8 @@ const ChallengeGeneratorModal: React.FC<ChallengeGeneratorModalProps> = ({
 
   const [chainMetadata, setChainMetadata] = useState<PromptChainMetadata | null>(null);
   const [chainStep, setChainStep] = useState(0);
+  /** Progress dots: full chain vs steps 2–4 only (after architect review). */
+  const [chainProgressMode, setChainProgressMode] = useState<'full' | 'steps234'>('full');
 
   const [hasUnsavedBlueprintChanges, setHasUnsavedBlueprintChanges] = useState(false);
   const [pendingCloseAction, setPendingCloseAction] = useState<'modal' | 'cancel' | null>(null);
@@ -206,6 +209,24 @@ const ChallengeGeneratorModal: React.FC<ChallengeGeneratorModalProps> = ({
     'Step 4/4: Calculating progression...',
   ];
 
+  const chainLoadingMessagesFromArchitect = [
+    'Step 2/4: Mapping movement patterns...',
+    'Step 3/4: Selecting exercises...',
+    'Step 4/4: Calculating progression...',
+  ];
+
+  /** Headers for AI API calls: JSON + Bearer so auth works when cookies are not sent. */
+  const getAuthHeaders = useCallback(async (): Promise<Record<string, string>> => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (session?.access_token) {
+      headers.Authorization = `Bearer ${session.access_token}`;
+    }
+    return headers;
+  }, []);
+
   const buildPersona = (): ChallengePersona => ({
     title: challengeConfig.challengeInfo.title.trim(),
     description: challengeConfig.challengeInfo.description.trim(),
@@ -244,9 +265,10 @@ const ChallengeGeneratorModal: React.FC<ChallengeGeneratorModalProps> = ({
 
     try {
       const payload = buildPersona();
+      const headers = await getAuthHeaders();
       const response = await fetch('/api/ai/generate-challenge-architect', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(payload),
       });
 
@@ -307,6 +329,7 @@ const ChallengeGeneratorModal: React.FC<ChallengeGeneratorModalProps> = ({
     }
 
     setLoading(true);
+    setChainProgressMode('full');
     setChainStep(0);
     setLoadingMessage(chainLoadingMessages[0]);
 
@@ -320,9 +343,10 @@ const ChallengeGeneratorModal: React.FC<ChallengeGeneratorModalProps> = ({
 
     try {
       const payload = buildPersona();
+      const headers = await getAuthHeaders();
       const response = await fetch('/api/ai/generate-challenge-chain', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(payload),
       });
 
@@ -382,13 +406,14 @@ const ChallengeGeneratorModal: React.FC<ChallengeGeneratorModalProps> = ({
 
     setError(null);
     setLoading(true);
+    setChainProgressMode('steps234');
     setChainStep(0);
-    setLoadingMessage(chainLoadingMessages[0]);
+    setLoadingMessage(chainLoadingMessagesFromArchitect[0]);
 
     const progressInterval = setInterval(() => {
       setChainStep((prev) => {
         const next = Math.min(prev + 1, 2);
-        setLoadingMessage(chainLoadingMessages[next]);
+        setLoadingMessage(chainLoadingMessagesFromArchitect[next]);
         return next;
       });
     }, 5000);
@@ -400,9 +425,10 @@ const ChallengeGeneratorModal: React.FC<ChallengeGeneratorModalProps> = ({
         milestones: architectMilestones,
       };
 
+      const headers = await getAuthHeaders();
       const response = await fetch('/api/ai/generate-challenge-chain', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(payload),
       });
 
@@ -574,6 +600,11 @@ const ChallengeGeneratorModal: React.FC<ChallengeGeneratorModalProps> = ({
 
   if (!isOpen) return null;
 
+  const chainProgressDotsFilled =
+    chainProgressMode === 'steps234'
+      ? Math.min(4, chainStep + 2)
+      : Math.min(4, chainStep + 1);
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -636,12 +667,22 @@ const ChallengeGeneratorModal: React.FC<ChallengeGeneratorModalProps> = ({
                       <div
                         key={s}
                         className={`h-2 w-8 rounded-full transition-colors ${
-                          s <= chainStep + 1 ? 'bg-orange-light' : 'bg-white/20'
+                          s <= chainProgressDotsFilled ? 'bg-orange-light' : 'bg-white/20'
                         }`}
                       />
                     ))}
                   </div>
-                  <p className="mt-2 text-sm text-white/60">This may take 30-60 seconds...</p>
+                  <p className="mt-2 max-w-sm text-center text-sm text-white/60">
+                    {loadingMessage.startsWith('Step') ? (
+                      <>
+                        Full generation can take several minutes (especially the final progression step). If
+                        a request fails, use <span className="text-white/80">Review Structure First</span>{' '}
+                        for a shorter first request, then generate details.
+                      </>
+                    ) : (
+                      <>Usually under two minutes.</>
+                    )}
+                  </p>
                 </div>
               ) : step === 'architect' && architectBlueprint ? (
                 <>
@@ -1111,12 +1152,12 @@ const ChallengeGeneratorModal: React.FC<ChallengeGeneratorModalProps> = ({
                     >
                       Cancel
                     </button>
-                    <div className="order-1 flex flex-col gap-2 sm:order-2 sm:flex-row">
+                    <div className="order-1 flex w-full flex-col gap-2 sm:order-2 sm:max-w-none sm:flex-row sm:flex-wrap sm:justify-end">
                       <button
                         type="button"
                         onClick={(e) => handleGenerateArchitect(e)}
                         disabled={loading}
-                        className="flex items-center gap-2 rounded-lg border border-white/20 bg-black/20 px-6 py-2 font-medium text-white transition-colors hover:bg-white/5 disabled:opacity-50"
+                        className="hover:bg-orange-light/90 flex items-center justify-center gap-2 rounded-lg bg-orange-light px-6 py-2 font-medium text-black transition-colors disabled:opacity-50"
                       >
                         <LayoutList className="h-5 w-5" />
                         <span>{loading ? 'Generating...' : 'Review Structure First'}</span>
@@ -1125,11 +1166,15 @@ const ChallengeGeneratorModal: React.FC<ChallengeGeneratorModalProps> = ({
                         type="button"
                         onClick={(e) => handleGenerateChain(e)}
                         disabled={loading}
-                        className="hover:bg-orange-light/90 flex items-center gap-2 rounded-lg bg-orange-light px-6 py-2 font-medium text-black transition-colors disabled:opacity-50"
+                        className="flex items-center justify-center gap-2 rounded-lg border border-white/20 bg-black/20 px-6 py-2 font-medium text-white transition-colors hover:bg-white/5 disabled:opacity-50"
                       >
                         <Sparkles className="h-5 w-5" />
-                        <span>{loading ? 'Generating...' : 'Generate Challenge'}</span>
+                        <span>{loading ? 'Generating...' : 'Generate in one request'}</span>
                       </button>
+                      <p className="w-full text-right text-xs text-white/45 sm:order-last">
+                        One request runs all four AI steps and may time out on slow connections. Prefer
+                        Review Structure First for reliability.
+                      </p>
                     </div>
                   </div>
                 </form>

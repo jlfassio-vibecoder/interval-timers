@@ -17,7 +17,7 @@ import PerformanceLabWeekSection from '@/components/react/trainer/views/Performa
 
 type LabTab = 'programs' | 'calendar' | 'week' | 'messages';
 
-type AssignKind = 'program' | 'workout' | 'wod' | 'exercise';
+type AssignKind = 'program' | 'workout' | 'wod' | 'exercise' | 'challenge';
 
 interface PickerItem {
   id: string;
@@ -120,7 +120,9 @@ const PerformanceLabView: React.FC = () => {
           ? '/api/trainer/workouts'
           : assignKind === 'wod'
             ? '/api/trainer/wods'
-            : '/api/trainer/exercises';
+            : assignKind === 'challenge'
+              ? '/api/trainer/challenges'
+              : '/api/trainer/exercises';
     setPickerLoading(true);
     setSelectedResourceId('');
     void (async () => {
@@ -469,8 +471,19 @@ const PerformanceLabView: React.FC = () => {
         <div className="min-w-0 flex-1">
           <h2 className="font-heading text-xl font-bold">Assignments</h2>
           <p className="mt-1 text-sm text-white/60">
-            Assign programs (enrolls client), workouts, approved WODs, or published exercises. Clients
-            see open items in HUD notifications; exercises deep-link to Learn.
+            Assign programs (enrolls client), published challenges (grants access), workouts, approved
+            WODs, or published exercises. Clients see open items in HUD notifications; challenges and
+            exercises deep-link to the app.
+          </p>
+          <p className="mt-2 text-sm text-white/45">
+            Create or publish challenges in{' '}
+            <a
+              href={`${adminPaths.root}/challenges`}
+              className="text-orange-light underline decoration-orange-light/40 hover:decoration-orange-light"
+            >
+              Challenge Factory
+            </a>
+            .
           </p>
 
           <div className="mt-4 flex flex-wrap items-end gap-3">
@@ -482,6 +495,7 @@ const PerformanceLabView: React.FC = () => {
                 className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
               >
                 <option value="program">Program</option>
+                <option value="challenge">Challenge</option>
                 <option value="workout">Workout</option>
                 <option value="wod">WOD</option>
                 <option value="exercise">Exercise</option>
@@ -489,7 +503,11 @@ const PerformanceLabView: React.FC = () => {
             </div>
             <div className="min-w-[12rem] flex-1">
               <label className="mb-1 block font-mono text-[10px] uppercase text-white/50">
-                {assignKind === 'exercise' ? 'Exercise' : 'Resource'}
+                {assignKind === 'exercise'
+                  ? 'Exercise'
+                  : assignKind === 'challenge'
+                    ? 'Challenge'
+                    : 'Resource'}
               </label>
               <select
                 value={selectedResourceId}
@@ -561,8 +579,8 @@ const PerformanceLabView: React.FC = () => {
             ) : assignments.length === 0 ? (
               <tr>
                 <td colSpan={4} className="px-6 py-10 text-center text-white/60">
-                  No active assignments. Use the form above to assign a program, workout, WOD, or
-                  exercise.
+                  No active assignments. Use the form above to assign a program, challenge, workout,
+                  WOD, or exercise.
                 </td>
               </tr>
             ) : (
@@ -588,12 +606,6 @@ const PerformanceLabView: React.FC = () => {
         </table>
       </div>
 
-      <div className="rounded-lg border border-dashed border-white/15 bg-black/10 p-6">
-        <p className="text-sm font-semibold uppercase tracking-wide text-white/50">Coming soon</p>
-        <ul className="mt-2 list-inside list-disc text-sm text-white/45">
-          <li>Challenge assignments (Challenge Factory)</li>
-        </ul>
-      </div>
         </>
       ) : null}
     </div>
