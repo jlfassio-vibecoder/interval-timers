@@ -1,5 +1,13 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { AmrapWorkoutPicker } from '@interval-timers/amrap-workout-picker';
+
+/** Same focusable query as ExerciseDetailModal / WorkoutSummaryModal (no shared util in repo). */
+const FOCUSABLE_SELECTOR =
+  'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+function getFocusableElements(container: HTMLElement): HTMLElement[] {
+  return Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR));
+}
 
 export interface TrainerLiveAmrapWorkoutPickerModalProps {
   open: boolean;
@@ -19,29 +27,84 @@ export default function TrainerLiveAmrapWorkoutPickerModal({
   disabled = false,
   onWorkoutChosen,
 }: TrainerLiveAmrapWorkoutPickerModalProps) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const savedFocusRef = useRef<HTMLElement | null>(null);
+
+  const handleClose = useCallback(() => {
+    onOpenChange(false);
+  }, [onOpenChange]);
+
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !disabled) onOpenChange(false);
+    savedFocusRef.current = document.activeElement as HTMLElement | null;
+    return () => {
+      const el = savedFocusRef.current;
+      if (el && typeof el.focus === 'function' && document.contains(el)) {
+        el.focus();
+      }
+      savedFocusRef.current = null;
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, onOpenChange, disabled]);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const t = window.setTimeout(() => {
+      const root = panelRef.current;
+      if (!root) return;
+      const focusable = getFocusableElements(root);
+      focusable[0]?.focus();
+    }, 100);
+    return () => window.clearTimeout(t);
+  }, [open, pickerKey]);
+
+  useEffect(() => {
+    if (!open) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (!disabled) handleClose();
+        return;
+      }
+      if (e.key !== 'Tab') return;
+      const root = panelRef.current;
+      if (!root) return;
+      const focusable = getFocusableElements(root);
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement;
+      if (e.shiftKey) {
+        if (active === first) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else if (active === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [open, disabled, handleClose]);
 
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4" role="presentation">
-      <button
-        type="button"
-        className="absolute inset-0 bg-black/75"
-        aria-label="Close"
-        disabled={disabled}
-        onClick={() => {
-          if (!disabled) onOpenChange(false);
-        }}
-      />
+    <div
+      className="fixed inset-0 z-[200] flex items-center justify-center p-4"
+      role="presentation"
+      onClick={(e) => e.target === e.currentTarget && !disabled && handleClose()}
+    >
       <div
+        ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="trainer-live-amrap-picker-title"
@@ -57,7 +120,7 @@ export default function TrainerLiveAmrapWorkoutPickerModal({
         <AmrapWorkoutPicker
           key={pickerKey}
           disabled={disabled}
-          onCancel={() => onOpenChange(false)}
+          onCancel={() => handleClose()}
           onSelect={(workoutList, durationMinutes) => {
             void onWorkoutChosen(workoutList, durationMinutes);
           }}

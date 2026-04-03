@@ -21,6 +21,7 @@ DECLARE
   v_amrap_id uuid;
   v_existing uuid;
   v_host_token text;
+  v_host_participant_id uuid;
   v_display text;
   v_created jsonb;
   v_tl_trainer uuid;
@@ -61,9 +62,22 @@ BEGIN
       FROM public.amrap_sessions s
       WHERE s.id = v_existing;
       IF FOUND THEN
+        -- Match create/attach success shape: host participant id for stored credentials (same as non-idempotent path).
+        SELECT p.id INTO v_host_participant_id
+        FROM public.amrap_participants p
+        WHERE p.session_id = v_existing AND p.role = 'host' AND p.user_id = v_uid
+        LIMIT 1;
+        IF v_host_participant_id IS NULL THEN
+          SELECT p.id INTO v_host_participant_id
+          FROM public.amrap_participants p
+          WHERE p.session_id = v_existing AND p.role = 'host'
+          ORDER BY p.joined_at ASC
+          LIMIT 1;
+        END IF;
         RETURN jsonb_build_object(
           'amrap_session_id', v_existing,
           'host_token', v_host_token,
+          'amrap_participant_id', v_host_participant_id,
           'already_attached', true
         );
       END IF;
@@ -87,6 +101,9 @@ BEGIN
   LOOP
     IF jsonb_typeof(v_elem) IS DISTINCT FROM 'string' THEN
       RAISE EXCEPTION 'Each workout entry must be a string';
+    END IF;
+    IF v_elem #>> '{}' IS NULL OR length(trim(v_elem #>> '{}')) < 1 THEN
+      RAISE EXCEPTION 'Each workout entry must be a non-empty string';
     END IF;
   END LOOP;
 
