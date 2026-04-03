@@ -1,9 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { setStoredHostToken, setStoredParticipantId } from 'amrap/embed';
 import { useAppContext } from '@/contexts/AppContext';
 import { supabase } from '@/lib/supabase/supabase-instance';
 import { trainerLiveParticipantStorageKey } from '@/lib/trainer-live/storage';
 import { parseTrainerLiveShell, type TrainerLiveShell } from '@/lib/trainer-live/shells';
+import type { TrainerLiveIntervalWrapperKind } from '@/lib/trainer-live/wrappers/types';
+import { parseIntervalWrapperKind } from '@/lib/trainer-live/wrappers/kind';
+import TrainerLiveActivityTimer from './TrainerLiveActivityTimer';
 import TrainerLiveSessionRoom from './TrainerLiveSessionRoom';
 
 export default function TrainerLiveHostView() {
@@ -14,6 +18,14 @@ export default function TrainerLiveHostView() {
   const [endBusy, setEndBusy] = useState(false);
   const [endErr, setEndErr] = useState<string | null>(null);
   const [shell, setShell] = useState<TrainerLiveShell | null>(null);
+  const [intervalWrapperKind, setIntervalWrapperKind] =
+    useState<TrainerLiveIntervalWrapperKind>('none');
+  const [intervalWrapperConfig, setIntervalWrapperConfig] = useState<unknown>(null);
+  const [attachBusy, setAttachBusy] = useState(false);
+  const [attachErr, setAttachErr] = useState<string | null>(null);
+  const [backBusy, setBackBusy] = useState(false);
+  const [backErr, setBackErr] = useState<string | null>(null);
+  const [wrapperErr, setWrapperErr] = useState<string | null>(null);
 
   const participantId = useMemo(() => {
     if (!sessionId || typeof window === 'undefined') return null;
@@ -23,20 +35,87 @@ export default function TrainerLiveHostView() {
   useEffect(() => {
     if (!sessionId || !participantId) return;
     let cancelled = false;
-    void supabase
-      .from('trainer_live_sessions')
-      .select('shell')
-      .eq('id', sessionId)
-      .maybeSingle()
-      .then(({ data, error }) => {
-        if (cancelled) return;
-        if (error || !data) setShell('video_only');
-        else setShell(parseTrainerLiveShell(data.shell as string | null));
-      });
+    void (async () => {
+      // Prefer SECURITY DEFINER RPC over direct REST: RLS / missing columns on `trainer_live_sessions`
+      // can make `.select('shell')` fail and default the UI to `video_only`, so "Video + Intervals"
+      // looked identical to "Video only".
+      const { data: hintsData, error: hintsErr } = await supabase.rpc(
+        'trainer_live_session_join_hints',
+        {
+          p_session_id: sessionId,
+        }
+      );
+      if (cancelled) return;
+      if (!hintsErr && hintsData && typeof hintsData === 'object') {
+        const row = hintsData as Record<string, unknown>;
+        if (row.active === false) {
+          setShell('video_only');
+          setIntervalWrapperKind('none');
+          setIntervalWrapperConfig(null);
+          return;
+        }
+        setShell(parseTrainerLiveShell(typeof row.shell === 'string' ? row.shell : null));
+        setIntervalWrapperKind(
+          parseIntervalWrapperKind(
+            row.interval_wrapper_kind != null ? String(row.interval_wrapper_kind) : undefined
+          )
+        );
+        setIntervalWrapperConfig(
+          'interval_wrapper_config' in row ? (row.interval_wrapper_config ?? null) : null
+        );
+        return;
+      }
+      const slim = await supabase
+        .from('trainer_live_sessions')
+        .select('shell')
+        .eq('id', sessionId)
+        .maybeSingle();
+      if (cancelled) return;
+      if (slim.error || !slim.data) {
+        setShell('video_only');
+        setIntervalWrapperKind('none');
+        setIntervalWrapperConfig(null);
+        return;
+      }
+      setShell(parseTrainerLiveShell(slim.data.shell as string | null));
+      setIntervalWrapperKind('none');
+      setIntervalWrapperConfig(null);
+    })();
     return () => {
       cancelled = true;
     };
   }, [sessionId, participantId]);
+
+  useEffect(() => {
+    if (!sessionId) return;
+    const channel = supabase
+      .channel(`trainer-live-session-${sessionId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'trainer_live_sessions',
+          filter: `id=eq.${sessionId}`,
+        },
+        (payload) => {
+          const row = payload.new as Record<string, unknown>;
+          if (typeof row.shell === 'string') {
+            setShell(parseTrainerLiveShell(row.shell));
+          }
+          if (row.interval_wrapper_kind != null) {
+            setIntervalWrapperKind(parseIntervalWrapperKind(String(row.interval_wrapper_kind)));
+          }
+          if ('interval_wrapper_config' in row) {
+            setIntervalWrapperConfig(row.interval_wrapper_config ?? null);
+          }
+        }
+      )
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [sessionId]);
 
   const shareUrl =
     typeof window !== 'undefined' && sessionId
@@ -93,7 +172,63 @@ export default function TrainerLiveHostView() {
     }
   };
 
+  const returnToMainVideo = async () => {
+    if (!sessionId) return;
+    setBackErr(null);
+    setBackBusy(true);
+    try {
+      const { error } = await supabase.rpc('trainer_live_return_to_main_video', {
+        p_trainer_live_session_id: sessionId,
+      });
+      if (error) {
+        setBackErr(error.message);
+        return;
+      }
+      setShell('countdown_timer');
+      setIntervalWrapperKind('none');
+      setIntervalWrapperConfig(null);
+    } finally {
+      setBackBusy(false);
+    }
+  };
+
+  const attachAmrap = async () => {
+    if (!sessionId) return;
+    setAttachErr(null);
+    setAttachBusy(true);
+    try {
+      const { data, error } = await supabase.rpc('trainer_live_attach_amrap_session', {
+        p_trainer_live_session_id: sessionId,
+      });
+      if (error) {
+        setAttachErr(error.message);
+        return;
+      }
+      const row = data as {
+        amrap_session_id?: string;
+        host_token?: string | null;
+        amrap_participant_id?: string;
+      } | null;
+      const aid = row?.amrap_session_id;
+      const ht = row?.host_token;
+      const apid = row?.amrap_participant_id;
+      if (aid && ht) {
+        setStoredHostToken(aid, ht);
+      }
+      if (aid && apid) {
+        setStoredParticipantId(aid, apid);
+      }
+      if (aid) {
+        setIntervalWrapperKind('amrap');
+        setIntervalWrapperConfig({ amrap_session_id: aid });
+      }
+    } finally {
+      setAttachBusy(false);
+    }
+  };
+
   const localLabel = user?.displayName || user?.email?.split('@')[0] || 'You (trainer)';
+  const authUserId = user?.uid ?? null;
 
   return (
     <div className="fixed inset-0 z-[100] flex flex-col bg-black text-white">
@@ -102,10 +237,50 @@ export default function TrainerLiveHostView() {
           Live session
         </h1>
         <div className="flex flex-wrap items-center gap-2">
+          {wrapperErr ? (
+            <p className="max-w-xs text-xs text-amber-200 md:max-w-md" role="status">
+              {wrapperErr}
+            </p>
+          ) : null}
           {endErr ? (
             <p className="max-w-xs text-xs text-red-300 md:max-w-md" role="alert">
               {endErr}
             </p>
+          ) : null}
+          {attachErr ? (
+            <p className="max-w-xs text-xs text-red-300 md:max-w-md" role="alert">
+              {attachErr}
+            </p>
+          ) : null}
+          {backErr ? (
+            <p className="max-w-xs text-xs text-red-300 md:max-w-md" role="alert">
+              {backErr}
+            </p>
+          ) : null}
+          {shell === 'countdown_timer' && intervalWrapperKind === 'amrap' ? (
+            <button
+              type="button"
+              data-testid="trainer-live-back-to-video"
+              disabled={backBusy}
+              onClick={() => void returnToMainVideo()}
+              className="rounded-lg border border-white/25 bg-white/10 px-3 py-1.5 text-xs text-white hover:bg-white/15 md:text-sm"
+            >
+              {backBusy ? 'Returning…' : 'Back to video'}
+            </button>
+          ) : null}
+          {shell === 'countdown_timer' && intervalWrapperKind === 'none' ? (
+            <button
+              type="button"
+              data-testid="trainer-live-start-amrap"
+              disabled={attachBusy}
+              onClick={() => void attachAmrap()}
+              className="border-orange-light/50 bg-orange-light/15 hover:bg-orange-light/25 rounded-lg border px-3 py-1.5 text-xs text-orange-light md:text-sm"
+            >
+              {attachBusy ? 'Starting…' : 'Start AMRAP'}
+            </button>
+          ) : null}
+          {shell === 'countdown_timer' && intervalWrapperKind === 'amrap' ? (
+            <span className="text-xs text-white/50 md:text-sm">AMRAP active</span>
           ) : null}
           <button
             type="button"
@@ -130,17 +305,33 @@ export default function TrainerLiveHostView() {
             <div className="h-8 w-8 animate-spin rounded-full border-4 border-orange-light border-t-transparent" />
           </div>
         ) : (
-          <TrainerLiveSessionRoom
-            shell={shell}
-            sessionId={sessionId}
-            participantId={participantId}
-            role="trainer"
-            localLabel={localLabel}
-            onLeaveRoom={() => {
-              sessionStorage.removeItem(trainerLiveParticipantStorageKey(sessionId));
-              navigate('/live', { replace: true });
-            }}
-          />
+          <>
+            <div className="mb-4 max-w-4xl">
+              <TrainerLiveActivityTimer
+                sessionId={sessionId}
+                participantId={participantId}
+                authUserId={user?.uid ?? null}
+                role="trainer"
+                shell={shell}
+              />
+            </div>
+            <TrainerLiveSessionRoom
+              shell={shell}
+              sessionId={sessionId}
+              participantId={participantId}
+              role="trainer"
+              localLabel={localLabel}
+              onLeaveRoom={() => {
+                sessionStorage.removeItem(trainerLiveParticipantStorageKey(sessionId));
+                navigate('/live', { replace: true });
+              }}
+              intervalWrapperKind={intervalWrapperKind}
+              intervalWrapperConfig={intervalWrapperConfig}
+              displayName={localLabel}
+              authUserId={authUserId}
+              onWrapperError={setWrapperErr}
+            />
+          </>
         )}
       </div>
     </div>

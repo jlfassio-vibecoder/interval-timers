@@ -5,7 +5,12 @@
  */
 import type { APIRoute } from 'astro';
 import { createClient } from '@supabase/supabase-js';
-import { RtcTokenBuilder, RtcRole } from 'agora-token';
+import agoraToken from 'agora-token';
+
+const { RtcTokenBuilder, RtcRole } = agoraToken as {
+  RtcTokenBuilder: typeof import('agora-token').RtcTokenBuilder;
+  RtcRole: typeof import('agora-token').RtcRole;
+};
 
 const EXPIRY_SEC = 3600;
 
@@ -134,10 +139,13 @@ export const GET: APIRoute = async ({ request }) => {
 
   // Use SECURITY DEFINER RPC so we do not rely on permissive anon RLS on session/participant tables
   // (see supabase/migrations/20260430116000_trainer_live_rls_hardening.sql).
-  const { data: verified, error: verifyErr } = await supabase.rpc('trainer_live_verify_token_targets', {
-    p_session_id: channel,
-    p_participant_id: account,
-  });
+  const { data: verified, error: verifyErr } = await supabase.rpc(
+    'trainer_live_verify_token_targets',
+    {
+      p_session_id: channel,
+      p_participant_id: account,
+    }
+  );
 
   if (verifyErr) {
     if (import.meta.env.DEV) {

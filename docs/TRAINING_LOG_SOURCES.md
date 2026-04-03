@@ -22,6 +22,7 @@ Training Log aggregates sessions from **`workout_logs`** and **`user_workout_log
 | `amrap_with_friends` | DB sync (`persist_amrap_session_results`) | `amrap_with_friends:{user_id}:{session_id}:{segment_index}` | `shared.amrap_session_results` |
 | `amrap_with_friends_warmup` | DB sync (`persist_amrap_warmup_completion`) | `amrap_with_friends_warmup:{user_id}:{session_id}` | — |
 | `amrap_with_friends_free` | DB sync (`persist_free_workout_completion`) | `amrap_with_friends_free:{user_id}:{session_id}:{epoch}` | — |
+| `trainer_live` | `trainer_live_activity_finalize` RPC | `trainer_live:{user_id}:{activity_session_id}` | `trainer_live_activity_sessions`, `trainer_live_activity_segments` |
 | `universal_activity_hub` | Hub Log Past (`PastedQuickLogPage` → `saveWorkoutLog`) | — | — |
 | *(null)* | Manual / summary (`saveWorkoutLog`) | — | — |
 | *(Readiness)* | `readiness.ts` (workout_name='Readiness') | — | — |
@@ -54,6 +55,12 @@ Program gym logs store `exercises` as JSON on `user_workout_logs`. Per-side pres
 3. User signs up/logs in on account page.
 4. `AccountLanding` calls `logHandoffSession(handoff, uid)`.
 5. `log-handoff.ts` inserts into `workout_logs` if `source` is in `ALLOWED_SOURCES`.
+
+### Trainer Live (parent session + AMRAP blocks)
+
+- **Parent row** (`source = trainer_live`): total elapsed active time for the live activity timer (pause excluded), written on finalize for each signed-in participant with `user_id`.
+- **AMRAP detail rows** (`source = amrap_with_friends`): still written by the existing AMRAP sync when an AMRAP block finishes. If that AMRAP session is linked from `trainer_live_activity_segments.amrap_session_id`, a trigger sets `is_active_rest = true` on the AMRAP `workout_logs` row so weekly aggregates that use “exclude active rest” count the **parent** `trainer_live` minutes only, not the nested AMRAP duplicate.
+- **Segment drill-down:** query `trainer_live_activity_segments` for `activity_session_id` parsed from `handoff_dedupe_key` (`trainer_live:{user_id}:{activity_session_id}`).
 
 ## Rich / multiplayer timers (AMRAP template)
 

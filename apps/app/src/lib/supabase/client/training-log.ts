@@ -49,6 +49,7 @@ export function deriveWorkoutFormat(log: WorkoutLog): string | undefined {
   if (s.includes('amrap')) return 'AMRAP';
   if (s.includes('emom')) return 'EMOM';
   if (s.includes('warmup') || s.includes('warm-up')) return 'Mobility';
+  if (s.includes('trainer_live')) return 'Video session';
   if (s.includes('hiit')) return 'HIIT';
   if (s.includes('circuit')) return 'Circuit';
   if (s.includes('lactate')) return 'Steady State';
@@ -60,6 +61,7 @@ export function deriveWorkoutType(log: WorkoutLog): string {
   if (log.workoutType) return log.workoutType;
   const s = (log.source ?? '').toLowerCase();
   if (s.includes('program')) return 'Conditioning';
+  if (s.includes('trainer_live')) return 'Conditioning';
   if (s.includes('tabata') || s.includes('hiit')) return 'Cardiovascular Fitness';
   if (s.includes('amrap') || s.includes('emom') || s.includes('circuit')) return 'Conditioning';
   if (s.includes('warmup') || s.includes('warm-up')) return 'Mobility';

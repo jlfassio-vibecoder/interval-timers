@@ -6,10 +6,46 @@ import node from '@astrojs/node';
 import vercel from '@astrojs/vercel';
 import AstroPWA from '@vite-pwa/astro';
 import { fileURLToPath } from 'url';
-import { resolve } from 'path';
+import { existsSync, statSync } from 'fs';
+import { resolve, join } from 'path';
 
 const root = fileURLToPath(new URL('.', import.meta.url));
 const monorepoRoot = resolve(root, '../..');
+/** Resolve `@/` imports inside `apps/amrap/src` when that code is bundled into this app (workspace `amrap` package). */
+const amrapWorkspaceSrc = resolve(monorepoRoot, 'apps/amrap/src');
+/**
+ * Single `@/` resolver: Mission Control (`apps/app/src`) first, then workspace AMRAP (`apps/amrap/src`).
+ * Replaces Vite `alias: { '@': src }` so AMRAP packages can share the same `@/` prefix without colliding.
+ */
+function resolveMonorepoAtPath(id, appSrc) {
+  if (!id.startsWith('@/')) return null;
+  const rel = id.slice(2);
+  const appBase = join(appSrc, rel);
+  if (existsSync(appBase + '.tsx')) return appBase + '.tsx';
+  if (existsSync(appBase + '.ts')) return appBase + '.ts';
+  if (existsSync(appBase) && statSync(appBase).isDirectory()) {
+    if (existsSync(join(appBase, 'index.tsx'))) return join(appBase, 'index.tsx');
+    if (existsSync(join(appBase, 'index.ts'))) return join(appBase, 'index.ts');
+  }
+
+  const amrapBase = join(amrapWorkspaceSrc, rel);
+  if (existsSync(amrapBase + '.tsx')) return amrapBase + '.tsx';
+  if (existsSync(amrapBase + '.ts')) return amrapBase + '.ts';
+  if (existsSync(amrapBase + '.jsx')) return amrapBase + '.jsx';
+  if (existsSync(amrapBase + '.js')) return amrapBase + '.js';
+  return null;
+}
+
+function monorepoAtPathPlugin(appSrc) {
+  return {
+    name: 'monorepo-at-path',
+    enforce: 'pre',
+    resolveId(id) {
+      return resolveMonorepoAtPath(id, appSrc);
+    },
+  };
+}
+
 // Load monorepo root .env first (HIIT Workout Timer Supabase: VITE_SUPABASE_*), then app-level.
 // Later files override earlier keys (dotenv default is first-wins; we want apps/app/.env to win over root).
 loadEnv({ path: resolve(monorepoRoot, '.env') });
@@ -69,6 +105,7 @@ export default defineConfig({
     host: true
   },
   vite: {
+    plugins: [monorepoAtPathPlugin(src)],
     // Inject Supabase env from any name (SUPABASE_*, VITE_*, PUBLIC_*) so client and SSR get them.
     // Vite only exposes VITE_* by default; Vercel uses SUPABASE_*. Define all variants so every code path sees values.
     define: {
@@ -119,20 +156,12 @@ export default defineConfig({
           target: 'http://localhost:9517',
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/api\/agora-token/, '/token')
-        },
-        // Dev-only: same standalone token server as AMRAP. It does not run trainer_live_verify_token_targets;
-        // production uses the Astro route. Do not treat dev tokens as a substitute for prod auth checks.
-        '/api/trainer-live/agora-token': {
-          target: 'http://localhost:9517',
-          changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/api\/trainer-live\/agora-token/, '/token')
         }
+        // `/api/trainer-live/agora-token` is NOT proxied — it must hit Astro `src/pages/api/trainer-live/agora-token.ts`
+        // (Supabase `trainer_live_verify_token_targets`). Proxying to the AMRAP token server breaks Trainer Live.
       }
     },
     resolve: {
-      alias: {
-        '@': src
-      },
       dedupe: ['react', 'react-dom', 'scheduler']
     },
     optimizeDeps: {
@@ -144,7 +173,7 @@ export default defineConfig({
     ssr: {
       // Only bundle these small packages into the SSR graph. Do not set noExternal: true for
       // everything — bundling google-auth-library breaks JWT signing for Vertex AI at runtime.
-      noExternal: ['piccolore', 'clsx', 'es-module-lexer', 'devalue'],
+      noExternal: ['piccolore', 'clsx', 'es-module-lexer', 'devalue', 'amrap'],
       // Dev only: keep React external so Node requires it at runtime (avoids "module is not defined" when CJS is inlined)
       ...(!isProduction && { external: ['react', 'react-dom', 'scheduler'] })
     },

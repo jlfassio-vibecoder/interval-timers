@@ -38,7 +38,9 @@ export async function getTrainerLiveToken(
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Token fetch failed';
     const isNetwork = msg.includes('fetch') || msg.includes('Failed') || msg.includes('Network');
-    const hint = isNetwork ? ' — Dev: run npm run dev:trainer:live (token server on 9517).' : '';
+    const hint = isNetwork
+      ? ' — Check app is running and VITE_AGORA_APP_ID / VITE_AGORA_APP_CERTIFICATE are set for Trainer Live.'
+      : '';
     return { error: msg + hint };
   }
 }

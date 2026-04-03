@@ -25,10 +25,17 @@ export interface UseAgoraChannelResult {
   error: string | null
 }
 
+export interface UseAgoraChannelOptions {
+  /** When true, skip Agora client init (embed / external video). */
+  disabled?: boolean
+}
+
 export function useAgoraChannel(
   channelName: string,
-  participantId: string | null
+  participantId: string | null,
+  options?: UseAgoraChannelOptions
 ): UseAgoraChannelResult {
+  const disabled = options?.disabled === true
   const [joined, setJoined] = useState(false)
   const [localVideoTrack, setLocalVideoTrack] = useState<ICameraVideoTrack | null>(null)
   const [localAudioTrack, setLocalAudioTrack] = useState<IMicrophoneAudioTrack | null>(null)
@@ -108,21 +115,27 @@ export function useAgoraChannel(
   }, [])
 
   const muteVideo = useCallback((muted: boolean) => {
-    tracksRef.current?.video.setEnabled(!muted)
+    tracksRef.current?.video?.setEnabled(!muted)
   }, [])
 
   const muteAudio = useCallback((muted: boolean) => {
-    tracksRef.current?.audio.setEnabled(!muted)
+    tracksRef.current?.audio?.setEnabled(!muted)
   }, [])
 
   useEffect(() => {
+    if (disabled) {
+      // leave() syncs hook state after tearing down Agora (external video embed).
+      void leave() // eslint-disable-line react-hooks/set-state-in-effect -- Agora teardown updates React state
+      setError(null)
+      return () => {}
+    }
     if (!channelName || !participantId) {
       return () => {}
     }
 
     const appId = getAppId()
     if (!appId) {
-      setError('VITE_AGORA_APP_ID is not set') // eslint-disable-line react-hooks/set-state-in-effect -- sync config to UI
+      setError('VITE_AGORA_APP_ID is not set')
       return () => {}
     }
 
@@ -247,7 +260,15 @@ export function useAgoraChannel(
       setRemoteUsers([])
       setJoined(false)
     }
-  }, [channelName, participantId, addRemoteUser, removeRemoteUser, clearRemoteUserTrack])
+  }, [
+    disabled,
+    channelName,
+    participantId,
+    leave,
+    addRemoteUser,
+    removeRemoteUser,
+    clearRemoteUserTrack,
+  ])
 
   return {
     joined,

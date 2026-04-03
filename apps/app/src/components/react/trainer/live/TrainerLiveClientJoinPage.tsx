@@ -5,9 +5,18 @@ import { supabase } from '@/lib/supabase/supabase-instance';
 import { trainerLiveParticipantStorageKey } from '@/lib/trainer-live/storage';
 import FluidBackground from '../../FluidBackground';
 import { parseTrainerLiveShell, type TrainerLiveShell } from '@/lib/trainer-live/shells';
+import type { TrainerLiveIntervalWrapperKind } from '@/lib/trainer-live/wrappers/types';
+import { parseIntervalWrapperKind } from '@/lib/trainer-live/wrappers/kind';
+import TrainerLiveActivityTimer from './TrainerLiveActivityTimer';
 import TrainerLiveSessionRoom from './TrainerLiveSessionRoom';
 
-type JoinHints = { active: boolean; requires_invited_account: boolean; shell?: string };
+type JoinHints = {
+  active: boolean;
+  requires_invited_account: boolean;
+  shell?: string;
+  interval_wrapper_kind?: string;
+  interval_wrapper_config?: unknown;
+};
 
 function joinErrorMessage(message: string): string {
   if (message.includes('another participant')) {
@@ -17,6 +26,23 @@ function joinErrorMessage(message: string): string {
     return message;
   }
   return message;
+}
+
+function applyHintsToRoomState(
+  row: JoinHints | null,
+  setRoomShell: (s: TrainerLiveShell) => void,
+  setIntervalKind: (k: TrainerLiveIntervalWrapperKind) => void,
+  setIntervalConfig: (c: unknown) => void
+) {
+  if (!row) {
+    setRoomShell('video_only');
+    setIntervalKind('none');
+    setIntervalConfig(null);
+    return;
+  }
+  setRoomShell(parseTrainerLiveShell(row.shell));
+  setIntervalKind(parseIntervalWrapperKind(row.interval_wrapper_kind));
+  setIntervalConfig(row.interval_wrapper_config ?? null);
 }
 
 export default function TrainerLiveClientJoinPage() {
@@ -34,6 +60,10 @@ export default function TrainerLiveClientJoinPage() {
   });
   const [roomShell, setRoomShell] = useState<TrainerLiveShell>('video_only');
   const [roomShellReady, setRoomShellReady] = useState(false);
+  const [intervalWrapperKind, setIntervalWrapperKind] =
+    useState<TrainerLiveIntervalWrapperKind>('none');
+  const [intervalWrapperConfig, setIntervalWrapperConfig] = useState<unknown>(null);
+  const [wrapperErr, setWrapperErr] = useState<string | null>(null);
 
   useEffect(() => {
     void supabase.auth.getSession().then(({ data }) => {
@@ -93,9 +123,19 @@ export default function TrainerLiveClientJoinPage() {
         if (cancelled) return;
         const row = (data as JoinHints | null) ?? null;
         if (error || !row) {
-          setRoomShell('video_only');
+          applyHintsToRoomState(
+            null,
+            setRoomShell,
+            setIntervalWrapperKind,
+            setIntervalWrapperConfig
+          );
         } else {
-          setRoomShell(parseTrainerLiveShell(row.shell));
+          applyHintsToRoomState(
+            row,
+            setRoomShell,
+            setIntervalWrapperKind,
+            setIntervalWrapperConfig
+          );
         }
         setRoomShellReady(true);
       });
@@ -103,6 +143,58 @@ export default function TrainerLiveClientJoinPage() {
       cancelled = true;
     };
   }, [sessionId, participantId]);
+
+  useEffect(() => {
+    if (!sessionId || !participantId || !authSession?.user) return;
+    const channel = supabase
+      .channel(`trainer-live-client-${sessionId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'trainer_live_sessions',
+          filter: `id=eq.${sessionId}`,
+        },
+        (payload) => {
+          const row = payload.new as Record<string, unknown>;
+          if (typeof row.shell === 'string') {
+            setRoomShell(parseTrainerLiveShell(row.shell));
+          }
+          if (row.interval_wrapper_kind != null) {
+            setIntervalWrapperKind(parseIntervalWrapperKind(String(row.interval_wrapper_kind)));
+          }
+          if ('interval_wrapper_config' in row) {
+            setIntervalWrapperConfig(row.interval_wrapper_config ?? null);
+          }
+        }
+      )
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [sessionId, participantId, authSession?.user]);
+
+  useEffect(() => {
+    if (!sessionId || !participantId || authSession?.user) return;
+    const id = window.setInterval(() => {
+      void supabase
+        .rpc('trainer_live_session_join_hints', { p_session_id: sessionId })
+        .then(({ data, error }) => {
+          if (error) return;
+          const row = (data as JoinHints | null) ?? null;
+          if (row) {
+            applyHintsToRoomState(
+              row,
+              setRoomShell,
+              setIntervalWrapperKind,
+              setIntervalWrapperConfig
+            );
+          }
+        });
+    }, 5000);
+    return () => window.clearInterval(id);
+  }, [sessionId, participantId, authSession?.user]);
 
   const join = async () => {
     if (!sessionId) return;
@@ -139,6 +231,8 @@ export default function TrainerLiveClientJoinPage() {
   }
 
   if (participantId) {
+    const displayName = name.trim() || 'Guest';
+    const authUserId = authSession?.user?.id ?? null;
     return (
       <div className="relative min-h-screen bg-black p-4 text-white md:p-8">
         <FluidBackground />
@@ -146,23 +240,45 @@ export default function TrainerLiveClientJoinPage() {
           <h1 className="mb-4 font-heading text-xl font-bold uppercase tracking-tight text-orange-light">
             Live session
           </h1>
+          {wrapperErr ? (
+            <p className="mb-2 text-sm text-amber-200" role="status">
+              {wrapperErr}
+            </p>
+          ) : null}
           {!roomShellReady ? (
             <div className="flex h-48 items-center justify-center text-white/60">
               <div className="h-8 w-8 animate-spin rounded-full border-4 border-orange-light border-t-transparent" />
             </div>
           ) : (
-            <TrainerLiveSessionRoom
-              shell={roomShell}
-              sessionId={sessionId}
-              participantId={participantId}
-              role="client"
-              localLabel="You"
-              onLeaveRoom={() => {
-                sessionStorage.removeItem(trainerLiveParticipantStorageKey(sessionId));
-                navigate('/live/join/' + sessionId, { replace: true });
-                setParticipantId(null);
-              }}
-            />
+            <>
+              <div className="mb-4">
+                <TrainerLiveActivityTimer
+                  sessionId={sessionId}
+                  participantId={participantId}
+                  authUserId={authUserId}
+                  role="client"
+                  shell={roomShell}
+                  compact
+                />
+              </div>
+              <TrainerLiveSessionRoom
+                shell={roomShell}
+                sessionId={sessionId}
+                participantId={participantId}
+                role="client"
+                localLabel={displayName}
+                onLeaveRoom={() => {
+                  sessionStorage.removeItem(trainerLiveParticipantStorageKey(sessionId));
+                  navigate('/live/join/' + sessionId, { replace: true });
+                  setParticipantId(null);
+                }}
+                intervalWrapperKind={intervalWrapperKind}
+                intervalWrapperConfig={intervalWrapperConfig}
+                displayName={displayName}
+                authUserId={authUserId}
+                onWrapperError={setWrapperErr}
+              />
+            </>
           )}
         </div>
       </div>
