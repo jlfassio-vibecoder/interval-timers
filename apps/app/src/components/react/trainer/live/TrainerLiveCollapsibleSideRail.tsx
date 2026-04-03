@@ -66,6 +66,7 @@ export default function TrainerLiveCollapsibleSideRail({
               ? 'h-full max-h-[min(85vh,calc(100vh-6rem))] min-h-0 overflow-y-auto overflow-x-hidden p-2'
               : 'pointer-events-none opacity-0'
           }
+          inert={!open}
         >
           {children}
         </div>

@@ -1,9 +1,13 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase/supabase-instance';
 import {
+  computeTrainerLiveDisplayElapsedSec,
   parseTrainerLiveActivityState,
   type TrainerLiveActivityState,
 } from '@/lib/trainer-live/activity-types';
+
+/** Guest join links use anon Supabase; activity Realtime often does not fire — poll to stay in sync. */
+const GUEST_ACTIVITY_POLL_MS = 10_000;
 
 export interface UseTrainerLiveActivitySessionOptions {
   trainerLiveSessionId: string | undefined;
@@ -20,6 +24,8 @@ export function useTrainerLiveActivitySession({
   const [state, setState] = useState<TrainerLiveActivityState>({ has_activity: false });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  /** Re-render once per second while active so `computeTrainerLiveDisplayElapsedSec` ticks without RPC load. */
+  const [activeTick, setActiveTick] = useState(0);
 
   const fetchState = useCallback(async () => {
     if (!trainerLiveSessionId) return;
@@ -61,7 +67,7 @@ export function useTrainerLiveActivitySession({
   const activitySessionId = state.has_activity ? state.activity_session_id : undefined;
 
   useEffect(() => {
-    if (!trainerLiveSessionId || !activitySessionId) return;
+    if (!trainerLiveSessionId || !activitySessionId || !authUserId) return;
     const aid = activitySessionId;
     const channel = supabase
       .channel(`trainer-live-activity-${trainerLiveSessionId}-${aid}`)
@@ -93,21 +99,34 @@ export function useTrainerLiveActivitySession({
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [trainerLiveSessionId, activitySessionId, fetchState]);
+  }, [trainerLiveSessionId, activitySessionId, authUserId, fetchState]);
+
+  useEffect(() => {
+    if (!trainerLiveSessionId || !participantId || authUserId) return;
+    const id = window.setInterval(() => {
+      void fetchState();
+    }, GUEST_ACTIVITY_POLL_MS);
+    return () => window.clearInterval(id);
+  }, [trainerLiveSessionId, participantId, authUserId, fetchState]);
 
   useEffect(() => {
     if (state.status !== 'active') return;
     const id = window.setInterval(() => {
-      void fetchState();
+      setActiveTick((t) => t + 1);
     }, 1000);
     return () => window.clearInterval(id);
-  }, [state.status, fetchState]);
+  }, [state.status]);
+
+  const displayElapsedSec = useMemo(
+    () => computeTrainerLiveDisplayElapsedSec(state),
+    [state, activeTick]
+  );
 
   return {
     state,
     loading,
     error,
     refresh: fetchState,
-    displayElapsedSec: state.current_elapsed_sec ?? 0,
+    displayElapsedSec,
   };
 }

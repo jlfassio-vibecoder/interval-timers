@@ -23,6 +23,25 @@ export interface TrainerLiveActivityState {
   segments?: TrainerLiveActivitySegmentRow[];
 }
 
+/**
+ * Live elapsed for the UI clock without polling the RPC every second while `status === 'active'`.
+ * Mirrors DB logic: `accumulated_elapsed_sec` + wall time since `last_resume_at` when running.
+ */
+export function computeTrainerLiveDisplayElapsedSec(
+  state: TrainerLiveActivityState,
+  nowMs: number = Date.now()
+): number {
+  if (!state.has_activity) return 0;
+  if (state.status === 'active' && state.last_resume_at) {
+    const acc = state.accumulated_elapsed_sec ?? 0;
+    const resumeMs = new Date(state.last_resume_at).getTime();
+    if (Number.isNaN(resumeMs)) return state.current_elapsed_sec ?? 0;
+    const addSec = Math.max(0, (nowMs - resumeMs) / 1000);
+    return Math.max(0, acc + addSec);
+  }
+  return state.current_elapsed_sec ?? state.accumulated_elapsed_sec ?? 0;
+}
+
 export function parseTrainerLiveActivityState(data: unknown): TrainerLiveActivityState {
   if (!data || typeof data !== 'object') {
     return { has_activity: false };

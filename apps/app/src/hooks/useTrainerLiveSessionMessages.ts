@@ -19,6 +19,7 @@ export function useTrainerLiveSessionMessages(
   const [messages, setMessages] = useState<TrainerLiveSessionMessageRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [sendError, setSendError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const fetchMessages = useCallback(async () => {
     if (!sessionId || !participantId) return;
@@ -26,7 +27,11 @@ export function useTrainerLiveSessionMessages(
       p_session_id: sessionId,
       p_caller_participant_id: participantId,
     });
-    if (error) return;
+    if (error) {
+      setLoadError(error.message);
+      return;
+    }
+    setLoadError(null);
     const raw = data as unknown;
     setMessages(Array.isArray(raw) ? (raw as TrainerLiveSessionMessageRow[]) : []);
   }, [sessionId, participantId]);
@@ -35,6 +40,7 @@ export function useTrainerLiveSessionMessages(
     if (!sessionId || !participantId) {
       setLoading(false);
       setMessages([]);
+      setLoadError(null);
       return;
     }
     setLoading(true);
@@ -72,5 +78,5 @@ export function useTrainerLiveSessionMessages(
   const hasUserPosted =
     participantId != null && messages.some((m) => m.participant_id === participantId);
 
-  return { messages, loading, sendError, sendMessage, hasUserPosted };
+  return { messages, loading, loadError, sendError, sendMessage, hasUserPosted };
 }

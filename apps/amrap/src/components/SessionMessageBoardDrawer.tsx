@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { useDrawerOpenPersisted, amrapMessageDrawerStorageKey } from '@/hooks/useDrawerOpenPersisted';
 
 /**
@@ -10,7 +11,7 @@ export default function SessionMessageBoardDrawer({
   sessionId,
   defaultOpen = false,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
   /** When set, persist rail open state per AMRAP session. */
   sessionId?: string;
   defaultOpen?: boolean;
@@ -45,12 +46,14 @@ export default function SessionMessageBoardDrawer({
         }
         aria-hidden={!open}
       >
+        {/* inert: keep children mounted but unfocusable when rail is collapsed */}
         <div
           className={
             open
               ? 'h-full max-h-[min(85vh,calc(100vh-6rem))] min-h-0 overflow-y-auto overflow-x-hidden p-2'
               : 'pointer-events-none opacity-0'
           }
+          inert={!open}
         >
           {children}
         </div>

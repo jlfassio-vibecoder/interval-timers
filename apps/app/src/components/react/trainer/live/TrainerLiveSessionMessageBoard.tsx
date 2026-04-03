@@ -22,7 +22,7 @@ export default function TrainerLiveSessionMessageBoard({
 }) {
   const [input, setInput] = useState('');
   const listRef = useRef<HTMLDivElement>(null);
-  const { messages, loading, sendError, sendMessage, hasUserPosted } =
+  const { messages, loading, loadError, sendError, sendMessage, hasUserPosted } =
     useTrainerLiveSessionMessages(sessionId, participantId);
 
   useEffect(() => {
@@ -48,6 +48,12 @@ export default function TrainerLiveSessionMessageBoard({
       {participantId && !hasUserPosted && (
         <p className="text-orange-400 mb-2 text-sm font-medium">Say hi to the group!</p>
       )}
+
+      {loadError ? (
+        <p className="mb-2 text-sm text-amber-200" role="alert">
+          Could not load chat: {loadError}
+        </p>
+      ) : null}
 
       <div
         ref={listRef}
