@@ -62,6 +62,7 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({
       return;
     }
     if (n.coachHref) {
+      onClose();
       window.location.assign(n.coachHref);
     }
   };

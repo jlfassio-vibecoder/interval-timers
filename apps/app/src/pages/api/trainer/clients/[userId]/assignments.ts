@@ -66,6 +66,9 @@ export const POST: APIRoute = async ({ request, cookies, params }) => {
     let body: {
       assignmentType?: string;
       resourceId?: string;
+      exerciseSlug?: string;
+      coachNote?: string | null;
+      dueOn?: string | null;
       startsOn?: string | null;
       expiresOn?: string | null;
     } = {};
@@ -80,7 +83,10 @@ export const POST: APIRoute = async ({ request, cookies, params }) => {
 
     const result = await createClientCoachAssignment(viewerId, userId, role, {
       assignmentType: body.assignmentType ?? '',
-      resourceId: body.resourceId ?? '',
+      resourceId: body.resourceId,
+      exerciseSlug: body.exerciseSlug,
+      coachNote: body.coachNote,
+      dueOn: body.dueOn,
       startsOn: body.startsOn,
       expiresOn: body.expiresOn,
     });

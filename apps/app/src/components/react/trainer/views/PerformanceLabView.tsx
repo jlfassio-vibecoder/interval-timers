@@ -12,10 +12,11 @@ import { adminPaths } from '@/lib/admin/config';
 import type { CoachAssignmentListItem } from '@/lib/supabase/admin/trainer-client-assignments';
 import PerformanceLabCalendarSection from '@/components/react/trainer/views/PerformanceLabCalendarSection';
 import PerformanceLabMessagesSection from '@/components/react/trainer/views/PerformanceLabMessagesSection';
+import PerformanceLabWeekSection from '@/components/react/trainer/views/PerformanceLabWeekSection';
 
-type LabTab = 'programs' | 'calendar' | 'messages';
+type LabTab = 'programs' | 'calendar' | 'week' | 'messages';
 
-type AssignKind = 'program' | 'workout' | 'wod';
+type AssignKind = 'program' | 'workout' | 'wod' | 'exercise';
 
 interface PickerItem {
   id: string;
@@ -50,6 +51,8 @@ const PerformanceLabView: React.FC = () => {
   const [pickerItems, setPickerItems] = useState<PickerItem[]>([]);
   const [pickerLoading, setPickerLoading] = useState(false);
   const [selectedResourceId, setSelectedResourceId] = useState('');
+  const [coachNote, setCoachNote] = useState('');
+  const [dueOn, setDueOn] = useState('');
 
   const load = useCallback(async () => {
     if (!userId) return;
@@ -111,7 +114,9 @@ const PerformanceLabView: React.FC = () => {
         ? '/api/trainer/programs'
         : assignKind === 'workout'
           ? '/api/trainer/workouts'
-          : '/api/trainer/wods';
+          : assignKind === 'wod'
+            ? '/api/trainer/wods'
+            : '/api/trainer/exercises';
     setPickerLoading(true);
     setSelectedResourceId('');
     fetch(path, { credentials: 'include' })
@@ -122,9 +127,15 @@ const PerformanceLabView: React.FC = () => {
         setPickerItems(
           arr
             .map((x: unknown) => {
-              const o = x as { id?: string; title?: string };
+              const o = x as { id?: string; title?: string; slug?: string };
+              const id =
+                typeof o.id === 'string'
+                  ? o.id
+                  : typeof o.slug === 'string'
+                    ? o.slug
+                    : '';
               return {
-                id: typeof o.id === 'string' ? o.id : '',
+                id,
                 title: typeof o.title === 'string' && o.title.trim() ? o.title : 'Item',
               };
             })
@@ -170,16 +181,25 @@ const PerformanceLabView: React.FC = () => {
     if (!userId || !selectedResourceId) return;
     setBusy('assign:create');
     try {
+      const bodyPayload =
+        assignKind === 'exercise'
+          ? {
+              assignmentType: 'exercise' as const,
+              exerciseSlug: selectedResourceId,
+              coachNote: coachNote.trim() || null,
+              dueOn: dueOn.trim() || null,
+            }
+          : {
+              assignmentType: assignKind,
+              resourceId: selectedResourceId,
+            };
       const res = await fetch(
         `/api/trainer/clients/${encodeURIComponent(userId)}/assignments`,
         {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            assignmentType: assignKind,
-            resourceId: selectedResourceId,
-          }),
+          body: JSON.stringify(bodyPayload),
         }
       );
       const body = await res.json().catch(() => ({}));
@@ -188,6 +208,8 @@ const PerformanceLabView: React.FC = () => {
         return;
       }
       setSelectedResourceId('');
+      setCoachNote('');
+      setDueOn('');
       await loadAssignments();
       await load();
     } finally {
@@ -299,6 +321,17 @@ const PerformanceLabView: React.FC = () => {
         </button>
         <button
           type="button"
+          onClick={() => setLabTab('week')}
+          className={`rounded-lg px-4 py-2 font-mono text-xs font-bold uppercase tracking-wide ${
+            labTab === 'week'
+              ? 'bg-orange-light/20 text-orange-light'
+              : 'text-white/50 hover:bg-white/5 hover:text-white/80'
+          }`}
+        >
+          Week
+        </button>
+        <button
+          type="button"
           onClick={() => setLabTab('messages')}
           className={`rounded-lg px-4 py-2 font-mono text-xs font-bold uppercase tracking-wide ${
             labTab === 'messages'
@@ -319,6 +352,8 @@ const PerformanceLabView: React.FC = () => {
       ) : null}
 
       {labTab === 'messages' && userId ? <PerformanceLabMessagesSection userId={userId} /> : null}
+
+      {labTab === 'week' && userId ? <PerformanceLabWeekSection userId={userId} /> : null}
 
       {labTab === 'programs' ? (
         <>
@@ -424,8 +459,8 @@ const PerformanceLabView: React.FC = () => {
         <div className="min-w-0 flex-1">
           <h2 className="font-heading text-xl font-bold">Assignments</h2>
           <p className="mt-1 text-sm text-white/60">
-            Assign programs (enrolls client), workouts, or approved WODs. Clients see open items in HUD
-            notifications.
+            Assign programs (enrolls client), workouts, approved WODs, or published exercises. Clients
+            see open items in HUD notifications; exercises deep-link to Learn.
           </p>
 
           <div className="mt-4 flex flex-wrap items-end gap-3">
@@ -439,10 +474,13 @@ const PerformanceLabView: React.FC = () => {
                 <option value="program">Program</option>
                 <option value="workout">Workout</option>
                 <option value="wod">WOD</option>
+                <option value="exercise">Exercise</option>
               </select>
             </div>
             <div className="min-w-[12rem] flex-1">
-              <label className="mb-1 block font-mono text-[10px] uppercase text-white/50">Resource</label>
+              <label className="mb-1 block font-mono text-[10px] uppercase text-white/50">
+                {assignKind === 'exercise' ? 'Exercise' : 'Resource'}
+              </label>
               <select
                 value={selectedResourceId}
                 onChange={(e) => setSelectedResourceId(e.target.value)}
@@ -457,6 +495,30 @@ const PerformanceLabView: React.FC = () => {
                 ))}
               </select>
             </div>
+            {assignKind === 'exercise' ? (
+              <>
+                <div className="min-w-[10rem] flex-1">
+                  <label className="mb-1 block font-mono text-[10px] uppercase text-white/50">
+                    Coach note
+                  </label>
+                  <input
+                    value={coachNote}
+                    onChange={(e) => setCoachNote(e.target.value)}
+                    placeholder="Optional"
+                    className="w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/30"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block font-mono text-[10px] uppercase text-white/50">Due</label>
+                  <input
+                    type="date"
+                    value={dueOn}
+                    onChange={(e) => setDueOn(e.target.value)}
+                    className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
+                  />
+                </div>
+              </>
+            ) : null}
             <button
               type="button"
               disabled={!!busy || !selectedResourceId}
@@ -489,7 +551,8 @@ const PerformanceLabView: React.FC = () => {
             ) : assignments.length === 0 ? (
               <tr>
                 <td colSpan={4} className="px-6 py-10 text-center text-white/60">
-                  No active assignments. Use the form above to assign a program, workout, or WOD.
+                  No active assignments. Use the form above to assign a program, workout, WOD, or
+                  exercise.
                 </td>
               </tr>
             ) : (
@@ -519,7 +582,6 @@ const PerformanceLabView: React.FC = () => {
         <p className="text-sm font-semibold uppercase tracking-wide text-white/50">Coming soon</p>
         <ul className="mt-2 list-inside list-disc text-sm text-white/45">
           <li>Challenge assignments (Challenge Factory)</li>
-          <li>Weekly activity board</li>
         </ul>
       </div>
         </>
