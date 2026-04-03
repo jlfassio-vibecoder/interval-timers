@@ -9,6 +9,7 @@ import type { Artist, Exercise, WorkoutDetail } from '@/types';
 import { getSupabaseServer } from '@/lib/supabase/server';
 import { isUserInViewerRoster } from '@/lib/supabase/admin/trainer-roster';
 import { supabaseWorkoutRowToArtist } from '@/lib/coach-assignment-map';
+import { getGeneratedExerciseBySlug } from '@/lib/supabase/public/generated-exercise-service';
 
 async function assertTrainerOwnsProgramDb(
   supabase: ReturnType<typeof getSupabaseServer>,
@@ -28,20 +29,24 @@ async function assertTrainerOwnsProgramDb(
   return !!data;
 }
 
-export type CoachAssignmentType = 'program' | 'workout' | 'wod';
+export type CoachAssignmentType = 'program' | 'workout' | 'wod' | 'exercise';
 
 export interface CoachAssignmentListItem {
   id: string;
   assignmentType: CoachAssignmentType;
+  /** UUID resource for program/workout/wod; empty string for exercise assignments. */
   resourceId: string;
   titleSnapshot: string;
   assignedAt: string;
   startsOn: string | null;
   expiresOn: string | null;
+  exerciseSlug?: string | null;
+  coachNote?: string | null;
+  dueOn?: string | null;
 }
 
 export interface ClientCoachAssignmentApiRow extends CoachAssignmentListItem {
-  action: 'set_program' | 'open_workout';
+  action: 'set_program' | 'open_workout' | 'open_exercise';
   programId?: string;
   href?: string;
 }
@@ -50,8 +55,15 @@ const DEFAULT_WOD_IMAGE = '/images/outdoor-calisthenics-workout-001.jpg';
 
 function normalizeType(raw: string): CoachAssignmentType | null {
   const t = raw.trim().toLowerCase();
-  if (t === 'program' || t === 'workout' || t === 'wod') return t;
+  if (t === 'program' || t === 'workout' || t === 'wod' || t === 'exercise') return t;
   return null;
+}
+
+function normalizeExerciseSlug(raw: string): string | null {
+  const s = raw.trim().toLowerCase();
+  if (!s || s.length > 200) return null;
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(s)) return null;
+  return s;
 }
 
 function isExpired(expiresOn: string | null): boolean {
@@ -72,7 +84,7 @@ export async function fetchClientCoachAssignmentsForTrainer(
   const { data, error } = await supabase
     .from('client_coach_assignments')
     .select(
-      'id, assignment_type, resource_id, title_snapshot, assigned_at, starts_on, expires_on, revoked_at'
+      'id, assignment_type, resource_id, title_snapshot, assigned_at, starts_on, expires_on, revoked_at, exercise_slug, coach_note, due_on'
     )
     .eq('trainer_user_id', viewerId)
     .eq('client_user_id', clientUserId)
@@ -85,15 +97,31 @@ export async function fetchClientCoachAssignmentsForTrainer(
   }
 
   return (data ?? [])
-    .filter((row) => row.assignment_type && row.resource_id)
+    .filter((row) => {
+      const t = row.assignment_type as string;
+      if (!t) return false;
+      if (t === 'exercise') return typeof row.exercise_slug === 'string' && row.exercise_slug.trim() !== '';
+      return typeof row.resource_id === 'string' && row.resource_id.length > 0;
+    })
     .map((row) => ({
       id: row.id as string,
       assignmentType: row.assignment_type as CoachAssignmentType,
-      resourceId: row.resource_id as string,
+      resourceId:
+        row.assignment_type === 'exercise'
+          ? ''
+          : typeof row.resource_id === 'string'
+            ? row.resource_id
+            : '',
       titleSnapshot: typeof row.title_snapshot === 'string' ? row.title_snapshot : 'Untitled',
       assignedAt: row.assigned_at as string,
       startsOn: row.starts_on != null ? String(row.starts_on) : null,
       expiresOn: row.expires_on != null ? String(row.expires_on) : null,
+      exerciseSlug:
+        row.assignment_type === 'exercise' && typeof row.exercise_slug === 'string'
+          ? row.exercise_slug
+          : null,
+      coachNote: typeof row.coach_note === 'string' ? row.coach_note : null,
+      dueOn: row.due_on != null ? String(row.due_on) : null,
     }));
 }
 
@@ -153,13 +181,32 @@ async function fetchTitleAndValidateResource(
   return { ok: true, title };
 }
 
+async function validateExerciseSlugForAssign(
+  slug: string
+): Promise<{ ok: true; title: string } | { ok: false; error: string }> {
+  try {
+    const ex = await getGeneratedExerciseBySlug(slug, true);
+    if (!ex) return { ok: false, error: 'Exercise not found or not approved' };
+    const title =
+      typeof ex.exerciseName === 'string' && ex.exerciseName.trim()
+        ? ex.exerciseName.trim()
+        : slug;
+    return { ok: true, title };
+  } catch {
+    return { ok: false, error: 'Failed to validate exercise' };
+  }
+}
+
 export async function createClientCoachAssignment(
   viewerId: string,
   clientUserId: string,
   viewerRole: string,
   body: {
     assignmentType: string;
-    resourceId: string;
+    resourceId?: string;
+    exerciseSlug?: string;
+    coachNote?: string | null;
+    dueOn?: string | null;
     startsOn?: string | null;
     expiresOn?: string | null;
   }
@@ -169,11 +216,30 @@ export async function createClientCoachAssignment(
 
   const type = normalizeType(body.assignmentType);
   if (!type) return { ok: false, error: 'Invalid assignmentType' };
-  const resourceId = body.resourceId?.trim();
-  if (!resourceId) return { ok: false, error: 'resourceId required' };
 
-  const validated = await fetchTitleAndValidateResource(viewerId, type, resourceId);
-  if (!validated.ok) return validated;
+  let validated: { ok: true; title: string } | { ok: false; error: string };
+  let resourceId: string | null = null;
+  let exerciseSlug: string | null = null;
+  const coachNote =
+    typeof body.coachNote === 'string' && body.coachNote.trim() ? body.coachNote.trim() : null;
+  const dueOn =
+    typeof body.dueOn === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(body.dueOn.trim())
+      ? body.dueOn.trim()
+      : null;
+
+  if (type === 'exercise') {
+    const slug = normalizeExerciseSlug(body.exerciseSlug ?? '');
+    if (!slug) return { ok: false, error: 'Valid exerciseSlug required (lowercase letters, numbers, hyphens)' };
+    validated = await validateExerciseSlugForAssign(slug);
+    if (!validated.ok) return validated;
+    exerciseSlug = slug;
+  } else {
+    const rid = body.resourceId?.trim();
+    if (!rid) return { ok: false, error: 'resourceId required' };
+    resourceId = rid;
+    validated = await fetchTitleAndValidateResource(viewerId, type, resourceId);
+    if (!validated.ok) return validated;
+  }
 
   const supabase = getSupabaseServer();
 
@@ -199,7 +265,10 @@ export async function createClientCoachAssignment(
       trainer_user_id: viewerId,
       client_user_id: clientUserId,
       assignment_type: type,
-      resource_id: resourceId,
+      resource_id: type === 'exercise' ? null : resourceId,
+      exercise_slug: type === 'exercise' ? exerciseSlug : null,
+      coach_note: type === 'exercise' ? coachNote : null,
+      due_on: type === 'exercise' ? dueOn : null,
       title_snapshot: validated.title,
       starts_on: body.startsOn?.trim() || null,
       expires_on: body.expiresOn?.trim() || null,
@@ -261,7 +330,7 @@ export async function listOpenCoachAssignmentsForClient(
   const { data, error } = await supabase
     .from('client_coach_assignments')
     .select(
-      'id, assignment_type, resource_id, title_snapshot, assigned_at, starts_on, expires_on, dismissed_at, revoked_at'
+      'id, assignment_type, resource_id, title_snapshot, assigned_at, starts_on, expires_on, dismissed_at, revoked_at, exercise_slug, coach_note, due_on'
     )
     .eq('client_user_id', clientUserId)
     .is('revoked_at', null)
@@ -280,16 +349,26 @@ export async function listOpenCoachAssignmentsForClient(
 
     const assignmentType = row.assignment_type as CoachAssignmentType;
     const id = row.id as string;
-    const resourceId = row.resource_id as string;
+    const resourceId =
+      typeof row.resource_id === 'string' && row.resource_id ? row.resource_id : '';
+    const slug =
+      assignmentType === 'exercise' && typeof row.exercise_slug === 'string'
+        ? row.exercise_slug.trim()
+        : '';
+    if (assignmentType === 'exercise' && !slug) continue;
+
     const base: CoachAssignmentListItem = {
       id,
       assignmentType,
-      resourceId,
+      resourceId: assignmentType === 'exercise' ? '' : resourceId,
       titleSnapshot:
         typeof row.title_snapshot === 'string' ? row.title_snapshot : 'Untitled',
       assignedAt: row.assigned_at as string,
       startsOn: row.starts_on != null ? String(row.starts_on) : null,
       expiresOn,
+      exerciseSlug: assignmentType === 'exercise' ? slug : null,
+      coachNote: typeof row.coach_note === 'string' ? row.coach_note : null,
+      dueOn: row.due_on != null ? String(row.due_on) : null,
     };
 
     if (assignmentType === 'program') {
@@ -297,6 +376,12 @@ export async function listOpenCoachAssignmentsForClient(
         ...base,
         action: 'set_program',
         programId: resourceId,
+      });
+    } else if (assignmentType === 'exercise') {
+      out.push({
+        ...base,
+        action: 'open_exercise',
+        href: `/exercises/${encodeURIComponent(slug)}/learn`,
       });
     } else {
       out.push({
@@ -387,6 +472,7 @@ function generatedWodRowToArtist(row: {
 export type CoachAssignmentPayloadResult =
   | { ok: true; assignmentType: 'program'; programId: string; title: string }
   | { ok: true; assignmentType: 'workout' | 'wod'; artist: Artist }
+  | { ok: true; assignmentType: 'exercise'; slug: string; title: string; href: string }
   | { ok: false; error: string };
 
 export async function getCoachAssignmentPayloadForClient(
@@ -397,7 +483,7 @@ export async function getCoachAssignmentPayloadForClient(
   const { data: row, error } = await supabase
     .from('client_coach_assignments')
     .select(
-      'id, client_user_id, trainer_user_id, assignment_type, resource_id, title_snapshot, dismissed_at, revoked_at, expires_on'
+      'id, client_user_id, trainer_user_id, assignment_type, resource_id, title_snapshot, dismissed_at, revoked_at, expires_on, exercise_slug'
     )
     .eq('id', assignmentId)
     .maybeSingle();
@@ -423,7 +509,7 @@ export async function getCoachAssignmentPayloadForClient(
   if (!trainerUserId) return { ok: false, error: 'Assignment not found' };
 
   const assignmentType = r.assignment_type as CoachAssignmentType;
-  const resourceId = r.resource_id as string;
+  const resourceId = typeof r.resource_id === 'string' ? r.resource_id : '';
   const title =
     typeof r.title_snapshot === 'string' && r.title_snapshot.trim()
       ? r.title_snapshot.trim()
@@ -432,11 +518,30 @@ export async function getCoachAssignmentPayloadForClient(
   // Defense-in-depth: service role bypasses RLS — require resource owner to match assignment trainer
   // so poisoned rows (e.g. from a compromised JWT path) cannot leak other trainers' content.
 
+  if (assignmentType === 'exercise') {
+    const slug =
+      typeof (r as { exercise_slug?: string }).exercise_slug === 'string'
+        ? (r as { exercise_slug: string }).exercise_slug.trim()
+        : '';
+    if (!slug) return { ok: false, error: 'Assignment not found' };
+    const ex = await validateExerciseSlugForAssign(slug);
+    if (!ex.ok) return { ok: false, error: ex.error };
+    return {
+      ok: true,
+      assignmentType: 'exercise',
+      slug,
+      title: ex.title,
+      href: `/exercises/${encodeURIComponent(slug)}/learn`,
+    };
+  }
+
   if (assignmentType === 'program') {
     const owns = await assertTrainerOwnsProgramDb(supabase, trainerUserId, resourceId);
     if (!owns) return { ok: false, error: 'Assignment not found' };
     return { ok: true, assignmentType: 'program', programId: resourceId, title };
   }
+
+  if (!resourceId) return { ok: false, error: 'Assignment not found' };
 
   if (assignmentType === 'workout') {
     const { data: w, error: wErr } = await supabase

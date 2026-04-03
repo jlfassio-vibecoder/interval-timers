@@ -232,12 +232,15 @@ export interface Database {
           id: string;
           trainer_user_id: string;
           client_user_id: string;
-          assignment_type: 'program' | 'workout' | 'wod';
-          resource_id: string;
+          assignment_type: 'program' | 'workout' | 'wod' | 'exercise';
+          resource_id: string | null;
           assigned_at: string;
           starts_on: string | null;
           expires_on: string | null;
           title_snapshot: string;
+          exercise_slug: string | null;
+          coach_note: string | null;
+          due_on: string | null;
           dismissed_at: string | null;
           revoked_at: string | null;
           created_at: string;
@@ -246,12 +249,15 @@ export interface Database {
           id?: string;
           trainer_user_id: string;
           client_user_id: string;
-          assignment_type: 'program' | 'workout' | 'wod';
-          resource_id: string;
+          assignment_type: 'program' | 'workout' | 'wod' | 'exercise';
+          resource_id?: string | null;
           assigned_at?: string;
           starts_on?: string | null;
           expires_on?: string | null;
           title_snapshot?: string;
+          exercise_slug?: string | null;
+          coach_note?: string | null;
+          due_on?: string | null;
           dismissed_at?: string | null;
           revoked_at?: string | null;
           created_at?: string;
@@ -262,6 +268,72 @@ export interface Database {
           starts_on?: string | null;
           expires_on?: string | null;
           title_snapshot?: string;
+          coach_note?: string | null;
+          due_on?: string | null;
+        };
+        Relationships: [];
+      };
+      client_weekly_activity_boards: {
+        Row: {
+          id: string;
+          trainer_user_id: string;
+          client_user_id: string;
+          week_start_date: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          trainer_user_id: string;
+          client_user_id: string;
+          week_start_date: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          week_start_date?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      client_weekly_activity_cards: {
+        Row: {
+          id: string;
+          board_id: string;
+          scheduled_date: string;
+          title: string;
+          activity_type: string;
+          duration_minutes: number | null;
+          notes: string | null;
+          status: string;
+          source_assignment_id: string | null;
+          sort_order: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          board_id: string;
+          scheduled_date: string;
+          title: string;
+          activity_type?: string;
+          duration_minutes?: number | null;
+          notes?: string | null;
+          status?: string;
+          source_assignment_id?: string | null;
+          sort_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          scheduled_date?: string;
+          title?: string;
+          activity_type?: string;
+          duration_minutes?: number | null;
+          notes?: string | null;
+          status?: string;
+          sort_order?: number;
+          updated_at?: string;
         };
         Relationships: [];
       };

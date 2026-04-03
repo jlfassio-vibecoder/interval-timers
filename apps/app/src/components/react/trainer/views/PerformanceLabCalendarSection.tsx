@@ -18,6 +18,9 @@ import {
 } from '@dnd-kit/core';
 import type { CoachAssignmentListItem } from '@/lib/supabase/admin/trainer-client-assignments';
 import type { TrainerCalendarApiEvent } from '@/lib/supabase/admin/trainer-client-calendar';
+import type { WeeklyActivityCardRow } from '@/lib/supabase/admin/trainer-client-weekly-board';
+import { uniqueMondaysForDates, truncateCardTitle } from '@/lib/performance-lab/weekly-board-dates';
+import { missionControlApiAuthHeaders } from '@/lib/mission-control-api-auth';
 
 function addDaysIso(isoDate: string, days: number): string {
   const [y, m, d] = isoDate.split('-').map(Number);
@@ -72,10 +75,12 @@ function DayColumn({
   date,
   label,
   events,
+  weeklyActivities,
 }: {
   date: string;
   label: string;
   events: TrainerCalendarApiEvent[];
+  weeklyActivities: WeeklyActivityCardRow[];
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: date });
   const programEvents = events.filter((e) => e.kind === 'program');
@@ -105,6 +110,19 @@ function DayColumn({
             </span>
           </div>
         ))}
+        {weeklyActivities.map((c) => (
+          <div
+            key={`wb-${c.id}`}
+            className="mb-1 max-w-full truncate rounded-full border border-emerald-400/35 bg-emerald-500/12 px-2 py-0.5 text-center font-mono text-[9px] text-emerald-100/90"
+            title={
+              c.status !== 'planned'
+                ? `${c.title} (${c.status})`
+                : `${c.title} — Week activity`
+            }
+          >
+            {truncateCardTitle(c.title)}
+          </div>
+        ))}
         {coachEvents.map((ev) => (
           <CoachInstanceDraggable key={ev.instanceId} instanceId={ev.instanceId} title={ev.title} />
         ))}
@@ -122,6 +140,7 @@ const PerformanceLabCalendarSection: React.FC<PerformanceLabCalendarSectionProps
   const [weekStart, setWeekStart] = useState(() => mondayOfWeekUtc(today));
   const [timezone, setTimezone] = useState('UTC');
   const [events, setEvents] = useState<TrainerCalendarApiEvent[]>([]);
+  const [weeklyByDay, setWeeklyByDay] = useState<Record<string, WeeklyActivityCardRow[]>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busyPatch, setBusyPatch] = useState(false);
@@ -137,25 +156,60 @@ const PerformanceLabCalendarSection: React.FC<PerformanceLabCalendarSectionProps
   const loadCalendar = useCallback(async () => {
     setLoading(true);
     setEvents([]);
+    setWeeklyByDay({});
     setError(null);
     try {
+      const auth = await missionControlApiAuthHeaders();
+      const weekDayList = Array.from({ length: 7 }, (_, i) => addDaysIso(weekStart, i));
+      const mondays = uniqueMondaysForDates(weekDayList);
       const q = new URLSearchParams({ from: weekStart, to: weekEnd });
-      const res = await fetch(
-        `/api/trainer/clients/${encodeURIComponent(userId)}/calendar?${q}`,
-        { credentials: 'include' }
-      );
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setError(typeof body.error === 'string' ? body.error : 'Failed to load calendar');
+      const calendarUrl = `/api/trainer/clients/${encodeURIComponent(userId)}/calendar?${q}`;
+      const fetches: Promise<Response>[] = [
+        fetch(calendarUrl, { credentials: 'include', headers: { ...auth } }),
+        ...mondays.map((ws) =>
+          fetch(
+            `/api/trainer/clients/${encodeURIComponent(userId)}/weekly-board?weekStart=${encodeURIComponent(ws)}`,
+            { credentials: 'include', headers: { ...auth } }
+          )
+        ),
+      ];
+      const results = await Promise.all(fetches);
+      const calRes = results[0];
+      const calBody = await calRes.json().catch(() => ({}));
+      if (!calRes.ok) {
+        setError(typeof calBody.error === 'string' ? calBody.error : 'Failed to load calendar');
         setEvents([]);
+        setWeeklyByDay({});
         return;
       }
-      setTimezone(typeof body.timezone === 'string' ? body.timezone : 'UTC');
-      const list = Array.isArray(body.events) ? (body.events as TrainerCalendarApiEvent[]) : [];
+      setTimezone(typeof calBody.timezone === 'string' ? calBody.timezone : 'UTC');
+      const list = Array.isArray(calBody.events) ? (calBody.events as TrainerCalendarApiEvent[]) : [];
       setEvents(list);
+
+      const daySet = new Set(weekDayList);
+      const merged: Record<string, WeeklyActivityCardRow[]> = {};
+      for (const d of weekDayList) merged[d] = [];
+
+      for (let i = 1; i < results.length; i++) {
+        const wbRes = results[i];
+        const wbBody = await wbRes.json().catch(() => ({}));
+        if (!wbRes.ok) continue;
+        const cards = Array.isArray(wbBody.cards) ? (wbBody.cards as WeeklyActivityCardRow[]) : [];
+        for (const c of cards) {
+          const ds = c.scheduledDate;
+          if (daySet.has(ds)) {
+            merged[ds].push(c);
+          }
+        }
+      }
+      for (const d of weekDayList) {
+        merged[d].sort((a, b) => a.sortOrder - b.sortOrder || a.id.localeCompare(b.id));
+      }
+      setWeeklyByDay(merged);
     } catch {
       setError('Failed to load calendar');
       setEvents([]);
+      setWeeklyByDay({});
     } finally {
       setLoading(false);
     }
@@ -187,12 +241,13 @@ const PerformanceLabCalendarSection: React.FC<PerformanceLabCalendarSectionProps
       const scheduledAt = `${targetDate}T12:00:00.000Z`;
       setBusyPatch(true);
       try {
+        const auth = await missionControlApiAuthHeaders();
         const res = await fetch(
           `/api/trainer/clients/${encodeURIComponent(userId)}/calendar/instances/${encodeURIComponent(instanceId)}`,
           {
             method: 'PATCH',
             credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { ...auth, 'Content-Type': 'application/json' },
             body: JSON.stringify({ scheduledAt }),
           }
         );
@@ -216,13 +271,14 @@ const PerformanceLabCalendarSection: React.FC<PerformanceLabCalendarSectionProps
     }
     setBusyAdd(true);
     try {
+      const auth = await missionControlApiAuthHeaders();
       const scheduledAt = `${date}T12:00:00.000Z`;
       const res = await fetch(
         `/api/trainer/clients/${encodeURIComponent(userId)}/calendar/instances`,
         {
           method: 'POST',
           credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { ...auth, 'Content-Type': 'application/json' },
           body: JSON.stringify({ assignmentId: pickAssignmentId, scheduledAt }),
         }
       );
@@ -283,8 +339,9 @@ const PerformanceLabCalendarSection: React.FC<PerformanceLabCalendarSectionProps
       ) : null}
 
       <p className="text-sm text-white/55">
-        Program workouts are read-only. Drag orange coach items to another day to reschedule (stored as
-        UTC midday for the chosen date). Use the row below to place an assignment on a day.
+        Program workouts are read-only. Emerald pills are Week-board activities (same titles as the Week
+        tab). Drag orange coach items to another day to reschedule (stored as UTC midday for the chosen
+        date). Use the row below to place an assignment on a day.
       </p>
 
       <DndContext sensors={sensors} onDragEnd={(e) => void onDragEnd(e)}>
@@ -295,6 +352,7 @@ const PerformanceLabCalendarSection: React.FC<PerformanceLabCalendarSectionProps
               date={date}
               label={WEEK_LABELS[i] ?? ''}
               events={byDate.get(date) ?? []}
+              weeklyActivities={weeklyByDay[date] ?? []}
             />
           ))}
         </div>
