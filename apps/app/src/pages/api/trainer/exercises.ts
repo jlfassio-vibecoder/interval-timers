@@ -11,7 +11,14 @@ import { getPublishedExercises } from '@/lib/supabase/public/generated-exercise-
 
 export const GET: APIRoute = async ({ request, cookies }) => {
   try {
-    await verifyRosterAccessRequest(request, cookies);
+    const { role } = await verifyRosterAccessRequest(request, cookies);
+    // Same as /api/trainer/programs|workouts|wods: hosts are not program-trainers for this picker.
+    if (role === 'host') {
+      return new Response(JSON.stringify([]), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
     const list = await getPublishedExercises();
     const items = list.map((ex) => ({
       id: ex.slug,

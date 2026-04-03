@@ -6,6 +6,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   addDaysDateOnly,
+  isLocalMondayDateOnly,
   isScheduledDateInWeek,
   isValidDateOnly,
   mondayOfWeekContainingLocal,
@@ -19,6 +20,13 @@ describe('weekly-board-dates', () => {
     expect(isValidDateOnly('2026-04-06')).toBe(true);
     expect(isValidDateOnly('2026-4-6')).toBe(false);
     expect(isValidDateOnly('')).toBe(false);
+    expect(isValidDateOnly('2026-02-30')).toBe(false);
+    expect(isValidDateOnly('2026-13-01')).toBe(false);
+  });
+
+  it('isLocalMondayDateOnly', () => {
+    expect(isLocalMondayDateOnly('2026-04-06')).toBe(true);
+    expect(isLocalMondayDateOnly('2026-04-07')).toBe(false);
   });
 
   it('mondayOfWeekContainingLocal — Wednesday → that week Monday', () => {

@@ -10,8 +10,8 @@ import { verifyRosterAccessRequest } from '@/lib/supabase/admin/auth';
 import {
   createWeeklyActivityCard,
   getWeeklyBoardForTrainer,
-  isValidDateOnly,
 } from '@/lib/supabase/admin/trainer-client-weekly-board';
+import { isLocalMondayDateOnly } from '@/lib/performance-lab/weekly-board-dates';
 import { isProgramClientOfTrainer } from '@/lib/supabase/admin/trainer-roster';
 
 export const GET: APIRoute = async ({ request, cookies, params, url }) => {
@@ -32,7 +32,7 @@ export const GET: APIRoute = async ({ request, cookies, params, url }) => {
     }
 
     const weekStart = url.searchParams.get('weekStart')?.trim() ?? '';
-    if (!isValidDateOnly(weekStart)) {
+    if (!isLocalMondayDateOnly(weekStart)) {
       return new Response(JSON.stringify({ error: 'weekStart query required (YYYY-MM-DD, Monday of week)' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' },
@@ -155,6 +155,7 @@ export const POST: APIRoute = async ({ request, cookies, params }) => {
     if (!result.ok) {
       const bad =
         result.error === 'Invalid date' ||
+        result.error === 'weekStartDate must be a Monday (YYYY-MM-DD)' ||
         result.error === 'scheduledDate must fall in the board week' ||
         result.error === 'Title required' ||
         result.error === 'Title too long';
