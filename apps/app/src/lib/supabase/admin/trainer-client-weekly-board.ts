@@ -55,10 +55,7 @@ function isScheduledDateInWeek(scheduledDate: string, weekStartMonday: string): 
   return isScheduledDateInWeekPure(scheduledDate, weekStartMonday);
 }
 
-async function assertProgramClient(
-  trainerUserId: string,
-  clientUserId: string
-): Promise<boolean> {
+async function assertProgramClient(trainerUserId: string, clientUserId: string): Promise<boolean> {
   return isProgramClientOfTrainer(trainerUserId, clientUserId);
 }
 
@@ -92,7 +89,10 @@ export async function getWeeklyBoardForTrainer(
       ok: false,
       reason: 'database_error',
       message: bErr.message,
-      code: typeof (bErr as { code?: string }).code === 'string' ? (bErr as { code: string }).code : undefined,
+      code:
+        typeof (bErr as { code?: string }).code === 'string'
+          ? (bErr as { code: string }).code
+          : undefined,
     };
   }
 
@@ -350,7 +350,8 @@ export async function updateWeeklyActivityCard(params: {
     }
     patch.scheduled_date = nextScheduled;
   }
-  if (params.activityType !== undefined) patch.activity_type = params.activityType.trim() || 'activity';
+  if (params.activityType !== undefined)
+    patch.activity_type = params.activityType.trim() || 'activity';
   if (params.durationMinutes !== undefined) {
     patch.duration_minutes =
       params.durationMinutes != null && Number.isFinite(params.durationMinutes)
@@ -381,8 +382,7 @@ export async function updateWeeklyActivityCard(params: {
     return { ok: false, error: 'Failed to update card' };
   }
 
-  const newBoardId =
-    typeof patch.board_id === 'string' ? patch.board_id : oldBoardId;
+  const newBoardId = typeof patch.board_id === 'string' ? patch.board_id : oldBoardId;
   await supabase
     .from('client_weekly_activity_boards')
     .update({ updated_at: new Date().toISOString() })

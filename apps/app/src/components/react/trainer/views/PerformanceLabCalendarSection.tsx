@@ -62,7 +62,7 @@ function CoachInstanceDraggable({ instanceId, title }: { instanceId: string; tit
       ref={setNodeRef}
       {...listeners}
       {...attributes}
-      className={`mb-1 cursor-grab rounded border border-orange-light/50 bg-orange-light/15 px-1.5 py-1 font-mono text-[10px] text-orange-light active:cursor-grabbing ${
+      className={`border-orange-light/50 bg-orange-light/15 mb-1 cursor-grab rounded border px-1.5 py-1 font-mono text-[10px] text-orange-light active:cursor-grabbing ${
         isDragging ? 'opacity-40' : ''
       }`}
     >
@@ -113,11 +113,9 @@ function DayColumn({
         {weeklyActivities.map((c) => (
           <div
             key={`wb-${c.id}`}
-            className="mb-1 max-w-full truncate rounded-full border border-emerald-400/35 bg-emerald-500/12 px-2 py-0.5 text-center font-mono text-[9px] text-emerald-100/90"
+            className="bg-emerald-500/12 mb-1 max-w-full truncate rounded-full border border-emerald-400/35 px-2 py-0.5 text-center font-mono text-[9px] text-emerald-100/90"
             title={
-              c.status !== 'planned'
-                ? `${c.title} (${c.status})`
-                : `${c.title} — Week activity`
+              c.status !== 'planned' ? `${c.title} (${c.status})` : `${c.title} — Week activity`
             }
           >
             {truncateCardTitle(c.title)}
@@ -183,7 +181,9 @@ const PerformanceLabCalendarSection: React.FC<PerformanceLabCalendarSectionProps
         return;
       }
       setTimezone(typeof calBody.timezone === 'string' ? calBody.timezone : 'UTC');
-      const list = Array.isArray(calBody.events) ? (calBody.events as TrainerCalendarApiEvent[]) : [];
+      const list = Array.isArray(calBody.events)
+        ? (calBody.events as TrainerCalendarApiEvent[])
+        : [];
       setEvents(list);
 
       const daySet = new Set(weekDayList);
@@ -334,14 +334,12 @@ const PerformanceLabCalendarSection: React.FC<PerformanceLabCalendarSectionProps
         </div>
       </div>
 
-      {error ? (
-        <p className="text-sm text-red-300">{error}</p>
-      ) : null}
+      {error ? <p className="text-sm text-red-300">{error}</p> : null}
 
       <p className="text-sm text-white/55">
-        Program workouts are read-only. Emerald pills are Week-board activities (same titles as the Week
-        tab). Drag orange coach items to another day to reschedule (stored as UTC midday for the chosen
-        date). Use the row below to place an assignment on a day.
+        Program workouts are read-only. Emerald pills are Week-board activities (same titles as the
+        Week tab). Drag orange coach items to another day to reschedule (stored as UTC midday for
+        the chosen date). Use the row below to place an assignment on a day.
       </p>
 
       <DndContext sensors={sensors} onDragEnd={(e) => void onDragEnd(e)}>

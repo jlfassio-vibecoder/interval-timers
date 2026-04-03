@@ -48,7 +48,8 @@ export const PATCH: APIRoute = async ({ request, cookies, params }) => {
     );
     if (!result.ok) {
       const notFound =
-        result.error === 'Client not found or not in your roster' || result.error === 'Instance not found';
+        result.error === 'Client not found or not in your roster' ||
+        result.error === 'Instance not found';
       return new Response(JSON.stringify({ error: result.error }), {
         status: notFound ? 404 : 400,
         headers: { 'Content-Type': 'application/json' },

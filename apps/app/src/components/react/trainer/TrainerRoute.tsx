@@ -17,6 +17,7 @@ import {
   ExternalLink,
   FileText,
   UserCircle,
+  Video,
 } from 'lucide-react';
 import { AppProvider, useAppContext } from '../../../contexts/AppContext';
 import { AuthModal } from '@interval-timers/auth-ui';
@@ -32,10 +33,14 @@ import TrainerWelcomeEditorView from './views/TrainerWelcomeEditorView';
 import FluidBackground from '../FluidBackground';
 import PageViewTracker from '@/components/react/PageViewTracker';
 import { adminPaths } from '@/lib/admin/config';
+import TrainerLiveClientJoinPage from './live/TrainerLiveClientJoinPage';
+import TrainerLiveLobbyView from './live/TrainerLiveLobbyView';
+import TrainerLiveHostView from './live/TrainerLiveHostView';
 
 const TRAINER_NAV = [
   { path: '/', label: 'Mission Control', icon: LayoutDashboard },
   { path: '/roster', label: 'Roster', icon: Users },
+  { path: '/live', label: 'Live', icon: Video },
   { path: '/roster/welcome', label: 'Studio invite', icon: FileText },
   { path: '/roster/welcome/coach', label: 'Coach landing', icon: UserCircle },
   { path: '/intel', label: 'Intel', icon: BarChart3 },
@@ -43,6 +48,9 @@ const TRAINER_NAV = [
 
 function isTrainerNavActive(path: string, pathname: string): boolean {
   if (path === '/') return pathname === '/' || pathname === '';
+  if (path === '/live') {
+    return pathname === '/live' || pathname.startsWith('/live/');
+  }
   if (path === '/roster/welcome/coach') {
     return pathname === '/roster/welcome/coach';
   }
@@ -57,8 +65,10 @@ function isTrainerNavActive(path: string, pathname: string): boolean {
   return pathname === path || pathname.startsWith(path + '/');
 }
 
-const TrainerLayout: React.FC<{ showTrainerNav: boolean }> = ({ showTrainerNav }) => {
+const TrainerLayout: React.FC = () => {
   const location = useLocation();
+  const { isTrainer } = useAppContext();
+  const showTrainerNav = isTrainer;
   return (
     <div className="flex min-h-screen bg-black text-white">
       <PageViewTracker pathname={location.pathname} supabase={supabase} appId="app" />
@@ -128,16 +138,13 @@ const TrainerLayout: React.FC<{ showTrainerNav: boolean }> = ({ showTrainerNav }
   );
 };
 
-const TrainerGuard = () => {
-  const { user, profile, isMissionControlStaff, isTrainer } = useAppContext();
+/** Mission Control auth + staff check; renders child routes via Outlet */
+const TrainerAccessGate: React.FC = () => {
+  const { user, isMissionControlStaff } = useAppContext();
   const [showAuth, setShowAuth] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
 
   useEffect(() => {
-    // Wait for initial auth check (user is null initially, but onAuthStateChanged fires quickly)
-    // A better pattern might be an isLoading flag in context, but checking against null/undefined if possible
-    // Here we'll just wait a tick or rely on user state changes.
-    // For now, let's assume if user is null after a short delay, they are not logged in.
     const timer = setTimeout(() => setAuthChecked(true), 1000);
     return () => clearTimeout(timer);
   }, []);
@@ -212,6 +219,7 @@ const TrainerGuard = () => {
             Return to Base
           </a>
           <button
+            type="button"
             onClick={() =>
               window.alert('Contact support to upgrade your account to Trainer status.')
             }
@@ -224,28 +232,63 @@ const TrainerGuard = () => {
     );
   }
 
+  return <Outlet />;
+};
+
+function TrainerLiveLobbyRoute() {
+  const { isTrainer } = useAppContext();
+  return isTrainer ? <TrainerLiveLobbyView /> : <Navigate to="/" replace />;
+}
+
+function TrainerLiveHostRoute() {
+  const { isTrainer } = useAppContext();
+  return isTrainer ? <TrainerLiveHostView /> : <Navigate to="/" replace />;
+}
+
+function TrainerRosterRoute() {
+  const { isTrainer } = useAppContext();
+  return isTrainer ? <RosterView /> : <Navigate to="/" replace />;
+}
+
+function TrainerStudioWelcomeRoute() {
+  const { isTrainer } = useAppContext();
+  return isTrainer ? <StudioWelcomeEditorView /> : <Navigate to="/" replace />;
+}
+
+function TrainerCoachWelcomeRoute() {
+  const { isTrainer } = useAppContext();
+  return isTrainer ? <TrainerWelcomeEditorView /> : <Navigate to="/" replace />;
+}
+
+function TrainerClientMissionRoute() {
+  const { isTrainer } = useAppContext();
+  return isTrainer ? <ClientMissionControlLayout /> : <Navigate to="/" replace />;
+}
+
+function TrainerIntelRoute() {
+  const { isTrainer } = useAppContext();
+  return isTrainer ? <IntelView /> : <Navigate to="/" replace />;
+}
+
+const TrainerBrowser: React.FC = () => {
   return (
     <BrowserRouter basename="/trainer">
       <Routes>
-        <Route path="/" element={<TrainerLayout showTrainerNav={isTrainer} />}>
-          <Route index element={<TrainerDashboard profile={profile} />} />
-          <Route path="roster" element={isTrainer ? <RosterView /> : <Navigate to="/" replace />} />
-          <Route
-            path="roster/welcome"
-            element={isTrainer ? <StudioWelcomeEditorView /> : <Navigate to="/" replace />}
-          />
-          <Route
-            path="roster/welcome/coach"
-            element={isTrainer ? <TrainerWelcomeEditorView /> : <Navigate to="/" replace />}
-          />
-          <Route
-            path="roster/:userId"
-            element={isTrainer ? <ClientMissionControlLayout /> : <Navigate to="/" replace />}
-          >
-            <Route index element={<ClientDetailView />} />
-            <Route path="lab" element={<PerformanceLabView />} />
+        <Route path="live/join/:sessionId" element={<TrainerLiveClientJoinPage />} />
+        <Route element={<TrainerAccessGate />}>
+          <Route path="/" element={<TrainerLayout />}>
+            <Route index element={<TrainerDashboard />} />
+            <Route path="roster" element={<TrainerRosterRoute />} />
+            <Route path="roster/welcome" element={<TrainerStudioWelcomeRoute />} />
+            <Route path="roster/welcome/coach" element={<TrainerCoachWelcomeRoute />} />
+            <Route path="roster/:userId" element={<TrainerClientMissionRoute />}>
+              <Route index element={<ClientDetailView />} />
+              <Route path="lab" element={<PerformanceLabView />} />
+            </Route>
+            <Route path="intel" element={<TrainerIntelRoute />} />
+            <Route path="live" element={<TrainerLiveLobbyRoute />} />
+            <Route path="live/:sessionId" element={<TrainerLiveHostRoute />} />
           </Route>
-          <Route path="intel" element={isTrainer ? <IntelView /> : <Navigate to="/" replace />} />
         </Route>
       </Routes>
     </BrowserRouter>
@@ -255,7 +298,7 @@ const TrainerGuard = () => {
 const TrainerRoute: React.FC = () => {
   return (
     <AppProvider>
-      <TrainerGuard />
+      <TrainerBrowser />
     </AppProvider>
   );
 };

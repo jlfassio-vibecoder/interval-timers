@@ -8,7 +8,10 @@
 import type { WorkoutBlock } from '@/lib/supabase/admin/workout-details';
 import type { Artist, WorkoutComponent, WorkoutDetail } from '@/types';
 
-export function workoutBlocksToWorkoutDetail(blocks: unknown, fallbackTitle: string): WorkoutDetail {
+export function workoutBlocksToWorkoutDetail(
+  blocks: unknown,
+  fallbackTitle: string
+): WorkoutDetail {
   const arr = Array.isArray(blocks) ? (blocks as WorkoutBlock[]) : [];
   const find = (t: WorkoutBlock['type']) => arr.find((b) => b.type === t);
   const toComp = (b: WorkoutBlock | undefined, def: string): WorkoutComponent => ({

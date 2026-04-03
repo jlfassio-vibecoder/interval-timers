@@ -33,15 +33,9 @@ export const POST: APIRoute = async ({ request, cookies, params }) => {
           ? body.programId
           : null;
 
-    const result = await setTrainerRecommendedActiveProgram(
-      viewerId,
-      userId,
-      programId,
-      role
-    );
+    const result = await setTrainerRecommendedActiveProgram(viewerId, userId, programId, role);
     if (!result.ok) {
-      const status =
-        result.error === 'Client not found or not in your roster' ? 404 : 400;
+      const status = result.error === 'Client not found or not in your roster' ? 404 : 400;
       return new Response(JSON.stringify({ error: result.error }), {
         status,
         headers: { 'Content-Type': 'application/json' },

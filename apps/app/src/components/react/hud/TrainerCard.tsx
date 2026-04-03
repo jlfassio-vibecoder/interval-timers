@@ -44,7 +44,7 @@ const TrainerCard: React.FC = () => {
             <button
               type="button"
               onClick={() => setMessagesOpen(true)}
-              className="mt-2 w-full rounded-lg border border-orange-light/40 bg-orange-light/10 px-2 py-1.5 font-mono text-[10px] font-bold uppercase tracking-wide text-orange-light hover:bg-orange-light/20"
+              className="border-orange-light/40 bg-orange-light/10 hover:bg-orange-light/20 mt-2 w-full rounded-lg border px-2 py-1.5 font-mono text-[10px] font-bold uppercase tracking-wide text-orange-light"
             >
               Message coach
             </button>

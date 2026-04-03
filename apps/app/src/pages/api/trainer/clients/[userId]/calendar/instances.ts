@@ -39,7 +39,13 @@ export const POST: APIRoute = async ({ request, cookies, params }) => {
       });
     }
 
-    const result = await createCoachScheduleInstance(viewerId, userId, role, assignmentId, scheduledAt);
+    const result = await createCoachScheduleInstance(
+      viewerId,
+      userId,
+      role,
+      assignmentId,
+      scheduledAt
+    );
     if (!result.ok) {
       const notFound =
         result.error === 'Client not found or not in your roster' ||

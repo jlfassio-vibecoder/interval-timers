@@ -7,12 +7,18 @@
 
 import React, { useEffect, useState } from 'react';
 import { Outlet, useNavigate, useParams, NavLink } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Video } from 'lucide-react';
+import { useAppContext } from '@/contexts/AppContext';
+import { supabase } from '@/lib/supabase/supabase-instance';
+import { trainerLiveParticipantStorageKey } from '@/lib/trainer-live/storage';
 
 const ClientMissionControlLayout: React.FC = () => {
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
+  const { isTrainer } = useAppContext();
   const [header, setHeader] = useState<{ name: string; email: string | null } | null>(null);
+  const [liveBusy, setLiveBusy] = useState(false);
+  const [liveErr, setLiveErr] = useState<string | null>(null);
 
   useEffect(() => {
     if (!userId) return;
@@ -38,6 +44,33 @@ const ClientMissionControlLayout: React.FC = () => {
       cancelled = true;
     };
   }, [userId]);
+
+  const startLiveForClient = async () => {
+    if (!userId) return;
+    setLiveErr(null);
+    setLiveBusy(true);
+    try {
+      const { data, error } = await supabase.rpc('trainer_live_create_session', {
+        p_shell: 'video_only',
+        p_invited_client_user_id: userId,
+      });
+      if (error) {
+        setLiveErr(error.message);
+        return;
+      }
+      const row = data as { session_id?: string; participant_id?: string } | null;
+      const sid = row?.session_id;
+      const pid = row?.participant_id;
+      if (!sid || !pid) {
+        setLiveErr('Could not start live session');
+        return;
+      }
+      sessionStorage.setItem(trainerLiveParticipantStorageKey(sid), pid);
+      navigate(`/live/${sid}`);
+    } finally {
+      setLiveBusy(false);
+    }
+  };
 
   const tabClass = ({ isActive }: { isActive: boolean }) =>
     `rounded-t-lg border border-b-0 px-4 py-2 text-sm font-semibold uppercase tracking-wide transition-colors ${
@@ -66,14 +99,32 @@ const ClientMissionControlLayout: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex gap-1">
-          <NavLink to="." end className={tabClass}>
-            View Stats
-          </NavLink>
-          <NavLink to="lab" className={tabClass}>
-            Performance Lab
-          </NavLink>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex gap-1">
+            <NavLink to="." end className={tabClass}>
+              View Stats
+            </NavLink>
+            <NavLink to="lab" className={tabClass}>
+              Performance Lab
+            </NavLink>
+          </div>
+          {isTrainer ? (
+            <button
+              type="button"
+              disabled={liveBusy || !userId}
+              onClick={() => void startLiveForClient()}
+              className="border-orange-light/40 bg-orange-light/10 hover:bg-orange-light/20 ml-auto flex items-center gap-2 rounded-t-lg border border-b-0 px-4 py-2 text-sm font-semibold uppercase tracking-wide text-orange-light transition-colors disabled:opacity-50 md:ml-0"
+            >
+              <Video className="h-4 w-4" />
+              {liveBusy ? 'Starting…' : 'Live video'}
+            </button>
+          ) : null}
         </div>
+        {liveErr ? (
+          <p className="text-sm text-red-300" role="alert">
+            {liveErr}
+          </p>
+        ) : null}
       </div>
 
       <Outlet />

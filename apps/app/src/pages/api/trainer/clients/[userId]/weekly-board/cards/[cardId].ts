@@ -33,10 +33,13 @@ export const PATCH: APIRoute = async ({ request, cookies, params }) => {
 
     const inRoster = await isProgramClientOfTrainer(viewerId, clientUserId);
     if (!inRoster) {
-      return new Response(JSON.stringify({ error: 'Client not found or not in your program roster' }), {
-        status: 404,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return new Response(
+        JSON.stringify({ error: 'Client not found or not in your program roster' }),
+        {
+          status: 404,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
     }
 
     let body: {
@@ -128,10 +131,13 @@ export const DELETE: APIRoute = async ({ request, cookies, params }) => {
 
     const inRoster = await isProgramClientOfTrainer(viewerId, clientUserId);
     if (!inRoster) {
-      return new Response(JSON.stringify({ error: 'Client not found or not in your program roster' }), {
-        status: 404,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return new Response(
+        JSON.stringify({ error: 'Client not found or not in your program roster' }),
+        {
+          status: 404,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
     }
 
     const result = await deleteWeeklyActivityCard(viewerId, clientUserId, cardId);

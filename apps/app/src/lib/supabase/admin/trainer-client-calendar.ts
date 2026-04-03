@@ -69,7 +69,11 @@ export type TrainerCalendarApiEvent =
 
 async function fetchClientTimezone(clientUserId: string): Promise<string> {
   const supabase = getSupabaseServer();
-  const { data } = await supabase.from('profiles').select('timezone').eq('id', clientUserId).maybeSingle();
+  const { data } = await supabase
+    .from('profiles')
+    .select('timezone')
+    .eq('id', clientUserId)
+    .maybeSingle();
   const tz = (data as { timezone?: string | null } | null)?.timezone;
   return typeof tz === 'string' && tz.trim() ? tz.trim() : 'UTC';
 }
@@ -86,7 +90,9 @@ function scheduleFromProgramWeekRows(rows: ProgramWeekRow[]): ProgramSchedule[] 
   }));
 }
 
-export async function fetchProgramsForCalendarForClient(clientUserId: string): Promise<ProgramForCalendar[]> {
+export async function fetchProgramsForCalendarForClient(
+  clientUserId: string
+): Promise<ProgramForCalendar[]> {
   const supabase = getSupabaseServer();
   const { data: rows, error } = await supabase
     .from('user_programs')
