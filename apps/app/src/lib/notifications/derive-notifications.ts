@@ -24,7 +24,7 @@ export interface DerivedNotification {
   message: string;
   /** Coach assignment (from /api/me/coach-assignments). */
   assignmentId?: string;
-  coachAction?: 'set_program' | 'open_workout' | 'open_exercise';
+  coachAction?: 'set_program' | 'open_workout' | 'open_exercise' | 'open_challenge';
   coachHref?: string;
   coachProgramId?: string;
 }
@@ -79,7 +79,9 @@ export async function deriveNotifications(
               ? 'Program from your coach'
               : a.action === 'open_exercise'
                 ? 'Exercise from your coach'
-                : 'Workout from your coach';
+                : a.action === 'open_challenge'
+                  ? 'Challenge from your coach'
+                  : 'Workout from your coach';
           const message =
             typeof a.titleSnapshot === 'string' && a.titleSnapshot.trim()
               ? a.titleSnapshot.trim()
@@ -95,7 +97,9 @@ export async function deriveNotifications(
                 ? 'set_program'
                 : a.action === 'open_exercise'
                   ? 'open_exercise'
-                  : 'open_workout',
+                  : a.action === 'open_challenge'
+                    ? 'open_challenge'
+                    : 'open_workout',
             coachProgramId: typeof a.programId === 'string' ? a.programId : undefined,
             coachHref: typeof a.href === 'string' ? a.href : undefined,
           });

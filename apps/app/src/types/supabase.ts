@@ -232,7 +232,7 @@ export interface Database {
           id: string;
           trainer_user_id: string;
           client_user_id: string;
-          assignment_type: 'program' | 'workout' | 'wod' | 'exercise';
+          assignment_type: 'program' | 'workout' | 'wod' | 'exercise' | 'challenge';
           resource_id: string | null;
           assigned_at: string;
           starts_on: string | null;
@@ -249,7 +249,7 @@ export interface Database {
           id?: string;
           trainer_user_id: string;
           client_user_id: string;
-          assignment_type: 'program' | 'workout' | 'wod' | 'exercise';
+          assignment_type: 'program' | 'workout' | 'wod' | 'exercise' | 'challenge';
           resource_id?: string | null;
           assigned_at?: string;
           starts_on?: string | null;

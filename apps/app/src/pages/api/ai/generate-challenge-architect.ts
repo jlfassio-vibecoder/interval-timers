@@ -18,6 +18,7 @@ import {
   validateChallengeArchitectOutput,
 } from '@/lib/prompt-chain/step1-challenge-architect';
 import { callVertexAI, getVertexAICredentials } from '@/lib/vertex-ai-client';
+import { verifyTrainerOrAdminRequest } from '@/lib/supabase/admin/auth';
 
 interface ZoneContext {
   zoneName: string;
@@ -25,7 +26,22 @@ interface ZoneContext {
   biomechanicalConstraints: string[];
 }
 
-export const POST: APIRoute = async ({ request }) => {
+export const POST: APIRoute = async ({ request, cookies }) => {
+  try {
+    await verifyTrainerOrAdminRequest(request, cookies);
+  } catch (e) {
+    if (e instanceof Error && (e.message === 'UNAUTHENTICATED' || e.message === 'UNAUTHORIZED')) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized. Sign in as a trainer or admin.' }),
+        { status: 401, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
   try {
     if (!request.body) {
       return new Response(JSON.stringify({ error: 'Request body is required' }), {

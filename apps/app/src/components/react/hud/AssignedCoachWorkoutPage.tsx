@@ -2,7 +2,8 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  *
- * Opens a coach-assigned workout/WOD from /workout/assigned?assignmentId=…
+ * Opens a coach-assigned resource from /workout/assigned?assignmentId=…
+ * (program, workout/WOD, exercise, or challenge — payload decides).
  */
 
 import React, { useEffect, useState } from 'react';
@@ -23,9 +24,21 @@ function ProgramAssignRedirect({ programId }: { programId: string }) {
   );
 }
 
+function HrefAssignRedirect({ href }: { href: string }) {
+  useEffect(() => {
+    window.location.replace(href);
+  }, [href]);
+  return (
+    <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4 px-4 text-center text-white">
+      <p className="text-white/80">Opening your assignment…</p>
+    </div>
+  );
+}
+
 const AssignedCoachWorkoutPage: React.FC = () => {
   const [artist, setArtist] = useState<Artist | null>(null);
   const [programPayload, setProgramPayload] = useState<{ programId: string } | null>(null);
+  const [hrefRedirect, setHrefRedirect] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -48,6 +61,12 @@ const AssignedCoachWorkoutPage: React.FC = () => {
         if (cancelled) return;
         if (body.assignmentType === 'program' && typeof body.programId === 'string') {
           setProgramPayload({ programId: body.programId });
+        } else if (
+          (body.assignmentType === 'exercise' || body.assignmentType === 'challenge') &&
+          typeof body.href === 'string' &&
+          body.href.trim()
+        ) {
+          setHrefRedirect(body.href.trim());
         } else if (body.artist && typeof body.artist === 'object') {
           setArtist(body.artist as Artist);
         } else {
@@ -90,6 +109,10 @@ const AssignedCoachWorkoutPage: React.FC = () => {
 
   if (programPayload) {
     return <ProgramAssignRedirect programId={programPayload.programId} />;
+  }
+
+  if (hrefRedirect) {
+    return <HrefAssignRedirect href={hrefRedirect} />;
   }
 
   if (!artist) {

@@ -36,6 +36,7 @@ import {
 } from '@/lib/prompt-chain';
 import { normalizeProgramSchedule } from '@/lib/program-schedule-utils';
 import { callVertexAI, getVertexAICredentials } from '@/lib/vertex-ai-client';
+import { verifyTrainerOrAdminRequest } from '@/lib/supabase/admin/auth';
 
 interface ZoneContext {
   zoneName: string;
@@ -49,8 +50,23 @@ export interface ChallengeChainResponse {
   chain_metadata: PromptChainMetadata;
 }
 
-export const POST: APIRoute = async ({ request }) => {
+export const POST: APIRoute = async ({ request, cookies }) => {
   const startTime = Date.now();
+
+  try {
+    await verifyTrainerOrAdminRequest(request, cookies);
+  } catch (e) {
+    if (e instanceof Error && (e.message === 'UNAUTHENTICATED' || e.message === 'UNAUTHORIZED')) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized. Sign in as a trainer or admin.' }),
+        { status: 401, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
 
   try {
     if (!request.body) {
@@ -245,11 +261,11 @@ export const POST: APIRoute = async ({ request }) => {
     );
 
     // ========================================================================
-    // STEP 4: THE MATHEMATICIAN
+    // STEP 4: THE MATHEMATICIAN (heavy request; retry once on upstream/timeout)
     // ========================================================================
     console.warn('[generate-challenge-chain] Step 4: Mathematician...');
     const step4Prompt = buildMathematicianPrompt(architect, exercises, durationWeeks);
-    const step4Response = await callVertexAI({
+    const step4Options = {
       systemPrompt:
         'You are the Progression Mathematician. Generate week-by-week numbers. Output ONLY valid JSON.',
       userPrompt: step4Prompt,
@@ -260,7 +276,23 @@ export const POST: APIRoute = async ({ request }) => {
       maxTokens: 16384,
       timeoutMs: 900000,
       logPrefix: '[generate-challenge-chain]',
-    });
+    };
+    let step4Response: string;
+    try {
+      step4Response = await callVertexAI(step4Options);
+    } catch (step4Err) {
+      const msg = step4Err instanceof Error ? step4Err.message : String(step4Err);
+      const isRetryable = /non-JSON|upstream|timeout|gateway/i.test(msg);
+      if (isRetryable) {
+        console.warn(
+          '[generate-challenge-chain] Step 4 failed (upstream/timeout), retrying once in 5s...'
+        );
+        await new Promise((r) => setTimeout(r, 5000));
+        step4Response = await callVertexAI(step4Options);
+      } else {
+        throw step4Err;
+      }
+    }
 
     const step4Parsed = parseJSONWithRepair(step4Response);
     const step4Validation = validateMathematicianOutput(step4Parsed.data);
