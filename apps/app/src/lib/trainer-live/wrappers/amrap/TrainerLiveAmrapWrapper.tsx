@@ -39,10 +39,10 @@ function AmrapEmbedBody({
 
   return (
     <div
-      className="trainer-live-amrap-embed text-white [&_.min-h-screen]:min-h-0"
+      className="trainer-live-amrap-embed w-full min-w-0 text-white [&_.min-h-screen]:min-h-0"
       data-testid="trainer-live-amrap-shell"
     >
-      <AmrapSessionShell engine={result} />
+      <AmrapSessionShell engine={result} shellLayout="trainerLiveEmbed" />
     </div>
   );
 }

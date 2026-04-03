@@ -120,13 +120,13 @@ flowchart LR
 
 ### 5.3 Attach RPC (sketch)
 
-**`trainer_live_attach_amrap_session(p_trainer_live_session_id uuid)`** — `SECURITY DEFINER`, caller must be `trainer_user_id` on the Trainer Live session.
+**`trainer_live_attach_amrap_session(p_trainer_live_session_id uuid, p_duration_minutes int, p_workout_list jsonb)`** — `SECURITY DEFINER`, caller must be `trainer_user_id` on the Trainer Live session. **Implemented** in [`20260430231000_trainer_live_attach_amrap_workout_params.sql`](../supabase/migrations/20260430231000_trainer_live_attach_amrap_workout_params.sql); UX and client flow: [TRAINER_LIVE_AMRAP_WORKOUT_PICKER_TDD.md](./TRAINER_LIVE_AMRAP_WORKOUT_PICKER_TDD.md).
 
 1. Assert `shell = 'countdown_timer'` (or allow from `video_only` and imply enabling sidebar — **product**; default: require sidebar shell).  
-2. Insert **`amrap_sessions`** row using same defaults as AMRAP host flow (duration, workout id, etc. — mirror existing create RPC or call existing function).  
+2. Insert **`amrap_sessions`** row via **`create_session(p_duration_minutes, host_display, p_workout_list, …)`** — duration and workout list are **required** (non-empty exercise array).  
 3. Set `trainer_live_sessions.interval_wrapper_kind = 'amrap'`, `interval_wrapper_config = { amrap_session_id }`.  
 4. Optionally insert **trainer’s** `amrap_participants` row if social AMRAP expects host participant before clients join.  
-5. Return `{ amrap_session_id }`.
+5. Return `{ amrap_session_id, host_token, amrap_participant_id, … }`.
 
 **Idempotency:** If `interval_wrapper_kind` is already `amrap` and config has same session, no-op or validate match.
 

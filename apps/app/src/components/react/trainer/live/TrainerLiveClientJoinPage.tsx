@@ -251,16 +251,6 @@ export default function TrainerLiveClientJoinPage() {
             </div>
           ) : (
             <>
-              <div className="mb-4">
-                <TrainerLiveActivityTimer
-                  sessionId={sessionId}
-                  participantId={participantId}
-                  authUserId={authUserId}
-                  role="client"
-                  shell={roomShell}
-                  compact
-                />
-              </div>
               <TrainerLiveSessionRoom
                 shell={roomShell}
                 sessionId={sessionId}
@@ -277,6 +267,17 @@ export default function TrainerLiveClientJoinPage() {
                 displayName={displayName}
                 authUserId={authUserId}
                 onWrapperError={setWrapperErr}
+                activityTimer={
+                  <TrainerLiveActivityTimer
+                    sessionId={sessionId}
+                    participantId={participantId}
+                    authUserId={authUserId}
+                    role="client"
+                    shell={roomShell}
+                    compact
+                    drawerLayout
+                  />
+                }
               />
             </>
           )}

@@ -1,6 +1,8 @@
+import type { ReactNode } from 'react';
 import type { TrainerLiveShell } from '@/lib/trainer-live/shells';
 import type { TrainerLiveIntervalWrapperKind } from '@/lib/trainer-live/wrappers/types';
 import { getTrainerLiveIntervalWrapper } from '@/lib/trainer-live/wrappers/registry';
+import TrainerLiveActivityDrawerRail from './TrainerLiveActivityDrawerRail';
 import TrainerLiveCollapsibleSideRail from './TrainerLiveCollapsibleSideRail';
 import TrainerLiveSessionMessageBoard from './TrainerLiveSessionMessageBoard';
 import TrainerLiveVideoFeedDrawer from './TrainerLiveVideoFeedDrawer';
@@ -19,6 +21,8 @@ export default function TrainerLiveSessionRoom({
   displayName,
   authUserId,
   onWrapperError,
+  activityTimer,
+  className,
 }: {
   shell: TrainerLiveShell;
   sessionId: string;
@@ -31,6 +35,9 @@ export default function TrainerLiveSessionRoom({
   displayName: string;
   authUserId: string | null;
   onWrapperError?: (message: string) => void;
+  /** Session activity timer + controls in a left collapsible rail. */
+  activityTimer?: ReactNode;
+  className?: string;
 }) {
   const video = (
     <TrainerLiveVideoShell
@@ -42,6 +49,13 @@ export default function TrainerLiveSessionRoom({
       compact={shell === 'countdown_timer'}
     />
   );
+
+  const activityRail =
+    activityTimer != null ? (
+      <TrainerLiveActivityDrawerRail sessionId={sessionId} defaultOpen>
+        {activityTimer}
+      </TrainerLiveActivityDrawerRail>
+    ) : null;
 
   const chatRail = (
     <TrainerLiveCollapsibleSideRail
@@ -101,7 +115,8 @@ export default function TrainerLiveSessionRoom({
     })();
 
     return (
-      <div className="flex min-h-0 flex-1 flex-row items-stretch">
+      <div className={`flex min-h-0 flex-1 flex-row items-stretch ${className ?? ''}`}>
+        {activityRail}
         <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">{intervalSidebar}</div>
         <TrainerLiveVideoFeedDrawer
           sessionId={sessionId}
@@ -115,7 +130,8 @@ export default function TrainerLiveSessionRoom({
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-row items-stretch">
+    <div className={`flex min-h-0 flex-1 flex-row items-stretch ${className ?? ''}`}>
+      {activityRail}
       <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">{video}</div>
       {chatRail}
     </div>

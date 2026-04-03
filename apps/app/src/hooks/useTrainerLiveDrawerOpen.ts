@@ -2,7 +2,10 @@ import { useCallback, useEffect, useState } from 'react';
 
 const PREFIX = 'trainer-live:drawer';
 
-export function trainerLiveDrawerStorageKey(sessionId: string, drawer: 'video' | 'chat'): string {
+export function trainerLiveDrawerStorageKey(
+  sessionId: string,
+  drawer: 'video' | 'chat' | 'activity'
+): string {
   return `${PREFIX}:${drawer}:${sessionId}`;
 }
 

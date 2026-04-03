@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { setStoredHostToken, setStoredParticipantId } from 'amrap/embed';
+import { isValidAttachWorkoutInput } from '@interval-timers/amrap-workout-picker';
 import { useAppContext } from '@/contexts/AppContext';
 import { supabase } from '@/lib/supabase/supabase-instance';
 import { trainerLiveParticipantStorageKey } from '@/lib/trainer-live/storage';
@@ -8,6 +9,7 @@ import { parseTrainerLiveShell, type TrainerLiveShell } from '@/lib/trainer-live
 import type { TrainerLiveIntervalWrapperKind } from '@/lib/trainer-live/wrappers/types';
 import { parseIntervalWrapperKind } from '@/lib/trainer-live/wrappers/kind';
 import TrainerLiveActivityTimer from './TrainerLiveActivityTimer';
+import TrainerLiveAmrapWorkoutPickerModal from './TrainerLiveAmrapWorkoutPickerModal';
 import TrainerLiveSessionRoom from './TrainerLiveSessionRoom';
 
 export default function TrainerLiveHostView() {
@@ -26,6 +28,8 @@ export default function TrainerLiveHostView() {
   const [backBusy, setBackBusy] = useState(false);
   const [backErr, setBackErr] = useState<string | null>(null);
   const [wrapperErr, setWrapperErr] = useState<string | null>(null);
+  const [amrapPickerOpen, setAmrapPickerOpen] = useState(false);
+  const [amrapPickerKey, setAmrapPickerKey] = useState(0);
 
   const participantId = useMemo(() => {
     if (!sessionId || typeof window === 'undefined') return null;
@@ -192,13 +196,19 @@ export default function TrainerLiveHostView() {
     }
   };
 
-  const attachAmrap = async () => {
+  const attachAmrap = async (workoutList: string[], durationMinutes: number) => {
     if (!sessionId) return;
+    if (!isValidAttachWorkoutInput(durationMinutes, workoutList)) {
+      setAttachErr('Choose a duration between 1 and 180 minutes and at least one exercise.');
+      return;
+    }
     setAttachErr(null);
     setAttachBusy(true);
     try {
       const { data, error } = await supabase.rpc('trainer_live_attach_amrap_session', {
         p_trainer_live_session_id: sessionId,
+        p_duration_minutes: durationMinutes,
+        p_workout_list: workoutList,
       });
       if (error) {
         setAttachErr(error.message);
@@ -221,6 +231,7 @@ export default function TrainerLiveHostView() {
       if (aid) {
         setIntervalWrapperKind('amrap');
         setIntervalWrapperConfig({ amrap_session_id: aid });
+        setAmrapPickerOpen(false);
       }
     } finally {
       setAttachBusy(false);
@@ -273,7 +284,10 @@ export default function TrainerLiveHostView() {
               type="button"
               data-testid="trainer-live-start-amrap"
               disabled={attachBusy}
-              onClick={() => void attachAmrap()}
+              onClick={() => {
+                setAmrapPickerKey((k) => k + 1);
+                setAmrapPickerOpen(true);
+              }}
               className="border-orange-light/50 bg-orange-light/15 hover:bg-orange-light/25 rounded-lg border px-3 py-1.5 text-xs text-orange-light md:text-sm"
             >
               {attachBusy ? 'Starting…' : 'Start AMRAP'}
@@ -306,15 +320,6 @@ export default function TrainerLiveHostView() {
           </div>
         ) : (
           <>
-            <div className="mb-4 max-w-4xl">
-              <TrainerLiveActivityTimer
-                sessionId={sessionId}
-                participantId={participantId}
-                authUserId={user?.uid ?? null}
-                role="trainer"
-                shell={shell}
-              />
-            </div>
             <TrainerLiveSessionRoom
               shell={shell}
               sessionId={sessionId}
@@ -330,10 +335,29 @@ export default function TrainerLiveHostView() {
               displayName={localLabel}
               authUserId={authUserId}
               onWrapperError={setWrapperErr}
+              activityTimer={
+                <TrainerLiveActivityTimer
+                  sessionId={sessionId}
+                  participantId={participantId}
+                  authUserId={user?.uid ?? null}
+                  role="trainer"
+                  shell={shell}
+                  drawerLayout
+                />
+              }
             />
           </>
         )}
       </div>
+      <TrainerLiveAmrapWorkoutPickerModal
+        open={amrapPickerOpen}
+        pickerKey={amrapPickerKey}
+        onOpenChange={setAmrapPickerOpen}
+        disabled={attachBusy}
+        onWorkoutChosen={(workoutList, durationMinutes) =>
+          attachAmrap(workoutList, durationMinutes)
+        }
+      />
     </div>
   );
 }
