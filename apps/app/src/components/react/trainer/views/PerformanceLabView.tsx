@@ -9,6 +9,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { ExternalLink, FlaskConical, ClipboardList } from 'lucide-react';
 import { adminPaths } from '@/lib/admin/config';
+import { missionControlApiAuthHeaders } from '@/lib/mission-control-api-auth';
 import type { CoachAssignmentListItem } from '@/lib/supabase/admin/trainer-client-assignments';
 import PerformanceLabCalendarSection from '@/components/react/trainer/views/PerformanceLabCalendarSection';
 import PerformanceLabMessagesSection from '@/components/react/trainer/views/PerformanceLabMessagesSection';
@@ -59,8 +60,10 @@ const PerformanceLabView: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
+      const auth = await missionControlApiAuthHeaders();
       const res = await fetch(`/api/trainer/clients/${encodeURIComponent(userId)}/enrollments`, {
         credentials: 'include',
+        headers: { ...auth },
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -85,9 +88,10 @@ const PerformanceLabView: React.FC = () => {
     if (!userId) return;
     setAssignLoading(true);
     try {
+      const auth = await missionControlApiAuthHeaders();
       const res = await fetch(
         `/api/trainer/clients/${encodeURIComponent(userId)}/assignments`,
-        { credentials: 'include' }
+        { credentials: 'include', headers: { ...auth } }
       );
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -119,8 +123,11 @@ const PerformanceLabView: React.FC = () => {
             : '/api/trainer/exercises';
     setPickerLoading(true);
     setSelectedResourceId('');
-    fetch(path, { credentials: 'include' })
-      .then(async (r) => {
+    void (async () => {
+      try {
+        const auth = await missionControlApiAuthHeaders();
+        if (cancelled) return;
+        const r = await fetch(path, { credentials: 'include', headers: { ...auth } });
         const raw = await r.json().catch(() => []);
         if (cancelled) return;
         const arr = Array.isArray(raw) ? raw : [];
@@ -141,13 +148,12 @@ const PerformanceLabView: React.FC = () => {
             })
             .filter((x) => x.id)
         );
-      })
-      .catch(() => {
+      } catch {
         if (!cancelled) setPickerItems([]);
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setPickerLoading(false);
-      });
+      }
+    })();
     return () => {
       cancelled = true;
     };
@@ -157,12 +163,13 @@ const PerformanceLabView: React.FC = () => {
     if (!userId) return;
     setBusy(programId ? `rec:${programId}` : 'rec:clear');
     try {
+      const auth = await missionControlApiAuthHeaders();
       const res = await fetch(
         `/api/trainer/clients/${encodeURIComponent(userId)}/active-program`,
         {
           method: 'POST',
           credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { ...auth, 'Content-Type': 'application/json' },
           body: JSON.stringify({ programId }),
         }
       );
@@ -181,6 +188,7 @@ const PerformanceLabView: React.FC = () => {
     if (!userId || !selectedResourceId) return;
     setBusy('assign:create');
     try {
+      const auth = await missionControlApiAuthHeaders();
       const bodyPayload =
         assignKind === 'exercise'
           ? {
@@ -198,7 +206,7 @@ const PerformanceLabView: React.FC = () => {
         {
           method: 'POST',
           credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { ...auth, 'Content-Type': 'application/json' },
           body: JSON.stringify(bodyPayload),
         }
       );
@@ -224,9 +232,10 @@ const PerformanceLabView: React.FC = () => {
     }
     setBusy(`revoke:${assignmentId}`);
     try {
+      const auth = await missionControlApiAuthHeaders();
       const res = await fetch(
         `/api/trainer/clients/${encodeURIComponent(userId)}/assignments/${encodeURIComponent(assignmentId)}/revoke`,
-        { method: 'POST', credentials: 'include' }
+        { method: 'POST', credentials: 'include', headers: { ...auth } }
       );
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -246,9 +255,10 @@ const PerformanceLabView: React.FC = () => {
     }
     setBusy(`end:${programId}`);
     try {
+      const auth = await missionControlApiAuthHeaders();
       const res = await fetch(
         `/api/trainer/clients/${encodeURIComponent(userId)}/enrollments/${encodeURIComponent(programId)}/end`,
-        { method: 'POST', credentials: 'include' }
+        { method: 'POST', credentials: 'include', headers: { ...auth } }
       );
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {

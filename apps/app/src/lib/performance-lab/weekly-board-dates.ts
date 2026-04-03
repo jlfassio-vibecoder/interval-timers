@@ -5,8 +5,19 @@
  * Pure date helpers for P4 weekly board (Mon-start week, local calendar).
  */
 
+/** YYYY-MM-DD that exists on the local calendar (rejects e.g. 2026-02-30). */
 export function isValidDateOnly(s: string): boolean {
-  return /^\d{4}-\d{2}-\d{2}$/.test(s.trim());
+  const t = s.trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(t)) return false;
+  const [ys, ms, ds] = t.split('-').map(Number);
+  const d = new Date(ys, ms - 1, ds);
+  return d.getFullYear() === ys && d.getMonth() === ms - 1 && d.getDate() === ds;
+}
+
+/** Board week anchors must be Monday in the local timezone (T12:00:00 anchor). */
+export function isLocalMondayDateOnly(s: string): boolean {
+  if (!isValidDateOnly(s)) return false;
+  return new Date(s.trim() + 'T12:00:00').getDay() === 1;
 }
 
 /** Monday (local) of the week containing `d`, as YYYY-MM-DD. */

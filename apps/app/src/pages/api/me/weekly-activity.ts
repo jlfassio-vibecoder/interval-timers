@@ -7,9 +7,9 @@
 
 import type { APIRoute } from 'astro';
 import { authenticateInvitationsApiRequest } from '@/lib/supabase/admin/auth';
+import { isLocalMondayDateOnly } from '@/lib/performance-lab/weekly-board-dates';
 import {
   getWeeklyBoardForClient,
-  isValidDateOnly,
   updateWeeklyActivityCardForClient,
 } from '@/lib/supabase/admin/trainer-client-weekly-board';
 import { isProgramClientOfTrainer } from '@/lib/supabase/admin/trainer-roster';
@@ -27,11 +27,14 @@ export const GET: APIRoute = async ({ request, cookies, url }) => {
         headers: { 'Content-Type': 'application/json' },
       });
     }
-    if (!isValidDateOnly(weekStart)) {
-      return new Response(JSON.stringify({ error: 'weekStart query required (YYYY-MM-DD)' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      });
+    if (!isLocalMondayDateOnly(weekStart)) {
+      return new Response(
+        JSON.stringify({ error: 'weekStart query required (YYYY-MM-DD, Monday of week)' }),
+        {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
     }
 
     const clientUserId = auth.user.id;
@@ -52,10 +55,13 @@ export const GET: APIRoute = async ({ request, cookies, url }) => {
         });
       }
       if (result.reason === 'invalid_date') {
-        return new Response(JSON.stringify({ error: 'weekStart query required (YYYY-MM-DD)' }), {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' },
-        });
+        return new Response(
+          JSON.stringify({ error: 'weekStart query required (YYYY-MM-DD, Monday of week)' }),
+          {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        );
       }
       return new Response(
         JSON.stringify({

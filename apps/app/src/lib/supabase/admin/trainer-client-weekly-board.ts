@@ -7,6 +7,7 @@
 
 import {
   isScheduledDateInWeek as isScheduledDateInWeekPure,
+  isLocalMondayDateOnly,
   isValidDateOnly,
   mondayOfWeekContainingLocal,
 } from '@/lib/performance-lab/weekly-board-dates';
@@ -66,7 +67,7 @@ export async function getWeeklyBoardForTrainer(
   clientUserId: string,
   weekStartDate: string
 ): Promise<GetWeeklyBoardResult> {
-  if (!isValidDateOnly(weekStartDate)) {
+  if (!isLocalMondayDateOnly(weekStartDate)) {
     return { ok: false, reason: 'invalid_date' };
   }
   const allowed = await assertProgramClient(trainerUserId, clientUserId);
@@ -159,12 +160,16 @@ async function ensureBoard(
   clientUserId: string,
   weekStartDate: string
 ): Promise<{ ok: true; boardId: string } | { ok: false; error: string }> {
+  const ws = weekStartDate.trim();
+  if (!isLocalMondayDateOnly(ws)) {
+    return { ok: false, error: 'weekStartDate must be a Monday (YYYY-MM-DD)' };
+  }
   const { data: existingRows, error: findErr } = await supabase
     .from('client_weekly_activity_boards')
     .select('id')
     .eq('trainer_user_id', trainerUserId)
     .eq('client_user_id', clientUserId)
-    .eq('week_start_date', weekStartDate)
+    .eq('week_start_date', ws)
     .limit(1);
 
   if (findErr) {
@@ -180,7 +185,7 @@ async function ensureBoard(
     .insert({
       trainer_user_id: trainerUserId,
       client_user_id: clientUserId,
-      week_start_date: weekStartDate,
+      week_start_date: ws,
     })
     .select('id')
     .single();
@@ -216,7 +221,10 @@ export async function createWeeklyActivityCard(params: {
   if (!isValidDateOnly(weekStartDate) || !isValidDateOnly(scheduledDate)) {
     return { ok: false, error: 'Invalid date' };
   }
-  if (!isScheduledDateInWeek(scheduledDate, weekStartDate)) {
+  if (!isLocalMondayDateOnly(weekStartDate.trim())) {
+    return { ok: false, error: 'weekStartDate must be a Monday (YYYY-MM-DD)' };
+  }
+  if (!isScheduledDateInWeek(scheduledDate, weekStartDate.trim())) {
     return { ok: false, error: 'scheduledDate must fall in the board week' };
   }
   const t = title.trim();
@@ -327,7 +335,7 @@ export async function updateWeeklyActivityCard(params: {
 
   if (nextScheduled) {
     if (!isValidDateOnly(nextScheduled)) {
-      return { ok: false, error: 'scheduledDate must fall in the board week' };
+      return { ok: false, error: 'Invalid date' };
     }
     const targetMonday = mondayOfWeekContainingLocal(new Date(nextScheduled + 'T12:00:00'));
     if (!isScheduledDateInWeek(nextScheduled, targetMonday)) {

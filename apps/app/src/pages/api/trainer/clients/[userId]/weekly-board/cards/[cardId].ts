@@ -73,6 +73,8 @@ export const PATCH: APIRoute = async ({ request, cookies, params }) => {
     if (!result.ok) {
       const notFound = result.error === 'Card not found';
       const bad =
+        result.error === 'Invalid date' ||
+        result.error === 'weekStartDate must be a Monday (YYYY-MM-DD)' ||
         result.error === 'scheduledDate must fall in the board week' ||
         result.error === 'Title required' ||
         result.error === 'Title too long' ||
