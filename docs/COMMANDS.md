@@ -126,7 +126,7 @@ Both work locally; production uses the same origin (e.g. `https://yoursite.com/a
 
 1. Run `npm run dev:trainer:live` (starts App on 3006 and Agora token server on 9517; `/api/trainer-live/agora-token` is proxied to that server’s generic `/token` — **no** DB verification, unlike production’s Astro route).
 2. Trainer: `http://localhost:3006/trainer/live` — start a session, then share `/trainer/live/join/<sessionId>` with clients.
-3. Requires root `.env` with `VITE_AGORA_APP_ID` and `VITE_AGORA_APP_CERTIFICATE`. Apply the `trainer_live_*` Supabase migrations (P0, P1 roster invite, **P2 second shell** `countdown_timer` + `join_hints.shell`, **RLS hardening** `20260430116000_trainer_live_rls_hardening.sql`) before using create/join RPCs.
+3. Requires root `.env` with `VITE_AGORA_APP_ID` and `VITE_AGORA_APP_CERTIFICATE`. Apply the `trainer_live_*` Supabase migrations (P0, P1 roster invite, **P2 second shell** `countdown_timer` + `join_hints.shell`, **RLS hardening** `20260430116000_trainer_live_rls_hardening.sql`, **AMRAP attach + workout** `20260430231000_trainer_live_attach_amrap_workout_params.sql` — `trainer_live_attach_amrap_session` requires `p_duration_minutes` and `p_workout_list`; see [TRAINER_LIVE_AMRAP_WORKOUT_PICKER_TDD.md](TRAINER_LIVE_AMRAP_WORKOUT_PICKER_TDD.md) before using create/join RPCs.
 4. **Roster-targeted live:** From Mission Control **View Stats** or **Performance Lab** for a client, use **Live video** to create a session only that client can join (they must sign in with the invited account).
 
 ---

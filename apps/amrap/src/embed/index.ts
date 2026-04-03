@@ -26,6 +26,7 @@ export { AmrapAuthProvider, useAmrapAuth } from '../contexts/AmrapAuthContext';
 export type { AmrapProfile } from '../contexts/AmrapAuthContext';
 
 export { default as AmrapSessionShell } from '../components/amrap-session/AmrapSessionShell';
+export type { AmrapSessionShellLayout } from '../components/amrap-session/AmrapSessionShell';
 
 /** Persist AMRAP host credentials after `trainer_live_attach_amrap_session` (same keys as standalone AMRAP). */
 export {

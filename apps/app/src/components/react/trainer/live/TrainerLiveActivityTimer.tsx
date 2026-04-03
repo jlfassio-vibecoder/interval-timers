@@ -34,6 +34,7 @@ export default function TrainerLiveActivityTimer({
   role,
   shell,
   compact = false,
+  drawerLayout = false,
 }: {
   sessionId: string;
   participantId: string;
@@ -41,6 +42,8 @@ export default function TrainerLiveActivityTimer({
   role: 'trainer' | 'client';
   shell: TrainerLiveShell;
   compact?: boolean;
+  /** Stack session time, current block, and controls vertically (left activity drawer). */
+  drawerLayout?: boolean;
 }) {
   const { state, loading, error, refresh, displayElapsedSec } = useTrainerLiveActivitySession({
     trainerLiveSessionId: sessionId,
@@ -84,7 +87,7 @@ export default function TrainerLiveActivityTimer({
       className={`rounded-xl border border-white/10 bg-black/50 ${compact ? 'px-3 py-2' : 'px-4 py-3'}`}
       data-testid="trainer-live-activity-timer"
     >
-      <div className="flex flex-wrap items-center gap-3">
+      <div className={drawerLayout ? 'flex flex-col gap-3' : 'flex flex-wrap items-center gap-3'}>
         <div>
           <div className="text-[10px] font-semibold uppercase tracking-wider text-white/50">
             Session activity
@@ -93,7 +96,7 @@ export default function TrainerLiveActivityTimer({
             {formatElapsed(displayElapsedSec)}
           </div>
         </div>
-        <div className="min-w-0 flex-1">
+        <div className={drawerLayout ? 'w-full min-w-0' : 'min-w-0 flex-1'}>
           <div className="text-[10px] uppercase tracking-wider text-white/40">Current block</div>
           <div className="text-orange-200/90 truncate text-sm">
             {currentSegmentLabel(state.segments)}

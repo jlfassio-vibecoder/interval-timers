@@ -173,7 +173,14 @@ export default defineConfig({
     ssr: {
       // Only bundle these small packages into the SSR graph. Do not set noExternal: true for
       // everything — bundling google-auth-library breaks JWT signing for Vertex AI at runtime.
-      noExternal: ['piccolore', 'clsx', 'es-module-lexer', 'devalue', 'amrap'],
+      noExternal: [
+        'piccolore',
+        'clsx',
+        'es-module-lexer',
+        'devalue',
+        'amrap',
+        '@interval-timers/amrap-workout-picker'
+      ],
       // Dev only: keep React external so Node requires it at runtime (avoids "module is not defined" when CJS is inlined)
       ...(!isProduction && { external: ['react', 'react-dom', 'scheduler'] })
     },

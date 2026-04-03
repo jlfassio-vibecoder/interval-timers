@@ -379,11 +379,11 @@ const PerformanceLabWeekSection: React.FC<PerformanceLabWeekSectionProps> = ({ u
     if (!userId) return;
     const auth = await missionControlApiAuthHeaders();
     await Promise.all(
-      ordered.map((c, i) => {
+      ordered.map(async (c, i) => {
         if (c.scheduledDate === dateStr && c.sortOrder === i) {
-          return Promise.resolve();
+          return;
         }
-        return fetch(
+        const res = await fetch(
           `/api/trainer/clients/${encodeURIComponent(userId)}/weekly-board/cards/${encodeURIComponent(c.id)}`,
           {
             method: 'PATCH',
@@ -391,12 +391,11 @@ const PerformanceLabWeekSection: React.FC<PerformanceLabWeekSectionProps> = ({ u
             headers: { ...auth, 'Content-Type': 'application/json' },
             body: JSON.stringify({ scheduledDate: dateStr, sortOrder: i }),
           }
-        ).then(async (res) => {
-          if (!res.ok) {
-            const body = await res.json().catch(() => ({}));
-            throw new Error(typeof body.error === 'string' ? body.error : 'Update failed');
-          }
-        });
+        );
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error(typeof body.error === 'string' ? body.error : 'Update failed');
+        }
       })
     );
   };
