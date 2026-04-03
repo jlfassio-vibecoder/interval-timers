@@ -233,7 +233,7 @@ flowchart TB
 
 ## 10. Security and abuse
 
-- **Token issuance:** Never issue without DB row (same lesson as AMRAP [`api/agora-token.ts`](../api/agora-token.ts)).
+- **Token issuance:** Never issue without DB row (same lesson as AMRAP [`api/agora-token.ts`](../api/agora-token.ts)). Production [`agora-token.ts`](../apps/app/src/pages/api/trainer-live/agora-token.ts) calls `trainer_live_verify_token_targets` (SECURITY DEFINER) so verification does not depend on permissive anon `SELECT` on session/participant tables; see [`20260430116000_trainer_live_rls_hardening.sql`](../supabase/migrations/20260430116000_trainer_live_rls_hardening.sql).
 - **Trainer-only create:** RPC checks `auth.uid() = trainer_user_id` on insert path (or server API uses service role + explicit trainer check — prefer DB-side for consistency with AMRAP RPC style).
 - **Join:** Public link acceptable if `invite_code` is unguessable (UUID in path + optional short code); rate-limit join attempts at edge if needed.
 - **Privacy:** Clients should see they are on camera; mirror AMRAP’s clear error UX when permissions denied.
@@ -248,12 +248,17 @@ flowchart TB
 
 ---
 
-## 12. Open questions
+## 12. Architecture decisions (current implementation)
 
-1. **Hosting:** Implement entirely inside **`apps/app`** (React islands) vs new **`apps/trainer-live`** Vite app proxied like AMRAP — tradeoff: SSO and `/trainer` layout already in app; separate app isolates bundle size.
-2. **Guest clients:** Allow nickname-only clients (AMRAP-style) vs require sign-in for trainer liability / roster alignment.
-3. **Schema namespace:** `public.trainer_live_*` vs `trainer` schema for future table growth.
-4. **Single Agora project:** Reuse existing App ID or separate Agora project for cost attribution — operational choice.
+These supersede the earlier “open questions” list for P0–P2.
+
+1. **Hosting — `apps/app` only.** Trainer Live ships inside the existing Mission Control React subtree ([`TrainerRoute.tsx`](../apps/app/src/components/react/trainer/TrainerRoute.tsx) under `/trainer/live/*`), with Agora + token wiring colocated (`src/lib/trainer-live/`, `src/pages/api/trainer-live/agora-token.ts`). There is **no** separate `apps/trainer-live` Vite app. Tradeoff accepted: larger shared client bundle vs faster integration with Supabase auth, `/trainer` layout, and existing patterns.
+
+2. **Guest clients — hybrid.** **`trainer_live_join_session`** is granted to **`anon` and `authenticated`** ([`20260430113000_trainer_live_video.sql`](../supabase/migrations/20260430113000_trainer_live_video.sql)). **Open lobby** sessions (`invited_client_user_id` is null): clients may join with a **display name** only (default `Guest`); `user_id` on the participant row stays null for anonymous joins. **Roster-targeted** sessions (create from client Mission Control with `p_invited_client_user_id`): DB enforces **sign-in** and **account match** to the invitee; [`trainer_live_session_join_hints`](../supabase/migrations/20260430114000_trainer_live_p1_roster.sql) exposes `requires_invited_account` so the join UI can gate on auth before calling join. **Signed-in** clients get display name from **`profiles`** when available (full name / username), with the typed name as fallback.
+
+3. **Schema namespace — `public.trainer_live_*`.** All session/participant tables and RPCs live under **`public`** with the `trainer_live_` prefix (e.g. `public.trainer_live_sessions`). A dedicated Postgres schema (e.g. `trainer`) was **not** introduced; if table count grows, a future migration could move objects behind a schema boundary.
+
+4. **Agora project — shared env, ops split optional.** The app uses **`VITE_AGORA_APP_ID`** (client) and **`VITE_AGORA_APP_CERTIFICATE`** (server/token path only), wired like AMRAP in [COMMANDS.md](./COMMANDS.md) / [astro.config.mjs](../apps/app/astro.config.mjs) `define`. **No** second Agora project is required by the code; isolating Trainer Live usage in a **separate Agora project** for billing or quotas remains an **operational** choice, not reflected in the repo.
 
 ---
 

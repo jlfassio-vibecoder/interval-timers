@@ -39,19 +39,21 @@ export default function TrainerLiveVideoShell({
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const { data, error: qErr } = await supabase
-        .from('trainer_live_participants')
-        .select('id, role, display_name')
-        .eq('session_id', sessionId);
+      const { data, error: qErr } = await supabase.rpc('trainer_live_list_participants', {
+        p_session_id: sessionId,
+      });
       if (cancelled) return;
       if (qErr) {
         setLoadErr(qErr.message);
         return;
       }
       const m = new Map<string, ParticipantMeta>();
-      for (const row of data ?? []) {
-        const r = row as { id: string; role: TrainerLiveRole; display_name: string };
-        m.set(r.id, { id: r.id, role: r.role, display_name: r.display_name });
+      for (const row of (data ?? []) as {
+        id: string;
+        role: TrainerLiveRole;
+        display_name: string;
+      }[]) {
+        m.set(row.id, { id: row.id, role: row.role, display_name: row.display_name });
       }
       setParticipantMap(m);
     })();

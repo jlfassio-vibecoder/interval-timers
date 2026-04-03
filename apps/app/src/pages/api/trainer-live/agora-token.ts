@@ -128,18 +128,20 @@ export const GET: APIRoute = async ({ request }) => {
     });
   }
 
-  const supabase = createClient(supabaseUrl, supabaseAnonKey);
+  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
 
-  const { data: participant, error: pErr } = await supabase
-    .from('trainer_live_participants')
-    .select('id, session_id')
-    .eq('session_id', channel)
-    .eq('id', account)
-    .maybeSingle();
+  // Use SECURITY DEFINER RPC so we do not rely on permissive anon RLS on session/participant tables
+  // (see supabase/migrations/20260430116000_trainer_live_rls_hardening.sql).
+  const { data: verified, error: verifyErr } = await supabase.rpc('trainer_live_verify_token_targets', {
+    p_session_id: channel,
+    p_participant_id: account,
+  });
 
-  if (pErr) {
+  if (verifyErr) {
     if (import.meta.env.DEV) {
-      console.error('[trainer-live/agora-token] participant lookup failed:', pErr);
+      console.error('[trainer-live/agora-token] verify RPC failed:', verifyErr);
     }
     return new Response(JSON.stringify({ error: 'Failed to verify participant' }), {
       status: 503,
@@ -147,31 +149,7 @@ export const GET: APIRoute = async ({ request }) => {
     });
   }
 
-  if (!participant) {
-    return new Response(JSON.stringify({ error: 'Participant not found in active session' }), {
-      status: 403,
-      headers: corsHeaders(origin),
-    });
-  }
-
-  const { data: session, error: sErr } = await supabase
-    .from('trainer_live_sessions')
-    .select('id, status')
-    .eq('id', channel)
-    .eq('status', 'active')
-    .maybeSingle();
-
-  if (sErr) {
-    if (import.meta.env.DEV) {
-      console.error('[trainer-live/agora-token] session lookup failed:', sErr);
-    }
-    return new Response(JSON.stringify({ error: 'Failed to verify session' }), {
-      status: 503,
-      headers: corsHeaders(origin),
-    });
-  }
-
-  if (!session) {
+  if (verified !== true) {
     return new Response(JSON.stringify({ error: 'Participant not found in active session' }), {
       status: 403,
       headers: corsHeaders(origin),

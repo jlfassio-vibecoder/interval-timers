@@ -12,6 +12,7 @@ export default function TrainerLiveHostView() {
   const { user } = useAppContext();
   const [copyOk, setCopyOk] = useState(false);
   const [endBusy, setEndBusy] = useState(false);
+  const [endErr, setEndErr] = useState<string | null>(null);
   const [shell, setShell] = useState<TrainerLiveShell | null>(null);
 
   const participantId = useMemo(() => {
@@ -76,14 +77,20 @@ export default function TrainerLiveHostView() {
   };
 
   const endForEveryone = async () => {
+    if (!sessionId) return;
+    setEndErr(null);
     setEndBusy(true);
     try {
-      await supabase.rpc('trainer_live_end_session', { p_session_id: sessionId });
+      const { error } = await supabase.rpc('trainer_live_end_session', { p_session_id: sessionId });
+      if (error) {
+        setEndErr(error.message);
+        return;
+      }
+      sessionStorage.removeItem(trainerLiveParticipantStorageKey(sessionId));
+      navigate('/live', { replace: true });
     } finally {
       setEndBusy(false);
     }
-    sessionStorage.removeItem(trainerLiveParticipantStorageKey(sessionId));
-    navigate('/live', { replace: true });
   };
 
   const localLabel = user?.displayName || user?.email?.split('@')[0] || 'You (trainer)';
@@ -95,6 +102,11 @@ export default function TrainerLiveHostView() {
           Live session
         </h1>
         <div className="flex flex-wrap items-center gap-2">
+          {endErr ? (
+            <p className="max-w-xs text-xs text-red-300 md:max-w-md" role="alert">
+              {endErr}
+            </p>
+          ) : null}
           <button
             type="button"
             onClick={() => void copyLink()}

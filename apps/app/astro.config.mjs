@@ -120,6 +120,8 @@ export default defineConfig({
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/api\/agora-token/, '/token')
         },
+        // Dev-only: same standalone token server as AMRAP. It does not run trainer_live_verify_token_targets;
+        // production uses the Astro route. Do not treat dev tokens as a substitute for prod auth checks.
         '/api/trainer-live/agora-token': {
           target: 'http://localhost:9517',
           changeOrigin: true,
