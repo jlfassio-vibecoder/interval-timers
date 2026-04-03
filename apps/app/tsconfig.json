@@ -13,7 +13,7 @@
     "jsx": "react-jsx",
     "jsxImportSource": "react",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*", "../amrap/src/*"]
     },
     "allowImportingTsExtensions": true,
     "noEmit": true,

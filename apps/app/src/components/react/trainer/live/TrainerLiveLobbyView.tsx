@@ -75,7 +75,7 @@ export default function TrainerLiveLobbyView() {
               : 'border-white/20 text-white/70 hover:border-white/40'
           }`}
         >
-          Video + countdown
+          Video + Intervals
         </button>
       </div>
       <button

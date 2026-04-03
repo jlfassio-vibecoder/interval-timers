@@ -38,6 +38,7 @@ import type {
   AmrapTimerPhase,
 } from '@/types/amrap-session';
 import SessionMessageBoard from '@/components/SessionMessageBoard';
+import SessionMessageBoardDrawer from '@/components/SessionMessageBoardDrawer';
 import VideoTile from '@/components/VideoTile';
 import { useSocialAmrapEffects } from '@/hooks/useSocialAmrapEffects';
 
@@ -52,6 +53,19 @@ export interface UseSocialAmrapOptions {
   onAttemptViewHistory?: () => boolean;
   /** Optional guest gate intercept for opening results. Return true to stop default behavior. */
   onAttemptViewResults?: () => boolean;
+  /**
+   * When true, do not initialize Agora for the AMRAP session channel (e.g. Trainer Live embed
+   * provides video separately).
+   */
+  skipAgora?: boolean;
+  /**
+   * When true, render the message board in a right-edge collapsible rail (Trainer Live embed).
+   */
+  collapsibleMessageBoard?: boolean;
+  /** Initial open state for the message board rail when `collapsibleMessageBoard` is true. */
+  messageBoardDrawerDefaultOpen?: boolean;
+  /** When true, omit the AMRAP message board from the shell (e.g. Trainer Live room chat). */
+  hideMessageBoard?: boolean;
 }
 
 export function useSocialAmrap(
@@ -145,7 +159,9 @@ export function useSocialAmrap(
     error: agoraError,
     muteVideo,
     muteAudio,
-  } = useAgoraChannel(sessionId ?? '', participantId ?? null);
+  } = useAgoraChannel(sessionId ?? '', participantId ?? null, {
+    disabled: options?.skipAgora === true,
+  });
 
   const [localCameraOff, setLocalCameraOff] = useState(false);
   const [localMicMuted, setLocalMicMuted] = useState(false);
@@ -689,16 +705,30 @@ export function useSocialAmrap(
     </section>
   );
 
-  const rightColumnSlot = sessionId ? (
-    <>
+  const messageBoard =
+    sessionId && !options?.hideMessageBoard ? (
       <SessionMessageBoard
         sessionId={sessionId}
         participantId={participantId}
         participants={participants}
         isFinished={timerState === 'finished'}
+        className={options?.collapsibleMessageBoard ? 'lg:static' : undefined}
       />
-    </>
-  ) : null;
+    ) : null;
+
+  const rightColumnSlot =
+    sessionId && !options?.hideMessageBoard ? (
+      options?.collapsibleMessageBoard ? (
+        <SessionMessageBoardDrawer
+          sessionId={sessionId}
+          defaultOpen={options?.messageBoardDrawerDefaultOpen === true}
+        >
+          {messageBoard}
+        </SessionMessageBoardDrawer>
+      ) : (
+        messageBoard
+      )
+    ) : null;
 
   const recoveryUrl =
     timerState === 'finished' && session && sessionId

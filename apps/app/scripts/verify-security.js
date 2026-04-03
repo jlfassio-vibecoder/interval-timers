@@ -75,6 +75,10 @@ function scanFile(filePath) {
       lines.forEach((line, index) => {
         const match = pattern.exec(line);
         if (match) {
+          // Test fixtures often use canonical UUIDs; not production secrets
+          if (name === 'Debug Token' && basename(filePath).includes('.test.')) {
+            return;
+          }
           // Skip if it's an environment variable reference
           if (line.includes('import.meta.env') || line.includes('process.env')) {
             return;

@@ -23,12 +23,15 @@ export default function TrainerLiveVideoShell({
   role,
   localLabel,
   onLeaveRoom,
+  compact = false,
 }: {
   sessionId: string;
   participantId: string;
   role: TrainerLiveRole;
   localLabel: string;
   onLeaveRoom: () => void;
+  /** Narrow layout for the collapsible video drawer (avoid forcing tall min-height). */
+  compact?: boolean;
 }) {
   const [participantMap, setParticipantMap] = useState<Map<string, ParticipantMeta>>(new Map());
   const [loadErr, setLoadErr] = useState<string | null>(null);
@@ -79,8 +82,12 @@ export default function TrainerLiveVideoShell({
 
   const banner = error || loadErr;
 
+  const root = compact
+    ? 'flex min-h-0 flex-col gap-3 text-white'
+    : 'flex min-h-[70vh] flex-col gap-4 text-white';
+
   return (
-    <div className="flex min-h-[70vh] flex-col gap-4 text-white">
+    <div className={root}>
       {banner ? (
         <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-2 text-sm text-amber-100">
           {banner}
@@ -94,7 +101,13 @@ export default function TrainerLiveVideoShell({
       ) : null}
 
       {role === 'trainer' ? (
-        <div className="grid flex-1 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div
+          className={
+            compact
+              ? 'grid flex-1 grid-cols-1 gap-2'
+              : 'grid flex-1 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3'
+          }
+        >
           <TrainerLiveLocalTile videoTrack={localVideoTrack} label={localLabel} />
           {remoteUsers.map((u) => (
             <TrainerLiveRemoteTile
@@ -118,12 +131,15 @@ export default function TrainerLiveVideoShell({
               Waiting for trainer…
             </div>
           )}
-          <div className="flex shrink-0 gap-3 overflow-x-auto pb-1">
-            <div className="w-44 shrink-0 sm:w-52">
+          <div className={`flex shrink-0 overflow-x-auto pb-1 ${compact ? 'gap-2' : 'gap-3'}`}>
+            <div className={compact ? 'w-36 shrink-0' : 'w-44 shrink-0 sm:w-52'}>
               <TrainerLiveLocalTile videoTrack={localVideoTrack} label={localLabel} />
             </div>
             {otherRemotes.map((u) => (
-              <div key={String(u.uid)} className="w-44 shrink-0 sm:w-52">
+              <div
+                key={String(u.uid)}
+                className={compact ? 'w-36 shrink-0' : 'w-44 shrink-0 sm:w-52'}
+              >
                 <TrainerLiveRemoteTile user={u} label={labelForUid(u.uid, participantMap)} />
               </div>
             ))}
@@ -131,7 +147,9 @@ export default function TrainerLiveVideoShell({
         </div>
       )}
 
-      <div className="flex flex-wrap items-center gap-3 border-t border-white/10 pt-4">
+      <div
+        className={`flex flex-wrap items-center border-t border-white/10 ${compact ? 'gap-2 pt-3' : 'gap-3 pt-4'}`}
+      >
         <button
           type="button"
           onClick={() => {
@@ -139,7 +157,11 @@ export default function TrainerLiveVideoShell({
             muteVideo(next);
             setVideoMuted(next);
           }}
-          className="rounded-lg border border-white/20 px-4 py-2 text-sm hover:bg-white/10"
+          className={
+            compact
+              ? 'rounded-lg border border-white/20 px-2 py-1.5 text-xs hover:bg-white/10'
+              : 'rounded-lg border border-white/20 px-4 py-2 text-sm hover:bg-white/10'
+          }
         >
           {videoMuted ? 'Camera off' : 'Camera on'}
         </button>
@@ -150,14 +172,22 @@ export default function TrainerLiveVideoShell({
             muteAudio(next);
             setAudioMuted(next);
           }}
-          className="rounded-lg border border-white/20 px-4 py-2 text-sm hover:bg-white/10"
+          className={
+            compact
+              ? 'rounded-lg border border-white/20 px-2 py-1.5 text-xs hover:bg-white/10'
+              : 'rounded-lg border border-white/20 px-4 py-2 text-sm hover:bg-white/10'
+          }
         >
           {audioMuted ? 'Mic muted' : 'Mic on'}
         </button>
         <button
           type="button"
           onClick={() => void handleLeave()}
-          className="rounded-lg bg-red-600/80 px-4 py-2 text-sm font-medium hover:bg-red-600"
+          className={
+            compact
+              ? 'rounded-lg bg-red-600/80 px-2 py-1.5 text-xs font-medium hover:bg-red-600'
+              : 'rounded-lg bg-red-600/80 px-4 py-2 text-sm font-medium hover:bg-red-600'
+          }
         >
           Leave room
         </button>
