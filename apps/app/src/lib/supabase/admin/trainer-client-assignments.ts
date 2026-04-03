@@ -282,15 +282,6 @@ export async function createClientCoachAssignment(
     }
   }
 
-  if (type === 'challenge' && resourceId) {
-    try {
-      await grantChallengeAccess(clientUserId, resourceId);
-    } catch (e) {
-      if (import.meta.env.DEV) console.warn('[trainer-client-assignments] grantChallengeAccess', e);
-      return { ok: false, error: 'Failed to grant challenge access' };
-    }
-  }
-
   const { data: inserted, error: insErr } = await supabase
     .from('client_coach_assignments')
     .insert({
@@ -313,7 +304,20 @@ export async function createClientCoachAssignment(
     return { ok: false, error: 'Failed to create assignment' };
   }
 
-  return { ok: true, id: inserted.id as string };
+  const newAssignmentId = inserted.id as string;
+
+  // Grant after insert so a failed insert never leaves user_challenges without this assignment row.
+  if (type === 'challenge' && resourceId) {
+    try {
+      await grantChallengeAccess(clientUserId, resourceId);
+    } catch (e) {
+      if (import.meta.env.DEV) console.warn('[trainer-client-assignments] grantChallengeAccess', e);
+      await supabase.from('client_coach_assignments').delete().eq('id', newAssignmentId);
+      return { ok: false, error: 'Failed to grant challenge access' };
+    }
+  }
+
+  return { ok: true, id: newAssignmentId };
 }
 
 export async function revokeClientCoachAssignment(
