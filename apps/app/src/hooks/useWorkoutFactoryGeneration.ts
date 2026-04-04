@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState, type SyntheticEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type SyntheticEvent } from 'react';
 import { toast } from 'sonner';
 import type { WorkoutChainMetadata, WorkoutSetTemplate } from '@/types/ai-workout';
 import {
@@ -37,6 +37,11 @@ export function useWorkoutFactoryGeneration({
       progressIntervalRef.current = null;
     }
   }, []);
+
+  // Avoid leaking the step-progress interval if the host unmounts mid-generation (e.g. route change).
+  useEffect(() => {
+    return () => clearProgressInterval();
+  }, [clearProgressInterval]);
 
   const handleGenerate = useCallback(
     async (e: SyntheticEvent) => {

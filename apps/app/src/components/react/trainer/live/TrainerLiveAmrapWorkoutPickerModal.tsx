@@ -88,8 +88,18 @@ export default function TrainerLiveAmrapWorkoutPickerModal({
           credentials: 'include',
           headers: { ...auth },
         });
-        const raw = await r.json().catch(() => []);
+        const raw: unknown = await r.json().catch(() => null);
         if (cancelled) return;
+        if (!r.ok) {
+          const body = raw && typeof raw === 'object' ? (raw as { error?: string }) : {};
+          const msg =
+            typeof body.error === 'string' && body.error.trim()
+              ? body.error.trim()
+              : 'Could not load saved workouts';
+          toast.error(msg);
+          setSavedLibrary([]);
+          return;
+        }
         const arr = Array.isArray(raw) ? raw : [];
         const items: AmrapSavedWorkoutItem[] = arr
           .map((row: unknown) => {
