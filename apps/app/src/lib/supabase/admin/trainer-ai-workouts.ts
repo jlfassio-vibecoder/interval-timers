@@ -52,6 +52,22 @@ export async function createTrainerAiWorkoutsFromFactory(
   const setTitle = (normalized.title ?? '').trim() || 'Workout';
   const setDescription = (normalized.description ?? '').trim();
 
+  const { data: seriesRow, error: seriesErr } = await supabase
+    .from('trainer_workout_series')
+    .insert({
+      trainer_id: trainerId,
+      title: setTitle,
+      description: setDescription || null,
+      raw_workout_set: normalized as unknown as Record<string, unknown>,
+      ai_chain_metadata: metaJson as Record<string, unknown>,
+    })
+    .select('id')
+    .single();
+
+  if (seriesErr) throw seriesErr;
+  const seriesId = seriesRow?.id as string | undefined;
+  if (!seriesId) throw new Error('Failed to insert trainer workout series');
+
   const ids: string[] = [];
 
   for (let i = 0; i < sessions.length; i++) {
@@ -78,6 +94,8 @@ export async function createTrainerAiWorkoutsFromFactory(
         source: 'ai_factory',
         ai_chain_metadata: metaJson,
         visibility,
+        workout_series_id: seriesId,
+        session_index: i,
       })
       .select('id')
       .single();

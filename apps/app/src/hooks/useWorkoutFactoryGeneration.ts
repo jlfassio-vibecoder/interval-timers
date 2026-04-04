@@ -44,7 +44,7 @@ export function useWorkoutFactoryGeneration({
   }, [clearProgressInterval]);
 
   const handleGenerate = useCallback(
-    async (e: SyntheticEvent) => {
+    async (e: SyntheticEvent, options?: { step1UserPromptOverride?: string }) => {
       e.preventDefault();
       setError(null);
       setLoading(true);
@@ -60,7 +60,13 @@ export function useWorkoutFactoryGeneration({
         });
       }, 4000);
       try {
-        const data = await postGenerateWorkoutChain(buildRequestBody());
+        const base = buildRequestBody();
+        const body: Record<string, unknown> = { ...base };
+        if (options?.step1UserPromptOverride !== undefined) {
+          const t = options.step1UserPromptOverride.trim();
+          if (t.length > 0) body.step1UserPromptOverride = t;
+        }
+        const data = await postGenerateWorkoutChain(body);
         onSuccess({
           workoutSet: data.workoutSet,
           chain_metadata: data.chain_metadata,

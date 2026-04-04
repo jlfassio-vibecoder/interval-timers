@@ -40,6 +40,7 @@ import TrainerLiveLobbyView from './live/TrainerLiveLobbyView';
 import TrainerLiveHostView from './live/TrainerLiveHostView';
 import TrainerWorkoutFactoryView from './views/TrainerWorkoutFactoryView';
 import TrainerClientWorkoutsView from './views/TrainerClientWorkoutsView';
+import TrainerWorkoutSeriesView from './views/TrainerWorkoutSeriesView';
 import TrainerLibraryWorkoutEditView from './views/TrainerLibraryWorkoutEditView';
 
 const TRAINER_NAV = [
@@ -333,6 +334,11 @@ function TrainerLibraryWorkoutEditRoute() {
   return isTrainer ? <TrainerLibraryWorkoutEditView /> : <Navigate to="/" replace />;
 }
 
+function TrainerWorkoutSeriesRoute() {
+  const { isTrainer } = useAppContext();
+  return isTrainer ? <TrainerWorkoutSeriesView /> : <Navigate to="/" replace />;
+}
+
 const TrainerBrowser: React.FC = () => {
   return (
     <BrowserRouter basename="/trainer">
@@ -342,6 +348,7 @@ const TrainerBrowser: React.FC = () => {
           <Route path="/" element={<TrainerLayout />}>
             <Route index element={<TrainerDashboard />} />
             <Route path="workouts/factory" element={<TrainerWorkoutFactoryRoute />} />
+            <Route path="workouts/series/:seriesId" element={<TrainerWorkoutSeriesRoute />} />
             <Route path="workouts/:workoutId/edit" element={<TrainerLibraryWorkoutEditRoute />} />
             <Route path="workouts" element={<TrainerClientWorkoutsRoute />} />
             <Route path="roster" element={<TrainerRosterRoute />} />

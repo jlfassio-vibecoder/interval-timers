@@ -9,20 +9,13 @@
 import type { APIRoute } from 'astro';
 import type { PatternSkeleton, ExerciseSelection } from '@/types/ai-program';
 import type {
-  WorkoutPersona,
   WorkoutArchitectBlueprint,
   WorkoutSetTemplate,
   WorkoutChainMetadata,
   WorkoutInSet,
-  BlockOptions,
-  HiitOptions,
-  HiitCircuitStructure,
 } from '@/types/ai-workout';
-import {
-  getZoneByIdServer,
-  getAllEquipmentItemsServer,
-} from '@/lib/supabase/admin/server-equipment';
 import { parseJSONWithRepair } from '@/lib/json-parser';
+import { prepareWorkoutChainRequest } from '@/lib/workout-chain/prepare-workout-chain-request';
 import {
   buildWorkoutArchitectPrompt,
   validateWorkoutArchitectOutput,
@@ -40,12 +33,6 @@ import {
 import { normalizeWorkoutSet } from '@/lib/program-schedule-utils';
 import { callVertexAI, getVertexAICredentials } from '@/lib/vertex-ai-client';
 import { verifyMissionControlRequest } from '@/lib/supabase/admin/auth';
-
-interface ZoneContext {
-  zoneName: string;
-  availableEquipment: string[];
-  biomechanicalConstraints: string[];
-}
 
 export interface WorkoutChainGenerationResponse {
   workoutSet: WorkoutSetTemplate;
@@ -66,154 +53,32 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       });
     }
 
-    const defaultBlockOptions: BlockOptions = {
-      includeWarmup: true,
-      mainBlockCount: 1,
-      includeFinisher: false,
-      includeCooldown: false,
-    };
-
-    let body: WorkoutPersona & {
-      architectBlueprint?: WorkoutArchitectBlueprint;
-      blockOptions?: BlockOptions;
-    };
+    let rawBody: unknown;
     try {
-      body = (await request.json()) as typeof body;
+      rawBody = await request.json();
     } catch {
       return new Response(JSON.stringify({ error: 'Invalid JSON' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' },
       });
     }
+
+    const prepared = await prepareWorkoutChainRequest(rawBody, shouldLog);
+    if (!prepared.ok) return prepared.response;
+
     const {
-      architectBlueprint: providedArchitect,
-      blockOptions: requestBlockOptions,
-      ...persona
-    } = body;
-    const blockOptions: BlockOptions =
-      requestBlockOptions && typeof requestBlockOptions === 'object'
-        ? {
-            includeWarmup: !!requestBlockOptions.includeWarmup,
-            mainBlockCount:
-              typeof requestBlockOptions.mainBlockCount === 'number' &&
-              requestBlockOptions.mainBlockCount >= 1 &&
-              requestBlockOptions.mainBlockCount <= 5
-                ? (requestBlockOptions.mainBlockCount as 1 | 2 | 3 | 4 | 5)
-                : 1,
-            includeFinisher: !!requestBlockOptions.includeFinisher,
-            includeCooldown: !!requestBlockOptions.includeCooldown,
-          }
-        : defaultBlockOptions;
+      persona,
+      blockOptions,
+      hiitMode,
+      hiitOptions,
+      amrapDensityOptions,
+      zoneContext,
+      availableEquipment,
+      providedArchitect,
+      step1UserPromptOverride,
+    } = prepared.data;
 
-    if (!persona.demographics || !persona.medical || !persona.goals) {
-      return new Response(JSON.stringify({ error: 'Invalid persona structure' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-
-    if (
-      typeof persona.weeklyTimeMinutes !== 'number' ||
-      persona.weeklyTimeMinutes < 30 ||
-      persona.weeklyTimeMinutes > 600
-    ) {
-      return new Response(
-        JSON.stringify({ error: 'weeklyTimeMinutes must be between 30 and 600' }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-    if (
-      typeof persona.sessionsPerWeek !== 'number' ||
-      persona.sessionsPerWeek < 1 ||
-      persona.sessionsPerWeek > 7
-    ) {
-      return new Response(JSON.stringify({ error: 'sessionsPerWeek must be between 1 and 7' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-    const hiitMode = !!persona.hiitMode;
-    const defaultHiitCircuitStructure: HiitCircuitStructure = {
-      includeWarmup: true,
-      circuit1: true,
-      circuit2: false,
-      circuit3: false,
-      includeCooldown: true,
-    };
-    const defaultHiitOptions: HiitOptions = {
-      protocolFormat: 'standard_ratio',
-      workRestRatio: '1:1',
-      circuitStructure: defaultHiitCircuitStructure,
-      sessionDurationTier: 'standard_interval',
-      primaryGoal: 'fat_oxidation',
-    };
-    const hiitOptions: HiitOptions | undefined = hiitMode
-      ? persona.hiitOptions && typeof persona.hiitOptions === 'object'
-        ? {
-            protocolFormat: persona.hiitOptions.protocolFormat ?? defaultHiitOptions.protocolFormat,
-            workRestRatio: persona.hiitOptions.workRestRatio,
-            circuitStructure: persona.hiitOptions.circuitStructure ?? defaultHiitCircuitStructure,
-            sessionDurationTier:
-              persona.hiitOptions.sessionDurationTier ?? defaultHiitOptions.sessionDurationTier,
-            primaryGoal: persona.hiitOptions.primaryGoal ?? defaultHiitOptions.primaryGoal,
-          }
-        : defaultHiitOptions
-      : undefined;
-
-    if (typeof persona.sessionDurationMinutes !== 'number') {
-      return new Response(JSON.stringify({ error: 'sessionDurationMinutes is required' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-    if (hiitMode) {
-      if (persona.sessionDurationMinutes < 4 || persona.sessionDurationMinutes > 30) {
-        return new Response(
-          JSON.stringify({ error: 'sessionDurationMinutes must be between 4 and 30 in HIIT mode' }),
-          { status: 400, headers: { 'Content-Type': 'application/json' } }
-        );
-      }
-    } else if (persona.sessionDurationMinutes < 15 || persona.sessionDurationMinutes > 180) {
-      return new Response(
-        JSON.stringify({ error: 'sessionDurationMinutes must be between 15 and 180' }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-    if (!persona.splitType || typeof persona.lifestyle !== 'string') {
-      return new Response(JSON.stringify({ error: 'splitType and lifestyle are required' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-
-    // Fetch zone context
-    let zoneContext: ZoneContext | undefined;
-    let availableEquipment: string[] = ['Bodyweight'];
-    if (persona.zoneId) {
-      try {
-        const zone = await getZoneByIdServer(persona.zoneId);
-        if (zone) {
-          const equipmentItems = await getAllEquipmentItemsServer();
-          const equipmentMap = new Map(equipmentItems.map((item) => [item.id, item.name]));
-          const equipmentIdsToUse = persona.selectedEquipmentIds?.length
-            ? persona.selectedEquipmentIds
-            : zone.equipmentIds;
-          availableEquipment = equipmentIdsToUse
-            .map((id) => equipmentMap.get(id))
-            .filter((name): name is string => name !== undefined);
-          if (availableEquipment.length === 0) {
-            availableEquipment = ['Bodyweight'];
-          }
-          zoneContext = {
-            zoneName: zone.name,
-            availableEquipment,
-            biomechanicalConstraints: zone.biomechanicalConstraints || [],
-          };
-        }
-      } catch (err) {
-        if (shouldLog) console.error('[generate-workout-chain] Zone fetch error:', err);
-      }
-    }
+    const amrapDensityMode = !!persona.amrapDensityMode;
 
     const creds = await getVertexAICredentials('[generate-workout-chain]');
     if ('error' in creds) return creds.error;
@@ -224,7 +89,11 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     // ========================================================================
     let workoutArchitect: WorkoutArchitectBlueprint;
     if (providedArchitect) {
-      const validation = validateWorkoutArchitectOutput(providedArchitect, hiitMode);
+      const validation = validateWorkoutArchitectOutput(
+        providedArchitect,
+        hiitMode,
+        amrapDensityMode
+      );
       if (!validation.valid) {
         return new Response(
           JSON.stringify({ error: `Invalid architectBlueprint: ${validation.error}` }),
@@ -236,7 +105,8 @@ export const POST: APIRoute = async ({ request, cookies }) => {
         console.warn('[generate-workout-chain] Using provided workout architect blueprint');
     } else {
       if (shouldLog) console.warn('[generate-workout-chain] Step 1: Workout Architect...');
-      const step1Prompt = buildWorkoutArchitectPrompt(persona, zoneContext, hiitOptions);
+      const step1Prompt =
+        step1UserPromptOverride ?? buildWorkoutArchitectPrompt(persona, zoneContext, hiitOptions);
       const step1Response = await callVertexAI({
         systemPrompt:
           'You are the Workout Architect (PhD Exercise Physiology). Output ONLY valid JSON.',
@@ -250,7 +120,11 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       });
 
       const step1Parsed = parseJSONWithRepair(step1Response);
-      const step1Validation = validateWorkoutArchitectOutput(step1Parsed.data, hiitMode);
+      const step1Validation = validateWorkoutArchitectOutput(
+        step1Parsed.data,
+        hiitMode,
+        amrapDensityMode
+      );
       if (!step1Validation.valid) {
         return new Response(
           JSON.stringify({ error: `Step 1 (Workout Architect) failed: ${step1Validation.error}` }),
@@ -351,12 +225,18 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       exercises,
       blockOptions,
       hiitMode,
-      hiitOptions
+      hiitOptions,
+      amrapDensityMode,
+      amrapDensityOptions
     );
     const step4Response = await callVertexAI({
-      systemPrompt: hiitMode
-        ? 'You are the Workout Mathematician. Generate one set of HIIT workouts with workSeconds, restSeconds, rounds per exercise. Output ONLY valid JSON.'
-        : 'You are the Workout Mathematician. Generate one set of workouts with sets, reps, RPE, rest. Output ONLY valid JSON.',
+      systemPrompt: amrapDensityMode
+        ? 'You are the Workout Mathematician. For Density-Based AMRAP: output ONLY one main circuit in exerciseBlocks using fixed repetition counts per station (sets/reps schema). FORBID workSeconds and timed-station prescriptions. restSeconds must be 0 between movements (continuous lap). Primary metric: Total Laps Completed. Do not include warmupBlocks, finisherBlocks, or cooldownBlocks (use empty arrays). Output ONLY valid JSON.'
+        : hiitMode
+          ? hiitOptions?.protocolFormat === 'amrap'
+            ? 'You are the Workout Mathematician. For AMRAP: output ONLY the main interval circuit in exerciseBlocks (timer fields: workSeconds, restSeconds, rounds=1 per exercise). Do not include warmupBlocks, finisherBlocks, or cooldownBlocks (use empty arrays). Warm-up and cool-down are not part of this output. Output ONLY valid JSON.'
+            : 'You are the Workout Mathematician. Generate one set of HIIT workouts with workSeconds, restSeconds, rounds per exercise. Output ONLY valid JSON.'
+          : 'You are the Workout Mathematician. Generate one set of workouts with sets, reps, RPE, rest. Output ONLY valid JSON.',
       userPrompt: step4Prompt,
       accessToken,
       projectId,
@@ -373,7 +253,8 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       workoutArchitect.sessions.length,
       blockOptions,
       hiitMode,
-      hiitOptions
+      hiitOptions,
+      amrapDensityMode
     );
     if (!step4Validation.valid) {
       return new Response(

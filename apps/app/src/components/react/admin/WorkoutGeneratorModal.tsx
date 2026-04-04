@@ -6,7 +6,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Sparkles, AlertCircle, Play } from 'lucide-react';
+import { X, Sparkles, AlertCircle, Play, Loader2, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import type {
   WorkoutConfig,
@@ -22,7 +22,10 @@ import type {
   HiitCircuitStructure,
   HiitSessionDurationTier,
   HiitPrimaryGoal,
+  AmrapDensityOptions,
 } from '@/types/ai-workout';
+import AmrapDensityArchitecture from '@/components/react/admin/amrap-density/AmrapDensityArchitecture';
+import { amrapDensityTierMinutes } from '@/lib/amrap-density-tier';
 import {
   getAllZones,
   getZoneById,
@@ -35,10 +38,12 @@ import {
   updateWorkout,
 } from '@/lib/supabase/client/workout-persistence';
 import { useWorkoutFactoryGeneration } from '@/hooks/useWorkoutFactoryGeneration';
+import { postPreviewWorkoutChainPrompt } from '@/lib/workout-factory-client';
 import { useAppContext } from '@/contexts/AppContext';
 import { missionControlApiAuthHeaders } from '@/lib/mission-control-api-auth';
 import { isHIITWorkout, workoutInSetToHIITWorkoutData } from '@/lib/hiit-workout-data';
 import IntervalTimerOverlay from '@/components/react/interval-timers/IntervalTimerOverlay';
+import WorkoutSessionPreviewContent from '@/components/react/trainer/WorkoutSessionPreviewContent';
 
 type Step = 'config' | 'preview';
 type WorkoutSetType = 'single' | 'split';
@@ -96,6 +101,13 @@ const defaultConfig: WorkoutConfig = {
     includeFinisher: false,
     includeCooldown: false,
   },
+  amrapDensityMode: false,
+};
+
+const defaultAmrapDensityOptions: AmrapDensityOptions = {
+  protocolFormat: 'AMRAP_DENSITY',
+  workRestRatio: 'continuous',
+  sessionDurationTier: 'standard_interval',
 };
 
 const defaultBlockOptions: BlockOptions = {
@@ -125,7 +137,6 @@ const HIIT_PROTOCOL_OPTIONS: { value: HiitProtocolFormat; label: string }[] = [
   { value: 'standard_ratio', label: 'Standard Ratio (Work:Rest)' },
   { value: 'tabata', label: 'Tabata Style (20:10)' },
   { value: 'emom', label: 'EMOM (Every Minute on the Minute)' },
-  { value: 'amrap', label: 'AMRAP (As Many Rounds As Possible)' },
   { value: 'ladder', label: 'Ladder (Ascending/Descending)' },
   { value: 'chipper', label: 'Chipper (List Completion)' },
 ];
@@ -137,10 +148,24 @@ const HIIT_WORK_REST_OPTIONS: { value: HiitWorkRestRatio; label: string }[] = [
   { value: '1:3', label: '1:3 (Recovery Focus)' },
 ];
 
-const HIIT_SESSION_TIER_OPTIONS: { value: HiitSessionDurationTier; label: string }[] = [
-  { value: 'micro_dose', label: 'Micro-Dose (4–10 mins)' },
-  { value: 'standard_interval', label: 'Standard Interval (15–20 mins)' },
-  { value: 'high_volume', label: 'High Volume (25–30 mins)' },
+/** Minutes sent to the chain for each tier (Mission Control metabolic pathways). */
+function hiitTierSessionMinutes(tier: HiitSessionDurationTier): number {
+  switch (tier) {
+    case 'micro_dose':
+      return 5;
+    case 'standard_interval':
+      return 15;
+    case 'high_volume':
+      return 20;
+    default:
+      return 15;
+  }
+}
+
+const HIIT_SESSION_TIER_OPTIONS_GENERIC: { value: HiitSessionDurationTier; label: string }[] = [
+  { value: 'micro_dose', label: 'Micro-dose (~5 min) — short, high output' },
+  { value: 'standard_interval', label: 'Standard (~15 min) — work capacity' },
+  { value: 'high_volume', label: 'Extended (~20 min) — aerobic power' },
 ];
 
 const HIIT_PRIMARY_GOAL_OPTIONS: { value: HiitPrimaryGoal; label: string }[] = [
@@ -200,6 +225,10 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
   >([]);
   const [rosterLoading, setRosterLoading] = useState(false);
   const [assignBusy, setAssignBusy] = useState(false);
+  const [reviewStep1PromptBeforeGenerate, setReviewStep1PromptBeforeGenerate] = useState(false);
+  const [step1PromptStep, setStep1PromptStep] = useState<'idle' | 'review'>('idle');
+  const [editedStep1UserPrompt, setEditedStep1UserPrompt] = useState('');
+  const [previewingStep1Prompt, setPreviewingStep1Prompt] = useState(false);
 
   const firstHIITWorkout = useMemo(
     () => generatedWorkout?.workouts?.find((w) => isHIITWorkout(w)) ?? null,
@@ -273,6 +302,8 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
   }, [isOpen, saveTarget, savedTrainerWorkoutIds]);
 
   const buildPersona = useCallback((): WorkoutPersona => {
+    const amrapOn = !!workoutConfig.amrapDensityMode;
+    const hiitOn = !!workoutConfig.hiitMode && !amrapOn;
     return {
       title: workoutConfig.workoutInfo.title.trim(),
       description: workoutConfig.workoutInfo.description.trim(),
@@ -296,25 +327,40 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
       lifestyle: workoutConfig.requirements.lifestyle,
       twoADay: workoutSetType === 'single' ? false : workoutConfig.requirements.twoADay,
       preferredFocus: workoutConfig.preferredFocus,
-      hiitMode: workoutConfig.hiitMode,
-      hiitOptions: workoutConfig.hiitMode
-        ? (workoutConfig.hiitOptions ?? defaultHiitOptions)
+      hiitMode: hiitOn,
+      hiitOptions: hiitOn ? (workoutConfig.hiitOptions ?? defaultHiitOptions) : undefined,
+      amrapDensityMode: amrapOn,
+      amrapDensityOptions: amrapOn
+        ? (workoutConfig.amrapDensityOptions ?? defaultAmrapDensityOptions)
         : undefined,
     };
   }, [workoutConfig, selectedZone?.id, selectedEquipmentIds, workoutSetType]);
 
   const buildRequestBody = useCallback(() => {
+    const useMetabolicBlocks = workoutConfig.hiitMode || workoutConfig.amrapDensityMode;
     return {
       ...buildPersona(),
-      blockOptions: workoutConfig.hiitMode
+      blockOptions: useMetabolicBlocks
         ? undefined
         : (workoutConfig.blockOptions ?? defaultBlockOptions),
-      hiitMode: workoutConfig.hiitMode,
-      hiitOptions: workoutConfig.hiitMode
-        ? (workoutConfig.hiitOptions ?? defaultHiitOptions)
+      hiitMode: !!workoutConfig.hiitMode && !workoutConfig.amrapDensityMode,
+      hiitOptions:
+        workoutConfig.hiitMode && !workoutConfig.amrapDensityMode
+          ? (workoutConfig.hiitOptions ?? defaultHiitOptions)
+          : undefined,
+      amrapDensityMode: !!workoutConfig.amrapDensityMode,
+      amrapDensityOptions: workoutConfig.amrapDensityMode
+        ? (workoutConfig.amrapDensityOptions ?? defaultAmrapDensityOptions)
         : undefined,
     };
-  }, [buildPersona, workoutConfig.hiitMode, workoutConfig.blockOptions, workoutConfig.hiitOptions]);
+  }, [
+    buildPersona,
+    workoutConfig.hiitMode,
+    workoutConfig.amrapDensityMode,
+    workoutConfig.blockOptions,
+    workoutConfig.hiitOptions,
+    workoutConfig.amrapDensityOptions,
+  ]);
 
   const {
     handleGenerate: runWorkoutChain,
@@ -327,6 +373,7 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
   } = useWorkoutFactoryGeneration({
     buildRequestBody,
     onSuccess: ({ workoutSet, chain_metadata }) => {
+      setStep1PromptStep('idle');
       setGeneratedWorkout(workoutSet);
       setChainMetadata(chain_metadata);
       setStep('preview');
@@ -354,11 +401,13 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
       setGeneratedWorkout(null);
       setWorkoutConfig(defaultConfig);
       setChainMetadata(null);
+      setStep1PromptStep('idle');
+      setEditedStep1UserPrompt('');
       resetGenerationState();
     }
   }, [existingWorkout, providedConfig, editingChainMetadata, isOpen, resetGenerationState]);
 
-  const busy = chainLoading || saving || assignBusy;
+  const busy = chainLoading || saving || assignBusy || previewingStep1Prompt;
 
   const rosterLabel = (id: string) => {
     const r = roster.find((x) => x.id === id);
@@ -433,7 +482,7 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
     }
   };
 
-  const handleGenerate = (e: React.SyntheticEvent) => {
+  const handleGenerate = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     setError(null);
     if (!workoutConfig.workoutInfo.title.trim()) {
@@ -444,7 +493,30 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
       setError('Workout description is required');
       return;
     }
+
+    if (reviewStep1PromptBeforeGenerate && step1PromptStep === 'idle') {
+      setPreviewingStep1Prompt(true);
+      try {
+        const data = await postPreviewWorkoutChainPrompt(buildRequestBody());
+        setEditedStep1UserPrompt(data.step1UserPrompt);
+        setStep1PromptStep('review');
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load prompt preview');
+      } finally {
+        setPreviewingStep1Prompt(false);
+      }
+      return;
+    }
+
     void runWorkoutChain(e);
+  };
+
+  const handleGenerateFromEditedStep1Prompt = (e: React.SyntheticEvent) => {
+    void runWorkoutChain(e, { step1UserPromptOverride: editedStep1UserPrompt });
+  };
+
+  const cancelStep1PromptReview = () => {
+    setStep1PromptStep('idle');
   };
 
   const handleSave = async () => {
@@ -619,122 +691,7 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
                     </div>
                     {generatedWorkout.workouts.map((w, idx) => (
                       <div key={idx} className="rounded-lg border border-white/10 bg-black/20 p-4">
-                        <h4 className="font-medium text-white">{w.title}</h4>
-                        <p className="mt-1 text-sm text-white/60">{w.description}</p>
-
-                        {(w.warmupBlocks ?? []).length > 0 && (
-                          <div className="mt-3">
-                            <h5 className="text-sm font-medium text-white/80">Warmup</h5>
-                            <ul className="mt-1 space-y-1 text-sm text-white/70">
-                              {(w.warmupBlocks ?? []).map((item, i) => (
-                                <li key={i}>
-                                  {item.exerciseName}
-                                  {Array.isArray(item.instructions) &&
-                                    item.instructions.length > 0 && (
-                                      <span className="text-white/50">
-                                        {' '}
-                                        — {item.instructions.join(', ')}
-                                      </span>
-                                    )}
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-
-                        {(w.exerciseBlocks ?? []).length > 0 ? (
-                          <div className="mt-3">
-                            {(w.exerciseBlocks ?? []).map((block, bIdx) => (
-                              <div key={bIdx} className={bIdx > 0 ? 'mt-3' : ''}>
-                                <h5 className="text-sm font-medium text-white/80">
-                                  {(block as { name?: string }).name ?? `Block ${bIdx + 1}`}
-                                </h5>
-                                <ul className="mt-1 space-y-1 text-sm text-white/70">
-                                  {(block.exercises ?? []).map((ex, i) => (
-                                    <li key={i}>
-                                      {ex.exerciseName} —{' '}
-                                      {ex.workSeconds != null &&
-                                      ex.restSeconds != null &&
-                                      ex.rounds != null
-                                        ? `${ex.workSeconds}s work / ${ex.restSeconds}s rest × ${ex.rounds} rounds`
-                                        : `${ex.sets}×${ex.reps}${ex.rpe != null ? ` @ RPE ${ex.rpe}` : ''}`}
-                                    </li>
-                                  ))}
-                                </ul>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          (w.blocks ?? []).length > 0 && (
-                            <div className="mt-3">
-                              <h5 className="text-sm font-medium text-white/80">Main</h5>
-                              <ul className="mt-1 space-y-1 text-sm text-white/70">
-                                {(w.blocks ?? []).map((ex, i) => {
-                                  const raw = ex as {
-                                    exerciseName?: string;
-                                    sets?: number;
-                                    reps?: string;
-                                    workSeconds?: number;
-                                    restSeconds?: number;
-                                    rounds?: number;
-                                  };
-                                  const timerSchema =
-                                    raw.workSeconds != null &&
-                                    raw.restSeconds != null &&
-                                    raw.rounds != null;
-                                  return (
-                                    <li key={i}>
-                                      {raw.exerciseName} —{' '}
-                                      {timerSchema
-                                        ? `${raw.workSeconds}s work / ${raw.restSeconds}s rest × ${raw.rounds} rounds`
-                                        : `${raw.sets}×${raw.reps}`}
-                                    </li>
-                                  );
-                                })}
-                              </ul>
-                            </div>
-                          )
-                        )}
-
-                        {(w.finisherBlocks ?? []).length > 0 && (
-                          <div className="mt-3">
-                            <h5 className="text-sm font-medium text-white/80">Finisher</h5>
-                            <ul className="mt-1 space-y-1 text-sm text-white/70">
-                              {(w.finisherBlocks ?? []).map((item, i) => (
-                                <li key={i}>
-                                  {item.exerciseName}
-                                  {Array.isArray(item.instructions) &&
-                                    item.instructions.length > 0 && (
-                                      <span className="text-white/50">
-                                        {' '}
-                                        — {item.instructions.join(', ')}
-                                      </span>
-                                    )}
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-
-                        {(w.cooldownBlocks ?? []).length > 0 && (
-                          <div className="mt-3">
-                            <h5 className="text-sm font-medium text-white/80">Cool down</h5>
-                            <ul className="mt-1 space-y-1 text-sm text-white/70">
-                              {(w.cooldownBlocks ?? []).map((item, i) => (
-                                <li key={i}>
-                                  {item.exerciseName}
-                                  {Array.isArray(item.instructions) &&
-                                    item.instructions.length > 0 && (
-                                      <span className="text-white/50">
-                                        {' '}
-                                        — {item.instructions.join(', ')}
-                                      </span>
-                                    )}
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
+                        <WorkoutSessionPreviewContent w={w} headingLevel="h4" />
                       </div>
                     ))}
                   </div>
@@ -942,6 +899,7 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
                             const next: WorkoutConfig = {
                               ...prev,
                               hiitMode: checked,
+                              amrapDensityMode: checked ? false : prev.amrapDensityMode,
                               hiitOptions:
                                 checked && !prev.hiitOptions
                                   ? defaultHiitOptions
@@ -949,11 +907,9 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
                             };
                             if (checked && next.hiitOptions) {
                               const tier = next.hiitOptions.sessionDurationTier;
-                              const minutes =
-                                tier === 'micro_dose' ? 7 : tier === 'standard_interval' ? 18 : 28;
                               next.requirements = {
                                 ...prev.requirements,
-                                sessionDurationMinutes: minutes,
+                                sessionDurationMinutes: hiitTierSessionMinutes(tier),
                               };
                             }
                             return next;
@@ -963,6 +919,38 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
                       />
                       <span className="text-sm font-medium text-white/80">
                         Enable Metabolic Conditioning (HIIT) Mode
+                      </span>
+                    </label>
+                    <label className="flex cursor-pointer items-center gap-3">
+                      <input
+                        type="checkbox"
+                        checked={!!workoutConfig.amrapDensityMode}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setWorkoutConfig((prev) => {
+                            const tier = (prev.amrapDensityOptions ?? defaultAmrapDensityOptions)
+                              .sessionDurationTier;
+                            const minutes = amrapDensityTierMinutes(tier);
+                            return {
+                              ...prev,
+                              amrapDensityMode: checked,
+                              hiitMode: checked ? false : prev.hiitMode,
+                              amrapDensityOptions: checked
+                                ? (prev.amrapDensityOptions ?? defaultAmrapDensityOptions)
+                                : prev.amrapDensityOptions,
+                              requirements: {
+                                ...prev.requirements,
+                                sessionDurationMinutes: checked
+                                  ? minutes
+                                  : prev.requirements.sessionDurationMinutes,
+                              },
+                            };
+                          });
+                        }}
+                        className="focus:ring-orange-light/50 h-4 w-4 rounded border-white/20 bg-black/20 text-orange-light focus:ring-2"
+                      />
+                      <span className="text-sm font-medium text-white/80">
+                        Enable Density-Based AMRAP Mode
                       </span>
                     </label>
                   </div>
@@ -993,9 +981,28 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
                         Split Workout
                       </button>
                     </div>
+                    <div className="flex items-center gap-2 pt-1">
+                      <input
+                        type="checkbox"
+                        id="workout-factory-review-step1-prompt"
+                        checked={reviewStep1PromptBeforeGenerate}
+                        onChange={(e) => {
+                          const on = e.target.checked;
+                          setReviewStep1PromptBeforeGenerate(on);
+                          if (!on) setStep1PromptStep('idle');
+                        }}
+                        className="focus:ring-orange-light/50 h-4 w-4 rounded border-white/20 bg-black/20 text-orange-light"
+                      />
+                      <label
+                        htmlFor="workout-factory-review-step1-prompt"
+                        className="text-sm font-medium text-white/80"
+                      >
+                        Review Step 1 prompt before generating
+                      </label>
+                    </div>
                   </div>
 
-                  {!workoutConfig.hiitMode && (
+                  {!workoutConfig.hiitMode && !workoutConfig.amrapDensityMode && (
                     <div className="space-y-4">
                       <h3 className="font-heading text-lg font-bold text-white">Block selectors</h3>
                       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -1092,7 +1099,30 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
                     </div>
                   )}
 
-                  {workoutConfig.hiitMode && (
+                  {workoutConfig.amrapDensityMode && (
+                    <AmrapDensityArchitecture
+                      sessionDurationTier={
+                        (workoutConfig.amrapDensityOptions ?? defaultAmrapDensityOptions)
+                          .sessionDurationTier
+                      }
+                      onSessionDurationTierChange={(tier) => {
+                        const minutes = amrapDensityTierMinutes(tier);
+                        setWorkoutConfig((prev) => ({
+                          ...prev,
+                          amrapDensityOptions: {
+                            ...(prev.amrapDensityOptions ?? defaultAmrapDensityOptions),
+                            sessionDurationTier: tier,
+                          },
+                          requirements: {
+                            ...prev.requirements,
+                            sessionDurationMinutes: minutes,
+                          },
+                        }));
+                      }}
+                    />
+                  )}
+
+                  {workoutConfig.hiitMode && !workoutConfig.amrapDensityMode && (
                     <div className="space-y-4">
                       <h3 className="font-heading text-lg font-bold text-white">
                         Metabolic Architecture
@@ -1104,15 +1134,22 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
                           </label>
                           <select
                             value={(workoutConfig.hiitOptions ?? defaultHiitOptions).protocolFormat}
-                            onChange={(e) =>
-                              setWorkoutConfig((prev) => ({
-                                ...prev,
-                                hiitOptions: {
-                                  ...(prev.hiitOptions ?? defaultHiitOptions),
-                                  protocolFormat: e.target.value as HiitProtocolFormat,
-                                },
-                              }))
-                            }
+                            onChange={(e) => {
+                              const nextFormat = e.target.value as HiitProtocolFormat;
+                              setWorkoutConfig((prev) => {
+                                const baseOpts = { ...(prev.hiitOptions ?? defaultHiitOptions) };
+                                baseOpts.protocolFormat = nextFormat;
+                                const tier = baseOpts.sessionDurationTier;
+                                return {
+                                  ...prev,
+                                  hiitOptions: baseOpts,
+                                  requirements: {
+                                    ...prev.requirements,
+                                    sessionDurationMinutes: hiitTierSessionMinutes(tier),
+                                  },
+                                };
+                              });
+                            }}
                             className="focus:border-orange-light/50 focus:ring-orange-light/20 w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-white focus:outline-none focus:ring-2"
                           >
                             {HIIT_PROTOCOL_OPTIONS.map((o) => (
@@ -1282,15 +1319,14 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
                         <label className="mb-2 block text-sm font-medium text-white/80">
                           Session duration (min) *
                         </label>
-                        {workoutConfig.hiitMode ? (
+                        {workoutConfig.hiitMode && !workoutConfig.amrapDensityMode ? (
                           <select
                             value={
                               (workoutConfig.hiitOptions ?? defaultHiitOptions).sessionDurationTier
                             }
                             onChange={(e) => {
                               const tier = e.target.value as HiitSessionDurationTier;
-                              const minutes =
-                                tier === 'micro_dose' ? 7 : tier === 'standard_interval' ? 18 : 28;
+                              const minutes = hiitTierSessionMinutes(tier);
                               setWorkoutConfig((prev) => ({
                                 ...prev,
                                 hiitOptions: {
@@ -1305,12 +1341,20 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
                             }}
                             className="focus:border-orange-light/50 focus:ring-orange-light/20 w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-white focus:outline-none focus:ring-2"
                           >
-                            {HIIT_SESSION_TIER_OPTIONS.map((o) => (
+                            {HIIT_SESSION_TIER_OPTIONS_GENERIC.map((o) => (
                               <option key={o.value} value={o.value}>
                                 {o.label}
                               </option>
                             ))}
                           </select>
+                        ) : workoutConfig.amrapDensityMode ? (
+                          <p className="text-sm text-white/75">
+                            Session clock:{' '}
+                            <span className="font-medium text-white">
+                              {workoutConfig.requirements.sessionDurationMinutes} min
+                            </span>{' '}
+                            — set by the Density-Based AMRAP tier above (5, 15, or 20 min).
+                          </p>
                         ) : (
                           <input
                             type="number"
@@ -1528,12 +1572,12 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
                         </label>
                         <select
                           value={
-                            workoutConfig.hiitMode
+                            workoutConfig.hiitMode && !workoutConfig.amrapDensityMode
                               ? (workoutConfig.hiitOptions ?? defaultHiitOptions).primaryGoal
                               : workoutConfig.goals.primary
                           }
                           onChange={(e) =>
-                            workoutConfig.hiitMode
+                            workoutConfig.hiitMode && !workoutConfig.amrapDensityMode
                               ? setWorkoutConfig((prev) => ({
                                   ...prev,
                                   hiitOptions: {
@@ -1548,7 +1592,7 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
                           }
                           className="focus:border-orange-light/50 focus:ring-orange-light/20 w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-white focus:outline-none focus:ring-2"
                         >
-                          {workoutConfig.hiitMode
+                          {workoutConfig.hiitMode && !workoutConfig.amrapDensityMode
                             ? HIIT_PRIMARY_GOAL_OPTIONS.map((o) => (
                                 <option key={o.value} value={o.value}>
                                   {o.label}
@@ -1639,13 +1683,69 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
                         </p>
                       </div>
                     )}
-                    {workoutConfig.hiitMode && (
+                    {workoutConfig.hiitMode && !workoutConfig.amrapDensityMode && (
                       <p className="text-xs text-white/50">
                         For HIIT, the AI deprioritizes heavy barbell setups and favors Dumbbells,
                         Kettlebells, and Bodyweight for safety under fatigue.
                       </p>
                     )}
+                    {workoutConfig.amrapDensityMode && (
+                      <p className="text-xs text-white/50">
+                        For Density-Based AMRAP, the AI favors practical, repeatable movements
+                        (Dumbbells, Kettlebells, Bodyweight) for clean lap counting.
+                      </p>
+                    )}
                   </div>
+
+                  {step1PromptStep === 'review' && (
+                    <div className="border-orange-light/30 rounded-lg border bg-black/30 p-6">
+                      <h3 className="mb-2 text-lg font-semibold text-white">
+                        Review Step 1 prompt (Workout Architect)
+                      </h3>
+                      <p className="mb-4 text-sm text-white/70">
+                        Edit the prompt below before generating. Only the Workout Architect step
+                        uses this text; later steps still run automatically from its JSON output.
+                      </p>
+                      <div className="mb-4">
+                        <label className="mb-1 block text-sm font-medium text-white/80">
+                          User prompt
+                        </label>
+                        <textarea
+                          value={editedStep1UserPrompt}
+                          onChange={(e) => setEditedStep1UserPrompt(e.target.value)}
+                          rows={12}
+                          className="focus:border-orange-light/50 focus:ring-orange-light/20 max-h-[min(50vh,28rem)] w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 font-mono text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2"
+                        />
+                      </div>
+                      <div className="flex justify-end gap-3">
+                        <button
+                          type="button"
+                          onClick={cancelStep1PromptReview}
+                          className="rounded-lg border border-white/20 bg-white/5 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-white/10"
+                        >
+                          Back
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleGenerateFromEditedStep1Prompt}
+                          disabled={chainLoading}
+                          className="hover:bg-orange-light/90 flex items-center gap-2 rounded-lg bg-orange-light px-4 py-2 text-sm font-bold text-black transition-colors disabled:opacity-50"
+                        >
+                          {chainLoading ? (
+                            <>
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              Generating...
+                            </>
+                          ) : (
+                            <>
+                              <Send className="h-4 w-4" />
+                              Generate workout
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
                   <div className="flex flex-wrap gap-3 border-t border-white/10 pt-6">
                     <button
@@ -1658,11 +1758,19 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
                     </button>
                     <button
                       type="submit"
-                      disabled={busy}
+                      disabled={busy || step1PromptStep === 'review'}
                       className="hover:bg-orange-light/90 flex items-center gap-2 rounded-lg bg-orange-light px-6 py-2 font-medium text-black disabled:opacity-50"
                     >
-                      <Sparkles className="h-5 w-5" />
-                      {chainLoading ? 'Generating...' : 'Generate Workout'}
+                      {previewingStep1Prompt || chainLoading ? (
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                      ) : (
+                        <Sparkles className="h-5 w-5" />
+                      )}
+                      {previewingStep1Prompt
+                        ? 'Preparing prompt...'
+                        : chainLoading
+                          ? 'Generating...'
+                          : 'Generate Workout'}
                     </button>
                   </div>
                 </form>

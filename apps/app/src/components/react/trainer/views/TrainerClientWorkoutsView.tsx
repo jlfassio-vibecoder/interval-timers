@@ -16,6 +16,42 @@ type OverviewPayload = {
   assignmentsByWorkoutId: Record<string, WorkoutAssignmentClientRow[]>;
 };
 
+function buildWorkoutDisplayList(workouts: TrainerWorkoutOverviewRow[]) {
+  const seriesMap = new Map<string, TrainerWorkoutOverviewRow[]>();
+  const standalone: TrainerWorkoutOverviewRow[] = [];
+  for (const w of workouts) {
+    if (w.workoutSeriesId) {
+      const arr = seriesMap.get(w.workoutSeriesId) ?? [];
+      arr.push(w);
+      seriesMap.set(w.workoutSeriesId, arr);
+    } else {
+      standalone.push(w);
+    }
+  }
+  for (const [, arr] of seriesMap) {
+    arr.sort((a, b) => (a.sessionIndex ?? 0) - (b.sessionIndex ?? 0));
+  }
+  const seriesList = [...seriesMap.entries()].map(([seriesId, sessions]) => {
+    const sortKey = sessions.reduce(
+      (m, s) => Math.max(m, s.createdAt ? new Date(s.createdAt).getTime() : 0),
+      0
+    );
+    return {
+      seriesId,
+      sessions,
+      title: sessions[0]?.seriesTitle ?? sessions[0]?.title ?? 'Workout series',
+      sortKey,
+    };
+  });
+  seriesList.sort((a, b) => b.sortKey - a.sortKey);
+  standalone.sort((a, b) => {
+    const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    return tb - ta;
+  });
+  return { seriesList, standalone };
+}
+
 const TrainerClientWorkoutsView: React.FC = () => {
   const [overview, setOverview] = useState<OverviewPayload | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -159,7 +195,9 @@ const TrainerClientWorkoutsView: React.FC = () => {
 
       const n = ids.length;
       if (ok === n) {
-        toast.success(n === 1 ? 'Workout assigned to client.' : `Workout assigned to ${n} clients.`);
+        toast.success(
+          n === 1 ? 'Workout assigned to client.' : `Workout assigned to ${n} clients.`
+        );
       } else if (ok > 0 || already > 0) {
         const parts: string[] = [];
         if (ok > 0) parts.push(`Assigned: ${ok}`);
@@ -202,8 +240,9 @@ const TrainerClientWorkoutsView: React.FC = () => {
       <header className="mb-8">
         <h1 className="font-heading text-3xl font-bold">Client Workouts</h1>
         <p className="mt-2 max-w-3xl text-white/60">
-          One card per saved library workout (split programs may appear as several cards). Assign
-          clients from your roster; open a client in Mission Control from the links below.
+          Factory programs saved as a series are grouped with an Open series link; each session can
+          be edited or assigned. Assign clients from your roster; open a client in Mission Control
+          from the links below.
         </p>
       </header>
 
@@ -222,14 +261,15 @@ const TrainerClientWorkoutsView: React.FC = () => {
           <p className="mb-4">No workouts in your library yet.</p>
           <NavLink
             to="/workouts/factory"
-            className="inline-block rounded-lg bg-orange-light/20 px-4 py-2 text-sm font-bold uppercase text-orange-light transition-colors hover:bg-orange-light hover:text-black"
+            className="bg-orange-light/20 inline-block rounded-lg px-4 py-2 text-sm font-bold uppercase text-orange-light transition-colors hover:bg-orange-light hover:text-black"
           >
             Generate in Workout Factory
           </NavLink>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-          {overview.workouts.map((w) => {
+        (() => {
+          const { seriesList, standalone } = buildWorkoutDisplayList(overview.workouts);
+          const renderWorkoutCard = (w: TrainerWorkoutOverviewRow) => {
             const assigned = overview.assignmentsByWorkoutId[w.id] ?? [];
             const busy = assignBusyByWorkoutId[w.id] ?? false;
             const selected = assignByWorkoutId[w.id] ?? [];
@@ -240,10 +280,7 @@ const TrainerClientWorkoutsView: React.FC = () => {
                   ? assigned[0].clientUserId
                   : '';
             return (
-              <div
-                key={w.id}
-                className="hover:border-orange-light/40 flex flex-col rounded-2xl border border-white/10 bg-white/5 p-6 transition-colors"
-              >
+              <div className="hover:border-orange-light/40 flex flex-col rounded-2xl border border-white/10 bg-white/5 p-6 transition-colors">
                 <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
                     <h2 className="text-lg font-bold leading-tight">{w.title}</h2>
@@ -258,7 +295,7 @@ const TrainerClientWorkoutsView: React.FC = () => {
                 <div className="mb-3">
                   <NavLink
                     to={`/workouts/${encodeURIComponent(w.id)}/edit`}
-                    className="inline-block rounded-lg bg-white/10 px-3 py-1.5 text-xs font-bold uppercase text-white transition-colors hover:bg-orange-light/20 hover:text-orange-light"
+                    className="hover:bg-orange-light/20 inline-block rounded-lg bg-white/10 px-3 py-1.5 text-xs font-bold uppercase text-white transition-colors hover:text-orange-light"
                   >
                     Edit workout
                   </NavLink>
@@ -333,7 +370,7 @@ const TrainerClientWorkoutsView: React.FC = () => {
                           type="button"
                           disabled={busy || selected.length === 0}
                           onClick={() => void assignWorkoutToClients(w.id)}
-                          className="rounded-lg bg-orange-light/20 px-3 py-2 text-xs font-bold uppercase text-orange-light transition-colors enabled:hover:bg-orange-light enabled:hover:text-black disabled:opacity-40"
+                          className="bg-orange-light/20 rounded-lg px-3 py-2 text-xs font-bold uppercase text-orange-light transition-colors enabled:hover:bg-orange-light enabled:hover:text-black disabled:opacity-40"
                         >
                           {busy ? 'Assigning…' : 'Assign selected'}
                         </button>
@@ -371,8 +408,40 @@ const TrainerClientWorkoutsView: React.FC = () => {
                 </div>
               </div>
             );
-          })}
-        </div>
+          };
+
+          return (
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+              {seriesList.map((group) => (
+                <div
+                  key={group.seriesId}
+                  className="col-span-1 flex flex-col gap-4 md:col-span-2 xl:col-span-3"
+                >
+                  <div className="border-orange-light/25 bg-orange-light/5 rounded-2xl border p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <h2 className="font-heading text-xl font-bold text-white">{group.title}</h2>
+                      <NavLink
+                        to={`/workouts/series/${encodeURIComponent(group.seriesId)}`}
+                        className="bg-orange-light/20 rounded-lg px-3 py-1.5 text-xs font-bold uppercase text-orange-light transition-colors hover:bg-orange-light hover:text-black"
+                      >
+                        Open series
+                      </NavLink>
+                    </div>
+                    <p className="mt-1 text-xs text-white/50">{group.sessions.length} session(s)</p>
+                  </div>
+                  <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+                    {group.sessions.map((w) => (
+                      <React.Fragment key={w.id}>{renderWorkoutCard(w)}</React.Fragment>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              {standalone.map((w) => (
+                <React.Fragment key={w.id}>{renderWorkoutCard(w)}</React.Fragment>
+              ))}
+            </div>
+          );
+        })()
       )}
     </div>
   );

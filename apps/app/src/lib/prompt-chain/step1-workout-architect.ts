@@ -7,13 +7,35 @@
  * Output shape is compatible with Biomechanist/Coach (split, volume_landmarks).
  */
 
-import type { WorkoutPersona, WorkoutArchitectBlueprint, HiitOptions } from '@/types/ai-workout';
+import type {
+  WorkoutPersona,
+  WorkoutArchitectBlueprint,
+  HiitOptions,
+  AmrapDensityOptions,
+} from '@/types/ai-workout';
 import type { ProgressionProtocol } from '@/types/ai-program';
 
 interface ZoneContext {
   zoneName: string;
   availableEquipment: string[];
   biomechanicalConstraints: string[];
+}
+
+function buildAmrapDensityArchitectSection(
+  sessionDurationMinutes: number,
+  opts: AmrapDensityOptions
+): string {
+  return `
+=== DENSITY-BASED AMRAP ===
+Protocol: ${opts.protocolFormat}. Movement cadence: ${opts.workRestRatio} (continuous density; no timed stations between movements).
+Fixed session clock: ${sessionDurationMinutes} minutes. Tier key: ${opts.sessionDurationTier}.
+
+Prescribe structure only: repeating lap format with fixed repetition targets per station (details appear in a later chain step). Do not use interval-timing vocabulary or timed station blocks in this blueprint. Warm-up and cool-down are delivered outside this generated programming.
+
+You MUST set progression_protocol to "density_leverage" (e.g. more total laps completed over ~6 weeks). In progression_rules, contrast weeks 1–3 vs 4–6 using lap density.
+
+volume_landmarks: derive weekly set-equivalents from estimated laps × stations × reps for 15 or 20 minute windows where applicable; keep MEV/MRV numeric and muscle-group scoped.
+`;
 }
 
 /**
@@ -39,20 +61,33 @@ export function buildWorkoutArchitectPrompt(
     preferredFocus,
   } = persona;
 
+  const circuitInstruction = !hiitOptions
+    ? ''
+    : hiitOptions.protocolFormat === 'amrap'
+      ? `AMRAP: Interval-only prescription. Sessions are a single repeating circuit for a fixed duration (as many laps as possible). Do NOT describe warmup, cool-down, or non-work content in the blueprint—trainers/hosts deliver those outside generated programming.`
+      : `Circuit Structure: Warmup=${hiitOptions.circuitStructure.includeWarmup}, Circuit 1 (Driver)=${hiitOptions.circuitStructure.circuit1}, Circuit 2 (Sustainer)=${hiitOptions.circuitStructure.circuit2}, Circuit 3 (Burnout)=${hiitOptions.circuitStructure.circuit3}, Cool Down=${hiitOptions.circuitStructure.includeCooldown}`;
+
   const hiitSection =
     hiitOptions &&
+    !persona.amrapDensityMode &&
     `
 === METABOLIC CONDITIONING (HIIT) MODE ===
 Design interval-based sessions using density and time, not sets/reps.
 
 Protocol Format: ${hiitOptions.protocolFormat}
 ${hiitOptions.workRestRatio ? `Work:Rest Ratio: ${hiitOptions.workRestRatio}` : ''}
-Circuit Structure: Warmup=${hiitOptions.circuitStructure.includeWarmup}, Circuit 1 (Driver)=${hiitOptions.circuitStructure.circuit1}, Circuit 2 (Sustainer)=${hiitOptions.circuitStructure.circuit2}, Circuit 3 (Burnout)=${hiitOptions.circuitStructure.circuit3}, Cool Down=${hiitOptions.circuitStructure.includeCooldown}
+${circuitInstruction}
 Session Duration Tier: ${hiitOptions.sessionDurationTier} (keep duration_minutes within 4–30)
 Primary Focus: ${hiitOptions.primaryGoal}
 
 Output sessions with duration_minutes in the HIIT range (4–30). progression_protocol can be density_leverage. volume_landmarks can emphasize energy systems or time under tension where relevant.
 `;
+
+  const amrapDensityOpts = persona.amrapDensityOptions;
+  const amrapDensitySection =
+    persona.amrapDensityMode && amrapDensityOpts
+      ? buildAmrapDensityArchitectSection(persona.sessionDurationMinutes, amrapDensityOpts)
+      : '';
 
   const equipmentSection = zoneContext
     ? `
@@ -101,13 +136,14 @@ Workout constraints:
 ${focusSection}
 ${equipmentSection}
 ${hiitSection ?? ''}
+${amrapDensitySection}
 
 === YOUR TASK ===
 1. Decide how many distinct sessions to create (1 to ${sessionsPerWeek}). For splits, e.g. 2 (Upper/Lower), 3 (PPL), 4 (Upper/Lower x2). For single session, output 1.
 2. For each session: session_number, session_name, focus, duration_minutes. Optionally volume_targets (e.g. "MEV for chest").
-3. Choose progression_protocol: linear_load, double_progression, or density_leverage (same definitions as program architect).
+3. Choose progression_protocol: linear_load, double_progression, or density_leverage (same definitions as program architect).${persona.amrapDensityMode ? ' For Density-Based AMRAP you MUST use density_leverage (progress total laps / density over ~6 weeks).' : ''}
 4. Output split object: type (string), days_per_week (number of sessions), session_duration_minutes.
-5. Output volume_landmarks for muscle groups (MEV/MRV sets per week) so the Biomechanist can balance patterns.
+5. Output volume_landmarks for muscle groups (MEV/MRV sets per week) so the Biomechanist can balance patterns.${persona.amrapDensityMode ? ' For 15 or 20 minute density windows, estimate plausible laps per session from movement complexity, then derive weekly set-equivalent volume from (estimated laps × reps × stations × sessions per week).' : ''}
 
 === OUTPUT FORMAT ===
 Return ONLY valid JSON. No markdown, no explanations. Start with { and end with }.
@@ -142,10 +178,12 @@ Generate exactly the number of sessions that fit the user's sessionsPerWeek and 
 /**
  * Validate Step 1 Workout Architect output
  * @param hiitMode - When true, allow session duration_minutes >= 4 (HIIT caps)
+ * @param amrapDensityMode - Density-Based AMRAP: enforce density_leverage, tier minutes, volume_landmarks
  */
 export function validateWorkoutArchitectOutput(
   data: unknown,
-  hiitMode?: boolean
+  hiitMode?: boolean,
+  amrapDensityMode?: boolean
 ): { valid: true; data: WorkoutArchitectBlueprint } | { valid: false; error: string } {
   if (typeof data !== 'object' || data === null) {
     return { valid: false, error: 'Workout architect output must be an object' };
@@ -165,6 +203,7 @@ export function validateWorkoutArchitectOutput(
     return { valid: false, error: 'sessions must be an array of 1–7 items' };
   }
 
+  const firstDurations: number[] = [];
   for (let i = 0; i < obj.sessions.length; i++) {
     const s = obj.sessions[i] as Record<string, unknown>;
     if (typeof s.session_number !== 'number') {
@@ -176,11 +215,32 @@ export function validateWorkoutArchitectOutput(
     if (typeof s.focus !== 'string' || !s.focus.trim()) {
       return { valid: false, error: `sessions[${i}].focus is required` };
     }
-    const minDuration = hiitMode ? 4 : 10;
-    if (typeof s.duration_minutes !== 'number' || s.duration_minutes < minDuration) {
+    if (amrapDensityMode) {
+      const dm = s.duration_minutes;
+      if (typeof dm !== 'number' || (dm !== 5 && dm !== 15 && dm !== 20)) {
+        return {
+          valid: false,
+          error: `sessions[${i}].duration_minutes must be 5, 15, or 20 for Density-Based AMRAP`,
+        };
+      }
+      firstDurations.push(dm);
+    } else {
+      const minDuration = hiitMode ? 4 : 10;
+      if (typeof s.duration_minutes !== 'number' || s.duration_minutes < minDuration) {
+        return {
+          valid: false,
+          error: `sessions[${i}].duration_minutes must be at least ${minDuration}`,
+        };
+      }
+    }
+  }
+
+  if (amrapDensityMode && firstDurations.length > 0) {
+    const first = firstDurations[0];
+    if (!firstDurations.every((d) => d === first)) {
       return {
         valid: false,
-        error: `sessions[${i}].duration_minutes must be at least ${minDuration}`,
+        error: 'All sessions must use the same duration_minutes for Density-Based AMRAP',
       };
     }
   }
@@ -200,7 +260,7 @@ export function validateWorkoutArchitectOutput(
   ) {
     return { valid: false, error: 'split.days_per_week must be between 1 and 7' };
   }
-  const minSplitDuration = hiitMode ? 4 : 10;
+  const minSplitDuration = hiitMode || amrapDensityMode ? 4 : 10;
   if (
     typeof split.session_duration_minutes !== 'number' ||
     split.session_duration_minutes < minSplitDuration
@@ -208,6 +268,23 @@ export function validateWorkoutArchitectOutput(
     return {
       valid: false,
       error: `split.session_duration_minutes must be at least ${minSplitDuration}`,
+    };
+  }
+
+  if (amrapDensityMode) {
+    const sd = split.session_duration_minutes;
+    if (typeof sd !== 'number' || (sd !== 5 && sd !== 15 && sd !== 20)) {
+      return {
+        valid: false,
+        error: 'split.session_duration_minutes must be 5, 15, or 20 for Density-Based AMRAP',
+      };
+    }
+  }
+
+  if (amrapDensityMode && obj.progression_protocol !== 'density_leverage') {
+    return {
+      valid: false,
+      error: 'progression_protocol must be density_leverage for Density-Based AMRAP',
     };
   }
 
@@ -240,6 +317,13 @@ export function validateWorkoutArchitectOutput(
 
   if (!Array.isArray(obj.volume_landmarks)) {
     return { valid: false, error: 'volume_landmarks must be an array' };
+  }
+
+  if (amrapDensityMode && obj.volume_landmarks.length === 0) {
+    return {
+      valid: false,
+      error: 'volume_landmarks must be non-empty for Density-Based AMRAP',
+    };
   }
 
   for (const landmark of obj.volume_landmarks) {

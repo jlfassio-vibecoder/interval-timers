@@ -3,12 +3,14 @@
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { NavLink, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Loader2, Plus, Save, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { WorkoutBlock, BlockExercise } from '@/lib/supabase/admin/workout-details';
 import { blocksToWorkoutInSet, workoutInSetToBlocks } from '@/lib/admin/workout-editor-map';
 import { missionControlApiAuthHeaders } from '@/lib/mission-control-api-auth';
+import type { WorkoutInSet, WorkoutSetTemplate } from '@/types/ai-workout';
+import WorkoutSessionPreviewContent from '@/components/react/trainer/WorkoutSessionPreviewContent';
 
 function normalizeBlocks(raw: unknown): WorkoutBlock[] {
   if (!Array.isArray(raw)) return [];
@@ -26,6 +28,9 @@ type TrainerWorkoutApi = {
   visibility: string;
   lineageId: string;
   versionIndex: number;
+  workoutSeriesId?: string | null;
+  sessionIndex?: number | null;
+  rawWorkoutSet?: unknown;
 };
 
 const TrainerLibraryWorkoutEditView: React.FC = () => {
@@ -43,6 +48,8 @@ const TrainerLibraryWorkoutEditView: React.FC = () => {
   const [difficulty, setDifficulty] = useState('intermediate');
   const [visibility, setVisibility] = useState<'draft' | 'ready' | 'assigned'>('draft');
   const [blocks, setBlocks] = useState<WorkoutBlock[]>([]);
+  const [rawPreviewSession, setRawPreviewSession] = useState<WorkoutInSet | null>(null);
+  const [seriesId, setSeriesId] = useState<string | null>(null);
 
   const loadWorkoutAndVersions = useCallback(async () => {
     if (!workoutId) return;
@@ -64,7 +71,11 @@ const TrainerLibraryWorkoutEditView: React.FC = () => {
       setDescription(row.description ?? '');
       setDuration(row.durationMinutes ?? 60);
       setDifficulty(row.difficultyLevel ?? 'intermediate');
-      if (row.visibility === 'draft' || row.visibility === 'ready' || row.visibility === 'assigned') {
+      if (
+        row.visibility === 'draft' ||
+        row.visibility === 'ready' ||
+        row.visibility === 'assigned'
+      ) {
         setVisibility(row.visibility);
       }
       const nb = normalizeBlocks(row.blocks);
@@ -72,6 +83,19 @@ const TrainerLibraryWorkoutEditView: React.FC = () => {
         setBlocks(nb);
       } else {
         setBlocks(workoutInSetToBlocks(undefined));
+      }
+
+      const wid =
+        typeof row.workoutSeriesId === 'string' && row.workoutSeriesId.trim()
+          ? row.workoutSeriesId.trim()
+          : null;
+      setSeriesId(wid);
+      const si = typeof row.sessionIndex === 'number' ? row.sessionIndex : null;
+      const rawSet = row.rawWorkoutSet as WorkoutSetTemplate | undefined;
+      if (rawSet?.workouts?.length && si != null && si >= 0 && rawSet.workouts[si]) {
+        setRawPreviewSession(rawSet.workouts[si] as WorkoutInSet);
+      } else {
+        setRawPreviewSession(null);
       }
 
       const vRes = await fetch(
@@ -324,9 +348,7 @@ const TrainerLibraryWorkoutEditView: React.FC = () => {
             </label>
             <select
               value={visibility}
-              onChange={(e) =>
-                setVisibility(e.target.value as 'draft' | 'ready' | 'assigned')
-              }
+              onChange={(e) => setVisibility(e.target.value as 'draft' | 'ready' | 'assigned')}
               className="focus:border-orange-light/50 w-full rounded-lg border border-white/10 bg-white/5 p-3 text-white outline-none"
             >
               <option value="draft">Draft</option>
@@ -337,8 +359,33 @@ const TrainerLibraryWorkoutEditView: React.FC = () => {
         </div>
       </div>
 
+      {rawPreviewSession && (
+        <div className="border-orange-light/25 bg-orange-light/5 rounded-xl border p-4">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-sm font-bold uppercase text-orange-light">Generated preview</h2>
+            {seriesId ? (
+              <NavLink
+                to={`/workouts/series/${encodeURIComponent(seriesId)}`}
+                className="text-orange-light/90 text-xs font-bold uppercase underline hover:text-orange-light"
+              >
+                Open series
+              </NavLink>
+            ) : null}
+          </div>
+          <p className="mb-3 text-xs text-white/50">
+            Unparsed snapshot from Workout Factory (shows timer intervals). Editable blocks below
+            may differ where the library format does not store work/rest rounds.
+          </p>
+          <div className="rounded-lg border border-white/10 bg-black/20 p-4">
+            <WorkoutSessionPreviewContent w={rawPreviewSession} headingLevel="h4" />
+          </div>
+        </div>
+      )}
+
       <div className="space-y-6">
-        <h2 className="border-b border-white/10 pb-2 text-lg font-bold text-white">Workout blocks</h2>
+        <h2 className="border-b border-white/10 pb-2 text-lg font-bold text-white">
+          Workout blocks
+        </h2>
         {blocks.map((block, blockIndex) => (
           <div
             key={blockIndex}

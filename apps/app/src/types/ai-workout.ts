@@ -63,6 +63,18 @@ export type HiitSessionDurationTier = 'micro_dose' | 'standard_interval' | 'high
 
 export type HiitPrimaryGoal = 'vo2_max' | 'lactate_tolerance' | 'explosive_power' | 'fat_oxidation';
 
+/** Density-based AMRAP (reps per station, laps for time) — parallel to HIIT interval mode. */
+export type AmrapDensityProtocolFormat = 'AMRAP_DENSITY';
+
+/** No timed work:rest between stations; continuous lap format. */
+export type AmrapDensityWorkRest = 'continuous' | '0:0';
+
+export interface AmrapDensityOptions {
+  protocolFormat: AmrapDensityProtocolFormat;
+  workRestRatio: AmrapDensityWorkRest;
+  sessionDurationTier: HiitSessionDurationTier;
+}
+
 export interface HiitOptions {
   protocolFormat: HiitProtocolFormat;
   workRestRatio?: HiitWorkRestRatio;
@@ -109,6 +121,13 @@ export interface WorkoutPersona {
   hiitMode?: boolean;
   /** Required when hiitMode is true; protocol, ratio, circuit structure, session tier, primary goal */
   hiitOptions?: HiitOptions;
+  /**
+   * When true, use Density-Based AMRAP (reps per station, Total Laps Completed).
+   * Mutually exclusive with hiitMode in API/UI.
+   */
+  amrapDensityMode?: boolean;
+  /** Required when amrapDensityMode is true */
+  amrapDensityOptions?: AmrapDensityOptions;
 }
 
 /**
@@ -141,6 +160,8 @@ export interface WorkoutConfig {
   blockOptions?: BlockOptions;
   hiitMode?: boolean;
   hiitOptions?: HiitOptions;
+  amrapDensityMode?: boolean;
+  amrapDensityOptions?: AmrapDensityOptions;
 }
 
 /**

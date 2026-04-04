@@ -10,6 +10,29 @@ export interface GenerateWorkoutChainResponse {
   chain_metadata: WorkoutChainMetadata;
 }
 
+export interface PreviewWorkoutChainPromptResponse {
+  step1UserPrompt: string;
+  systemPromptStep1: string;
+}
+
+/** Fetches the Step 1 user prompt for review (no generation). */
+export async function postPreviewWorkoutChainPrompt(
+  body: Record<string, unknown>
+): Promise<PreviewWorkoutChainPromptResponse> {
+  const auth = await missionControlApiAuthHeaders();
+  const res = await fetch('/api/ai/preview-workout-chain-prompt', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...auth },
+    credentials: 'include',
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const data = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(data.error || res.statusText || 'Failed to load prompt preview');
+  }
+  return res.json() as Promise<PreviewWorkoutChainPromptResponse>;
+}
+
 export async function postGenerateWorkoutChain(
   body: Record<string, unknown>
 ): Promise<GenerateWorkoutChainResponse> {

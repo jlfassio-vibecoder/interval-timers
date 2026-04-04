@@ -712,6 +712,11 @@ export interface TrainerWorkoutOverviewRow {
   createdAt: string | null;
   lineageId: string;
   versionIndex: number;
+  /** Present for AI factory saves after trainer_workout_series migration. */
+  workoutSeriesId?: string | null;
+  sessionIndex?: number | null;
+  /** Series title for grouping (same for all sessions in a series). */
+  seriesTitle?: string | null;
 }
 
 export interface WorkoutAssignmentClientRow {
@@ -753,39 +758,58 @@ export async function fetchTrainerWorkoutClientOverview(
 
   const supabase = getSupabaseServer();
 
-  const selectWithLineage =
+  const selectFull =
+    'id, title, source, visibility, duration_minutes, created_at, lineage_id, version_index, workout_series_id, session_index';
+  const selectLineageNoSeries =
     'id, title, source, visibility, duration_minutes, created_at, lineage_id, version_index';
   const selectLegacy = 'id, title, source, visibility, duration_minutes, created_at';
 
-  const primary = await supabase
+  let wData: unknown[] = [];
+
+  const full = await supabase
     .from('workouts')
-    .select(selectWithLineage)
+    .select(selectFull)
     .eq('trainer_id', trainerUserId)
     .order('created_at', { ascending: false });
 
-  let wData: unknown[] = primary.data ?? [];
-
-  // If lineage columns are missing (migration not applied yet), fall back so library + assignees still load.
-  if (primary.error) {
-    if (import.meta.env.DEV) {
-      console.warn('[trainer-client-assignments] workout overview (retry without lineage)', primary.error);
+  if (!full.error && full.data != null) {
+    wData = full.data;
+  } else {
+    if (import.meta.env.DEV && full.error) {
+      console.warn(
+        '[trainer-client-assignments] workout overview (retry without series columns)',
+        full.error
+      );
     }
-    const fallback = await supabase
+    const mid = await supabase
       .from('workouts')
-      .select(selectLegacy)
+      .select(selectLineageNoSeries)
       .eq('trainer_id', trainerUserId)
       .order('created_at', { ascending: false });
 
-    if (fallback.error) {
-      if (import.meta.env.DEV) {
-        console.warn('[trainer-client-assignments] workout overview workouts', fallback.error);
+    if (!mid.error && mid.data != null) {
+      wData = mid.data;
+    } else {
+      if (import.meta.env.DEV && mid.error) {
+        console.warn('[trainer-client-assignments] workout overview (retry legacy)', mid.error);
       }
-      return { workouts: [], assignmentsByWorkoutId: {} };
+      const legacy = await supabase
+        .from('workouts')
+        .select(selectLegacy)
+        .eq('trainer_id', trainerUserId)
+        .order('created_at', { ascending: false });
+
+      if (legacy.error) {
+        if (import.meta.env.DEV) {
+          console.warn('[trainer-client-assignments] workout overview workouts', legacy.error);
+        }
+        return { workouts: [], assignmentsByWorkoutId: {} };
+      }
+      wData = legacy.data ?? [];
     }
-    wData = fallback.data ?? [];
   }
 
-  const workouts: TrainerWorkoutOverviewRow[] = wData.map((w: unknown) => {
+  const workoutsBase: TrainerWorkoutOverviewRow[] = wData.map((w: unknown) => {
     const row = w as {
       id: string;
       title: string | null;
@@ -795,6 +819,8 @@ export async function fetchTrainerWorkoutClientOverview(
       created_at?: string | null;
       lineage_id?: string | null;
       version_index?: number | null;
+      workout_series_id?: string | null;
+      session_index?: number | null;
     };
     const title = typeof row.title === 'string' && row.title.trim() ? row.title.trim() : 'Workout';
     const source = typeof row.source === 'string' && row.source ? row.source : undefined;
@@ -811,6 +837,14 @@ export async function fetchTrainerWorkoutClientOverview(
       typeof row.version_index === 'number' && Number.isFinite(row.version_index)
         ? row.version_index
         : 1;
+    const workoutSeriesId =
+      typeof row.workout_series_id === 'string' && row.workout_series_id.trim()
+        ? row.workout_series_id.trim()
+        : null;
+    const sessionIndex =
+      typeof row.session_index === 'number' && Number.isFinite(row.session_index)
+        ? row.session_index
+        : null;
     return {
       id: row.id,
       title,
@@ -820,8 +854,43 @@ export async function fetchTrainerWorkoutClientOverview(
       createdAt: row.created_at != null ? String(row.created_at) : null,
       lineageId,
       versionIndex,
+      workoutSeriesId,
+      sessionIndex,
     };
   });
+
+  const seriesIds = [
+    ...new Set(
+      workoutsBase
+        .map((x) => x.workoutSeriesId)
+        .filter((id): id is string => typeof id === 'string' && id.length > 0)
+    ),
+  ];
+
+  const seriesTitleById = new Map<string, string>();
+  if (seriesIds.length > 0) {
+    const { data: srows, error: sErr } = await supabase
+      .from('trainer_workout_series')
+      .select('id, title')
+      .eq('trainer_id', trainerUserId)
+      .in('id', seriesIds);
+    if (!sErr && srows) {
+      for (const s of srows) {
+        const sr = s as { id?: string; title?: string | null };
+        if (typeof sr.id === 'string') {
+          const st =
+            typeof sr.title === 'string' && sr.title.trim() ? sr.title.trim() : 'Workout series';
+          seriesTitleById.set(sr.id, st);
+        }
+      }
+    }
+  }
+
+  const workouts: TrainerWorkoutOverviewRow[] = workoutsBase.map((row) => ({
+    ...row,
+    seriesTitle:
+      row.workoutSeriesId != null ? (seriesTitleById.get(row.workoutSeriesId) ?? null) : null,
+  }));
 
   const { data: aData, error: aErr } = await supabase
     .from('client_coach_assignments')
@@ -831,7 +900,8 @@ export async function fetchTrainerWorkoutClientOverview(
     .is('revoked_at', null);
 
   if (aErr) {
-    if (import.meta.env.DEV) console.warn('[trainer-client-assignments] workout overview assignments', aErr);
+    if (import.meta.env.DEV)
+      console.warn('[trainer-client-assignments] workout overview assignments', aErr);
     return { workouts, assignmentsByWorkoutId: {} };
   }
 

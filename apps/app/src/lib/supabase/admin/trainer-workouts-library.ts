@@ -32,9 +32,17 @@ export interface TrainerLibraryWorkoutRow {
   supersedesWorkoutId: string | null;
   createdAt: string | null;
   updatedAt: string | null;
+  /** When set, full generated set lives on trainer_workout_series.raw_workout_set. */
+  workoutSeriesId: string | null;
+  sessionIndex: number | null;
+  /** Populated when workout_series_id is set; canonical Review / timer fidelity. */
+  rawWorkoutSetFromSeries: unknown | null;
 }
 
-function mapRow(r: Record<string, unknown>): TrainerLibraryWorkoutRow {
+function mapRow(
+  r: Record<string, unknown>,
+  rawWorkoutSetFromSeries: unknown | null = null
+): TrainerLibraryWorkoutRow {
   return {
     id: String(r.id),
     trainerId: String(r.trainer_id),
@@ -55,8 +63,36 @@ function mapRow(r: Record<string, unknown>): TrainerLibraryWorkoutRow {
       typeof r.supersedes_workout_id === 'string' ? r.supersedes_workout_id : null,
     createdAt: r.created_at != null ? String(r.created_at) : null,
     updatedAt: r.updated_at != null ? String(r.updated_at) : null,
+    workoutSeriesId: typeof r.workout_series_id === 'string' ? r.workout_series_id : null,
+    sessionIndex: typeof r.session_index === 'number' ? r.session_index : null,
+    rawWorkoutSetFromSeries,
   };
 }
+
+async function fetchRawWorkoutSetForSeries(
+  supabase: ReturnType<typeof getSupabaseServer>,
+  trainerUserId: string,
+  seriesId: string
+): Promise<unknown | null> {
+  const { data, error } = await supabase
+    .from('trainer_workout_series')
+    .select('raw_workout_set')
+    .eq('id', seriesId)
+    .eq('trainer_id', trainerUserId)
+    .maybeSingle();
+  if (error || !data) {
+    if (import.meta.env.DEV) console.warn('[trainer-workouts-library] series raw snapshot', error);
+    return null;
+  }
+  const row = data as { raw_workout_set?: unknown };
+  return row.raw_workout_set ?? null;
+}
+
+const WORKOUT_SELECT_WITH_SERIES =
+  'id, trainer_id, title, description, duration_minutes, difficulty_level, blocks, source, visibility, ai_chain_metadata, lineage_id, version_index, supersedes_workout_id, created_at, updated_at, workout_series_id, session_index';
+
+const WORKOUT_SELECT_LEGACY =
+  'id, trainer_id, title, description, duration_minutes, difficulty_level, blocks, source, visibility, ai_chain_metadata, lineage_id, version_index, supersedes_workout_id, created_at, updated_at';
 
 /** Load a trainer library row; returns null if not found or not owned by trainer. */
 export async function fetchTrainerLibraryWorkoutOwned(
@@ -64,20 +100,44 @@ export async function fetchTrainerLibraryWorkoutOwned(
   workoutId: string
 ): Promise<TrainerLibraryWorkoutRow | null> {
   const supabase = getSupabaseServer();
-  const { data, error } = await supabase
+  let data: Record<string, unknown> | null = null;
+  let primary = await supabase
     .from('workouts')
-    .select(
-      'id, trainer_id, title, description, duration_minutes, difficulty_level, blocks, source, visibility, ai_chain_metadata, lineage_id, version_index, supersedes_workout_id, created_at, updated_at'
-    )
+    .select(WORKOUT_SELECT_WITH_SERIES)
     .eq('id', workoutId)
     .eq('trainer_id', trainerUserId)
     .maybeSingle();
 
-  if (error || !data) {
-    if (import.meta.env.DEV) console.warn('[trainer-workouts-library] fetch', error);
+  if (primary.error) {
+    if (import.meta.env.DEV) {
+      console.warn('[trainer-workouts-library] fetch (retry without series cols)', primary.error);
+    }
+    const fallback = await supabase
+      .from('workouts')
+      .select(WORKOUT_SELECT_LEGACY)
+      .eq('id', workoutId)
+      .eq('trainer_id', trainerUserId)
+      .maybeSingle();
+    if (fallback.error || !fallback.data) {
+      if (import.meta.env.DEV) console.warn('[trainer-workouts-library] fetch', fallback.error);
+      return null;
+    }
+    data = fallback.data as Record<string, unknown>;
+    return mapRow(data, null);
+  }
+
+  if (!primary.data) {
+    if (import.meta.env.DEV) console.warn('[trainer-workouts-library] fetch', primary.error);
     return null;
   }
-  return mapRow(data as Record<string, unknown>);
+
+  data = primary.data as Record<string, unknown>;
+  const seriesId = typeof data.workout_series_id === 'string' ? data.workout_series_id : null;
+  let raw: unknown | null = null;
+  if (seriesId) {
+    raw = await fetchRawWorkoutSetForSeries(supabase, trainerUserId, seriesId);
+  }
+  return mapRow(data, raw);
 }
 
 /** All versions in a lineage for this trainer, ascending by version_index. */
@@ -128,7 +188,11 @@ export async function patchTrainerLibraryWorkout(
 
   if (Object.keys(update).length === 0) return { ok: true };
 
-  const { error } = await supabase.from('workouts').update(update).eq('id', workoutId).eq('trainer_id', trainerUserId);
+  const { error } = await supabase
+    .from('workouts')
+    .update(update)
+    .eq('id', workoutId)
+    .eq('trainer_id', trainerUserId);
 
   if (error) {
     if (import.meta.env.DEV) console.warn('[trainer-workouts-library] patch', error);
@@ -169,7 +233,8 @@ export async function forkTrainerLibraryWorkout(
       difficulty_level: editorState.difficultyLevel ?? source.difficultyLevel ?? 'intermediate',
       blocks: editorState.blocks,
       status: 'active',
-      source: source.source === 'ai_factory' || source.source === 'manual' ? source.source : 'manual',
+      source:
+        source.source === 'ai_factory' || source.source === 'manual' ? source.source : 'manual',
       ai_chain_metadata: source.aiChainMetadata,
       visibility: source.visibility as 'draft' | 'ready' | 'assigned',
       lineage_id: randomUUID(),

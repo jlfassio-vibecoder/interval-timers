@@ -44,6 +44,9 @@ export const GET: APIRoute = async ({ request, cookies, params }) => {
       supersedesWorkoutId: row.supersedesWorkoutId,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
+      workoutSeriesId: row.workoutSeriesId,
+      sessionIndex: row.sessionIndex,
+      rawWorkoutSet: row.rawWorkoutSetFromSeries,
     });
   } catch (error) {
     if (error instanceof Error) {
