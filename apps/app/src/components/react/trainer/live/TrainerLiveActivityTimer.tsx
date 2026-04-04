@@ -4,6 +4,8 @@ import { supabase } from '@/lib/supabase/supabase-instance';
 import { useTrainerLiveActivitySession } from '@/hooks/useTrainerLiveActivitySession';
 import type { TrainerLiveShell } from '@/lib/trainer-live/shells';
 import type { TrainerLiveActivitySegmentRow } from '@/lib/trainer-live/activity-types';
+import { isValidTabataAttachInput } from '@/lib/trainer-live/tabata-workout-list-adapter';
+import TrainerLiveTabataWorkoutPickerModal from './TrainerLiveTabataWorkoutPickerModal';
 
 function formatElapsed(totalSec: number): string {
   const s = Math.max(0, Math.floor(totalSec));
@@ -53,8 +55,10 @@ export default function TrainerLiveActivityTimer({
 
   const [busy, setBusy] = useState<string | null>(null);
   const [localErr, setLocalErr] = useState<string | null>(null);
+  const [tabataPickerOpen, setTabataPickerOpen] = useState(false);
+  const [tabataPickerKey, setTabataPickerKey] = useState(0);
 
-  const canAmrapSegments = shell === 'countdown_timer';
+  const canIntervalSegments = shell === 'countdown_timer';
   const isTrainer = role === 'trainer';
 
   const run = async (key: string, fn: () => PromiseLike<{ error: { message: string } | null }>) => {
@@ -83,6 +87,7 @@ export default function TrainerLiveActivityTimer({
   }
 
   return (
+    <>
     <div
       className={`rounded-xl border border-white/10 bg-black/50 ${compact ? 'px-3 py-2' : 'px-4 py-3'}`}
       data-testid="trainer-live-activity-timer"
@@ -188,9 +193,9 @@ export default function TrainerLiveActivityTimer({
               </button>
               <button
                 type="button"
-                disabled={!!busy || !canAmrapSegments}
+                disabled={!!busy || !canIntervalSegments}
                 title={
-                  !canAmrapSegments
+                  !canIntervalSegments
                     ? 'Switch room to Video + Intervals for AMRAP blocks'
                     : undefined
                 }
@@ -214,6 +219,23 @@ export default function TrainerLiveActivityTimer({
                 className="border-orange-light/30 text-orange-light/90 hover:bg-orange-light/10 rounded-lg border px-2 py-1 text-xs disabled:opacity-40"
               >
                 {busy === 'amrap' ? '…' : 'AMRAP block'}
+              </button>
+              <button
+                type="button"
+                disabled={!!busy || !canIntervalSegments}
+                data-testid="trainer-live-activity-tabata-block"
+                title={
+                  !canIntervalSegments
+                    ? 'Switch room to Video + Intervals for Tabata blocks'
+                    : undefined
+                }
+                onClick={() => {
+                  setTabataPickerKey((k) => k + 1);
+                  setTabataPickerOpen(true);
+                }}
+                className="border-orange-light/30 text-orange-light/90 hover:bg-orange-light/10 rounded-lg border px-2 py-1 text-xs disabled:opacity-40"
+              >
+                Tabata block
               </button>
               <button
                 type="button"
@@ -251,5 +273,28 @@ export default function TrainerLiveActivityTimer({
         </div>
       ) : null}
     </div>
+    <TrainerLiveTabataWorkoutPickerModal
+      open={tabataPickerOpen}
+      pickerKey={tabataPickerKey}
+      onOpenChange={setTabataPickerOpen}
+      disabled={!!busy}
+      onWorkoutChosen={async (workoutList, roundCount) => {
+        if (!isValidTabataAttachInput(roundCount, workoutList)) {
+          setLocalErr('Choose 1–32 rounds and at least one exercise.');
+          return;
+        }
+        await run('tabata', async () => {
+          const res = await supabase.rpc('trainer_live_activity_begin_tabata_segment', {
+            p_trainer_live_session_id: sessionId,
+            p_label: 'Tabata',
+            p_round_count: roundCount,
+            p_workout_list: workoutList,
+          });
+          if (!res.error) setTabataPickerOpen(false);
+          return { error: res.error };
+        });
+      }}
+    />
+    </>
   );
 }

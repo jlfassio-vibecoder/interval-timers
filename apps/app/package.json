@@ -25,6 +25,7 @@
     "verify:quick": "npm run lint && npm run type-check && npm run test",
     "verify:all": "npm run lint && npm run type-check && npm run build",
     "verify:deploy": "npm run verify:all && npm run security:scan",
+    "verify:pr": "npm run lint && npm run type-check && npx astro check && npm run test && npm run security:scan && npm run check-env && npm run build",
     "security:scan": "node scripts/verify-security.js",
     "check-env": "node scripts/check-env.js",
     "db:push": "node scripts/db-push.js",

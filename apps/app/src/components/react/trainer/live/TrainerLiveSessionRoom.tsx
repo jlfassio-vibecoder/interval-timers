@@ -106,8 +106,8 @@ export default function TrainerLiveSessionRoom({
       if (intervalWrapperKind === 'simple_countdown') {
         return <TrainerLiveCountdownPanel variant={role === 'trainer' ? 'trainer' : 'client'} />;
       }
-      if (intervalWrapperKind === 'amrap') {
-        const Cmp = getTrainerLiveIntervalWrapper('amrap');
+      if (intervalWrapperKind === 'amrap' || intervalWrapperKind === 'tabata') {
+        const Cmp = getTrainerLiveIntervalWrapper(intervalWrapperKind);
         if (!Cmp) return null;
         return <Cmp {...wrapperProps} />;
       }
@@ -120,7 +120,7 @@ export default function TrainerLiveSessionRoom({
         <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">{intervalSidebar}</div>
         <TrainerLiveVideoFeedDrawer
           sessionId={sessionId}
-          defaultOpen={intervalWrapperKind !== 'amrap'}
+          defaultOpen={intervalWrapperKind !== 'amrap' && intervalWrapperKind !== 'tabata'}
         >
           {video}
         </TrainerLiveVideoFeedDrawer>

@@ -15,9 +15,9 @@ const projectRoot = join(__dirname, '..');
 // Patterns to check for hardcoded secrets
 const SECRET_PATTERNS = [
   {
-    name: 'Firebase API Key',
+    name: 'Google API key (AIzaSy…)',
     pattern: /AIzaSy[A-Za-z0-9_-]{35}/,
-    message: 'Hardcoded Firebase API key found',
+    message: 'Hardcoded Google API key pattern found (often Firebase/Google Cloud)',
   },
   {
     name: 'reCAPTCHA Site Key',
@@ -133,7 +133,7 @@ console.log('🔒 Scanning for hardcoded secrets...\n');
 scanDirectory(join(projectRoot, 'src'));
 
 // Also check root level config files
-['astro.config.mjs', 'package.json', 'firebase.json'].forEach(file => {
+['astro.config.mjs', 'package.json'].forEach(file => {
   const filePath = join(projectRoot, file);
   try {
     if (statSync(filePath).isFile()) {

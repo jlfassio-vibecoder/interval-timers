@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { setStoredHostToken, setStoredParticipantId } from 'amrap/embed';
 import { isValidAttachWorkoutInput } from '@interval-timers/amrap-workout-picker';
+import { isValidTabataAttachInput } from '@/lib/trainer-live/tabata-workout-list-adapter';
 import { useAppContext } from '@/contexts/AppContext';
 import { supabase } from '@/lib/supabase/supabase-instance';
 import { trainerLiveParticipantStorageKey } from '@/lib/trainer-live/storage';
@@ -10,6 +11,7 @@ import type { TrainerLiveIntervalWrapperKind } from '@/lib/trainer-live/wrappers
 import { parseIntervalWrapperKind } from '@/lib/trainer-live/wrappers/kind';
 import TrainerLiveActivityTimer from './TrainerLiveActivityTimer';
 import TrainerLiveAmrapWorkoutPickerModal from './TrainerLiveAmrapWorkoutPickerModal';
+import TrainerLiveTabataWorkoutPickerModal from './TrainerLiveTabataWorkoutPickerModal';
 import TrainerLiveSessionRoom from './TrainerLiveSessionRoom';
 
 export default function TrainerLiveHostView() {
@@ -30,6 +32,8 @@ export default function TrainerLiveHostView() {
   const [wrapperErr, setWrapperErr] = useState<string | null>(null);
   const [amrapPickerOpen, setAmrapPickerOpen] = useState(false);
   const [amrapPickerKey, setAmrapPickerKey] = useState(0);
+  const [tabataPickerOpen, setTabataPickerOpen] = useState(false);
+  const [tabataPickerKey, setTabataPickerKey] = useState(0);
 
   const participantId = useMemo(() => {
     if (!sessionId || typeof window === 'undefined') return null;
@@ -196,6 +200,39 @@ export default function TrainerLiveHostView() {
     }
   };
 
+  const attachTabata = async (workoutList: string[], roundCount: number) => {
+    if (!sessionId) return;
+    if (!isValidTabataAttachInput(roundCount, workoutList)) {
+      setAttachErr('Choose 1–32 Tabata rounds and at least one exercise.');
+      return;
+    }
+    setAttachErr(null);
+    setAttachBusy(true);
+    try {
+      const { data, error } = await supabase.rpc('trainer_live_attach_tabata_session', {
+        p_trainer_live_session_id: sessionId,
+        p_round_count: roundCount,
+        p_workout_list: workoutList,
+      });
+      if (error) {
+        setAttachErr(error.message);
+        return;
+      }
+      const row = data as { tabata_session_id?: string } | null;
+      const tid = row?.tabata_session_id;
+      if (tid) {
+        setIntervalWrapperKind('tabata');
+        setIntervalWrapperConfig({ tabata_session_id: tid });
+        setTabataPickerOpen(false);
+      } else {
+        // RPC succeeded but payload missing id (should not happen); avoid silent failure with picker stuck open
+        setAttachErr('Unable to attach Tabata session. Please try again.');
+      }
+    } finally {
+      setAttachBusy(false);
+    }
+  };
+
   const attachAmrap = async (workoutList: string[], durationMinutes: number) => {
     if (!sessionId) return;
     if (!isValidAttachWorkoutInput(durationMinutes, workoutList)) {
@@ -232,6 +269,8 @@ export default function TrainerLiveHostView() {
         setIntervalWrapperKind('amrap');
         setIntervalWrapperConfig({ amrap_session_id: aid });
         setAmrapPickerOpen(false);
+      } else {
+        setAttachErr('Unable to attach AMRAP session. Please try again.');
       }
     } finally {
       setAttachBusy(false);
@@ -268,7 +307,8 @@ export default function TrainerLiveHostView() {
               {backErr}
             </p>
           ) : null}
-          {shell === 'countdown_timer' && intervalWrapperKind === 'amrap' ? (
+          {shell === 'countdown_timer' &&
+          (intervalWrapperKind === 'amrap' || intervalWrapperKind === 'tabata') ? (
             <button
               type="button"
               data-testid="trainer-live-back-to-video"
@@ -280,21 +320,38 @@ export default function TrainerLiveHostView() {
             </button>
           ) : null}
           {shell === 'countdown_timer' && intervalWrapperKind === 'none' ? (
-            <button
-              type="button"
-              data-testid="trainer-live-start-amrap"
-              disabled={attachBusy}
-              onClick={() => {
-                setAmrapPickerKey((k) => k + 1);
-                setAmrapPickerOpen(true);
-              }}
-              className="border-orange-light/50 bg-orange-light/15 hover:bg-orange-light/25 rounded-lg border px-3 py-1.5 text-xs text-orange-light md:text-sm"
-            >
-              {attachBusy ? 'Starting…' : 'Start AMRAP'}
-            </button>
+            <>
+              <button
+                type="button"
+                data-testid="trainer-live-start-amrap"
+                disabled={attachBusy}
+                onClick={() => {
+                  setAmrapPickerKey((k) => k + 1);
+                  setAmrapPickerOpen(true);
+                }}
+                className="border-orange-light/50 bg-orange-light/15 hover:bg-orange-light/25 rounded-lg border px-3 py-1.5 text-xs text-orange-light md:text-sm"
+              >
+                {attachBusy ? 'Starting…' : 'Start AMRAP'}
+              </button>
+              <button
+                type="button"
+                data-testid="trainer-live-start-tabata"
+                disabled={attachBusy}
+                onClick={() => {
+                  setTabataPickerKey((k) => k + 1);
+                  setTabataPickerOpen(true);
+                }}
+                className="border-orange-light/50 bg-orange-light/15 hover:bg-orange-light/25 rounded-lg border px-3 py-1.5 text-xs text-orange-light md:text-sm"
+              >
+                {attachBusy ? 'Starting…' : 'Start Tabata'}
+              </button>
+            </>
           ) : null}
           {shell === 'countdown_timer' && intervalWrapperKind === 'amrap' ? (
             <span className="text-xs text-white/50 md:text-sm">AMRAP active</span>
+          ) : null}
+          {shell === 'countdown_timer' && intervalWrapperKind === 'tabata' ? (
+            <span className="text-xs text-white/50 md:text-sm">Tabata active</span>
           ) : null}
           <button
             type="button"
@@ -357,6 +414,13 @@ export default function TrainerLiveHostView() {
         onWorkoutChosen={(workoutList, durationMinutes) =>
           attachAmrap(workoutList, durationMinutes)
         }
+      />
+      <TrainerLiveTabataWorkoutPickerModal
+        open={tabataPickerOpen}
+        pickerKey={tabataPickerKey}
+        onOpenChange={setTabataPickerOpen}
+        disabled={attachBusy}
+        onWorkoutChosen={(workoutList, roundCount) => attachTabata(workoutList, roundCount)}
       />
     </div>
   );
