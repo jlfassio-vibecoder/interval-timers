@@ -753,18 +753,39 @@ export async function fetchTrainerWorkoutClientOverview(
 
   const supabase = getSupabaseServer();
 
-  const { data: wData, error: wErr } = await supabase
+  const selectWithLineage =
+    'id, title, source, visibility, duration_minutes, created_at, lineage_id, version_index';
+  const selectLegacy = 'id, title, source, visibility, duration_minutes, created_at';
+
+  const primary = await supabase
     .from('workouts')
-    .select('id, title, source, visibility, duration_minutes, created_at, lineage_id, version_index')
+    .select(selectWithLineage)
     .eq('trainer_id', trainerUserId)
     .order('created_at', { ascending: false });
 
-  if (wErr) {
-    if (import.meta.env.DEV) console.warn('[trainer-client-assignments] workout overview workouts', wErr);
-    return { workouts: [], assignmentsByWorkoutId: {} };
+  let wData: unknown[] = primary.data ?? [];
+
+  // If lineage columns are missing (migration not applied yet), fall back so library + assignees still load.
+  if (primary.error) {
+    if (import.meta.env.DEV) {
+      console.warn('[trainer-client-assignments] workout overview (retry without lineage)', primary.error);
+    }
+    const fallback = await supabase
+      .from('workouts')
+      .select(selectLegacy)
+      .eq('trainer_id', trainerUserId)
+      .order('created_at', { ascending: false });
+
+    if (fallback.error) {
+      if (import.meta.env.DEV) {
+        console.warn('[trainer-client-assignments] workout overview workouts', fallback.error);
+      }
+      return { workouts: [], assignmentsByWorkoutId: {} };
+    }
+    wData = fallback.data ?? [];
   }
 
-  const workouts: TrainerWorkoutOverviewRow[] = (wData ?? []).map((w) => {
+  const workouts: TrainerWorkoutOverviewRow[] = wData.map((w: unknown) => {
     const row = w as {
       id: string;
       title: string | null;
