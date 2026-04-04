@@ -190,6 +190,9 @@ export interface Database {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any -- chain JSONB
           ai_chain_metadata: any | null;
           visibility: 'draft' | 'ready' | 'assigned';
+          lineage_id: string;
+          version_index: number;
+          supersedes_workout_id: string | null;
         };
         Insert: Record<string, never>;
         Update: Record<string, never>;

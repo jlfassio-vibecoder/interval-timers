@@ -19,6 +19,7 @@ import {
   FileText,
   UserCircle,
   Video,
+  Sparkles,
 } from 'lucide-react';
 import { AppProvider, useAppContext } from '../../../contexts/AppContext';
 import { AuthModal } from '@interval-timers/auth-ui';
@@ -38,10 +39,11 @@ import TrainerLiveClientJoinPage from './live/TrainerLiveClientJoinPage';
 import TrainerLiveLobbyView from './live/TrainerLiveLobbyView';
 import TrainerLiveHostView from './live/TrainerLiveHostView';
 import TrainerWorkoutFactoryView from './views/TrainerWorkoutFactoryView';
+import TrainerClientWorkoutsView from './views/TrainerClientWorkoutsView';
+import TrainerLibraryWorkoutEditView from './views/TrainerLibraryWorkoutEditView';
 
 const TRAINER_NAV = [
   { path: '/', label: 'Mission Control', icon: LayoutDashboard },
-  { path: '/workouts/factory', label: 'Workout Factory', icon: LayoutList },
   { path: '/roster', label: 'Roster', icon: Users },
   { path: '/live', label: 'Live', icon: Video },
   { path: '/roster/welcome', label: 'Studio invite', icon: FileText },
@@ -53,6 +55,12 @@ function isTrainerNavActive(path: string, pathname: string): boolean {
   if (path === '/') return pathname === '/' || pathname === '';
   if (path === '/live') {
     return pathname === '/live' || pathname.startsWith('/live/');
+  }
+  if (path === '/workouts') {
+    if (pathname === '/workouts' || pathname === '/workouts/') return true;
+    if (pathname.startsWith('/workouts/factory')) return false;
+    if (pathname.startsWith('/workouts/')) return true;
+    return false;
   }
   if (path === '/workouts/factory') {
     return pathname === '/workouts/factory' || pathname.startsWith('/workouts/factory/');
@@ -70,6 +78,11 @@ function isTrainerNavActive(path: string, pathname: string): boolean {
   }
   return pathname === path || pathname.startsWith(path + '/');
 }
+
+const WORKOUT_FACTORY_SUBLINKS = [
+  { path: '/workouts', label: 'Workouts', icon: LayoutList },
+  { path: '/workouts/factory', label: 'Generate', icon: Sparkles },
+] as const;
 
 const TrainerLayout: React.FC = () => {
   const location = useLocation();
@@ -90,21 +103,50 @@ const TrainerLayout: React.FC = () => {
               const Icon = item.icon;
               const active = isTrainerNavActive(item.path, location.pathname);
               return (
-                <NavLink
-                  key={item.path}
-                  to={item.path}
-                  end={item.path === '/'}
-                  className={({ isActive }) =>
-                    `flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors ${
-                      isActive || active
-                        ? 'bg-orange-light/20 text-orange-light'
-                        : 'text-white/70 hover:bg-white/5 hover:text-white'
-                    }`
-                  }
-                >
-                  <Icon className="h-5 w-5" />
-                  {item.label}
-                </NavLink>
+                <React.Fragment key={item.path}>
+                  <NavLink
+                    to={item.path}
+                    end={item.path === '/'}
+                    className={({ isActive }) =>
+                      `flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors ${
+                        isActive || active
+                          ? 'bg-orange-light/20 text-orange-light'
+                          : 'text-white/70 hover:bg-white/5 hover:text-white'
+                      }`
+                    }
+                  >
+                    <Icon className="h-5 w-5" />
+                    {item.label}
+                  </NavLink>
+                  {item.path === '/' && showTrainerNav && (
+                    <div className="space-y-1 pt-1">
+                      <p className="px-4 pb-1 pt-2 text-xs font-semibold uppercase tracking-wider text-white/50">
+                        Workout Factory
+                      </p>
+                      {WORKOUT_FACTORY_SUBLINKS.map((sub) => {
+                        const SubIcon = sub.icon;
+                        const subActive = isTrainerNavActive(sub.path, location.pathname);
+                        return (
+                          <NavLink
+                            key={sub.path}
+                            to={sub.path}
+                            end={sub.path === '/workouts'}
+                            className={({ isActive }) =>
+                              `flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors ${
+                                isActive || subActive
+                                  ? 'bg-orange-light/20 text-orange-light'
+                                  : 'text-white/70 hover:bg-white/5 hover:text-white'
+                              }`
+                            }
+                          >
+                            <SubIcon className="h-5 w-5" />
+                            {sub.label}
+                          </NavLink>
+                        );
+                      })}
+                    </div>
+                  )}
+                </React.Fragment>
               );
             })}
             <a
@@ -281,6 +323,16 @@ function TrainerWorkoutFactoryRoute() {
   return isTrainer ? <TrainerWorkoutFactoryView /> : <Navigate to="/" replace />;
 }
 
+function TrainerClientWorkoutsRoute() {
+  const { isTrainer } = useAppContext();
+  return isTrainer ? <TrainerClientWorkoutsView /> : <Navigate to="/" replace />;
+}
+
+function TrainerLibraryWorkoutEditRoute() {
+  const { isTrainer } = useAppContext();
+  return isTrainer ? <TrainerLibraryWorkoutEditView /> : <Navigate to="/" replace />;
+}
+
 const TrainerBrowser: React.FC = () => {
   return (
     <BrowserRouter basename="/trainer">
@@ -290,6 +342,8 @@ const TrainerBrowser: React.FC = () => {
           <Route path="/" element={<TrainerLayout />}>
             <Route index element={<TrainerDashboard />} />
             <Route path="workouts/factory" element={<TrainerWorkoutFactoryRoute />} />
+            <Route path="workouts/:workoutId/edit" element={<TrainerLibraryWorkoutEditRoute />} />
+            <Route path="workouts" element={<TrainerClientWorkoutsRoute />} />
             <Route path="roster" element={<TrainerRosterRoute />} />
             <Route path="roster/welcome" element={<TrainerStudioWelcomeRoute />} />
             <Route path="roster/welcome/coach" element={<TrainerCoachWelcomeRoute />} />
