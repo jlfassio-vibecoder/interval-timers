@@ -12,6 +12,8 @@ export interface BlockExercise {
 }
 
 export interface WorkoutBlock {
+  /** Stable key for list rendering / editor state (optional in persisted JSON). */
+  id?: string;
   type: 'warmup' | 'main' | 'finisher' | 'cooldown';
   name: string;
   exercises: BlockExercise[];

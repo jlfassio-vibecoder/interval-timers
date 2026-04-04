@@ -28,7 +28,9 @@ export function workoutBlocksToAmrapExerciseNames(blocks: unknown): string[] {
   for (const block of sortBlocksStable(typed)) {
     for (const ex of block.exercises ?? []) {
       const n = typeof ex.name === 'string' ? ex.name.trim() : '';
-      if (n) names.push(n);
+      if (!n) continue;
+      const reps = typeof ex.reps === 'string' ? ex.reps.trim() : '';
+      names.push(reps ? `${reps} ${n}` : n);
     }
   }
   return names;

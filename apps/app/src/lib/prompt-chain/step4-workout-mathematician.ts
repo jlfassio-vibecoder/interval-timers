@@ -7,9 +7,18 @@
  * No week-by-week schedule — one prescription per session.
  */
 
-import type { WorkoutArchitectBlueprint, BlockOptions, HiitOptions } from '@/types/ai-workout';
+import type {
+  WorkoutArchitectBlueprint,
+  BlockOptions,
+  HiitOptions,
+  AmrapDensityOptions,
+} from '@/types/ai-workout';
 import type { ExerciseSelection, ProgressionProtocol } from '@/types/ai-program';
 import type { WorkoutInSet } from '@/types/ai-workout';
+
+function isAmrapProtocol(hiitOptions?: HiitOptions): boolean {
+  return hiitOptions?.protocolFormat === 'amrap';
+}
 
 const defaultBlockOptions: BlockOptions = {
   includeWarmup: true,
@@ -27,7 +36,9 @@ export function buildWorkoutMathematicianPrompt(
   exercises: ExerciseSelection[],
   blockOptions: BlockOptions = defaultBlockOptions,
   hiitMode?: boolean,
-  hiitOptions?: HiitOptions
+  hiitOptions?: HiitOptions,
+  amrapDensityMode?: boolean,
+  amrapDensityOptions?: AmrapDensityOptions
 ): string {
   const exercisesDescription = exercises
     .map((day) => {
@@ -40,22 +51,35 @@ export function buildWorkoutMathematicianPrompt(
 
   const sessionCount = architect.sessions.length;
 
-  const effectiveBlockOptions: BlockOptions =
-    hiitMode && hiitOptions
-      ? (() => {
-          const circuitCount = [
-            hiitOptions.circuitStructure.circuit1,
-            hiitOptions.circuitStructure.circuit2,
-            hiitOptions.circuitStructure.circuit3,
-          ].filter(Boolean).length;
-          const mainBlockCount = circuitCount >= 1 ? circuitCount : 1;
-          return {
-            includeWarmup: hiitOptions.circuitStructure.includeWarmup,
-            mainBlockCount: mainBlockCount as 1 | 2 | 3, // Clamped above; HIIT has at most 3 circuits. BlockOptions accepts 1|2|3|4|5.
+  const effectiveBlockOptions: BlockOptions = amrapDensityMode
+    ? {
+        includeWarmup: false,
+        mainBlockCount: 1,
+        includeFinisher: false,
+        includeCooldown: false,
+      }
+    : hiitMode && hiitOptions
+      ? isAmrapProtocol(hiitOptions)
+        ? {
+            includeWarmup: false,
+            mainBlockCount: 1,
             includeFinisher: false,
-            includeCooldown: hiitOptions.circuitStructure.includeCooldown,
-          };
-        })()
+            includeCooldown: false,
+          }
+        : (() => {
+            const circuitCount = [
+              hiitOptions.circuitStructure.circuit1,
+              hiitOptions.circuitStructure.circuit2,
+              hiitOptions.circuitStructure.circuit3,
+            ].filter(Boolean).length;
+            const mainBlockCount = circuitCount >= 1 ? circuitCount : 1;
+            return {
+              includeWarmup: hiitOptions.circuitStructure.includeWarmup,
+              mainBlockCount: mainBlockCount as 1 | 2 | 3, // Clamped above; HIIT has at most 3 circuits. BlockOptions accepts 1|2|3|4|5.
+              includeFinisher: false,
+              includeCooldown: hiitOptions.circuitStructure.includeCooldown,
+            };
+          })()
       : blockOptions;
 
   const { includeWarmup, mainBlockCount, includeFinisher, includeCooldown } = effectiveBlockOptions;
@@ -65,9 +89,13 @@ export function buildWorkoutMathematicianPrompt(
   const warmupTask = includeWarmup
     ? '3. warmupBlocks: 2–4 warmup exercises with instructions (order, exerciseName, instructions array)'
     : '3. warmupBlocks: omit or set to empty array []';
-  const mainTask = hiitMode
-    ? `4. exerciseBlocks: exactly ${mainBlockCount} block(s); each block has order, name, and exercises with order, exerciseName, exerciseQuery, workSeconds, restSeconds, rounds, coachNotes (TIMER SCHEMA — no sets/reps; use work/rest time and rounds)`
-    : `4. exerciseBlocks: exactly ${mainBlockCount} block(s); each block has order, name, and exercises with order, exerciseName, exerciseQuery (searchable), sets, reps, rpe, restSeconds, coachNotes`;
+  const mainTask = amrapDensityMode
+    ? `4. exerciseBlocks: exactly 1 block (Density-Based AMRAP circuit). Each exercise: order, exerciseName, exerciseQuery, sets (always 1 per station per lap), reps (fixed count, e.g. "10"), restSeconds (0 — continuous transition to next station), rpe (optional), coachNotes. FORBID workSeconds and any timed-station prescription. FORBID non-zero restSeconds between stations. The athlete repeats the full exercise list for the session clock, completing as many laps as possible. Primary tracking metric: Total Laps Completed.`
+    : hiitMode && hiitOptions && isAmrapProtocol(hiitOptions)
+      ? `4. exerciseBlocks: exactly 1 block (the AMRAP circuit). Each exercise: order, exerciseName, exerciseQuery, workSeconds, restSeconds, rounds, coachNotes. TIMER SCHEMA only — set rounds to 1 for every exercise (one work interval at that station per lap). The athlete repeats the full circuit for the session duration, completing as many laps as possible — do not prescribe fixed multi-round work at a single station (e.g. never use rounds > 1 to mean "three times through this exercise before moving on").`
+      : hiitMode
+        ? `4. exerciseBlocks: exactly ${mainBlockCount} block(s); each block has order, name, and exercises with order, exerciseName, exerciseQuery, workSeconds, restSeconds, rounds, coachNotes (TIMER SCHEMA — no sets/reps; use work/rest time and rounds)`
+        : `4. exerciseBlocks: exactly ${mainBlockCount} block(s); each block has order, name, and exercises with order, exerciseName, exerciseQuery (searchable), sets, reps, rpe, restSeconds, coachNotes`;
   const finisherTask = includeFinisher
     ? '5. finisherBlocks: 1–3 finisher exercises (same shape as warmupBlocks: order, exerciseName, instructions)'
     : '';
@@ -86,17 +114,67 @@ export function buildWorkoutMathematicianPrompt(
       ],`
     : '"warmupBlocks": [],';
 
-  const mainBlocksExample = hiitMode
-    ? Array.from({ length: mainBlockCount }, (_, i) => {
-        const name =
-          mainBlockCount === 1
-            ? 'Main'
-            : i === 0
-              ? 'Circuit 1 (Driver)'
-              : i === 1
-                ? 'Circuit 2 (Sustainer)'
-                : 'Circuit 3 (Burnout)';
-        return `        {
+  const mainBlocksExample = amrapDensityMode
+    ? `        {
+          "order": 1,
+          "name": "Density AMRAP Circuit",
+          "exercises": [
+            {
+              "order": 1,
+              "exerciseName": "Kettlebell Goblet Squat",
+              "exerciseQuery": "goblet squat",
+              "sets": 1,
+              "reps": "12",
+              "restSeconds": 0,
+              "coachNotes": "One station per lap; Total Laps Completed is the primary metric"
+            },
+            {
+              "order": 2,
+              "exerciseName": "Push-ups",
+              "exerciseQuery": "push-up",
+              "sets": 1,
+              "reps": "10",
+              "restSeconds": 0,
+              "coachNotes": "Continuous lap — no timed station blocks"
+            }
+          ]
+        }`
+    : hiitMode
+      ? hiitOptions && isAmrapProtocol(hiitOptions)
+        ? `        {
+          "order": 1,
+          "name": "Upper Body AMRAP",
+          "exercises": [
+            {
+              "order": 1,
+              "exerciseName": "Push-ups",
+              "exerciseQuery": "push-up",
+              "workSeconds": 40,
+              "restSeconds": 20,
+              "rounds": 1,
+              "coachNotes": "One work bout per lap; repeat entire circuit for session time"
+            },
+            {
+              "order": 2,
+              "exerciseName": "Inverted Row",
+              "exerciseQuery": "inverted row",
+              "workSeconds": 40,
+              "restSeconds": 20,
+              "rounds": 1,
+              "coachNotes": "One work bout per lap"
+            }
+          ]
+        }`
+        : Array.from({ length: mainBlockCount }, (_, i) => {
+            const name =
+              mainBlockCount === 1
+                ? 'Main'
+                : i === 0
+                  ? 'Circuit 1 (Driver)'
+                  : i === 1
+                    ? 'Circuit 2 (Sustainer)'
+                    : 'Circuit 3 (Burnout)';
+            return `        {
           "order": ${i + 1},
           "name": "${name}",
           "exercises": [
@@ -111,10 +189,10 @@ export function buildWorkoutMathematicianPrompt(
             }
           ]
         }`;
-      }).join(',\n')
-    : Array.from({ length: mainBlockCount }, (_, i) => {
-        const name = mainBlockCount === 1 ? 'Main' : `Block ${i + 1}`;
-        return `        {
+          }).join(',\n')
+      : Array.from({ length: mainBlockCount }, (_, i) => {
+          const name = mainBlockCount === 1 ? 'Main' : `Block ${i + 1}`;
+          return `        {
           "order": ${i + 1},
           "name": "${name}",
           "exercises": [
@@ -130,7 +208,7 @@ export function buildWorkoutMathematicianPrompt(
             }
           ]
         }`;
-      }).join(',\n');
+        }).join(',\n');
 
   const finisherExample = includeFinisher
     ? `,
@@ -146,18 +224,44 @@ export function buildWorkoutMathematicianPrompt(
       ]`
     : '';
 
-  const hiitSection =
-    hiitMode && hiitOptions
+  const densitySection =
+    amrapDensityMode && amrapDensityOptions
       ? `
-=== HIIT / TIMER SCHEMA ===
-Protocol: ${hiitOptions.protocolFormat}${hiitOptions.workRestRatio ? `, Work:Rest ${hiitOptions.workRestRatio}` : ''}
-Prescribe each main-block exercise with workSeconds, restSeconds, and rounds (e.g. 40s work, 20s rest, 4 rounds). Do NOT use sets and reps for main work.
+=== DENSITY-BASED AMRAP ===
+Protocol: ${amrapDensityOptions.protocolFormat}. Movement transition: ${amrapDensityOptions.workRestRatio} (continuous lap; no station clocks).
+Session tier: ${amrapDensityOptions.sessionDurationTier}. Prescribe a single repeating loop for the fixed session clock.
+
+- Omit warmupBlocks, finisherBlocks, and cooldownBlocks (use [] for each). Host-delivered prep and recovery stay outside this JSON.
+- Each exercise is one station in the lap. Use fixed repetition counts only (sets/reps schema). FORBID workSeconds and FORBID non-zero restSeconds between stations (use restSeconds: 0).
+- Primary tracking metric: Total Laps Completed. Do not describe timed station blocks or countdown splits in coachNotes.
 `
       : '';
 
-  const taskInstruction = hiitMode
-    ? `Use the Coach's exercise list. Prescribe workSeconds, restSeconds, and rounds per exercise to fit the session duration and protocol. Distribute exercises across exactly ${mainBlockCount} circuit block(s).`
-    : `Use the Coach's exercise list for that session. Prescribe sets, reps, RPE, and rest appropriate to the progression protocol and session duration. Distribute exercises across exactly ${mainBlockCount} main block(s).`;
+  const hiitSection =
+    hiitMode && hiitOptions
+      ? isAmrapProtocol(hiitOptions)
+        ? `
+=== AMRAP (AS MANY ROUNDS AS POSSIBLE) ===
+Session time is fixed (see Architect session duration). The athlete completes as many full laps of the exercise list as possible before time expires.
+
+- Output ONLY interval work: a single exerciseBlocks array with exactly one block. Omit warmupBlocks, finisherBlocks, and cooldownBlocks from the prescription (use [] for each). Warm-up and cool-down are delivered by the trainer/host outside this generated workout.
+- Each exercise is one station in the repeating circuit. Use workSeconds and restSeconds per station. Set rounds to 1 for every exercise (one timed work bout at that station per lap). Do NOT use rounds to mean "perform this station N times before moving on" — that is not AMRAP.
+- Do NOT use sets/reps for main work.
+`
+        : `
+=== HIIT / TIMER SCHEMA ===
+Protocol: ${hiitOptions.protocolFormat}${hiitOptions.workRestRatio ? `, Work:Rest ${hiitOptions.workRestRatio}` : ''}
+Prescribe each main-block exercise with workSeconds, restSeconds, and rounds. Do NOT use sets and reps for main work.
+`
+      : '';
+
+  const taskInstruction = amrapDensityMode
+    ? `Use the Coach's exercise list in order as one repeating Density-Based AMRAP circuit. For each exercise use sets: 1, fixed reps, restSeconds: 0. State Total Laps Completed as the primary metric in workout description. FORBID workSeconds.`
+    : hiitMode && hiitOptions && isAmrapProtocol(hiitOptions)
+      ? `Use the Coach's exercise list in order as one repeating AMRAP circuit. Prescribe workSeconds, restSeconds, and rounds=1 for each exercise.`
+      : hiitMode
+        ? `Use the Coach's exercise list. Prescribe workSeconds, restSeconds, and rounds per exercise to fit the session duration and protocol. Distribute exercises across exactly ${mainBlockCount} circuit block(s).`
+        : `Use the Coach's exercise list for that session. Prescribe sets, reps, RPE, and rest appropriate to the progression protocol and session duration. Distribute exercises across exactly ${mainBlockCount} main block(s).`;
 
   return `Role: You are the Workout Mathematician.
 Task: Generate ONE set of ${sessionCount} workouts (no weeks). Each workout is a complete session. Include blocks as specified below.
@@ -168,7 +272,7 @@ ${protocolInstructions}
 Architect's Rules:
 - Accumulation: ${architect.progression_rules.weeks_1_3}
 - Intensification: ${architect.progression_rules.weeks_4_6}
-${hiitSection}
+${densitySection}${hiitSection}
 
 === SESSIONS FROM ARCHITECT ===
 ${architect.sessions.map((s) => `Session ${s.session_number}: ${s.session_name} — ${s.focus} (${s.duration_minutes} min)`).join('\n')}
@@ -257,10 +361,27 @@ function validateWarmupLikeBlocks(
  */
 function getEffectiveBlockOptionsForValidation(
   blockOptions: BlockOptions,
+  amrapDensityMode?: boolean,
   hiitMode?: boolean,
   hiitOptions?: HiitOptions
 ): BlockOptions {
+  if (amrapDensityMode) {
+    return {
+      includeWarmup: false,
+      mainBlockCount: 1,
+      includeFinisher: false,
+      includeCooldown: false,
+    };
+  }
   if (!hiitMode || !hiitOptions) return blockOptions;
+  if (isAmrapProtocol(hiitOptions)) {
+    return {
+      includeWarmup: false,
+      mainBlockCount: 1,
+      includeFinisher: false,
+      includeCooldown: false,
+    };
+  }
   const circuitCount = [
     hiitOptions.circuitStructure.circuit1,
     hiitOptions.circuitStructure.circuit2,
@@ -285,7 +406,8 @@ export function validateWorkoutMathematicianOutput(
   expectedWorkoutCount: number,
   blockOptions: BlockOptions = defaultBlockOptions,
   hiitMode?: boolean,
-  hiitOptions?: HiitOptions
+  hiitOptions?: HiitOptions,
+  amrapDensityMode?: boolean
 ): { valid: true; data: WorkoutInSet[] } | { valid: false; error: string } {
   if (typeof data !== 'object' || data === null) {
     return { valid: false, error: 'Workout mathematician output must be an object' };
@@ -294,6 +416,7 @@ export function validateWorkoutMathematicianOutput(
   const obj = data as Record<string, unknown>;
   const effectiveOptions = getEffectiveBlockOptionsForValidation(
     blockOptions,
+    amrapDensityMode,
     hiitMode,
     hiitOptions
   );
@@ -323,6 +446,30 @@ export function validateWorkoutMathematicianOutput(
 
     if (typeof workout.description !== 'string' || !workout.description.trim()) {
       return { valid: false, error: `Workout ${j + 1}: description is required` };
+    }
+
+    if (amrapDensityMode || (hiitMode && hiitOptions && isAmrapProtocol(hiitOptions))) {
+      const wb = workout.warmupBlocks;
+      if (Array.isArray(wb) && wb.length > 0) {
+        return {
+          valid: false,
+          error: `Workout ${j + 1}: AMRAP must have empty warmupBlocks (warm-up is outside generated programming)`,
+        };
+      }
+      const fb = workout.finisherBlocks;
+      if (Array.isArray(fb) && fb.length > 0) {
+        return {
+          valid: false,
+          error: `Workout ${j + 1}: AMRAP must have empty finisherBlocks`,
+        };
+      }
+      const cb = workout.cooldownBlocks;
+      if (Array.isArray(cb) && cb.length > 0) {
+        return {
+          valid: false,
+          error: `Workout ${j + 1}: AMRAP must have empty cooldownBlocks (cool-down is outside generated programming)`,
+        };
+      }
     }
 
     if (includeWarmup) {
@@ -371,7 +518,33 @@ export function validateWorkoutMathematicianOutput(
               error: `Workout ${j + 1}, Block ${k + 1}, Exercise ${e + 1}: exerciseName is required`,
             };
           }
-          if (hiitMode) {
+          if (amrapDensityMode) {
+            if (ex.workSeconds != null) {
+              return {
+                valid: false,
+                error: `Workout ${j + 1}, Block ${k + 1}, Exercise ${e + 1}: workSeconds must not be set for Density-Based AMRAP`,
+              };
+            }
+            if (typeof ex.sets !== 'number' || ex.sets !== 1) {
+              return {
+                valid: false,
+                error: `Workout ${j + 1}, Block ${k + 1}, Exercise ${e + 1}: sets must be 1 for Density-Based AMRAP (one completion per station per lap)`,
+              };
+            }
+            if (typeof ex.reps !== 'string' && typeof ex.reps !== 'number') {
+              return {
+                valid: false,
+                error: `Workout ${j + 1}, Block ${k + 1}, Exercise ${e + 1}: reps is required for Density-Based AMRAP`,
+              };
+            }
+            const rs = ex.restSeconds;
+            if (typeof rs === 'number' && rs !== 0) {
+              return {
+                valid: false,
+                error: `Workout ${j + 1}, Block ${k + 1}, Exercise ${e + 1}: restSeconds must be 0 for Density-Based AMRAP`,
+              };
+            }
+          } else if (hiitMode) {
             if (typeof ex.workSeconds !== 'number' || ex.workSeconds < 1) {
               return {
                 valid: false,
@@ -388,6 +561,12 @@ export function validateWorkoutMathematicianOutput(
               return {
                 valid: false,
                 error: `Workout ${j + 1}, Block ${k + 1}, Exercise ${e + 1}: rounds is required (positive number) for HIIT`,
+              };
+            }
+            if (hiitOptions && isAmrapProtocol(hiitOptions) && ex.rounds !== 1) {
+              return {
+                valid: false,
+                error: `Workout ${j + 1}, Block ${k + 1}, Exercise ${e + 1}: AMRAP requires rounds: 1 (one work bout per station per lap)`,
               };
             }
           } else {
@@ -427,7 +606,33 @@ export function validateWorkoutMathematicianOutput(
             error: `Workout ${j + 1}, Block ${k + 1}: exerciseName is required`,
           };
         }
-        if (hiitMode) {
+        if (amrapDensityMode) {
+          if (block.workSeconds != null) {
+            return {
+              valid: false,
+              error: `Workout ${j + 1}, Block ${k + 1}: workSeconds must not be set for Density-Based AMRAP`,
+            };
+          }
+          if (typeof block.sets !== 'number' || (block.sets as number) !== 1) {
+            return {
+              valid: false,
+              error: `Workout ${j + 1}, Block ${k + 1}: sets must be 1 for Density-Based AMRAP`,
+            };
+          }
+          if (typeof block.reps !== 'string' && typeof block.reps !== 'number') {
+            return {
+              valid: false,
+              error: `Workout ${j + 1}, Block ${k + 1}: reps is required for Density-Based AMRAP`,
+            };
+          }
+          const brs = block.restSeconds;
+          if (typeof brs === 'number' && brs !== 0) {
+            return {
+              valid: false,
+              error: `Workout ${j + 1}, Block ${k + 1}: restSeconds must be 0 for Density-Based AMRAP`,
+            };
+          }
+        } else if (hiitMode) {
           if (typeof block.workSeconds !== 'number' || (block.workSeconds as number) < 1) {
             return {
               valid: false,
@@ -444,6 +649,12 @@ export function validateWorkoutMathematicianOutput(
             return {
               valid: false,
               error: `Workout ${j + 1}, Block ${k + 1}: rounds is required for HIIT`,
+            };
+          }
+          if (hiitOptions && isAmrapProtocol(hiitOptions) && (block.rounds as number) !== 1) {
+            return {
+              valid: false,
+              error: `Workout ${j + 1}, Block ${k + 1}: AMRAP requires rounds: 1`,
             };
           }
         } else {

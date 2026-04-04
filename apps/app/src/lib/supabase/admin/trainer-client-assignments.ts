@@ -701,3 +701,259 @@ export async function getCoachAssignmentPayloadForClient(
 
   return { ok: false, error: 'Unknown assignment type' };
 }
+
+/** Row for Mission Control Client Workouts page (library + assignees). */
+export interface TrainerWorkoutOverviewRow {
+  id: string;
+  title: string;
+  source?: string;
+  visibility?: 'draft' | 'ready' | 'assigned';
+  durationMinutes: number | null;
+  createdAt: string | null;
+  lineageId: string;
+  versionIndex: number;
+  /** Present for AI factory saves after trainer_workout_series migration. */
+  workoutSeriesId?: string | null;
+  sessionIndex?: number | null;
+  /** Series title for grouping (same for all sessions in a series). */
+  seriesTitle?: string | null;
+}
+
+export interface WorkoutAssignmentClientRow {
+  assignmentId: string;
+  clientUserId: string;
+  clientName: string;
+  assignedAt: string;
+}
+
+function profileDisplayName(p: {
+  full_name?: string | null;
+  username?: string | null;
+  email?: string | null;
+  id?: string;
+}): string {
+  const fn = typeof p.full_name === 'string' ? p.full_name.trim() : '';
+  if (fn) return fn;
+  const u = typeof p.username === 'string' ? p.username.trim() : '';
+  if (u) return u;
+  const e = typeof p.email === 'string' ? p.email.trim() : '';
+  if (e) return e;
+  return typeof p.id === 'string' ? p.id.slice(0, 8) : 'Client';
+}
+
+/**
+ * Trainer library workouts plus workout-type assignments grouped by `resource_id` (workouts.id).
+ * Host role returns empty lists (matches GET /api/trainer/workouts behavior).
+ */
+export async function fetchTrainerWorkoutClientOverview(
+  trainerUserId: string,
+  viewerRole: string
+): Promise<{
+  workouts: TrainerWorkoutOverviewRow[];
+  assignmentsByWorkoutId: Record<string, WorkoutAssignmentClientRow[]>;
+}> {
+  if (viewerRole === 'host') {
+    return { workouts: [], assignmentsByWorkoutId: {} };
+  }
+
+  const supabase = getSupabaseServer();
+
+  const selectFull =
+    'id, title, source, visibility, duration_minutes, created_at, lineage_id, version_index, workout_series_id, session_index';
+  const selectLineageNoSeries =
+    'id, title, source, visibility, duration_minutes, created_at, lineage_id, version_index';
+  const selectLegacy = 'id, title, source, visibility, duration_minutes, created_at';
+
+  let wData: unknown[] = [];
+
+  const full = await supabase
+    .from('workouts')
+    .select(selectFull)
+    .eq('trainer_id', trainerUserId)
+    .order('created_at', { ascending: false });
+
+  if (!full.error && full.data != null) {
+    wData = full.data;
+  } else {
+    if (import.meta.env.DEV && full.error) {
+      console.warn(
+        '[trainer-client-assignments] workout overview (retry without series columns)',
+        full.error
+      );
+    }
+    const mid = await supabase
+      .from('workouts')
+      .select(selectLineageNoSeries)
+      .eq('trainer_id', trainerUserId)
+      .order('created_at', { ascending: false });
+
+    if (!mid.error && mid.data != null) {
+      wData = mid.data;
+    } else {
+      if (import.meta.env.DEV && mid.error) {
+        console.warn('[trainer-client-assignments] workout overview (retry legacy)', mid.error);
+      }
+      const legacy = await supabase
+        .from('workouts')
+        .select(selectLegacy)
+        .eq('trainer_id', trainerUserId)
+        .order('created_at', { ascending: false });
+
+      if (legacy.error) {
+        if (import.meta.env.DEV) {
+          console.warn('[trainer-client-assignments] workout overview workouts', legacy.error);
+        }
+        return { workouts: [], assignmentsByWorkoutId: {} };
+      }
+      wData = legacy.data ?? [];
+    }
+  }
+
+  const workoutsBase: TrainerWorkoutOverviewRow[] = wData.map((w: unknown) => {
+    const row = w as {
+      id: string;
+      title: string | null;
+      source?: string | null;
+      visibility?: string | null;
+      duration_minutes?: number | null;
+      created_at?: string | null;
+      lineage_id?: string | null;
+      version_index?: number | null;
+      workout_series_id?: string | null;
+      session_index?: number | null;
+    };
+    const title = typeof row.title === 'string' && row.title.trim() ? row.title.trim() : 'Workout';
+    const source = typeof row.source === 'string' && row.source ? row.source : undefined;
+    const visibility =
+      row.visibility === 'draft' || row.visibility === 'ready' || row.visibility === 'assigned'
+        ? row.visibility
+        : undefined;
+    const durationMinutes =
+      typeof row.duration_minutes === 'number' && Number.isFinite(row.duration_minutes)
+        ? row.duration_minutes
+        : null;
+    const lineageId = typeof row.lineage_id === 'string' ? row.lineage_id : row.id;
+    const versionIndex =
+      typeof row.version_index === 'number' && Number.isFinite(row.version_index)
+        ? row.version_index
+        : 1;
+    const workoutSeriesId =
+      typeof row.workout_series_id === 'string' && row.workout_series_id.trim()
+        ? row.workout_series_id.trim()
+        : null;
+    const sessionIndex =
+      typeof row.session_index === 'number' && Number.isFinite(row.session_index)
+        ? row.session_index
+        : null;
+    return {
+      id: row.id,
+      title,
+      ...(source !== undefined ? { source } : {}),
+      ...(visibility !== undefined ? { visibility } : {}),
+      durationMinutes,
+      createdAt: row.created_at != null ? String(row.created_at) : null,
+      lineageId,
+      versionIndex,
+      workoutSeriesId,
+      sessionIndex,
+    };
+  });
+
+  const seriesIds = [
+    ...new Set(
+      workoutsBase
+        .map((x) => x.workoutSeriesId)
+        .filter((id): id is string => typeof id === 'string' && id.length > 0)
+    ),
+  ];
+
+  const seriesTitleById = new Map<string, string>();
+  if (seriesIds.length > 0) {
+    const { data: srows, error: sErr } = await supabase
+      .from('trainer_workout_series')
+      .select('id, title')
+      .eq('trainer_id', trainerUserId)
+      .in('id', seriesIds);
+    if (!sErr && srows) {
+      for (const s of srows) {
+        const sr = s as { id?: string; title?: string | null };
+        if (typeof sr.id === 'string') {
+          const st =
+            typeof sr.title === 'string' && sr.title.trim() ? sr.title.trim() : 'Workout series';
+          seriesTitleById.set(sr.id, st);
+        }
+      }
+    }
+  }
+
+  const workouts: TrainerWorkoutOverviewRow[] = workoutsBase.map((row) => ({
+    ...row,
+    seriesTitle:
+      row.workoutSeriesId != null ? (seriesTitleById.get(row.workoutSeriesId) ?? null) : null,
+  }));
+
+  const { data: aData, error: aErr } = await supabase
+    .from('client_coach_assignments')
+    .select('id, client_user_id, resource_id, assigned_at, title_snapshot')
+    .eq('trainer_user_id', trainerUserId)
+    .eq('assignment_type', 'workout')
+    .is('revoked_at', null);
+
+  if (aErr) {
+    if (import.meta.env.DEV)
+      console.warn('[trainer-client-assignments] workout overview assignments', aErr);
+    return { workouts, assignmentsByWorkoutId: {} };
+  }
+
+  const rows = (aData ?? []).filter(
+    (r) => typeof (r as { resource_id?: string }).resource_id === 'string'
+  ) as Array<{
+    id: string;
+    client_user_id: string;
+    resource_id: string;
+    assigned_at: string | null;
+  }>;
+
+  const clientIds = [...new Set(rows.map((r) => r.client_user_id).filter(Boolean))];
+  const nameById = new Map<string, string>();
+
+  if (clientIds.length > 0) {
+    const { data: profs } = await supabase
+      .from('profiles')
+      .select('id, full_name, username, email')
+      .in('id', clientIds);
+    for (const p of profs ?? []) {
+      const row = p as {
+        id?: string;
+        full_name?: string | null;
+        username?: string | null;
+        email?: string | null;
+      };
+      if (typeof row.id === 'string') {
+        nameById.set(row.id, profileDisplayName(row));
+      }
+    }
+  }
+
+  const assignmentsByWorkoutId: Record<string, WorkoutAssignmentClientRow[]> = {};
+
+  for (const r of rows) {
+    const rid = r.resource_id;
+    if (!rid) continue;
+    const clientName = nameById.get(r.client_user_id) ?? r.client_user_id.slice(0, 8);
+    const entry: WorkoutAssignmentClientRow = {
+      assignmentId: r.id,
+      clientUserId: r.client_user_id,
+      clientName,
+      assignedAt: r.assigned_at != null ? String(r.assigned_at) : '',
+    };
+    if (!assignmentsByWorkoutId[rid]) assignmentsByWorkoutId[rid] = [];
+    assignmentsByWorkoutId[rid].push(entry);
+  }
+
+  for (const rid of Object.keys(assignmentsByWorkoutId)) {
+    assignmentsByWorkoutId[rid].sort((a, b) => b.assignedAt.localeCompare(a.assignedAt));
+  }
+
+  return { workouts, assignmentsByWorkoutId };
+}

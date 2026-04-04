@@ -42,6 +42,13 @@ const TrainerDashboard: React.FC<TrainerDashboardProps> = ({ profile: profilePro
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
+              onClick={() => navigate('/workouts')}
+              className="rounded-lg bg-white/10 px-4 py-2 text-sm font-bold uppercase transition-colors hover:bg-orange-light hover:text-black"
+            >
+              Client Workouts
+            </button>
+            <button
+              type="button"
               onClick={() => navigate('/workouts/factory')}
               className="bg-orange-light/20 rounded-lg px-4 py-2 text-sm font-bold uppercase text-orange-light transition-colors hover:bg-orange-light hover:text-black"
             >
