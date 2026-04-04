@@ -47,6 +47,10 @@ export interface CalendarEvent {
     scheduledAt?: string;
     /** AMRAP: full exercise list for display in drawer. */
     workoutList?: string[];
+    /** When the event is backed by a coach assignment (e.g. merged weekly board). */
+    coachAssignmentId?: string;
+    coachResourceId?: string;
+    coachAssignmentType?: 'workout' | 'wod';
   };
 }
 

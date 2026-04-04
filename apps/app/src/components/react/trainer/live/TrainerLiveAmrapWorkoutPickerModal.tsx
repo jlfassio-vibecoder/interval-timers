@@ -1,5 +1,11 @@
-import { useCallback, useEffect, useRef } from 'react';
-import { AmrapWorkoutPicker } from '@interval-timers/amrap-workout-picker';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { toast } from 'sonner';
+import {
+  AmrapWorkoutPicker,
+  type AmrapSavedWorkoutItem,
+} from '@interval-timers/amrap-workout-picker';
+import { missionControlApiAuthHeaders } from '@/lib/mission-control-api-auth';
+import { workoutRowToAmrapAttachParams } from '@/lib/trainer-live/amrap-workout-list-adapter';
 
 /** Same focusable query as ExerciseDetailModal / WorkoutSummaryModal (no shared util in repo). */
 const FOCUSABLE_SELECTOR =
@@ -29,6 +35,8 @@ export default function TrainerLiveAmrapWorkoutPickerModal({
 }: TrainerLiveAmrapWorkoutPickerModalProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const savedFocusRef = useRef<HTMLElement | null>(null);
+  const [savedLibrary, setSavedLibrary] = useState<AmrapSavedWorkoutItem[] | undefined>(undefined);
+  const [savedLibraryLoading, setSavedLibraryLoading] = useState(false);
 
   const handleClose = useCallback(() => {
     onOpenChange(false);
@@ -63,6 +71,66 @@ export default function TrainerLiveAmrapWorkoutPickerModal({
     document.body.style.overflow = 'hidden';
     return () => {
       document.body.style.overflow = prevOverflow;
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) {
+      setSavedLibrary(undefined);
+      return;
+    }
+    let cancelled = false;
+    setSavedLibraryLoading(true);
+    void (async () => {
+      try {
+        const auth = await missionControlApiAuthHeaders();
+        const r = await fetch('/api/trainer/workouts', {
+          credentials: 'include',
+          headers: { ...auth },
+        });
+        const raw: unknown = await r.json().catch(() => null);
+        if (cancelled) return;
+        if (!r.ok) {
+          const body = raw && typeof raw === 'object' ? (raw as { error?: string }) : {};
+          const msg =
+            typeof body.error === 'string' && body.error.trim()
+              ? body.error.trim()
+              : 'Could not load saved workouts';
+          toast.error(msg);
+          setSavedLibrary([]);
+          return;
+        }
+        const arr = Array.isArray(raw) ? raw : [];
+        const items: AmrapSavedWorkoutItem[] = arr
+          .map((row: unknown) => {
+            const o = row as {
+              id?: string;
+              title?: string;
+              blocks?: unknown;
+              durationMinutes?: number | null;
+              source?: string;
+            };
+            return {
+              id: typeof o.id === 'string' ? o.id : '',
+              title: typeof o.title === 'string' && o.title.trim() ? o.title : 'Workout',
+              blocks: o.blocks,
+              durationMinutes:
+                typeof o.durationMinutes === 'number' && Number.isFinite(o.durationMinutes)
+                  ? o.durationMinutes
+                  : null,
+              source: typeof o.source === 'string' ? o.source : undefined,
+            };
+          })
+          .filter((x) => x.id);
+        setSavedLibrary(items);
+      } catch {
+        if (!cancelled) setSavedLibrary([]);
+      } finally {
+        if (!cancelled) setSavedLibraryLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
     };
   }, [open]);
 
@@ -123,6 +191,18 @@ export default function TrainerLiveAmrapWorkoutPickerModal({
           onCancel={() => handleClose()}
           onSelect={(workoutList, durationMinutes) => {
             void onWorkoutChosen(workoutList, durationMinutes);
+          }}
+          savedWorkouts={savedLibraryLoading ? undefined : savedLibrary}
+          onConfirmSavedWorkout={(item, durationMinutes) => {
+            try {
+              const p = workoutRowToAmrapAttachParams({
+                blocks: item.blocks,
+                durationMinutes,
+              });
+              void onWorkoutChosen(p.workoutList, p.durationMinutes);
+            } catch (e) {
+              toast.error(e instanceof Error ? e.message : 'Could not use this workout');
+            }
           }}
         />
       </div>

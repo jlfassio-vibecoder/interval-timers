@@ -71,6 +71,9 @@ export const GET: APIRoute = async ({ request, cookies, params }) => {
       JSON.stringify({
         assignmentType: payload.assignmentType,
         artist: payload.artist,
+        assignmentId: payload.assignmentId,
+        resourceId: payload.resourceId,
+        workoutSet: payload.workoutSet,
       }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     );

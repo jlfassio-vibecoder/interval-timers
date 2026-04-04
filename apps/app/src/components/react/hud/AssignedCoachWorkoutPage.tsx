@@ -37,6 +37,7 @@ function HrefAssignRedirect({ href }: { href: string }) {
 
 const AssignedCoachWorkoutPage: React.FC = () => {
   const [artist, setArtist] = useState<Artist | null>(null);
+  const [assignmentId, setAssignmentId] = useState<string | null>(null);
   const [programPayload, setProgramPayload] = useState<{ programId: string } | null>(null);
   const [hrefRedirect, setHrefRedirect] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -49,6 +50,7 @@ const AssignedCoachWorkoutPage: React.FC = () => {
       setLoading(false);
       return;
     }
+    setAssignmentId(id.trim());
     let cancelled = false;
     fetch(`/api/me/coach-assignments/${encodeURIComponent(id.trim())}/payload`, {
       credentials: 'include',
@@ -130,7 +132,14 @@ const AssignedCoachWorkoutPage: React.FC = () => {
           else window.location.assign('/');
         }}
         onLogWorkout={() => {
-          window.location.assign('/workout/log-pasted');
+          const aid = assignmentId?.trim();
+          if (aid) {
+            window.location.assign(
+              `/workout/log-pasted?coachAssignmentId=${encodeURIComponent(aid)}`
+            );
+          } else {
+            window.location.assign('/workout/log-pasted');
+          }
         }}
       />
     </div>

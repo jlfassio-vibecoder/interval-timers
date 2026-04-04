@@ -9,6 +9,7 @@
   },
   "scripts": {
     "dev": "NODE_PATH=../../node_modules npx astro dev --port 3006",
+    "dev:fresh": "rm -rf node_modules/.vite ../../node_modules/.vite 2>/dev/null; NODE_PATH=../../node_modules npx astro dev --port 3006",
     "prebuild": "npm install --include=optional --force @rollup/rollup-linux-x64-gnu 2>/dev/null || npm install --include=optional --force",
     "copy:favicon": "node scripts/copy-favicon.js",
     "build": "npm run copy:favicon && NODE_PATH=../../node_modules astro build",

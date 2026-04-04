@@ -21,7 +21,12 @@ export interface WorkoutEventDrawerProps {
     workout: WorkoutFromSchedule,
     programId: string,
     weekId: string,
-    workoutId: string
+    workoutId: string,
+    coach?: {
+      coachAssignmentId?: string;
+      coachResourceId?: string;
+      coachAssignmentType?: 'workout' | 'wod';
+    }
   ) => void;
   /** When user taps View Log (completed event), scroll to History Zone. */
   onViewLog?: () => void;
@@ -173,7 +178,11 @@ const WorkoutEventDrawer: React.FC<WorkoutEventDrawerProps> = ({
                     type="button"
                     onClick={() =>
                       programId != null && weekId != null && workoutId != null
-                        ? onStartWorkout(workout, programId, weekId, workoutId)
+                        ? onStartWorkout(workout, programId, weekId, workoutId, {
+                            coachAssignmentId: event.metadata?.coachAssignmentId,
+                            coachResourceId: event.metadata?.coachResourceId,
+                            coachAssignmentType: event.metadata?.coachAssignmentType,
+                          })
                         : undefined
                     }
                     className="border-orange-light/50 bg-orange-light/20 hover:bg-orange-light/30 flex items-center justify-center gap-2 rounded-2xl border py-3 font-heading text-sm font-black uppercase text-orange-light transition-colors"

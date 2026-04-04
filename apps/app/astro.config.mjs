@@ -165,7 +165,16 @@ export default defineConfig({
       dedupe: ['react', 'react-dom', 'scheduler']
     },
     optimizeDeps: {
-      include: ['node-domexception', 'react', 'react-dom', 'scheduler', 'sonner'],
+      include: [
+        'node-domexception',
+        'react',
+        'react-dom',
+        'scheduler',
+        'sonner',
+        // AppWrapper → training-log charts; large graph. Pre-bundle so dev does not serve stale
+        // /@fs/…/.vite/deps/recharts.js?v=… (504 Outdated Optimize Dep) after lockfile or dep bumps.
+        'recharts'
+      ],
       esbuildOptions: {
         mainFields: ['module', 'main']
       }

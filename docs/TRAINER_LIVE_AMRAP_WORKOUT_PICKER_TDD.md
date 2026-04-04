@@ -116,6 +116,14 @@ Introduce a small wrapper, e.g. **`TrainerLiveAmrapWorkoutPickerModal`**, in `ap
 
 **Opened from:** [`TrainerLiveHostView`](../apps/app/src/components/react/trainer/live/TrainerLiveHostView.tsx) when the user clicks the existing header **Start AMRAP** (§7).
 
+### 5.4 Mission Control saved workouts (P2)
+
+Trainers can start AMRAP from rows in their **private library** (`public.workouts`), not only presets / General AMRAP. This aligns with [MISSION_CONTROL_WORKOUT_FACTORY_V1_TDD.md](./MISSION_CONTROL_WORKOUT_FACTORY_V1_TDD.md) §7 (mapping) and Phase **P2**.
+
+- **List:** [`TrainerLiveAmrapWorkoutPickerModal`](../apps/app/src/components/react/trainer/live/TrainerLiveAmrapWorkoutPickerModal.tsx) loads [`GET /api/trainer/workouts`](../apps/app/src/pages/api/trainer/workouts/index.ts) (trainer-scoped; includes `blocks`, `duration_minutes`, `source`, etc.).
+- **Picker:** [`AmrapWorkoutPicker`](../packages/amrap-workout-picker/src/AmrapWorkoutPicker.tsx) exposes a **My saved workouts** path (`savedWorkouts` + `onConfirmSavedWorkout`) that reuses the same attach contract as presets (`onSelect` → `string[]` + minutes).
+- **Mapping:** Rich `blocks` JSON is flattened to exercise name strings in [`amrap-workout-list-adapter.ts`](../apps/app/src/lib/trainer-live/amrap-workout-list-adapter.ts) before `trainer_live_attach_amrap_session` (RPC wire format unchanged).
+
 ---
 
 ## 6. Backend: extend `trainer_live_attach_amrap_session`
@@ -184,6 +192,7 @@ trainer_live_attach_amrap_session(
 
 - Update [COMMANDS.md](./COMMANDS.md) if a new `supabase db` migration or typegen step is required for the RPC signature change.
 - Cross-link from [TRAINER_LIVE_AMRAP_WRAPPER_TDD.md](./TRAINER_LIVE_AMRAP_WRAPPER_TDD.md) §5.3 (attach RPC) to this doc once workout parameters exist.
+- **Mission Control Workout Factory:** [MISSION_CONTROL_WORKOUT_FACTORY_V1_TDD.md](./MISSION_CONTROL_WORKOUT_FACTORY_V1_TDD.md) §13 references this doc for the saved-workouts tab (P2).
 
 ---
 

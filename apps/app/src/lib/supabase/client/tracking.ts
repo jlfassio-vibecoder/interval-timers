@@ -34,6 +34,15 @@ export async function saveWorkoutLog(userId: string, log: WorkoutLog): Promise<s
     duration_seconds: Math.floor(Number(log.durationSeconds) || 0),
     exercises: sanitizeExercises(log.exercises),
   };
+  if (log.coachAssignmentId?.trim()) {
+    payload.coach_assignment_id = log.coachAssignmentId.trim();
+  }
+  if (log.coachResourceId?.trim()) {
+    payload.coach_resource_id = log.coachResourceId.trim();
+  }
+  if (log.coachAssignmentType === 'workout' || log.coachAssignmentType === 'wod') {
+    payload.coach_assignment_type = log.coachAssignmentType;
+  }
   // Omit workout_display_name until migration 20250330000000 is applied (column may not exist in prod)
 
   const { data, error } = await supabase

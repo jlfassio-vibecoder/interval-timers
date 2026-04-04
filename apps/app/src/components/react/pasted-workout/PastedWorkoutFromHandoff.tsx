@@ -19,12 +19,19 @@ export interface PastedWorkoutFromHandoffProps {
   initialWorkoutSet?: WorkoutSetTemplate;
   /** Base path for returnUrl (e.g. /workout/log-pasted). Default uses current path + search. */
   returnPath?: string;
+  /** Coach assignment completion analytics (optional). */
+  coachAssignmentId?: string;
+  coachResourceId?: string;
+  coachAssignmentType?: 'workout' | 'wod';
 }
 
 export default function PastedWorkoutFromHandoff({
   hid,
   initialWorkoutSet,
   returnPath,
+  coachAssignmentId,
+  coachResourceId,
+  coachAssignmentType,
 }: PastedWorkoutFromHandoffProps) {
   const { user } = useAppContext();
   const [viewMode, setViewMode] = useState<'preview' | 'session'>('preview');
@@ -144,6 +151,9 @@ export default function PastedWorkoutFromHandoff({
       workoutSet={state.workoutSet}
       onClose={handleClose}
       onComplete={handleComplete}
+      coachAssignmentId={coachAssignmentId}
+      coachResourceId={coachResourceId}
+      coachAssignmentType={coachAssignmentType}
     />
   );
 }
