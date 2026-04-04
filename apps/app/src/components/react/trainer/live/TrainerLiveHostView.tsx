@@ -224,6 +224,9 @@ export default function TrainerLiveHostView() {
         setIntervalWrapperKind('tabata');
         setIntervalWrapperConfig({ tabata_session_id: tid });
         setTabataPickerOpen(false);
+      } else {
+        // RPC succeeded but payload missing id (should not happen); avoid silent failure with picker stuck open
+        setAttachErr('Unable to attach Tabata session. Please try again.');
       }
     } finally {
       setAttachBusy(false);
@@ -266,6 +269,8 @@ export default function TrainerLiveHostView() {
         setIntervalWrapperKind('amrap');
         setIntervalWrapperConfig({ amrap_session_id: aid });
         setAmrapPickerOpen(false);
+      } else {
+        setAttachErr('Unable to attach AMRAP session. Please try again.');
       }
     } finally {
       setAttachBusy(false);
