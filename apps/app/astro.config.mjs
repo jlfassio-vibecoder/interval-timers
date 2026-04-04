@@ -197,9 +197,6 @@ export default defineConfig({
       rollupOptions: {
         output: {
           manualChunks(id) {
-            if (id.includes('node_modules/firebase') || id.includes('firebaseService')) {
-              return 'firebase';
-            }
             // Don't split React into vendor; keep with entry to avoid "useState of null" / jsxDEV errors
             if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/') || id.includes('node_modules/scheduler/')) {
               return undefined;

@@ -10,17 +10,15 @@ These run via Git hooks (configured in `.husky/`):
 - [ ] TypeScript compiles (`npm run type-check`)
 - [ ] Prettier formatting applied (`npm run format`) - via lint-staged
 
-> **Note:** Astro build (`npm run build`) runs automatically in CI/CD with proper environment variables, not in pre-commit hooks. The pre-commit hook only runs lint-staged (ESLint + Prettier) and type-check for faster feedback. You can manually run `npm run verify:quick` to test the build locally before pushing.
+> **Note:** Astro build (`npm run build`) runs automatically in CI/CD with proper environment variables, not in pre-commit hooks. The pre-commit hook only runs lint-staged (ESLint + Prettier) and type-check for faster feedback. Run `npm run verify:pr` for the full pre-PR pipeline (lint, types, Astro check, tests, security scan, env check, build).
 
-## 🔒 Firebase Security Checks (CRITICAL)
+## 🔒 Security Checks (CRITICAL)
 
 **Run these manually before every PR:**
 
-- [ ] **Firestore Security Rules**: No permissive `allow read, write: if true;` rules
-- [ ] **Environment Variables**: No hardcoded Firebase API keys in code (only in `.env.local`)
-- [ ] **Firebase Config**: `firebase.json` doesn't expose sensitive data
-- [ ] **Authentication**: No client-side admin operations
-- [ ] **App Check**: Properly configured with reCAPTCHA Enterprise
+- [ ] **Supabase RLS**: No permissive policies that expose other users’ data; migrations reviewed for `anon` vs `authenticated` vs service role
+- [ ] **Environment Variables**: No hardcoded API keys in source (only in `.env.local` / deployment secrets)
+- [ ] **Authentication**: No client-side admin operations; admin routes use server-side verification (`src/lib/supabase/admin/auth.ts`)
 - [ ] **Debug Tokens**: No hardcoded debug tokens in production code
 
 **Security Scan Command:**
@@ -64,9 +62,8 @@ npm run security:scan
 
 ### Integration Tests (Future)
 
-- [ ] Firebase Emulator Suite tests pass - when configured
-- [ ] Auth flows tested (signup, login, logout)
-- [ ] Firestore CRUD operations validated
+- [ ] Auth flows tested (signup, login, logout) against Supabase
+- [ ] Critical API routes exercised (with dev server for integration tests under `tests/api/`)
 
 ### Critical Path Tests
 
@@ -87,35 +84,12 @@ npm run security:scan
 - [ ] No `any` types in TypeScript
 - [ ] Path aliases used (`@/` instead of relative paths)
 
-## 🔥 Firebase Best Practices
+## 🗄️ Supabase Best Practices
 
-### Firestore
-
-- [ ] Queries use indexes (check Firebase Console)
-- [ ] No N+1 query patterns (batch reads where possible)
-- [ ] Security rules tested with `firebase emulators:start`
-- [ ] Pagination implemented for lists (limit queries)
-- [ ] Timestamps use `serverTimestamp()` not client time
-
-### Authentication
-
-- [ ] Auth state changes handled properly (loading states)
-- [ ] Protected routes check `currentUser` appropriately
-- [ ] Token refresh handled (Firebase SDK auto-refreshes)
-- [ ] Logout clears all user data from state
-
-### Firebase Hosting
-
-- [ ] Redirects/rewrites configured correctly in `firebase.json`
-- [ ] Custom domain SSL configured (if applicable)
-- [ ] Headers set for security (CSP, X-Frame-Options)
-
-### App Check
-
-- [ ] App Check initialized correctly in `firebaseService.ts`
-- [ ] Debug tokens only in development
-- [ ] reCAPTCHA Enterprise site key from environment variables
-- [ ] No hardcoded site keys or debug tokens
+- [ ] New tables have appropriate RLS policies and indexes
+- [ ] Migrations are idempotent where possible; no destructive drops without confirmation
+- [ ] Pagination implemented for large lists
+- [ ] Auth state and protected routes use Supabase session / server verification as intended
 
 ## 🚀 Build & Performance
 
@@ -149,26 +123,21 @@ npm run security:scan
 ## 🔐 Environment & Secrets
 
 - [ ] `.env.local` not committed (in `.gitignore`)
-- [ ] All Firebase config values in environment variables
+- [ ] Supabase URL and anon key (or equivalents) supplied via environment variables
 - [ ] `.env.example` updated with new variables (if applicable)
 - [ ] GitHub Secrets configured for CI/CD
 - [ ] No hardcoded API keys, tokens, or secrets
 
-**Required Environment Variables:**
+**Required Environment Variables (see `scripts/check-env.js`):**
 
 ```bash
-PUBLIC_FIREBASE_API_KEY=
-PUBLIC_FIREBASE_AUTH_DOMAIN=
-PUBLIC_FIREBASE_PROJECT_ID=
-PUBLIC_FIREBASE_STORAGE_BUCKET=
-PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
-PUBLIC_FIREBASE_APP_ID=
-PUBLIC_RECAPTCHA_ENTERPRISE_SITE_KEY=
-PUBLIC_APP_CHECK_DEBUG_TOKEN=  # Development only
+PUBLIC_SUPABASE_URL=   # or VITE_SUPABASE_URL / SUPABASE_URL
+PUBLIC_SUPABASE_ANON_KEY=   # or VITE_SUPABASE_ANON_KEY / SUPABASE_ANON_KEY
 ```
 
 **Optional (for specific features):**
 
+- `SUPABASE_SERVICE_ROLE_KEY` — Server-only admin operations where applicable
 - `GEMINI_API_KEY` — Deep dive generation; Veo video generation ("Generate with Gemini")
 - `RUNWAYML_API_SECRET` — Admin exercise video generation (Runway ML, "Generate with Runway")
 
@@ -184,7 +153,7 @@ npm run check-env
 - [ ] JSDoc comments for public functions
 - [ ] Component props documented (TypeScript interfaces)
 - [ ] Breaking changes noted in PR description
-- [ ] Firebase schema changes documented
+- [ ] Supabase schema / migration changes documented
 - [ ] New components documented in `docs/` directory
 - [ ] Architecture patterns followed (see `docs/architecture/`)
 
@@ -201,7 +170,7 @@ npm run check-env
 
 ## 🐛 Common Pitfalls to Avoid
 
-- ❌ **Firestore**: Reading entire collections without `.limit()`
+- ❌ **Supabase**: Broad `select('*')` without filters on user-owned data
 - ❌ **Auth**: Not handling auth state changes properly
 - ❌ **Astro**: Using React components for static content
 - ❌ **Islands**: Trying to use React Context across separate islands
@@ -214,17 +183,20 @@ npm run check-env
 ## 🚦 Quick Verification Commands
 
 ```bash
-# Run all checks at once
+# Full pre-PR: lint, type-check, astro check, tests, security scan, env check, build
+npm run verify:pr
+
+# Quick check (lint + type-check + test; no build, no astro check)
+npm run verify:quick
+
+# Lint + type-check + build only (no tests)
 npm run verify:all
 
-# Quick check (lint + type-check + test; no build)
-npm run verify:quick
+# Pre-deployment: verify:all + security scan
+npm run verify:deploy
 
 # Run tests only
 npm run test
-
-# Pre-deployment check
-npm run verify:deploy
 
 # Security scan
 npm run security:scan
@@ -239,7 +211,7 @@ Before clicking "Create Pull Request":
 
 1. [ ] Branch is up-to-date with `main`
 2. [ ] All automatic checks passed (pre-commit hooks)
-3. [ ] Tests pass (`npm run test` or `npm run verify:quick`)
+3. [ ] Tests pass (`npm run test`, `npm run verify:quick`, or full `npm run verify:pr`)
 4. [ ] Manual checklist items verified
 5. [ ] Screenshots added for UI changes
 6. [ ] PR description follows template
@@ -252,7 +224,7 @@ Before clicking "Create Pull Request":
 If verification fails:
 
 1. **Check error message**: Most errors are self-explanatory
-2. **Firebase Emulator Logs**: `firebase emulators:start` shows detailed errors
+2. **Supabase local**: If using `supabase start`, check Studio and logs for SQL/RLS errors
 3. **Astro Docs**: Search for error codes in [Astro Documentation](https://docs.astro.build)
 4. **TypeScript Errors**: Run `npm run type-check` for detailed type errors
 5. **ESLint Errors**: Run `npm run lint:fix` to auto-fix many issues

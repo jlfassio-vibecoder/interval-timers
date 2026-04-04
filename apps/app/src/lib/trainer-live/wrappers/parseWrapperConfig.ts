@@ -11,3 +11,14 @@ export function parseAmrapSessionIdFromWrapperConfig(config: unknown): string | 
   const trimmed = raw.trim();
   return UUID_RE.test(trimmed) ? trimmed : null;
 }
+
+/**
+ * Validates `interval_wrapper_config` for the Tabata wrapper (expects `{ tabata_session_id }`).
+ */
+export function parseTabataSessionIdFromWrapperConfig(config: unknown): string | null {
+  if (config == null || typeof config !== 'object') return null;
+  const raw = (config as { tabata_session_id?: unknown }).tabata_session_id;
+  if (typeof raw !== 'string') return null;
+  const trimmed = raw.trim();
+  return UUID_RE.test(trimmed) ? trimmed : null;
+}

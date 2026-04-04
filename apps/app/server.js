@@ -1,5 +1,5 @@
 // CRITICAL: Set up __dirname polyfill FIRST before any other imports
-// This ensures __dirname is available for Firebase Admin SDK bundled code
+// Some bundled SSR code expects Node's __dirname in ESM
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { existsSync } from 'fs';
@@ -9,8 +9,7 @@ import compression from 'compression';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Make __dirname available globally for Firebase Admin SDK
-// This must be set before any Firebase Admin SDK code is loaded
+// Make __dirname available globally for SSR bundles that read it
 if (typeof globalThis.__dirname === 'undefined') {
   globalThis.__dirname = __dirname;
 }

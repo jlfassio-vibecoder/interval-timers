@@ -2,7 +2,7 @@
 
 **Status:** **Approved** — Option **A** (§5.1 columns on `trainer_live_sessions`). Implementation pending.  
 **Parent:** [TRAINER_VIDEO_SESSION_TDD.md](./TRAINER_VIDEO_SESSION_TDD.md) (P2 `countdown_timer` shell = **layout** with a sidebar; today [`TrainerLiveCountdownPanel`](../apps/app/src/components/react/trainer/live/shells/TrainerLiveCountdownPanel.tsx) is **temporary** until the registry ships).  
-**Related:** [TRAINER_LIVE_AMRAP_WRAPPER_TDD.md](./TRAINER_LIVE_AMRAP_WRAPPER_TDD.md) (**`amrap`** wrapper — implementation spec), [TRAINER_LIVE_P3_PROTOCOL_SYNC_TDD.md](./TRAINER_LIVE_P3_PROTOCOL_SYNC_TDD.md) (native Tabata/EMOM + `trainer_live_session_state` — **different** from full-app wrappers), [ROADMAP_AMRAP_VIDEO_INTEGRATION.md](./ROADMAP_AMRAP_VIDEO_INTEGRATION.md), `apps/amrap` (`AmrapSessionShell`, `useSocialAmrap`, `amrap_sessions`).
+**Related:** [TRAINER_LIVE_AMRAP_WRAPPER_TDD.md](./TRAINER_LIVE_AMRAP_WRAPPER_TDD.md) (**`amrap`** wrapper — implementation spec), [TRAINER_LIVE_TABATA_WRAPPER_TDD.md](./TRAINER_LIVE_TABATA_WRAPPER_TDD.md) (**`tabata`** interval wrapper — AMRAP-style embed; design doc), [TRAINER_LIVE_P3_PROTOCOL_SYNC_TDD.md](./TRAINER_LIVE_P3_PROTOCOL_SYNC_TDD.md) (native Tabata/EMOM + `trainer_live_session_state` — **different** from full-app wrappers), [ROADMAP_AMRAP_VIDEO_INTEGRATION.md](./ROADMAP_AMRAP_VIDEO_INTEGRATION.md), `apps/amrap` (`AmrapSessionShell`, `useSocialAmrap`, `amrap_sessions`).
 
 ---
 
@@ -245,8 +245,9 @@ Trainer Live already uses **channel = `trainer_live_sessions.id`** via [`useTrai
 |---------|------------|--------|
 | **simple_countdown** | P2 panel | **One option among many**; basic block timing. |
 | **amrap** | AMRAP With Friends | **First full wrapper; template for the rest.** |
+| **tabata** | Mission Control interval embed | [TRAINER_LIVE_TABATA_WRAPPER_TDD.md](./TRAINER_LIVE_TABATA_WRAPPER_TDD.md) — classic 20:10 Tabata blocks; **no** round logging; AMRAP-style integration. |
 | **WOD / interval** | e.g. standalone timer routes | Same contract as AMRAP integration (registry + embedded engine). |
-| **Native Tabata/EMOM** | Prefer **P3** `trainer_live_session_state` | May appear as a **wrapper kind** that reads native sync, or separate shell — align when P3 ships. |
+| **Native Tabata/EMOM (P3)** | **P3** `trainer_live_session_state` | Lighter sync track — [TRAINER_LIVE_P3_PROTOCOL_SYNC_TDD.md](./TRAINER_LIVE_P3_PROTOCOL_SYNC_TDD.md); may converge with **`tabata`** wrapper later. |
 
 ---
 

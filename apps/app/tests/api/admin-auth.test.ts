@@ -72,11 +72,11 @@ describe('admin API auth', () => {
         expect(body).toHaveProperty('error', UNAUTHORIZED_MESSAGE);
       }, 15000);
 
-      it('returns 401 when invalid token in Cookie firebaseIdToken', async ({ skip }) => {
+      it('returns 401 when invalid token in Cookie sb-access-token', async ({ skip }) => {
         skip(!serverOk);
         const res = await fetch(`${BASE_URL}${path}`, {
           method: 'GET',
-          headers: { Cookie: 'firebaseIdToken=invalid-token' },
+          headers: { Cookie: 'sb-access-token=invalid-token' },
         });
         expect(res.status).toBe(401);
         const body = await res.json();

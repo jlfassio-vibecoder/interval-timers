@@ -8,6 +8,7 @@ export interface TrainerLiveActivitySegmentRow {
   started_at: string;
   ended_at: string | null;
   amrap_session_id: string | null;
+  tabata_session_id?: string | null;
 }
 
 export interface TrainerLiveActivityState {

@@ -111,6 +111,11 @@ export default function TrainerLiveSessionRoom({
         if (!Cmp) return null;
         return <Cmp {...wrapperProps} />;
       }
+      if (intervalWrapperKind === 'tabata') {
+        const Cmp = getTrainerLiveIntervalWrapper('tabata');
+        if (!Cmp) return null;
+        return <Cmp {...wrapperProps} />;
+      }
       return null;
     })();
 
@@ -120,7 +125,7 @@ export default function TrainerLiveSessionRoom({
         <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">{intervalSidebar}</div>
         <TrainerLiveVideoFeedDrawer
           sessionId={sessionId}
-          defaultOpen={intervalWrapperKind !== 'amrap'}
+          defaultOpen={intervalWrapperKind !== 'amrap' && intervalWrapperKind !== 'tabata'}
         >
           {video}
         </TrainerLiveVideoFeedDrawer>

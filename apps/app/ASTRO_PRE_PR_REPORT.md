@@ -18,7 +18,7 @@
 
 ### Islands check
 
-- **Node-only modules in client:load / client:visible components:** None. No `fs` or `path` (or other Node-only) imports in `src/components`. `path` is used only in `src/lib/supabase/server.ts` and `src/lib/polyfills/dirname.ts`; both are server-only (API/server and Firebase Admin polyfill). No client island imports them.
+- **Node-only modules in client:load / client:visible components:** None. No `fs` or `path` (or other Node-only) imports in `src/components`. `path` is used in server-only code (e.g. `src/lib/supabase/server.ts`, `server.js`). No client island imports them.
 - **Action:** None.
 
 ---
