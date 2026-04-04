@@ -63,6 +63,18 @@ Mixing trainer-private titles (e.g. rehab notes) into the **`workout_sets`** poo
 | **Library edit & versions** | **`/trainer/workouts/:id/edit`** ([`TrainerLibraryWorkoutEditView.tsx`](../apps/app/src/components/react/trainer/views/TrainerLibraryWorkoutEditView.tsx)); APIs [`GET/PATCH /api/trainer/workouts/[id]`](../apps/app/src/pages/api/trainer/workouts/[workoutId]/index.ts), [`GET .../by-lineage/[lineageId]`](../apps/app/src/pages/api/trainer/workouts/by-lineage/[lineageId].ts), [`POST .../[id]/fork`](../apps/app/src/pages/api/trainer/workouts/[workoutId]/fork.ts)); migration [`20260404120002_workouts_lineage_versioning.sql`](../apps/app/supabase/migrations/20260404120002_workouts_lineage_versioning.sql) | `public.workouts` has **`lineage_id`**, **`version_index`**, **`supersedes_workout_id`**. Trainers can **update in place**, **save as new version** (same lineage, new row), or **save as new workout** (new lineage). Assignments stay tied to the **`workouts.id`** they were created with until the trainer assigns a different row. |
 | **Trainer Live AMRAP** | [`TrainerLiveAmrapWrapper.tsx`](../apps/app/src/lib/trainer-live/wrappers/amrap/TrainerLiveAmrapWrapper.tsx), attach RPC + workout picker TDD | Custom lists must resolve to **`string[]` + duration** at attach time. |
 
+### 3.1 Metabolic modes (Workout Factory)
+
+**At most one** of **HIIT** (`hiitMode`), **Density-Based AMRAP** (`amrapDensityMode`), and **Balanced Strength & Cardio Tabata** (`tabataBalancedMode`) may be enabled. [`prepare-workout-chain-request.ts`](../apps/app/src/lib/workout-chain/prepare-workout-chain-request.ts) returns `400` if multiple flags are set.
+
+| Mode | Persona fields | Step 1 progression | Main prescription (Step 4) |
+|------|----------------|--------------------|-----------------------------|
+| HIIT | `hiitOptions` | Any of `linear_load`, `double_progression`, `density_leverage` | Timer schema (`workSeconds` / `restSeconds` / `rounds`) or AMRAP branch when protocol is `amrap`. |
+| Density AMRAP | `amrapDensityOptions` | Must be `density_leverage` | Sets/reps per station, `restSeconds: 0`; no `workSeconds`. |
+| Balanced Tabata | `tabataBalancedOptions` (`pairingPattern`, `roundCount`) | Must be `double_progression` | Fixed **20s / 10s**; exercise count follows pattern (1, 2, 4, or 8); each exercise’s `rounds` = `roundCount / exerciseCount`. Session minutes = ceil(`roundCount × 30s` / 60), main block only (no warmup/cooldown in factory output). |
+
+UI: [`WorkoutGeneratorModal.tsx`](../apps/app/src/components/react/admin/WorkoutGeneratorModal.tsx) — checkboxes are mutually exclusive; Tabata uses [`TabataBalancedArchitecture.tsx`](../apps/app/src/components/react/admin/tabata-balanced/TabataBalancedArchitecture.tsx). This is **not** the same as HIIT protocol dropdown “Tabata Style (20:10)”, which remains generic metabolic conditioning.
+
 ---
 
 ## 4. User scenarios (v1)

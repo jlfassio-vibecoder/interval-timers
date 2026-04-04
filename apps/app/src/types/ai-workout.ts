@@ -75,6 +75,20 @@ export interface AmrapDensityOptions {
   sessionDurationTier: HiitSessionDurationTier;
 }
 
+/** Balanced Strength & Cardio Tabata (Workout Factory) — fixed 20s/10s; pairing drives exercise count. */
+export type TabataBalancedPairingPattern =
+  | 'single'
+  | 'antagonist_pair'
+  | 'agonist_pair'
+  | 'four_station'
+  | 'eight_station';
+
+export interface TabataBalancedOptions {
+  pairingPattern: TabataBalancedPairingPattern;
+  /** Classic Tabata default 8; trainers may adjust (bounds enforced in prepare). */
+  roundCount: number;
+}
+
 export interface HiitOptions {
   protocolFormat: HiitProtocolFormat;
   workRestRatio?: HiitWorkRestRatio;
@@ -128,6 +142,13 @@ export interface WorkoutPersona {
   amrapDensityMode?: boolean;
   /** Required when amrapDensityMode is true */
   amrapDensityOptions?: AmrapDensityOptions;
+  /**
+   * When true, use guided Tabata (20s/10s, strength/cardio pairing presets).
+   * Mutually exclusive with hiitMode and amrapDensityMode in API/UI.
+   */
+  tabataBalancedMode?: boolean;
+  /** Required when tabataBalancedMode is true */
+  tabataBalancedOptions?: TabataBalancedOptions;
 }
 
 /**
@@ -162,6 +183,8 @@ export interface WorkoutConfig {
   hiitOptions?: HiitOptions;
   amrapDensityMode?: boolean;
   amrapDensityOptions?: AmrapDensityOptions;
+  tabataBalancedMode?: boolean;
+  tabataBalancedOptions?: TabataBalancedOptions;
 }
 
 /**
