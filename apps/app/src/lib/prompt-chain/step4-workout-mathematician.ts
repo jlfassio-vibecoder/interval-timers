@@ -516,25 +516,30 @@ export function validateWorkoutMathematicianOutput(
       tabataBalancedMode ||
       (hiitMode && hiitOptions && isAmrapProtocol(hiitOptions))
     ) {
+      const metabolicNoAuxLabel = tabataBalancedMode
+        ? 'Balanced Tabata'
+        : amrapDensityMode
+          ? 'Density AMRAP'
+          : 'HIIT AMRAP';
       const wb = workout.warmupBlocks;
       if (Array.isArray(wb) && wb.length > 0) {
         return {
           valid: false,
-          error: `Workout ${j + 1}: AMRAP must have empty warmupBlocks (warm-up is outside generated programming)`,
+          error: `Workout ${j + 1}: ${metabolicNoAuxLabel} requires empty warmupBlocks (warm-up is outside generated programming)`,
         };
       }
       const fb = workout.finisherBlocks;
       if (Array.isArray(fb) && fb.length > 0) {
         return {
           valid: false,
-          error: `Workout ${j + 1}: AMRAP must have empty finisherBlocks`,
+          error: `Workout ${j + 1}: ${metabolicNoAuxLabel} requires empty finisherBlocks`,
         };
       }
       const cb = workout.cooldownBlocks;
       if (Array.isArray(cb) && cb.length > 0) {
         return {
           valid: false,
-          error: `Workout ${j + 1}: AMRAP must have empty cooldownBlocks (cool-down is outside generated programming)`,
+          error: `Workout ${j + 1}: ${metabolicNoAuxLabel} requires empty cooldownBlocks (cool-down is outside generated programming)`,
         };
       }
     }

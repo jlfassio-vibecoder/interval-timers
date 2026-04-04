@@ -62,6 +62,24 @@ describe('validateWorkoutMathematicianOutput — Balanced Tabata', () => {
     expect(r.valid).toBe(true);
   });
 
+  it('rejects non-empty warmupBlocks with Balanced Tabata in the error text', () => {
+    const bad = structuredClone(tabataWorkoutGood()) as Record<string, unknown>;
+    const w = bad.workouts as Record<string, unknown>[];
+    w[0].warmupBlocks = [{ order: 1, exerciseName: 'x', instructions: ['y'] }];
+    const r = validateWorkoutMathematicianOutput(
+      bad,
+      1,
+      blockOptions,
+      false,
+      undefined,
+      false,
+      true,
+      { pairingPattern: 'antagonist_pair', roundCount: 8 }
+    );
+    expect(r.valid).toBe(false);
+    if (!r.valid) expect(r.error).toContain('Balanced Tabata');
+  });
+
   it('rejects wrong workSeconds', () => {
     const bad = structuredClone(tabataWorkoutGood()) as Record<string, unknown>;
     const w = bad.workouts as Record<string, unknown>[];
