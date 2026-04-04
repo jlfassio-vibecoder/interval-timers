@@ -17,12 +17,18 @@ export interface PastedWorkoutSessionProps {
   workoutSet: WorkoutSetTemplate;
   onClose: () => void;
   onComplete: () => void;
+  coachAssignmentId?: string;
+  coachResourceId?: string;
+  coachAssignmentType?: 'workout' | 'wod';
 }
 
 export default function PastedWorkoutSession({
   workoutSet,
   onClose,
   onComplete,
+  coachAssignmentId,
+  coachResourceId,
+  coachAssignmentType,
 }: PastedWorkoutSessionProps) {
   const workout = workoutSet.workouts[0]!;
   const workoutId = useMemo(() => crypto.randomUUID().slice(0, 8), []);
@@ -34,6 +40,9 @@ export default function PastedWorkoutSession({
       weekId={ADHOC_WEEK_ID}
       workoutId={workoutId}
       workoutDisplayName={workoutSet.title}
+      coachAssignmentId={coachAssignmentId}
+      coachResourceId={coachResourceId}
+      coachAssignmentType={coachAssignmentType}
       onClose={onClose}
       onComplete={onComplete}
     />

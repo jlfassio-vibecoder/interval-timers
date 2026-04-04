@@ -10,6 +10,7 @@ import {
 } from 'react-router-dom';
 import {
   LayoutDashboard,
+  LayoutList,
   Users,
   BarChart3,
   Wrench,
@@ -36,9 +37,11 @@ import { adminPaths } from '@/lib/admin/config';
 import TrainerLiveClientJoinPage from './live/TrainerLiveClientJoinPage';
 import TrainerLiveLobbyView from './live/TrainerLiveLobbyView';
 import TrainerLiveHostView from './live/TrainerLiveHostView';
+import TrainerWorkoutFactoryView from './views/TrainerWorkoutFactoryView';
 
 const TRAINER_NAV = [
   { path: '/', label: 'Mission Control', icon: LayoutDashboard },
+  { path: '/workouts/factory', label: 'Workout Factory', icon: LayoutList },
   { path: '/roster', label: 'Roster', icon: Users },
   { path: '/live', label: 'Live', icon: Video },
   { path: '/roster/welcome', label: 'Studio invite', icon: FileText },
@@ -50,6 +53,9 @@ function isTrainerNavActive(path: string, pathname: string): boolean {
   if (path === '/') return pathname === '/' || pathname === '';
   if (path === '/live') {
     return pathname === '/live' || pathname.startsWith('/live/');
+  }
+  if (path === '/workouts/factory') {
+    return pathname === '/workouts/factory' || pathname.startsWith('/workouts/factory/');
   }
   if (path === '/roster/welcome/coach') {
     return pathname === '/roster/welcome/coach';
@@ -270,6 +276,11 @@ function TrainerIntelRoute() {
   return isTrainer ? <IntelView /> : <Navigate to="/" replace />;
 }
 
+function TrainerWorkoutFactoryRoute() {
+  const { isTrainer } = useAppContext();
+  return isTrainer ? <TrainerWorkoutFactoryView /> : <Navigate to="/" replace />;
+}
+
 const TrainerBrowser: React.FC = () => {
   return (
     <BrowserRouter basename="/trainer">
@@ -278,6 +289,7 @@ const TrainerBrowser: React.FC = () => {
         <Route element={<TrainerAccessGate />}>
           <Route path="/" element={<TrainerLayout />}>
             <Route index element={<TrainerDashboard />} />
+            <Route path="workouts/factory" element={<TrainerWorkoutFactoryRoute />} />
             <Route path="roster" element={<TrainerRosterRoute />} />
             <Route path="roster/welcome" element={<TrainerStudioWelcomeRoute />} />
             <Route path="roster/welcome/coach" element={<TrainerCoachWelcomeRoute />} />

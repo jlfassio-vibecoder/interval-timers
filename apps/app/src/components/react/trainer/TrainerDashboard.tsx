@@ -39,15 +39,24 @@ const TrainerDashboard: React.FC<TrainerDashboardProps> = ({ profile: profilePro
         <div className="hover:border-orange-light/50 group relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-8 transition-colors">
           <h2 className="mb-2 text-2xl font-bold">Programming</h2>
           <p className="mb-6 text-white/60">Design workouts and training blocks.</p>
-          <button
-            type="button"
-            onClick={() => {
-              window.location.href = adminPaths.root;
-            }}
-            className="rounded-lg bg-white/10 px-4 py-2 text-sm font-bold uppercase transition-colors hover:bg-orange-light hover:text-black"
-          >
-            Open Builder
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => navigate('/workouts/factory')}
+              className="bg-orange-light/20 rounded-lg px-4 py-2 text-sm font-bold uppercase text-orange-light transition-colors hover:bg-orange-light hover:text-black"
+            >
+              Workout Factory
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                window.location.href = adminPaths.root;
+              }}
+              className="rounded-lg bg-white/10 px-4 py-2 text-sm font-bold uppercase transition-colors hover:bg-orange-light hover:text-black"
+            >
+              Open Builder
+            </button>
+          </div>
         </div>
 
         <div className="hover:border-orange-light/50 group relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-8 transition-colors">

@@ -186,6 +186,10 @@ export interface Database {
           difficulty_level: 'beginner' | 'intermediate' | 'advanced' | null;
           // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Supabase JSONB column
           blocks: any;
+          source: 'manual' | 'ai_factory';
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- chain JSONB
+          ai_chain_metadata: any | null;
+          visibility: 'draft' | 'ready' | 'assigned';
         };
         Insert: Record<string, never>;
         Update: Record<string, never>;

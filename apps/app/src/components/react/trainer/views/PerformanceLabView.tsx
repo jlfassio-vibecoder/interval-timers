@@ -6,7 +6,7 @@
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { ExternalLink, FlaskConical, ClipboardList } from 'lucide-react';
 import { adminPaths } from '@/lib/admin/config';
 import { missionControlApiAuthHeaders } from '@/lib/mission-control-api-auth';
@@ -22,6 +22,9 @@ type AssignKind = 'program' | 'workout' | 'wod' | 'exercise' | 'challenge';
 interface PickerItem {
   id: string;
   title: string;
+  /** From GET /api/trainer/workouts (e.g. ai_factory). */
+  source?: string;
+  visibility?: string;
 }
 
 interface EnrollmentRow {
@@ -40,6 +43,8 @@ interface EnrollmentsResponse {
 
 const PerformanceLabView: React.FC = () => {
   const { userId } = useParams<{ userId: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const prefillWorkoutId = searchParams.get('prefillWorkout');
   const [labTab, setLabTab] = useState<LabTab>('programs');
   const [data, setData] = useState<EnrollmentsResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -112,6 +117,10 @@ const PerformanceLabView: React.FC = () => {
   }, [loadAssignments]);
 
   useEffect(() => {
+    if (prefillWorkoutId) setAssignKind('workout');
+  }, [prefillWorkoutId]);
+
+  useEffect(() => {
     let cancelled = false;
     const path =
       assignKind === 'program'
@@ -136,12 +145,21 @@ const PerformanceLabView: React.FC = () => {
         setPickerItems(
           arr
             .map((x: unknown) => {
-              const o = x as { id?: string; title?: string; slug?: string };
+              const o = x as {
+                id?: string;
+                title?: string;
+                slug?: string;
+                source?: string;
+                visibility?: string;
+              };
               const id = typeof o.id === 'string' ? o.id : typeof o.slug === 'string' ? o.slug : '';
-              return {
+              const item: PickerItem = {
                 id,
                 title: typeof o.title === 'string' && o.title.trim() ? o.title : 'Item',
               };
+              if (typeof o.source === 'string' && o.source) item.source = o.source;
+              if (typeof o.visibility === 'string' && o.visibility) item.visibility = o.visibility;
+              return item;
             })
             .filter((x) => x.id)
         );
@@ -155,6 +173,19 @@ const PerformanceLabView: React.FC = () => {
       cancelled = true;
     };
   }, [assignKind]);
+
+  useEffect(() => {
+    if (!prefillWorkoutId || assignKind !== 'workout' || pickerLoading) return;
+
+    const match = pickerItems.some((p) => p.id === prefillWorkoutId);
+    if (match) setSelectedResourceId(prefillWorkoutId);
+
+    const next = new URLSearchParams(searchParams);
+    next.delete('prefillWorkout');
+    if (next.toString() !== searchParams.toString()) {
+      setSearchParams(next, { replace: true });
+    }
+  }, [prefillWorkoutId, assignKind, pickerLoading, pickerItems, searchParams, setSearchParams]);
 
   const setRecommended = async (programId: string | null) => {
     if (!userId) return;
@@ -522,11 +553,17 @@ const PerformanceLabView: React.FC = () => {
                     className="w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white disabled:opacity-50"
                   >
                     <option value="">{pickerLoading ? 'Loading…' : 'Select…'}</option>
-                    {pickerItems.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.title}
-                      </option>
-                    ))}
+                    {pickerItems.map((p) => {
+                      const label =
+                        assignKind === 'workout' && p.source === 'ai_factory'
+                          ? `${p.title} (AI)`
+                          : p.title;
+                      return (
+                        <option key={p.id} value={p.id}>
+                          {label}
+                        </option>
+                      );
+                    })}
                   </select>
                 </div>
                 {assignKind === 'exercise' ? (

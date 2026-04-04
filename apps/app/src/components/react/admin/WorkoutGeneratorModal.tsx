@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Sparkles, AlertCircle, Play } from 'lucide-react';
@@ -29,8 +29,14 @@ import {
   getAllEquipmentItems,
   type Zone,
 } from '@/lib/supabase/client/equipment';
-import { saveWorkoutToLibrary, updateWorkout } from '@/lib/supabase/client/workout-persistence';
+import {
+  saveTrainerAiWorkoutToLibrary,
+  saveWorkoutToLibrary,
+  updateWorkout,
+} from '@/lib/supabase/client/workout-persistence';
+import { useWorkoutFactoryGeneration } from '@/hooks/useWorkoutFactoryGeneration';
 import { useAppContext } from '@/contexts/AppContext';
+import { missionControlApiAuthHeaders } from '@/lib/mission-control-api-auth';
 import { isHIITWorkout, workoutInSetToHIITWorkoutData } from '@/lib/hiit-workout-data';
 import IntervalTimerOverlay from '@/components/react/interval-timers/IntervalTimerOverlay';
 
@@ -45,6 +51,10 @@ interface WorkoutGeneratorModalProps {
   workoutConfig?: WorkoutConfig;
   editingWorkoutId?: string;
   editingChainMetadata?: WorkoutChainMetadata;
+  /** Admin catalog (workout_sets) vs Mission Control trainer library (public.workouts). */
+  saveTarget?: 'admin' | 'trainer';
+  /** Full-page shell under /trainer/workouts/factory vs modal overlay. */
+  layout?: 'modal' | 'page';
 }
 
 const SPLIT_OPTIONS: { value: WorkoutSplitType; label: string }[] = [
@@ -156,8 +166,11 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
   workoutConfig: providedConfig,
   editingWorkoutId,
   editingChainMetadata,
+  saveTarget = 'admin',
+  layout = 'modal',
 }) => {
   const { user } = useAppContext();
+  const isPageLayout = layout === 'page';
   const isEditMode = !!existingWorkout && !!editingWorkoutId;
   const [step, setStep] = useState<Step>(existingWorkout ? 'preview' : 'config');
   const [workoutConfig, setWorkoutConfig] = useState<WorkoutConfig>(
@@ -169,10 +182,7 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
   const [chainMetadata, setChainMetadata] = useState<WorkoutChainMetadata | null>(
     editingChainMetadata ?? null
   );
-  const [loading, setLoading] = useState(false);
-  const [loadingMessage, setLoadingMessage] = useState('');
-  const [chainStep, setChainStep] = useState(0);
-  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [zones, setZones] = useState<Zone[]>([]);
   const [selectedZone, setSelectedZone] = useState<Zone | null>(null);
@@ -180,6 +190,16 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
   const [selectedEquipmentIds, setSelectedEquipmentIds] = useState<string[]>([]);
   const [workoutSetType, setWorkoutSetType] = useState<WorkoutSetType>('split');
   const [showPreviewOverlay, setShowPreviewOverlay] = useState(false);
+
+  /** After trainer library save: assign one or more clients (P1 single, P2 multi). */
+  const [savedTrainerWorkoutIds, setSavedTrainerWorkoutIds] = useState<string[] | null>(null);
+  const [resourceIdForAssign, setResourceIdForAssign] = useState('');
+  const [assignClientUserIds, setAssignClientUserIds] = useState<string[]>([]);
+  const [roster, setRoster] = useState<
+    Array<{ id: string; full_name: string | null; email: string | null }>
+  >([]);
+  const [rosterLoading, setRosterLoading] = useState(false);
+  const [assignBusy, setAssignBusy] = useState(false);
 
   const firstHIITWorkout = useMemo(
     () => generatedWorkout?.workouts?.find((w) => isHIITWorkout(w)) ?? null,
@@ -192,6 +212,133 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
     });
     return hiitData.timeline;
   }, [firstHIITWorkout, workoutConfig.hiitOptions?.primaryGoal]);
+
+  useEffect(() => {
+    const fetch = async () => {
+      try {
+        const [z, e] = await Promise.all([getAllZones(), getAllEquipmentItems()]);
+        setZones(z);
+        setEquipmentItems(e);
+      } catch (err) {
+        console.error('[WorkoutGeneratorModal] zones/equipment:', err);
+      }
+    };
+    fetch();
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setSavedTrainerWorkoutIds(null);
+      setResourceIdForAssign('');
+      setAssignClientUserIds([]);
+      setRoster([]);
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || saveTarget !== 'trainer' || !savedTrainerWorkoutIds?.length) return;
+    let cancelled = false;
+    setRosterLoading(true);
+    void (async () => {
+      try {
+        const auth = await missionControlApiAuthHeaders();
+        const r = await fetch('/api/trainer/roster', {
+          credentials: 'include',
+          headers: { ...auth },
+        });
+        const raw = await r.json().catch(() => []);
+        if (cancelled) return;
+        const arr = Array.isArray(raw) ? raw : [];
+        setRoster(
+          arr
+            .map((row: unknown) => {
+              const o = row as { id?: string; full_name?: string | null; email?: string | null };
+              return {
+                id: typeof o.id === 'string' ? o.id : '',
+                full_name: o.full_name ?? null,
+                email: o.email ?? null,
+              };
+            })
+            .filter((x) => x.id)
+        );
+      } catch {
+        if (!cancelled) setRoster([]);
+      } finally {
+        if (!cancelled) setRosterLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, saveTarget, savedTrainerWorkoutIds]);
+
+  const buildPersona = useCallback((): WorkoutPersona => {
+    return {
+      title: workoutConfig.workoutInfo.title.trim(),
+      description: workoutConfig.workoutInfo.description.trim(),
+      demographics: workoutConfig.targetAudience,
+      medical: {
+        injuries: workoutConfig.medicalContext?.includeInjuries
+          ? workoutConfig.medicalContext.injuries || ''
+          : '',
+        conditions: workoutConfig.medicalContext?.includeConditions
+          ? workoutConfig.medicalContext.conditions || ''
+          : '',
+      },
+      goals: workoutConfig.goals,
+      zoneId: selectedZone?.id ?? workoutConfig.zoneId,
+      selectedEquipmentIds:
+        selectedEquipmentIds.length > 0 ? selectedEquipmentIds : workoutConfig.selectedEquipmentIds,
+      weeklyTimeMinutes: workoutConfig.requirements.weeklyTimeMinutes,
+      sessionsPerWeek: workoutSetType === 'single' ? 1 : workoutConfig.requirements.sessionsPerWeek,
+      sessionDurationMinutes: workoutConfig.requirements.sessionDurationMinutes,
+      splitType: workoutConfig.requirements.splitType,
+      lifestyle: workoutConfig.requirements.lifestyle,
+      twoADay: workoutSetType === 'single' ? false : workoutConfig.requirements.twoADay,
+      preferredFocus: workoutConfig.preferredFocus,
+      hiitMode: workoutConfig.hiitMode,
+      hiitOptions: workoutConfig.hiitMode
+        ? (workoutConfig.hiitOptions ?? defaultHiitOptions)
+        : undefined,
+    };
+  }, [workoutConfig, selectedZone?.id, selectedEquipmentIds, workoutSetType]);
+
+  const buildRequestBody = useCallback(() => {
+    return {
+      ...buildPersona(),
+      blockOptions: workoutConfig.hiitMode
+        ? undefined
+        : (workoutConfig.blockOptions ?? defaultBlockOptions),
+      hiitMode: workoutConfig.hiitMode,
+      hiitOptions: workoutConfig.hiitMode
+        ? (workoutConfig.hiitOptions ?? defaultHiitOptions)
+        : undefined,
+    };
+  }, [buildPersona, workoutConfig.hiitMode, workoutConfig.blockOptions, workoutConfig.hiitOptions]);
+
+  const {
+    handleGenerate: runWorkoutChain,
+    loading: chainLoading,
+    loadingMessage,
+    chainStep,
+    error,
+    setError,
+    resetGenerationState,
+  } = useWorkoutFactoryGeneration({
+    buildRequestBody,
+    onSuccess: ({ workoutSet, chain_metadata }) => {
+      setGeneratedWorkout(workoutSet);
+      setChainMetadata(chain_metadata);
+      setStep('preview');
+    },
+    successToast:
+      saveTarget === 'trainer'
+        ? {
+            title: 'Workout generated',
+            description: 'Review and save to your library.',
+          }
+        : undefined,
+  });
 
   useEffect(() => {
     if (existingWorkout) {
@@ -207,60 +354,86 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
       setGeneratedWorkout(null);
       setWorkoutConfig(defaultConfig);
       setChainMetadata(null);
-      setChainStep(0);
+      resetGenerationState();
     }
-  }, [existingWorkout, providedConfig, editingChainMetadata, isOpen]);
+  }, [existingWorkout, providedConfig, editingChainMetadata, isOpen, resetGenerationState]);
 
-  useEffect(() => {
-    const fetch = async () => {
-      try {
-        const [z, e] = await Promise.all([getAllZones(), getAllEquipmentItems()]);
-        setZones(z);
-        setEquipmentItems(e);
-      } catch (err) {
-        console.error('[WorkoutGeneratorModal] zones/equipment:', err);
+  const busy = chainLoading || saving || assignBusy;
+
+  const rosterLabel = (id: string) => {
+    const r = roster.find((x) => x.id === id);
+    return (r?.full_name?.trim() || r?.email?.trim() || id).trim();
+  };
+
+  const toggleAssignClient = (id: string) => {
+    setAssignClientUserIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const assignWorkoutToClients = async () => {
+    if (!resourceIdForAssign.trim() || assignClientUserIds.length === 0) return;
+    setAssignBusy(true);
+    const rid = resourceIdForAssign.trim();
+    const auth = await missionControlApiAuthHeaders();
+    let ok = 0;
+    const failures: { id: string; message: string }[] = [];
+    try {
+      for (const clientUserId of assignClientUserIds) {
+        try {
+          const res = await fetch(
+            `/api/trainer/clients/${encodeURIComponent(clientUserId)}/assignments`,
+            {
+              method: 'POST',
+              credentials: 'include',
+              headers: { ...auth, 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                assignmentType: 'workout',
+                resourceId: rid,
+              }),
+            }
+          );
+          const body = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            failures.push({
+              id: clientUserId,
+              message: typeof body.error === 'string' ? body.error : 'Could not assign workout',
+            });
+          } else {
+            ok += 1;
+          }
+        } catch (err) {
+          failures.push({
+            id: clientUserId,
+            message: err instanceof Error ? err.message : 'Request failed',
+          });
+        }
       }
-    };
-    fetch();
-  }, []);
 
-  const buildPersona = (): WorkoutPersona => ({
-    title: workoutConfig.workoutInfo.title.trim(),
-    description: workoutConfig.workoutInfo.description.trim(),
-    demographics: workoutConfig.targetAudience,
-    medical: {
-      injuries: workoutConfig.medicalContext?.includeInjuries
-        ? workoutConfig.medicalContext.injuries || ''
-        : '',
-      conditions: workoutConfig.medicalContext?.includeConditions
-        ? workoutConfig.medicalContext.conditions || ''
-        : '',
-    },
-    goals: workoutConfig.goals,
-    zoneId: selectedZone?.id ?? workoutConfig.zoneId,
-    selectedEquipmentIds:
-      selectedEquipmentIds.length > 0 ? selectedEquipmentIds : workoutConfig.selectedEquipmentIds,
-    weeklyTimeMinutes: workoutConfig.requirements.weeklyTimeMinutes,
-    sessionsPerWeek: workoutSetType === 'single' ? 1 : workoutConfig.requirements.sessionsPerWeek,
-    sessionDurationMinutes: workoutConfig.requirements.sessionDurationMinutes,
-    splitType: workoutConfig.requirements.splitType,
-    lifestyle: workoutConfig.requirements.lifestyle,
-    twoADay: workoutSetType === 'single' ? false : workoutConfig.requirements.twoADay,
-    preferredFocus: workoutConfig.preferredFocus,
-    hiitMode: workoutConfig.hiitMode,
-    hiitOptions: workoutConfig.hiitMode
-      ? (workoutConfig.hiitOptions ?? defaultHiitOptions)
-      : undefined,
-  });
+      const n = assignClientUserIds.length;
+      if (ok === n) {
+        toast.success(
+          n === 1 ? 'Workout assigned to client.' : `Workout assigned to ${n} clients.`
+        );
+      } else if (ok > 0) {
+        const detail = failures
+          .slice(0, 3)
+          .map((f) => `${rosterLabel(f.id)}: ${f.message}`)
+          .join(' · ');
+        toast.warning(`Assigned to ${ok} of ${n}. ${detail}`);
+      } else {
+        toast.error(
+          failures[0]
+            ? `${rosterLabel(failures[0].id)}: ${failures[0].message}`
+            : 'Could not assign workout'
+        );
+      }
+    } finally {
+      setAssignBusy(false);
+    }
+  };
 
-  const chainMessages = [
-    'Step 1/4: Designing workout structure...',
-    'Step 2/4: Mapping movement patterns...',
-    'Step 3/4: Selecting exercises...',
-    'Step 4/4: Writing prescriptions...',
-  ];
-
-  const handleGenerate = async (e: React.SyntheticEvent) => {
+  const handleGenerate = (e: React.SyntheticEvent) => {
     e.preventDefault();
     setError(null);
     if (!workoutConfig.workoutInfo.title.trim()) {
@@ -271,54 +444,7 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
       setError('Workout description is required');
       return;
     }
-    setLoading(true);
-    setChainStep(0);
-    setLoadingMessage(chainMessages[0]);
-    const progressInterval = setInterval(() => {
-      setChainStep((prev) => {
-        const maxIndex = chainMessages.length - 1;
-        const next = Math.min(prev + 1, maxIndex);
-        setLoadingMessage(chainMessages[next]);
-        return next;
-      });
-    }, 4000);
-    try {
-      const res = await fetch('/api/ai/generate-workout-chain', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          ...buildPersona(),
-          blockOptions: workoutConfig.hiitMode
-            ? undefined
-            : (workoutConfig.blockOptions ?? defaultBlockOptions),
-          hiitMode: workoutConfig.hiitMode,
-          hiitOptions: workoutConfig.hiitMode
-            ? (workoutConfig.hiitOptions ?? defaultHiitOptions)
-            : undefined,
-        }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || res.statusText || 'Failed to generate workout');
-      }
-      const data = await res.json();
-      setGeneratedWorkout(data.workoutSet);
-      setChainMetadata(data.chain_metadata);
-      setStep('preview');
-      setChainStep(4);
-      toast.success('Workout set generated', {
-        description: 'Review and save to library.',
-      });
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to generate workout';
-      setError(msg);
-      toast.error('Generation failed', { description: msg });
-    } finally {
-      clearInterval(progressInterval);
-      setLoading(false);
-      setLoadingMessage('');
-    }
+    void runWorkoutChain(e);
   };
 
   const handleSave = async () => {
@@ -328,28 +454,51 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
       return;
     }
     setError(null);
-    setLoading(true);
+    setSaving(true);
     try {
-      if (editingWorkoutId) {
+      if (saveTarget === 'trainer') {
+        const ids = await saveTrainerAiWorkoutToLibrary(
+          generatedWorkout,
+          workoutConfig,
+          chainMetadata ?? undefined,
+          'draft'
+        );
+        if (ids.length > 0) {
+          setSavedTrainerWorkoutIds(ids);
+          setResourceIdForAssign(ids[0] ?? '');
+          setAssignClientUserIds([]);
+        } else {
+          setSavedTrainerWorkoutIds(null);
+        }
+        toast.success('Saved to your workout library.');
+        onGenerate();
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 1500);
+      } else if (editingWorkoutId) {
         await updateWorkout(editingWorkoutId, {
           workoutSet: generatedWorkout,
           workoutConfig: workoutConfig,
         });
         toast.success('Workout updated.');
+        setSaveSuccess(true);
+        setTimeout(() => {
+          setSaveSuccess(false);
+          onClose();
+        }, 1500);
       } else {
         await saveWorkoutToLibrary(generatedWorkout, workoutConfig, chainMetadata ?? undefined);
         toast.success('Workout saved to library.');
         onGenerate();
+        setSaveSuccess(true);
+        setTimeout(() => {
+          setSaveSuccess(false);
+          onClose();
+        }, 1500);
       }
-      setSaveSuccess(true);
-      setTimeout(() => {
-        setSaveSuccess(false);
-        onClose();
-      }, 1500);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save');
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
@@ -358,21 +507,29 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
   return (
     <>
       <AnimatePresence>
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div
+          className={
+            isPageLayout
+              ? 'relative w-full max-w-5xl'
+              : 'fixed inset-0 z-50 flex items-center justify-center p-4'
+          }
+        >
+          {!isPageLayout && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={onClose}
+              className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+            />
+          )}
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
-            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-          />
-          <motion.div
-            initial={{ scale: 0.95, y: 20 }}
+            initial={{ scale: isPageLayout ? 1 : 0.95, y: isPageLayout ? 0 : 20 }}
             animate={{ scale: 1, y: 0 }}
-            exit={{ scale: 0.95, y: 20 }}
+            exit={{ scale: isPageLayout ? 1 : 0.95, y: isPageLayout ? 0 : 20 }}
             onClick={(e) => e.stopPropagation()}
             className={`relative w-full overflow-hidden rounded-2xl border border-white/10 bg-[#0d0500] shadow-[0_0_100px_rgba(255,191,0,0.1)] ${
-              step === 'preview' ? 'max-w-4xl' : 'max-w-3xl'
+              isPageLayout ? 'max-w-5xl' : step === 'preview' ? 'max-w-4xl' : 'max-w-3xl'
             }`}
           >
             <div className="flex items-center justify-between border-b border-white/10 p-6">
@@ -383,27 +540,35 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
                     {isEditMode
                       ? 'Edit Workout'
                       : step === 'preview'
-                        ? 'Review Workouts'
+                        ? saveTarget === 'trainer'
+                          ? 'Review workout'
+                          : 'Review Workouts'
                         : 'Workout Factory'}
                   </h2>
                   <p className="text-sm text-white/60">
                     {step === 'preview'
-                      ? 'Review and save your workout set'
-                      : 'Create a single or split workout set from persona'}
+                      ? saveTarget === 'trainer'
+                        ? 'Review and save to your private library'
+                        : 'Review and save your workout set'
+                      : saveTarget === 'trainer'
+                        ? 'Generate bespoke programming for your clients'
+                        : 'Create a single or split workout set from persona'}
                   </p>
                 </div>
               </div>
               <button
                 onClick={onClose}
                 className="rounded-lg p-2 text-white/70 transition-colors hover:bg-white/5 hover:text-white"
-                disabled={loading}
+                disabled={busy}
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="max-h-[70vh] overflow-y-auto p-6">
-              {loading ? (
+            <div
+              className={`overflow-y-auto p-6 ${isPageLayout ? 'max-h-none min-h-[60vh]' : 'max-h-[70vh]'}`}
+            >
+              {chainLoading ? (
                 <div className="flex flex-col items-center justify-center py-12">
                   <div className="border-orange-light/20 mb-4 h-12 w-12 animate-spin rounded-full border-4 border-t-orange-light" />
                   <p className="text-lg font-medium text-white">{loadingMessage}</p>
@@ -573,6 +738,126 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
                       </div>
                     ))}
                   </div>
+                  {saveTarget === 'trainer' &&
+                  savedTrainerWorkoutIds &&
+                  savedTrainerWorkoutIds.length > 0 ? (
+                    <div className="border-orange-light/25 bg-orange-light/5 mt-6 rounded-lg border p-4">
+                      <h4 className="font-heading text-sm font-bold text-orange-light">
+                        Assign to clients
+                      </h4>
+                      <p className="mt-1 text-xs text-white/55">
+                        Deliver this workout from your library. Select one or more clients. When the
+                        plan has multiple saved rows, pick which session to assign below.
+                      </p>
+                      {savedTrainerWorkoutIds.length > 1 && generatedWorkout ? (
+                        <div className="mt-3">
+                          <label className="mb-1 block font-mono text-[10px] uppercase text-white/50">
+                            Session to assign
+                          </label>
+                          <select
+                            value={resourceIdForAssign}
+                            onChange={(e) => setResourceIdForAssign(e.target.value)}
+                            className="w-full max-w-md rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
+                          >
+                            {savedTrainerWorkoutIds.map((wid, idx) => {
+                              const session = generatedWorkout.workouts[idx];
+                              const label =
+                                session?.title?.trim() ||
+                                (savedTrainerWorkoutIds.length > 1
+                                  ? `Session ${idx + 1}`
+                                  : 'Workout');
+                              return (
+                                <option key={wid} value={wid}>
+                                  {label}
+                                </option>
+                              );
+                            })}
+                          </select>
+                        </div>
+                      ) : null}
+                      <div className="mt-3">
+                        <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+                          <label className="font-mono text-[10px] uppercase text-white/50">
+                            Clients
+                          </label>
+                          {!rosterLoading && roster.length > 0 ? (
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setAssignClientUserIds(roster.map((r) => r.id))}
+                                className="text-orange-light/80 text-[10px] font-medium underline hover:text-orange-light"
+                              >
+                                Select all
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setAssignClientUserIds([])}
+                                className="text-[10px] font-medium text-white/50 underline hover:text-white/80"
+                              >
+                                Clear
+                              </button>
+                            </div>
+                          ) : null}
+                        </div>
+                        {rosterLoading ? (
+                          <p className="text-sm text-white/50">Loading roster…</p>
+                        ) : roster.length === 0 ? (
+                          <p className="text-sm text-white/50">No clients on your roster yet.</p>
+                        ) : (
+                          <ul className="max-h-40 space-y-2 overflow-y-auto rounded-lg border border-white/10 bg-black/30 p-2">
+                            {roster.map((r) => {
+                              const label = (
+                                r.full_name?.trim() ||
+                                r.email?.trim() ||
+                                'Client'
+                              ).trim();
+                              const checked = assignClientUserIds.includes(r.id);
+                              return (
+                                <li key={r.id}>
+                                  <label className="flex cursor-pointer items-center gap-2 text-sm text-white/90">
+                                    <input
+                                      type="checkbox"
+                                      checked={checked}
+                                      onChange={() => toggleAssignClient(r.id)}
+                                      className="rounded border-white/30 bg-black/40 text-orange-light focus:ring-orange-light"
+                                    />
+                                    {label}
+                                  </label>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        )}
+                        <div className="mt-3 flex flex-wrap items-end gap-3">
+                          <button
+                            type="button"
+                            disabled={
+                              busy ||
+                              !resourceIdForAssign.trim() ||
+                              assignClientUserIds.length === 0
+                            }
+                            onClick={() => void assignWorkoutToClients()}
+                            className="border-orange-light/40 bg-orange-light/10 hover:bg-orange-light/20 rounded-lg border px-4 py-2 font-mono text-xs font-bold uppercase text-orange-light disabled:opacity-40"
+                          >
+                            Assign
+                          </button>
+                        </div>
+                      </div>
+                      {assignClientUserIds.length > 0 && resourceIdForAssign.trim() ? (
+                        <div className="text-orange-light/90 mt-3 space-y-1 text-xs font-medium">
+                          {assignClientUserIds.map((uid) => (
+                            <a
+                              key={uid}
+                              href={`/trainer/roster/${encodeURIComponent(uid)}/lab?prefillWorkout=${encodeURIComponent(resourceIdForAssign)}`}
+                              className="mr-3 inline-block underline hover:text-orange-light"
+                            >
+                              Performance Lab — {rosterLabel(uid)}
+                            </a>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
                   <div className="mt-6 flex justify-end gap-3 border-t border-white/10 pt-4">
                     <button
                       type="button"
@@ -584,10 +869,14 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
                     <button
                       type="button"
                       onClick={handleSave}
-                      disabled={loading}
+                      disabled={busy}
                       className="hover:bg-orange-light/90 rounded-lg bg-orange-light px-4 py-2 font-medium text-black disabled:opacity-50"
                     >
-                      {editingWorkoutId ? 'Update Workout' : 'Save to Library'}
+                      {editingWorkoutId
+                        ? 'Update Workout'
+                        : saveTarget === 'trainer'
+                          ? 'Save to library'
+                          : 'Save to Library'}
                     </button>
                   </div>
                 </>
@@ -1363,17 +1652,17 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
                       type="button"
                       onClick={onClose}
                       className="rounded-lg border border-white/10 bg-black/20 px-6 py-2 text-white hover:bg-white/5"
-                      disabled={loading}
+                      disabled={busy}
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
-                      disabled={loading}
+                      disabled={busy}
                       className="hover:bg-orange-light/90 flex items-center gap-2 rounded-lg bg-orange-light px-6 py-2 font-medium text-black disabled:opacity-50"
                     >
                       <Sparkles className="h-5 w-5" />
-                      {loading ? 'Generating...' : 'Generate Workout'}
+                      {chainLoading ? 'Generating...' : 'Generate Workout'}
                     </button>
                   </div>
                 </form>

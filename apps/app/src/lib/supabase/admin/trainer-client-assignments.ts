@@ -6,9 +6,14 @@
  */
 
 import type { Artist, Exercise, WorkoutDetail } from '@/types';
+import type { WorkoutSetTemplate } from '@/types/ai-workout';
 import { getSupabaseServer } from '@/lib/supabase/server';
 import { isUserInViewerRoster } from '@/lib/supabase/admin/trainer-roster';
 import { supabaseWorkoutRowToArtist } from '@/lib/coach-assignment-map';
+import {
+  workoutRowToWorkoutSetTemplate,
+  wodWorkoutDetailToWorkoutSetTemplate,
+} from '@/lib/coach-assignment-workout-set';
 import { getGeneratedExerciseBySlug } from '@/lib/supabase/public/generated-exercise-service';
 import { grantChallengeAccess } from '@/lib/supabase/server/entitlements';
 
@@ -320,6 +325,18 @@ export async function createClientCoachAssignment(
     }
   }
 
+  // Trainer library: mark workout as delivered to at least one client (private lifecycle; not SEO).
+  if (type === 'workout' && resourceId) {
+    const { error: visErr } = await supabase
+      .from('workouts')
+      .update({ visibility: 'assigned' })
+      .eq('id', resourceId)
+      .eq('trainer_id', viewerId);
+    if (visErr && import.meta.env.DEV) {
+      console.warn('[trainer-client-assignments] workout visibility update', visErr);
+    }
+  }
+
   return { ok: true, id: newAssignmentId };
 }
 
@@ -515,7 +532,14 @@ function generatedWodRowToArtist(row: {
 
 export type CoachAssignmentPayloadResult =
   | { ok: true; assignmentType: 'program'; programId: string; title: string }
-  | { ok: true; assignmentType: 'workout' | 'wod'; artist: Artist }
+  | {
+      ok: true;
+      assignmentType: 'workout' | 'wod';
+      artist: Artist;
+      assignmentId: string;
+      resourceId: string;
+      workoutSet: WorkoutSetTemplate;
+    }
   | { ok: true; assignmentType: 'exercise'; slug: string; title: string; href: string }
   | { ok: true; assignmentType: 'challenge'; challengeId: string; title: string; href: string }
   | { ok: false; error: string };
@@ -535,6 +559,7 @@ export async function getCoachAssignmentPayloadForClient(
 
   if (error || !row) return { ok: false, error: 'Assignment not found' };
   const r = row as {
+    id?: string;
     client_user_id?: string;
     trainer_user_id?: string;
     assignment_type?: string;
@@ -544,6 +569,8 @@ export async function getCoachAssignmentPayloadForClient(
     revoked_at?: string | null;
     expires_on?: string | null;
   };
+  const assignmentRowId =
+    typeof r.id === 'string' && r.id.trim() ? r.id.trim() : assignmentId.trim();
   if (r.client_user_id !== clientUserId) return { ok: false, error: 'Assignment not found' };
   if (r.revoked_at || r.dismissed_at) return { ok: false, error: 'Assignment is not available' };
   if (isExpired(r.expires_on != null ? String(r.expires_on) : null)) {
@@ -611,7 +638,7 @@ export async function getCoachAssignmentPayloadForClient(
   if (assignmentType === 'workout') {
     const { data: w, error: wErr } = await supabase
       .from('workouts')
-      .select('id, title, description, blocks, trainer_id')
+      .select('id, title, description, blocks, trainer_id, difficulty_level')
       .eq('id', resourceId)
       .maybeSingle();
     if (wErr || !w) return { ok: false, error: 'Workout not found' };
@@ -621,7 +648,22 @@ export async function getCoachAssignmentPayloadForClient(
       const artist = supabaseWorkoutRowToArtist(
         w as { id: string; title: string; description: string | null; blocks: unknown }
       );
-      return { ok: true, assignmentType: 'workout', artist };
+      const workoutSet = workoutRowToWorkoutSetTemplate(
+        w as {
+          title: string;
+          description: string | null;
+          blocks: unknown;
+          difficulty_level?: string | null;
+        }
+      );
+      return {
+        ok: true,
+        assignmentType: 'workout',
+        artist,
+        assignmentId: assignmentRowId,
+        resourceId,
+        workoutSet,
+      };
     } catch {
       return { ok: false, error: 'Workout could not be loaded' };
     }
@@ -641,7 +683,17 @@ export async function getCoachAssignmentPayloadForClient(
     if (w.author_id !== trainerUserId) return { ok: false, error: 'WOD not found' };
     try {
       const artist = generatedWodRowToArtist(wod as Parameters<typeof generatedWodRowToArtist>[0]);
-      return { ok: true, assignmentType: 'wod', artist };
+      const wd = artist.workoutDetail;
+      if (!wd) throw new Error('WOD detail missing');
+      const workoutSet = wodWorkoutDetailToWorkoutSetTemplate(artist.name, artist.description, wd);
+      return {
+        ok: true,
+        assignmentType: 'wod',
+        artist,
+        assignmentId: assignmentRowId,
+        resourceId,
+        workoutSet,
+      };
     } catch {
       return { ok: false, error: 'WOD could not be loaded' };
     }

@@ -159,6 +159,9 @@ const ScheduleZone: React.FC<ScheduleZoneProps> = ({
     programId: string;
     weekId: string;
     workoutId: string;
+    coachAssignmentId?: string;
+    coachResourceId?: string;
+    coachAssignmentType?: 'workout' | 'wod';
   } | null>(null);
   const [restDayMessage, setRestDayMessage] = useState<string | null>(null);
   const [amrapResultForCalendar, setAmrapResultForCalendar] = useState<AmrapSessionResult | null>(
@@ -551,9 +554,33 @@ const ScheduleZone: React.FC<ScheduleZoneProps> = ({
   );
 
   const handleStartWorkout = useCallback(
-    (workout: WorkoutFromSchedule, programId: string, weekId: string, workoutId: string) => {
+    (
+      workout: WorkoutFromSchedule,
+      programId: string,
+      weekId: string,
+      workoutId: string,
+      coach?: {
+        coachAssignmentId?: string;
+        coachResourceId?: string;
+        coachAssignmentType?: 'workout' | 'wod';
+      }
+    ) => {
       setSelectedDayEvents(null);
-      setWorkoutPlayer({ workout, programId, weekId, workoutId });
+      setWorkoutPlayer({
+        workout,
+        programId,
+        weekId,
+        workoutId,
+        ...(coach?.coachAssignmentId?.trim() && {
+          coachAssignmentId: coach.coachAssignmentId.trim(),
+        }),
+        ...(coach?.coachResourceId?.trim() && {
+          coachResourceId: coach.coachResourceId.trim(),
+        }),
+        ...(coach?.coachAssignmentType && {
+          coachAssignmentType: coach.coachAssignmentType,
+        }),
+      });
     },
     []
   );
@@ -1084,6 +1111,9 @@ const ScheduleZone: React.FC<ScheduleZoneProps> = ({
           programId={workoutPlayer.programId}
           weekId={workoutPlayer.weekId}
           workoutId={workoutPlayer.workoutId}
+          coachAssignmentId={workoutPlayer.coachAssignmentId}
+          coachResourceId={workoutPlayer.coachResourceId}
+          coachAssignmentType={workoutPlayer.coachAssignmentType}
           onClose={() => setWorkoutPlayer(null)}
           onComplete={() => setWorkoutPlayer(null)}
         />

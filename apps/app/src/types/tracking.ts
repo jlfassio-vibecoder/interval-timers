@@ -39,4 +39,9 @@ export interface WorkoutLog {
   exercises: ExerciseLog[];
   /** Display label for Training Log (e.g. pasted workouts from Universal Activity Hub). */
   workoutDisplayName?: string;
+  /** `client_coach_assignments.id` when completing from coach-assigned flow. */
+  coachAssignmentId?: string;
+  /** Snapshot of `client_coach_assignments.resource_id` (e.g. workouts.id / generated_wods.id). */
+  coachResourceId?: string;
+  coachAssignmentType?: 'workout' | 'wod';
 }

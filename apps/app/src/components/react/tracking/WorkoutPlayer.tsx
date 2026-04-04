@@ -24,6 +24,9 @@ export interface WorkoutPlayerProps {
   workoutId: string;
   /** Display label for Training Log (e.g. pasted workouts from Universal Activity Hub). */
   workoutDisplayName?: string;
+  coachAssignmentId?: string;
+  coachResourceId?: string;
+  coachAssignmentType?: 'workout' | 'wod';
   onClose: () => void;
   onComplete: () => void;
 }
@@ -77,6 +80,9 @@ const WorkoutPlayer: React.FC<WorkoutPlayerProps> = ({
   weekId,
   workoutId,
   workoutDisplayName,
+  coachAssignmentId,
+  coachResourceId,
+  coachAssignmentType,
   onClose,
   onComplete,
 }) => {
@@ -171,6 +177,9 @@ const WorkoutPlayer: React.FC<WorkoutPlayerProps> = ({
         durationSeconds: elapsedTime,
         exercises: logs,
         ...(workoutDisplayName != null && { workoutDisplayName }),
+        ...(coachAssignmentId?.trim() && { coachAssignmentId: coachAssignmentId.trim() }),
+        ...(coachResourceId?.trim() && { coachResourceId: coachResourceId.trim() }),
+        ...(coachAssignmentType && { coachAssignmentType }),
       };
       await saveWorkoutLog(uid, log);
       onComplete();
@@ -189,6 +198,9 @@ const WorkoutPlayer: React.FC<WorkoutPlayerProps> = ({
     weekId,
     workoutId,
     workoutDisplayName,
+    coachAssignmentId,
+    coachResourceId,
+    coachAssignmentType,
     elapsedTime,
     logs,
     hasAtLeastOneCompletedSet,

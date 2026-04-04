@@ -97,6 +97,44 @@ export async function saveWorkoutToLibrary(
   return result.id;
 }
 
+/** Mission Control: save AI chain output to public.workouts (not workout_sets). */
+export async function saveTrainerAiWorkoutToLibrary(
+  workoutSet: WorkoutSetTemplate,
+  workoutConfig: WorkoutConfig,
+  chainMetadata?: WorkoutChainMetadata,
+  visibility: 'draft' | 'ready' | 'assigned' = 'draft'
+): Promise<string[]> {
+  const token = await getAccessToken();
+  const response = await fetch('/api/trainer/workouts', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+    body: JSON.stringify({
+      workoutSet,
+      workoutConfig,
+      chainMetadata,
+      visibility,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+    if (response.status === 401 || response.status === 403) {
+      throw new Error(errorData.error || 'Unauthorized. Trainer access required.');
+    }
+    if (response.status === 400) {
+      throw new Error(errorData.error || 'Invalid request data');
+    }
+    throw new Error(errorData.error || `Failed to save workout: ${response.statusText}`);
+  }
+
+  const result: { ids: string[] } = await response.json();
+  return result.ids ?? [];
+}
+
 export async function fetchWorkoutLibrary(): Promise<WorkoutLibraryItem[]> {
   const token = await getAccessToken();
 

@@ -39,6 +39,7 @@ import {
 } from '@/lib/prompt-chain/step4-workout-mathematician';
 import { normalizeWorkoutSet } from '@/lib/program-schedule-utils';
 import { callVertexAI, getVertexAICredentials } from '@/lib/vertex-ai-client';
+import { verifyMissionControlRequest } from '@/lib/supabase/admin/auth';
 
 interface ZoneContext {
   zoneName: string;
@@ -51,11 +52,13 @@ export interface WorkoutChainGenerationResponse {
   chain_metadata: WorkoutChainMetadata;
 }
 
-export const POST: APIRoute = async ({ request }) => {
+export const POST: APIRoute = async ({ request, cookies }) => {
   const startTime = Date.now();
   const shouldLog = import.meta.env.DEV || import.meta.env.PUBLIC_ENABLE_ERROR_LOGGING === 'true';
 
   try {
+    await verifyMissionControlRequest(request, cookies);
+
     if (!request.body) {
       return new Response(JSON.stringify({ error: 'Request body is required' }), {
         status: 400,
@@ -420,6 +423,18 @@ export const POST: APIRoute = async ({ request }) => {
       headers: { 'Content-Type': 'application/json' },
     });
   } catch (error) {
+    if (error instanceof Error && error.message === 'UNAUTHENTICATED') {
+      return new Response(JSON.stringify({ error: 'Authentication required' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+    if (error instanceof Error && error.message === 'UNAUTHORIZED') {
+      return new Response(JSON.stringify({ error: 'Mission Control access required' }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
     if (shouldLog) console.error('[generate-workout-chain] Error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Failed to generate workout';
     return new Response(JSON.stringify({ error: errorMessage }), {
