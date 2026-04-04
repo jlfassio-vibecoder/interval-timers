@@ -10,12 +10,20 @@ import type {
   HiitOptions,
   HiitCircuitStructure,
   AmrapDensityOptions,
+  TabataBalancedOptions,
+  TabataBalancedPairingPattern,
 } from '@/types/ai-workout';
 import {
   getZoneByIdServer,
   getAllEquipmentItemsServer,
 } from '@/lib/supabase/admin/server-equipment';
 import { amrapDensityTierMinutes } from '@/lib/amrap-density-tier';
+import {
+  TABATA_BALANCED_MAX_ROUNDS,
+  TABATA_BALANCED_MIN_ROUNDS,
+  tabataBalancedExerciseCount,
+  tabataBalancedSessionMinutes,
+} from '@/lib/tabata-balanced-duration';
 
 export interface WorkoutChainZoneContext {
   zoneName: string;
@@ -30,6 +38,8 @@ export interface PreparedWorkoutChainRequest {
   hiitMode: boolean;
   /** Normalized density AMRAP options when amrapDensityMode is true. */
   amrapDensityOptions: AmrapDensityOptions | undefined;
+  /** Normalized balanced Tabata options when tabataBalancedMode is true. */
+  tabataBalancedOptions: TabataBalancedOptions | undefined;
   zoneContext: WorkoutChainZoneContext | undefined;
   /** Equipment list used in Step 3 (Coach); mirrors generate-workout-chain. */
   availableEquipment: string[];
@@ -134,13 +144,17 @@ export async function prepareWorkoutChainRequest(
 
   const amrapDensityModeRaw = !!persona.amrapDensityMode;
   const hiitModeRaw = !!persona.hiitMode;
+  const tabataBalancedModeRaw = !!persona.tabataBalancedMode;
 
-  if (amrapDensityModeRaw && hiitModeRaw) {
+  const metabolicModeCount =
+    (amrapDensityModeRaw ? 1 : 0) + (hiitModeRaw ? 1 : 0) + (tabataBalancedModeRaw ? 1 : 0);
+  if (metabolicModeCount > 1) {
     return {
       ok: false,
       response: new Response(
         JSON.stringify({
-          error: 'amrapDensityMode and hiitMode cannot both be enabled',
+          error:
+            'At most one of hiitMode, amrapDensityMode, and tabataBalancedMode can be enabled',
         }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       ),
@@ -148,7 +162,8 @@ export async function prepareWorkoutChainRequest(
   }
 
   const amrapDensityMode = amrapDensityModeRaw;
-  const hiitMode = amrapDensityMode ? false : hiitModeRaw;
+  const tabataBalancedMode = tabataBalancedModeRaw;
+  const hiitMode = !amrapDensityMode && !tabataBalancedMode && hiitModeRaw;
 
   const defaultHiitCircuitStructure: HiitCircuitStructure = {
     includeWarmup: true,
@@ -227,6 +242,67 @@ export async function prepareWorkoutChainRequest(
     };
   }
 
+  let tabataBalancedOptions: TabataBalancedOptions | undefined;
+  if (tabataBalancedMode) {
+    const rawTabata = persona.tabataBalancedOptions;
+    if (!rawTabata || typeof rawTabata !== 'object') {
+      return {
+        ok: false,
+        response: new Response(JSON.stringify({ error: 'tabataBalancedOptions is required' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      };
+    }
+    const validPatterns: TabataBalancedPairingPattern[] = [
+      'single',
+      'antagonist_pair',
+      'agonist_pair',
+      'four_station',
+      'eight_station',
+    ];
+    const pattern = rawTabata.pairingPattern;
+    if (!validPatterns.includes(pattern)) {
+      return {
+        ok: false,
+        response: new Response(
+          JSON.stringify({ error: 'tabataBalancedOptions.pairingPattern is invalid' }),
+          { status: 400, headers: { 'Content-Type': 'application/json' } }
+        ),
+      };
+    }
+    const rc = rawTabata.roundCount;
+    if (
+      typeof rc !== 'number' ||
+      rc !== Math.floor(rc) ||
+      rc < TABATA_BALANCED_MIN_ROUNDS ||
+      rc > TABATA_BALANCED_MAX_ROUNDS
+    ) {
+      return {
+        ok: false,
+        response: new Response(
+          JSON.stringify({
+            error: `tabataBalancedOptions.roundCount must be an integer between ${TABATA_BALANCED_MIN_ROUNDS} and ${TABATA_BALANCED_MAX_ROUNDS}`,
+          }),
+          { status: 400, headers: { 'Content-Type': 'application/json' } }
+        ),
+      };
+    }
+    const nEx = tabataBalancedExerciseCount(pattern);
+    if (nEx > 1 && rc % nEx !== 0) {
+      return {
+        ok: false,
+        response: new Response(
+          JSON.stringify({
+            error: `roundCount must be divisible by ${nEx} for pairing pattern ${pattern} so each exercise gets an equal number of work intervals`,
+          }),
+          { status: 400, headers: { 'Content-Type': 'application/json' } }
+        ),
+      };
+    }
+    tabataBalancedOptions = { pairingPattern: pattern, roundCount: rc };
+  }
+
   if (typeof persona.sessionDurationMinutes !== 'number') {
     return {
       ok: false,
@@ -245,6 +321,19 @@ export async function prepareWorkoutChainRequest(
         response: new Response(
           JSON.stringify({
             error: `sessionDurationMinutes must be ${expectedMin} for the selected AMRAP density tier`,
+          }),
+          { status: 400, headers: { 'Content-Type': 'application/json' } }
+        ),
+      };
+    }
+  } else if (tabataBalancedMode && tabataBalancedOptions) {
+    const expectedMin = tabataBalancedSessionMinutes(tabataBalancedOptions.roundCount);
+    if (persona.sessionDurationMinutes !== expectedMin) {
+      return {
+        ok: false,
+        response: new Response(
+          JSON.stringify({
+            error: `sessionDurationMinutes must be ${expectedMin} for the selected Tabata round count (main block only)`,
           }),
           { status: 400, headers: { 'Content-Type': 'application/json' } }
         ),
@@ -318,6 +407,8 @@ export async function prepareWorkoutChainRequest(
     hiitOptions: hiitMode ? hiitOptions : undefined,
     amrapDensityMode,
     amrapDensityOptions: amrapDensityMode ? amrapDensityOptions : undefined,
+    tabataBalancedMode,
+    tabataBalancedOptions: tabataBalancedMode ? tabataBalancedOptions : undefined,
   };
 
   return {
@@ -328,6 +419,7 @@ export async function prepareWorkoutChainRequest(
       hiitOptions,
       hiitMode,
       amrapDensityOptions,
+      tabataBalancedOptions,
       zoneContext,
       availableEquipment,
       providedArchitect,

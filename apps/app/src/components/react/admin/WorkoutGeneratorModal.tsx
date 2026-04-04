@@ -23,9 +23,16 @@ import type {
   HiitSessionDurationTier,
   HiitPrimaryGoal,
   AmrapDensityOptions,
+  TabataBalancedOptions,
 } from '@/types/ai-workout';
 import AmrapDensityArchitecture from '@/components/react/admin/amrap-density/AmrapDensityArchitecture';
+import TabataBalancedArchitecture from '@/components/react/admin/tabata-balanced/TabataBalancedArchitecture';
 import { amrapDensityTierMinutes } from '@/lib/amrap-density-tier';
+import {
+  TABATA_BALANCED_DEFAULT_ROUNDS,
+  tabataBalancedSessionMinutes,
+  snapTabataRoundCountToPattern,
+} from '@/lib/tabata-balanced-duration';
 import {
   getAllZones,
   getZoneById,
@@ -102,12 +109,18 @@ const defaultConfig: WorkoutConfig = {
     includeCooldown: false,
   },
   amrapDensityMode: false,
+  tabataBalancedMode: false,
 };
 
 const defaultAmrapDensityOptions: AmrapDensityOptions = {
   protocolFormat: 'AMRAP_DENSITY',
   workRestRatio: 'continuous',
   sessionDurationTier: 'standard_interval',
+};
+
+const defaultTabataBalancedOptions: TabataBalancedOptions = {
+  pairingPattern: 'antagonist_pair',
+  roundCount: TABATA_BALANCED_DEFAULT_ROUNDS,
 };
 
 const defaultBlockOptions: BlockOptions = {
@@ -302,8 +315,10 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
   }, [isOpen, saveTarget, savedTrainerWorkoutIds]);
 
   const buildPersona = useCallback((): WorkoutPersona => {
-    const amrapOn = !!workoutConfig.amrapDensityMode;
-    const hiitOn = !!workoutConfig.hiitMode && !amrapOn;
+    const tabataOn = !!workoutConfig.tabataBalancedMode;
+    const amrapOn = !!workoutConfig.amrapDensityMode && !tabataOn;
+    const hiitOn =
+      !!workoutConfig.hiitMode && !amrapOn && !tabataOn;
     return {
       title: workoutConfig.workoutInfo.title.trim(),
       description: workoutConfig.workoutInfo.description.trim(),
@@ -333,33 +348,47 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
       amrapDensityOptions: amrapOn
         ? (workoutConfig.amrapDensityOptions ?? defaultAmrapDensityOptions)
         : undefined,
+      tabataBalancedMode: tabataOn,
+      tabataBalancedOptions: tabataOn
+        ? (workoutConfig.tabataBalancedOptions ?? defaultTabataBalancedOptions)
+        : undefined,
     };
   }, [workoutConfig, selectedZone?.id, selectedEquipmentIds, workoutSetType]);
 
   const buildRequestBody = useCallback(() => {
-    const useMetabolicBlocks = workoutConfig.hiitMode || workoutConfig.amrapDensityMode;
+    const useMetabolicBlocks =
+      workoutConfig.hiitMode || workoutConfig.amrapDensityMode || workoutConfig.tabataBalancedMode;
+    const tabataOn = !!workoutConfig.tabataBalancedMode;
     return {
       ...buildPersona(),
       blockOptions: useMetabolicBlocks
         ? undefined
         : (workoutConfig.blockOptions ?? defaultBlockOptions),
-      hiitMode: !!workoutConfig.hiitMode && !workoutConfig.amrapDensityMode,
+      hiitMode:
+        !!workoutConfig.hiitMode && !workoutConfig.amrapDensityMode && !tabataOn,
       hiitOptions:
-        workoutConfig.hiitMode && !workoutConfig.amrapDensityMode
+        workoutConfig.hiitMode && !workoutConfig.amrapDensityMode && !tabataOn
           ? (workoutConfig.hiitOptions ?? defaultHiitOptions)
           : undefined,
-      amrapDensityMode: !!workoutConfig.amrapDensityMode,
-      amrapDensityOptions: workoutConfig.amrapDensityMode
-        ? (workoutConfig.amrapDensityOptions ?? defaultAmrapDensityOptions)
+      amrapDensityMode: !!workoutConfig.amrapDensityMode && !tabataOn,
+      amrapDensityOptions:
+        workoutConfig.amrapDensityMode && !tabataOn
+          ? (workoutConfig.amrapDensityOptions ?? defaultAmrapDensityOptions)
+          : undefined,
+      tabataBalancedMode: tabataOn,
+      tabataBalancedOptions: tabataOn
+        ? (workoutConfig.tabataBalancedOptions ?? defaultTabataBalancedOptions)
         : undefined,
     };
   }, [
     buildPersona,
     workoutConfig.hiitMode,
     workoutConfig.amrapDensityMode,
+    workoutConfig.tabataBalancedMode,
     workoutConfig.blockOptions,
     workoutConfig.hiitOptions,
     workoutConfig.amrapDensityOptions,
+    workoutConfig.tabataBalancedOptions,
   ]);
 
   const {
@@ -900,6 +929,7 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
                               ...prev,
                               hiitMode: checked,
                               amrapDensityMode: checked ? false : prev.amrapDensityMode,
+                              tabataBalancedMode: checked ? false : prev.tabataBalancedMode,
                               hiitOptions:
                                 checked && !prev.hiitOptions
                                   ? defaultHiitOptions
@@ -935,6 +965,7 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
                               ...prev,
                               amrapDensityMode: checked,
                               hiitMode: checked ? false : prev.hiitMode,
+                              tabataBalancedMode: checked ? false : prev.tabataBalancedMode,
                               amrapDensityOptions: checked
                                 ? (prev.amrapDensityOptions ?? defaultAmrapDensityOptions)
                                 : prev.amrapDensityOptions,
@@ -951,6 +982,42 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
                       />
                       <span className="text-sm font-medium text-white/80">
                         Enable Density-Based AMRAP Mode
+                      </span>
+                    </label>
+                    <label className="flex cursor-pointer items-center gap-3">
+                      <input
+                        type="checkbox"
+                        checked={!!workoutConfig.tabataBalancedMode}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setWorkoutConfig((prev) => {
+                            const opts = prev.tabataBalancedOptions ?? defaultTabataBalancedOptions;
+                            const snapped = snapTabataRoundCountToPattern(
+                              opts.pairingPattern,
+                              opts.roundCount
+                            );
+                            const minutes = tabataBalancedSessionMinutes(snapped);
+                            return {
+                              ...prev,
+                              tabataBalancedMode: checked,
+                              hiitMode: checked ? false : prev.hiitMode,
+                              amrapDensityMode: checked ? false : prev.amrapDensityMode,
+                              tabataBalancedOptions: checked
+                                ? { ...opts, roundCount: snapped }
+                                : prev.tabataBalancedOptions,
+                              requirements: {
+                                ...prev.requirements,
+                                sessionDurationMinutes: checked
+                                  ? minutes
+                                  : prev.requirements.sessionDurationMinutes,
+                              },
+                            };
+                          });
+                        }}
+                        className="focus:ring-orange-light/50 h-4 w-4 rounded border-white/20 bg-black/20 text-orange-light focus:ring-2"
+                      />
+                      <span className="text-sm font-medium text-white/80">
+                        Enable Balanced Strength &amp; Cardio Tabata Mode
                       </span>
                     </label>
                   </div>
@@ -1002,7 +1069,9 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
                     </div>
                   </div>
 
-                  {!workoutConfig.hiitMode && !workoutConfig.amrapDensityMode && (
+                  {!workoutConfig.hiitMode &&
+                    !workoutConfig.amrapDensityMode &&
+                    !workoutConfig.tabataBalancedMode && (
                     <div className="space-y-4">
                       <h3 className="font-heading text-lg font-bold text-white">Block selectors</h3>
                       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -1122,7 +1191,59 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
                     />
                   )}
 
-                  {workoutConfig.hiitMode && !workoutConfig.amrapDensityMode && (
+                  {workoutConfig.tabataBalancedMode && (
+                    <TabataBalancedArchitecture
+                      pairingPattern={
+                        (workoutConfig.tabataBalancedOptions ?? defaultTabataBalancedOptions)
+                          .pairingPattern
+                      }
+                      roundCount={
+                        (workoutConfig.tabataBalancedOptions ?? defaultTabataBalancedOptions)
+                          .roundCount
+                      }
+                      onPairingPatternChange={(pairingPattern) => {
+                        setWorkoutConfig((prev) => {
+                          const base = prev.tabataBalancedOptions ?? defaultTabataBalancedOptions;
+                          const snapped = snapTabataRoundCountToPattern(
+                            pairingPattern,
+                            base.roundCount
+                          );
+                          const minutes = tabataBalancedSessionMinutes(snapped);
+                          return {
+                            ...prev,
+                            tabataBalancedOptions: {
+                              ...base,
+                              pairingPattern,
+                              roundCount: snapped,
+                            },
+                            requirements: {
+                              ...prev.requirements,
+                              sessionDurationMinutes: minutes,
+                            },
+                          };
+                        });
+                      }}
+                      onRoundCountChange={(roundCount) => {
+                        setWorkoutConfig((prev) => {
+                          const base = prev.tabataBalancedOptions ?? defaultTabataBalancedOptions;
+                          const snapped = snapTabataRoundCountToPattern(base.pairingPattern, roundCount);
+                          const minutes = tabataBalancedSessionMinutes(snapped);
+                          return {
+                            ...prev,
+                            tabataBalancedOptions: { ...base, roundCount: snapped },
+                            requirements: {
+                              ...prev.requirements,
+                              sessionDurationMinutes: minutes,
+                            },
+                          };
+                        });
+                      }}
+                    />
+                  )}
+
+                  {workoutConfig.hiitMode &&
+                    !workoutConfig.amrapDensityMode &&
+                    !workoutConfig.tabataBalancedMode && (
                     <div className="space-y-4">
                       <h3 className="font-heading text-lg font-bold text-white">
                         Metabolic Architecture
@@ -1319,7 +1440,9 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
                         <label className="mb-2 block text-sm font-medium text-white/80">
                           Session duration (min) *
                         </label>
-                        {workoutConfig.hiitMode && !workoutConfig.amrapDensityMode ? (
+                        {workoutConfig.hiitMode &&
+                        !workoutConfig.amrapDensityMode &&
+                        !workoutConfig.tabataBalancedMode ? (
                           <select
                             value={
                               (workoutConfig.hiitOptions ?? defaultHiitOptions).sessionDurationTier
@@ -1354,6 +1477,15 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
                               {workoutConfig.requirements.sessionDurationMinutes} min
                             </span>{' '}
                             — set by the Density-Based AMRAP tier above (5, 15, or 20 min).
+                          </p>
+                        ) : workoutConfig.tabataBalancedMode ? (
+                          <p className="text-sm text-white/75">
+                            Main block:{' '}
+                            <span className="font-medium text-white">
+                              {workoutConfig.requirements.sessionDurationMinutes} min
+                            </span>{' '}
+                            — from Tabata rounds × 30s (20s work + 10s rest per interval); adjust in
+                            Tabata architecture above.
                           </p>
                         ) : (
                           <input
@@ -1572,12 +1704,16 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
                         </label>
                         <select
                           value={
-                            workoutConfig.hiitMode && !workoutConfig.amrapDensityMode
+                            workoutConfig.hiitMode &&
+                            !workoutConfig.amrapDensityMode &&
+                            !workoutConfig.tabataBalancedMode
                               ? (workoutConfig.hiitOptions ?? defaultHiitOptions).primaryGoal
                               : workoutConfig.goals.primary
                           }
                           onChange={(e) =>
-                            workoutConfig.hiitMode && !workoutConfig.amrapDensityMode
+                            workoutConfig.hiitMode &&
+                            !workoutConfig.amrapDensityMode &&
+                            !workoutConfig.tabataBalancedMode
                               ? setWorkoutConfig((prev) => ({
                                   ...prev,
                                   hiitOptions: {
@@ -1592,7 +1728,9 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
                           }
                           className="focus:border-orange-light/50 focus:ring-orange-light/20 w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-white focus:outline-none focus:ring-2"
                         >
-                          {workoutConfig.hiitMode && !workoutConfig.amrapDensityMode
+                          {workoutConfig.hiitMode &&
+                          !workoutConfig.amrapDensityMode &&
+                          !workoutConfig.tabataBalancedMode
                             ? HIIT_PRIMARY_GOAL_OPTIONS.map((o) => (
                                 <option key={o.value} value={o.value}>
                                   {o.label}
@@ -1683,7 +1821,9 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
                         </p>
                       </div>
                     )}
-                    {workoutConfig.hiitMode && !workoutConfig.amrapDensityMode && (
+                    {workoutConfig.hiitMode &&
+                      !workoutConfig.amrapDensityMode &&
+                      !workoutConfig.tabataBalancedMode && (
                       <p className="text-xs text-white/50">
                         For HIIT, the AI deprioritizes heavy barbell setups and favors Dumbbells,
                         Kettlebells, and Bodyweight for safety under fatigue.
@@ -1693,6 +1833,12 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
                       <p className="text-xs text-white/50">
                         For Density-Based AMRAP, the AI favors practical, repeatable movements
                         (Dumbbells, Kettlebells, Bodyweight) for clean lap counting.
+                      </p>
+                    )}
+                    {workoutConfig.tabataBalancedMode && (
+                      <p className="text-xs text-white/50">
+                        For Balanced Tabata, the AI favors fast-setup movements (dumbbells,
+                        kettlebells, bodyweight) that fit 20s work blocks and clear pairing logic.
                       </p>
                     )}
                   </div>

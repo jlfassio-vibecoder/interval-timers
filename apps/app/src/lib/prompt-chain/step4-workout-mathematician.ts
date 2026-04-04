@@ -12,7 +12,14 @@ import type {
   BlockOptions,
   HiitOptions,
   AmrapDensityOptions,
+  TabataBalancedOptions,
 } from '@/types/ai-workout';
+import {
+  TABATA_BALANCED_REST_SECONDS,
+  TABATA_BALANCED_WORK_SECONDS,
+  tabataBalancedExerciseCount,
+  tabataBalancedRoundsPerExercise,
+} from '@/lib/tabata-balanced-duration';
 import type { ExerciseSelection, ProgressionProtocol } from '@/types/ai-program';
 import type { WorkoutInSet } from '@/types/ai-workout';
 
@@ -38,7 +45,9 @@ export function buildWorkoutMathematicianPrompt(
   hiitMode?: boolean,
   hiitOptions?: HiitOptions,
   amrapDensityMode?: boolean,
-  amrapDensityOptions?: AmrapDensityOptions
+  amrapDensityOptions?: AmrapDensityOptions,
+  tabataBalancedMode?: boolean,
+  tabataBalancedOptions?: TabataBalancedOptions
 ): string {
   const exercisesDescription = exercises
     .map((day) => {
@@ -51,14 +60,15 @@ export function buildWorkoutMathematicianPrompt(
 
   const sessionCount = architect.sessions.length;
 
-  const effectiveBlockOptions: BlockOptions = amrapDensityMode
-    ? {
-        includeWarmup: false,
-        mainBlockCount: 1,
-        includeFinisher: false,
-        includeCooldown: false,
-      }
-    : hiitMode && hiitOptions
+  const effectiveBlockOptions: BlockOptions =
+    amrapDensityMode || tabataBalancedMode
+      ? {
+          includeWarmup: false,
+          mainBlockCount: 1,
+          includeFinisher: false,
+          includeCooldown: false,
+        }
+      : hiitMode && hiitOptions
       ? isAmrapProtocol(hiitOptions)
         ? {
             includeWarmup: false,
@@ -89,8 +99,18 @@ export function buildWorkoutMathematicianPrompt(
   const warmupTask = includeWarmup
     ? '3. warmupBlocks: 2–4 warmup exercises with instructions (order, exerciseName, instructions array)'
     : '3. warmupBlocks: omit or set to empty array []';
+  const tabataRoundsPerEx =
+    tabataBalancedMode && tabataBalancedOptions
+      ? tabataBalancedRoundsPerExercise(
+          tabataBalancedOptions.pairingPattern,
+          tabataBalancedOptions.roundCount
+        )
+      : 0;
+
   const mainTask = amrapDensityMode
     ? `4. exerciseBlocks: exactly 1 block (Density-Based AMRAP circuit). Each exercise: order, exerciseName, exerciseQuery, sets (always 1 per station per lap), reps (fixed count, e.g. "10"), restSeconds (0 — continuous transition to next station), rpe (optional), coachNotes. FORBID workSeconds and any timed-station prescription. FORBID non-zero restSeconds between stations. The athlete repeats the full exercise list for the session clock, completing as many laps as possible. Primary tracking metric: Total Laps Completed.`
+    : tabataBalancedMode && tabataBalancedOptions
+      ? `4. exerciseBlocks: exactly 1 block (Balanced Tabata). Each exercise: order, exerciseName, exerciseQuery, workSeconds (${TABATA_BALANCED_WORK_SECONDS} only), restSeconds (${TABATA_BALANCED_REST_SECONDS} only), rounds (each exercise: exactly ${tabataRoundsPerEx} — equal share of ${tabataBalancedOptions.roundCount} total work intervals), coachNotes. TIMER SCHEMA only. FORBID sets/reps. The athlete performs ${tabataBalancedOptions.roundCount} work intervals of ${TABATA_BALANCED_WORK_SECONDS}s; pairing pattern ${tabataBalancedOptions.pairingPattern} determines how many distinct exercises rotate.`
     : hiitMode && hiitOptions && isAmrapProtocol(hiitOptions)
       ? `4. exerciseBlocks: exactly 1 block (the AMRAP circuit). Each exercise: order, exerciseName, exerciseQuery, workSeconds, restSeconds, rounds, coachNotes. TIMER SCHEMA only — set rounds to 1 for every exercise (one work interval at that station per lap). The athlete repeats the full circuit for the session duration, completing as many laps as possible — do not prescribe fixed multi-round work at a single station (e.g. never use rounds > 1 to mean "three times through this exercise before moving on").`
       : hiitMode
@@ -136,6 +156,31 @@ export function buildWorkoutMathematicianPrompt(
               "reps": "10",
               "restSeconds": 0,
               "coachNotes": "Continuous lap — no timed station blocks"
+            }
+          ]
+        }`
+    : tabataBalancedMode && tabataBalancedOptions
+      ? `        {
+          "order": 1,
+          "name": "Balanced Tabata",
+          "exercises": [
+            {
+              "order": 1,
+              "exerciseName": "Dumbbell Floor Press",
+              "exerciseQuery": "floor press",
+              "workSeconds": 20,
+              "restSeconds": 10,
+              "rounds": ${tabataRoundsPerEx},
+              "coachNotes": "Antagonist pair example — alternate with pull pattern"
+            },
+            {
+              "order": 2,
+              "exerciseName": "Inverted Row",
+              "exerciseQuery": "inverted row",
+              "workSeconds": 20,
+              "restSeconds": 10,
+              "rounds": ${tabataRoundsPerEx},
+              "coachNotes": "Match pairing pattern from Architect (${tabataBalancedOptions.pairingPattern})"
             }
           ]
         }`
@@ -237,6 +282,18 @@ Session tier: ${amrapDensityOptions.sessionDurationTier}. Prescribe a single rep
 `
       : '';
 
+  const tabataBalancedSection =
+    tabataBalancedMode && tabataBalancedOptions
+      ? `
+=== BALANCED TABATA (20s / 10s) ===
+Total work intervals: ${tabataBalancedOptions.roundCount}. Pairing: ${tabataBalancedOptions.pairingPattern}.
+- Each main exercise MUST use workSeconds: ${TABATA_BALANCED_WORK_SECONDS}, restSeconds: ${TABATA_BALANCED_REST_SECONDS}.
+- Each exercise's rounds MUST equal ${tabataRoundsPerEx} (total intervals ${tabataBalancedOptions.roundCount} ÷ ${tabataBalancedExerciseCount(tabataBalancedOptions.pairingPattern)} exercise(s)).
+- Include exactly ${tabataBalancedExerciseCount(tabataBalancedOptions.pairingPattern)} exercise(s) in the single block (order defines rotation).
+- Omit warmupBlocks, finisherBlocks, and cooldownBlocks (use [] for each).
+`
+      : '';
+
   const hiitSection =
     hiitMode && hiitOptions
       ? isAmrapProtocol(hiitOptions)
@@ -257,6 +314,8 @@ Prescribe each main-block exercise with workSeconds, restSeconds, and rounds. Do
 
   const taskInstruction = amrapDensityMode
     ? `Use the Coach's exercise list in order as one repeating Density-Based AMRAP circuit. For each exercise use sets: 1, fixed reps, restSeconds: 0. State Total Laps Completed as the primary metric in workout description. FORBID workSeconds.`
+    : tabataBalancedMode && tabataBalancedOptions
+      ? `Use the Coach's exercise list. Build exactly one Tabata block with ${tabataBalancedExerciseCount(tabataBalancedOptions.pairingPattern)} exercises, each with workSeconds ${TABATA_BALANCED_WORK_SECONDS}, restSeconds ${TABATA_BALANCED_REST_SECONDS}, rounds ${tabataRoundsPerEx}. Describe rotation in workout description. FORBID sets/reps in main block.`
     : hiitMode && hiitOptions && isAmrapProtocol(hiitOptions)
       ? `Use the Coach's exercise list in order as one repeating AMRAP circuit. Prescribe workSeconds, restSeconds, and rounds=1 for each exercise.`
       : hiitMode
@@ -272,7 +331,7 @@ ${protocolInstructions}
 Architect's Rules:
 - Accumulation: ${architect.progression_rules.weeks_1_3}
 - Intensification: ${architect.progression_rules.weeks_4_6}
-${densitySection}${hiitSection}
+${densitySection}${tabataBalancedSection}${hiitSection}
 
 === SESSIONS FROM ARCHITECT ===
 ${architect.sessions.map((s) => `Session ${s.session_number}: ${s.session_name} — ${s.focus} (${s.duration_minutes} min)`).join('\n')}
@@ -363,9 +422,10 @@ function getEffectiveBlockOptionsForValidation(
   blockOptions: BlockOptions,
   amrapDensityMode?: boolean,
   hiitMode?: boolean,
-  hiitOptions?: HiitOptions
+  hiitOptions?: HiitOptions,
+  tabataBalancedMode?: boolean
 ): BlockOptions {
-  if (amrapDensityMode) {
+  if (amrapDensityMode || tabataBalancedMode) {
     return {
       includeWarmup: false,
       mainBlockCount: 1,
@@ -407,7 +467,9 @@ export function validateWorkoutMathematicianOutput(
   blockOptions: BlockOptions = defaultBlockOptions,
   hiitMode?: boolean,
   hiitOptions?: HiitOptions,
-  amrapDensityMode?: boolean
+  amrapDensityMode?: boolean,
+  tabataBalancedMode?: boolean,
+  tabataBalancedOptions?: TabataBalancedOptions
 ): { valid: true; data: WorkoutInSet[] } | { valid: false; error: string } {
   if (typeof data !== 'object' || data === null) {
     return { valid: false, error: 'Workout mathematician output must be an object' };
@@ -418,7 +480,8 @@ export function validateWorkoutMathematicianOutput(
     blockOptions,
     amrapDensityMode,
     hiitMode,
-    hiitOptions
+    hiitOptions,
+    tabataBalancedMode
   );
   const { includeWarmup, mainBlockCount, includeFinisher, includeCooldown } = effectiveOptions;
 
@@ -448,7 +511,11 @@ export function validateWorkoutMathematicianOutput(
       return { valid: false, error: `Workout ${j + 1}: description is required` };
     }
 
-    if (amrapDensityMode || (hiitMode && hiitOptions && isAmrapProtocol(hiitOptions))) {
+    if (
+      amrapDensityMode ||
+      tabataBalancedMode ||
+      (hiitMode && hiitOptions && isAmrapProtocol(hiitOptions))
+    ) {
       const wb = workout.warmupBlocks;
       if (Array.isArray(wb) && wb.length > 0) {
         return {
@@ -544,6 +611,35 @@ export function validateWorkoutMathematicianOutput(
                 error: `Workout ${j + 1}, Block ${k + 1}, Exercise ${e + 1}: restSeconds must be 0 for Density-Based AMRAP`,
               };
             }
+          } else if (tabataBalancedMode && tabataBalancedOptions) {
+            const expectedRounds = tabataBalancedRoundsPerExercise(
+              tabataBalancedOptions.pairingPattern,
+              tabataBalancedOptions.roundCount
+            );
+            if (ex.workSeconds !== TABATA_BALANCED_WORK_SECONDS) {
+              return {
+                valid: false,
+                error: `Workout ${j + 1}, Block ${k + 1}, Exercise ${e + 1}: workSeconds must be ${TABATA_BALANCED_WORK_SECONDS} for Balanced Tabata`,
+              };
+            }
+            if (ex.restSeconds !== TABATA_BALANCED_REST_SECONDS) {
+              return {
+                valid: false,
+                error: `Workout ${j + 1}, Block ${k + 1}, Exercise ${e + 1}: restSeconds must be ${TABATA_BALANCED_REST_SECONDS} for Balanced Tabata`,
+              };
+            }
+            if (typeof ex.rounds !== 'number' || ex.rounds !== expectedRounds) {
+              return {
+                valid: false,
+                error: `Workout ${j + 1}, Block ${k + 1}, Exercise ${e + 1}: rounds must be ${expectedRounds} for Balanced Tabata`,
+              };
+            }
+            if (ex.sets != null || ex.reps != null) {
+              return {
+                valid: false,
+                error: `Workout ${j + 1}, Block ${k + 1}, Exercise ${e + 1}: sets/reps must not be used for Balanced Tabata (timer schema only)`,
+              };
+            }
           } else if (hiitMode) {
             if (typeof ex.workSeconds !== 'number' || ex.workSeconds < 1) {
               return {
@@ -582,6 +678,16 @@ export function validateWorkoutMathematicianOutput(
                 error: `Workout ${j + 1}, Block ${k + 1}, Exercise ${e + 1}: reps is required`,
               };
             }
+          }
+        }
+        if (tabataBalancedMode && tabataBalancedOptions) {
+          const blockExercises = exerciseBlocks[k]?.exercises;
+          const expectedN = tabataBalancedExerciseCount(tabataBalancedOptions.pairingPattern);
+          if (Array.isArray(blockExercises) && blockExercises.length !== expectedN) {
+            return {
+              valid: false,
+              error: `Workout ${j + 1}, Block ${k + 1}: Balanced Tabata requires exactly ${expectedN} exercise(s) for pairing ${tabataBalancedOptions.pairingPattern}`,
+            };
           }
         }
       }
@@ -630,6 +736,29 @@ export function validateWorkoutMathematicianOutput(
             return {
               valid: false,
               error: `Workout ${j + 1}, Block ${k + 1}: restSeconds must be 0 for Density-Based AMRAP`,
+            };
+          }
+        } else if (tabataBalancedMode && tabataBalancedOptions) {
+          const expectedRounds = tabataBalancedRoundsPerExercise(
+            tabataBalancedOptions.pairingPattern,
+            tabataBalancedOptions.roundCount
+          );
+          if ((block.workSeconds as number) !== TABATA_BALANCED_WORK_SECONDS) {
+            return {
+              valid: false,
+              error: `Workout ${j + 1}, Block ${k + 1}: workSeconds must be ${TABATA_BALANCED_WORK_SECONDS} for Balanced Tabata`,
+            };
+          }
+          if ((block.restSeconds as number) !== TABATA_BALANCED_REST_SECONDS) {
+            return {
+              valid: false,
+              error: `Workout ${j + 1}, Block ${k + 1}: restSeconds must be ${TABATA_BALANCED_REST_SECONDS} for Balanced Tabata`,
+            };
+          }
+          if ((block.rounds as number) !== expectedRounds) {
+            return {
+              valid: false,
+              error: `Workout ${j + 1}, Block ${k + 1}: rounds must be ${expectedRounds} for Balanced Tabata`,
             };
           }
         } else if (hiitMode) {
