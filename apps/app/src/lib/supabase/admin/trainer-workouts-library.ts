@@ -250,49 +250,63 @@ export async function forkTrainerLibraryWorkout(
     return { ok: true, id: data.id as string };
   }
 
-  // new_version: same lineage_id, next version_index
-  const { data: maxRow, error: maxErr } = await supabase
-    .from('workouts')
-    .select('version_index')
-    .eq('trainer_id', trainerUserId)
-    .eq('lineage_id', source.lineageId)
-    .order('version_index', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  // new_version: same lineage_id, next version_index. Concurrent forks can race on max version;
+  // unique (lineage_id, version_index) → retry on 23505 (same pattern as roster-invitations).
+  const MAX_NEW_VERSION_RETRIES = 3;
+  for (let attempt = 0; attempt < MAX_NEW_VERSION_RETRIES; attempt += 1) {
+    const { data: maxRow, error: maxErr } = await supabase
+      .from('workouts')
+      .select('version_index')
+      .eq('trainer_id', trainerUserId)
+      .eq('lineage_id', source.lineageId)
+      .order('version_index', { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-  if (maxErr) {
-    if (import.meta.env.DEV) console.warn('[trainer-workouts-library] fork max version', maxErr);
-    return { ok: false, error: 'Failed to resolve version' };
-  }
+    if (maxErr) {
+      if (import.meta.env.DEV) console.warn('[trainer-workouts-library] fork max version', maxErr);
+      return { ok: false, error: 'Failed to resolve version' };
+    }
 
-  const nextVersion = nextVersionAfterMax(
-    typeof (maxRow as { version_index?: number } | null)?.version_index === 'number'
-      ? (maxRow as { version_index: number }).version_index
-      : null,
-    source.versionIndex
-  );
+    const nextVersion = nextVersionAfterMax(
+      typeof (maxRow as { version_index?: number } | null)?.version_index === 'number'
+        ? (maxRow as { version_index: number }).version_index
+        : null,
+      source.versionIndex
+    );
 
-  const insert = {
-    program_id: null as string | null,
-    trainer_id: trainerUserId,
-    title: editorState.title.trim() || source.title,
-    description: editorState.description ?? source.description,
-    duration_minutes: editorState.durationMinutes ?? source.durationMinutes,
-    difficulty_level: editorState.difficultyLevel ?? source.difficultyLevel ?? 'intermediate',
-    blocks: editorState.blocks,
-    status: 'active',
-    source: source.source === 'ai_factory' || source.source === 'manual' ? source.source : 'manual',
-    ai_chain_metadata: source.aiChainMetadata,
-    visibility: source.visibility as 'draft' | 'ready' | 'assigned',
-    lineage_id: source.lineageId,
-    version_index: nextVersion,
-    supersedes_workout_id: sourceWorkoutId,
-  };
+    const insert = {
+      program_id: null as string | null,
+      trainer_id: trainerUserId,
+      title: editorState.title.trim() || source.title,
+      description: editorState.description ?? source.description,
+      duration_minutes: editorState.durationMinutes ?? source.durationMinutes,
+      difficulty_level: editorState.difficultyLevel ?? source.difficultyLevel ?? 'intermediate',
+      blocks: editorState.blocks,
+      status: 'active',
+      source: source.source === 'ai_factory' || source.source === 'manual' ? source.source : 'manual',
+      ai_chain_metadata: source.aiChainMetadata,
+      visibility: source.visibility as 'draft' | 'ready' | 'assigned',
+      lineage_id: source.lineageId,
+      version_index: nextVersion,
+      supersedes_workout_id: sourceWorkoutId,
+    };
 
-  const { data, error } = await supabase.from('workouts').insert(insert).select('id').single();
-  if (error || !data?.id) {
+    const { data, error } = await supabase.from('workouts').insert(insert).select('id').single();
+    if (!error && data?.id) {
+      return { ok: true, id: data.id as string };
+    }
+    if (error?.code === '23505') {
+      if (import.meta.env.DEV) {
+        console.warn('[trainer-workouts-library] fork new_version unique conflict, retry', {
+          attempt,
+          nextVersion,
+        });
+      }
+      continue;
+    }
     if (import.meta.env.DEV) console.warn('[trainer-workouts-library] fork new_version', error);
     return { ok: false, error: 'Failed to save new version' };
   }
-  return { ok: true, id: data.id as string };
+  return { ok: false, error: 'Failed to save new version' };
 }

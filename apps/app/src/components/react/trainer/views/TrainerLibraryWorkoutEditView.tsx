@@ -17,6 +17,18 @@ function normalizeBlocks(raw: unknown): WorkoutBlock[] {
   return raw.filter(Boolean) as WorkoutBlock[];
 }
 
+/** Ensures block/exercise ids for stable React keys and immutable updates (legacy rows may omit ids). */
+function withStableBlockAndExerciseIds(blocks: WorkoutBlock[]): WorkoutBlock[] {
+  return blocks.map((b) => ({
+    ...b,
+    id: b.id ?? crypto.randomUUID(),
+    exercises: b.exercises.map((ex) => ({
+      ...ex,
+      id: ex.id ?? crypto.randomUUID(),
+    })),
+  }));
+}
+
 type TrainerWorkoutApi = {
   id: string;
   title: string;
@@ -79,11 +91,11 @@ const TrainerLibraryWorkoutEditView: React.FC = () => {
         setVisibility(row.visibility);
       }
       const nb = normalizeBlocks(row.blocks);
-      if (nb.length > 0) {
-        setBlocks(nb);
-      } else {
-        setBlocks(workoutInSetToBlocks(undefined));
-      }
+      setBlocks(
+        withStableBlockAndExerciseIds(
+          nb.length > 0 ? nb : workoutInSetToBlocks(undefined)
+        )
+      );
 
       const wid =
         typeof row.workoutSeriesId === 'string' && row.workoutSeriesId.trim()
@@ -203,16 +215,20 @@ const TrainerLibraryWorkoutEditView: React.FC = () => {
     field: string,
     value: string | number
   ) => {
-    const newBlocks = [...blocks];
-    newBlocks[blockIndex].exercises[exerciseIndex] = {
-      ...newBlocks[blockIndex].exercises[exerciseIndex],
-      [field]: value,
-    };
-    setBlocks(newBlocks);
+    setBlocks(
+      blocks.map((b, bi) => {
+        if (bi !== blockIndex) return b;
+        return {
+          ...b,
+          exercises: b.exercises.map((ex, ei) =>
+            ei !== exerciseIndex ? ex : { ...ex, [field]: value }
+          ),
+        };
+      })
+    );
   };
 
   const handleAddExercise = (blockIndex: number) => {
-    const newBlocks = [...blocks];
     const newExercise: BlockExercise = {
       id: crypto.randomUUID(),
       name: 'New Exercise',
@@ -220,14 +236,21 @@ const TrainerLibraryWorkoutEditView: React.FC = () => {
       reps: '10',
       restSeconds: 60,
     };
-    newBlocks[blockIndex].exercises.push(newExercise);
-    setBlocks(newBlocks);
+    setBlocks(
+      blocks.map((b, i) =>
+        i !== blockIndex ? b : { ...b, exercises: [...b.exercises, newExercise] }
+      )
+    );
   };
 
   const handleRemoveExercise = (blockIndex: number, exerciseIndex: number) => {
-    const newBlocks = [...blocks];
-    newBlocks[blockIndex].exercises.splice(exerciseIndex, 1);
-    setBlocks(newBlocks);
+    setBlocks(
+      blocks.map((b, i) =>
+        i !== blockIndex
+          ? b
+          : { ...b, exercises: b.exercises.filter((_, ei) => ei !== exerciseIndex) }
+      )
+    );
   };
 
   if (loading) {
@@ -388,7 +411,7 @@ const TrainerLibraryWorkoutEditView: React.FC = () => {
         </h2>
         {blocks.map((block, blockIndex) => (
           <div
-            key={blockIndex}
+            key={block.id ?? `block-${blockIndex}`}
             className="overflow-hidden rounded-xl border border-white/10 bg-[#1a1a1a]/40"
           >
             <div className="flex items-center justify-between bg-white/5 p-3">
@@ -396,9 +419,10 @@ const TrainerLibraryWorkoutEditView: React.FC = () => {
                 type="text"
                 value={block.name}
                 onChange={(e) => {
-                  const newBlocks = [...blocks];
-                  newBlocks[blockIndex].name = e.target.value;
-                  setBlocks(newBlocks);
+                  const v = e.target.value;
+                  setBlocks(
+                    blocks.map((b, bi) => (bi !== blockIndex ? b : { ...b, name: v }))
+                  );
                 }}
                 className="focus:border-orange-light/50 border-b border-transparent bg-transparent font-bold text-white focus:outline-none"
               />
@@ -408,7 +432,10 @@ const TrainerLibraryWorkoutEditView: React.FC = () => {
             </div>
             <div className="space-y-3 p-4">
               {block.exercises.map((ex, exIndex) => (
-                <div key={exIndex} className="group flex items-start gap-3">
+                <div
+                  key={ex.id ?? `ex-${blockIndex}-${exIndex}`}
+                  className="group flex items-start gap-3"
+                >
                   <div className="flex-1 space-y-2">
                     <div className="flex gap-2">
                       <input
@@ -492,7 +519,13 @@ const TrainerLibraryWorkoutEditView: React.FC = () => {
           onClick={() =>
             setBlocks([
               ...blocks,
-              { type: 'main', name: 'New block', order: blocks.length + 1, exercises: [] },
+              {
+                id: crypto.randomUUID(),
+                type: 'main',
+                name: 'New block',
+                order: blocks.length + 1,
+                exercises: [],
+              },
             ])
           }
           className="flex w-full items-center justify-center gap-2 rounded-lg bg-white/5 py-3 font-bold uppercase text-white/40 transition-colors hover:bg-white/10 hover:text-white"
