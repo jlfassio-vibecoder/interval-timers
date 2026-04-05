@@ -57,6 +57,12 @@ export function useSocialAmrapEmbedded(
     skipAgora: true,
     /** Room chat is provided by Trainer Live; keep standalone AMRAP layout unchanged. */
     hideMessageBoard: rest.hideMessageBoard ?? true,
+    /** Who's Here is shown in the Trainer Live Session drawer, not above the leaderboard. */
+    whosHereInSessionDrawer: rest.whosHereInSessionDrawer ?? true,
+    /** Host actions go to Trainer Live nav bar, not the exercise column. */
+    trainerLiveHostNavActions: rest.trainerLiveHostNavActions ?? true,
+    /** AMRAP leaderboard below chat in Trainer Live chat drawer. */
+    trainerLiveChatDrawerLeaderboard: rest.trainerLiveChatDrawerLeaderboard ?? true,
   });
 }
 

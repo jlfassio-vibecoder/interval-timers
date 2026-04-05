@@ -2,7 +2,7 @@
  * Social AMRAP adapter hook. Returns AmrapSessionEngine for use with AmrapSessionShell.
  * Composes useAmrapSession, useSessionState, useAgoraChannel.
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { trackEvent } from '@interval-timers/analytics';
@@ -40,6 +40,7 @@ import type {
 import SessionMessageBoard from '@/components/SessionMessageBoard';
 import SessionMessageBoardDrawer from '@/components/SessionMessageBoardDrawer';
 import VideoTile from '@/components/VideoTile';
+import AmrapLeaderboardSection from '@/components/amrap-session/AmrapLeaderboardSection';
 import { useSocialAmrapEffects } from '@/hooks/useSocialAmrapEffects';
 
 const COUNTDOWN_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
@@ -66,6 +67,20 @@ export interface UseSocialAmrapOptions {
   messageBoardDrawerDefaultOpen?: boolean;
   /** When true, omit the AMRAP message board from the shell (e.g. Trainer Live room chat). */
   hideMessageBoard?: boolean;
+  /**
+   * When true, render Who's Here in `slots.sessionDrawer` instead of `slots.beforeLeaderboard`
+   * (Trainer Live Session rail consumes `sessionDrawer`).
+   */
+  whosHereInSessionDrawer?: boolean;
+  /**
+   * When true, put host exercise actions (New Workout, Daily Warmup, etc.) in `slots.hostNavActions`
+   * instead of `slots.exerciseHeader` (Trainer Live main nav consumes `hostNavActions`).
+   */
+  trainerLiveHostNavActions?: boolean;
+  /**
+   * When true, expose `slots.chatDrawerLeaderboard` for Trainer Live chat drawer (embed only).
+   */
+  trainerLiveChatDrawerLeaderboard?: boolean;
 }
 
 export function useSocialAmrap(
@@ -208,6 +223,8 @@ export function useSocialAmrap(
   const [joinLoading, setJoinLoading] = useState(false);
   const [whosHereCollapsed, setWhosHereCollapsed] = useState(false);
   const [copyToast, setCopyToast] = useState<'success' | 'error' | null>(null);
+  /** Same reference whenever we need “no rounds” so downstream useMemos stay stable. */
+  const emptyRoundsForDisplayRef = useRef<typeof rounds>([]);
   const copyToastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [copyResultsToast, setCopyResultsToast] = useState<'success' | 'error' | null>(null);
   const copyResultsToastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -360,6 +377,53 @@ export function useSocialAmrap(
     [sessionId, hostToken, isHost, timerState, startSetup]
   );
 
+  /** In-place list update only (no startSetup / modal). Not used in `finished`: update_session_workout bumps segment_index when state is finished. */
+  const saveWorkoutListInPlace = useCallback(
+    async (nextList: string[]): Promise<{ ok: boolean; error?: string }> => {
+      if (!sessionId || !hostToken || !isHost) {
+        return { ok: false, error: 'Only the host can update the workout.' };
+      }
+      if (
+        timerState !== 'waiting' &&
+        timerState !== 'setup' &&
+        timerState !== 'work'
+      ) {
+        return {
+          ok: false,
+          error: 'Workout can only be edited before the round ends.',
+        };
+      }
+      if (timerState === 'work' && session?.timer_segment === 'free_workout') {
+        return { ok: false, error: 'Not available during this segment.' };
+      }
+      const dm = session?.duration_minutes;
+      if (dm == null || !Number.isInteger(dm) || dm < 1 || dm > 180) {
+        return { ok: false, error: 'Invalid session duration.' };
+      }
+      if (!Array.isArray(nextList) || nextList.length < 1) {
+        return { ok: false, error: 'Add at least one exercise.' };
+      }
+      const trimmed = nextList.map((s) => (typeof s === 'string' ? s.trim() : ''));
+      if (!trimmed.every((s) => s.length > 0)) {
+        return { ok: false, error: 'Each exercise must be non-empty.' };
+      }
+      const { data, error: rpcError } = await supabase.rpc('update_session_workout', {
+        p_session_id: sessionId,
+        p_host_token: hostToken,
+        p_workout_list: trimmed,
+        p_duration_minutes: dm,
+      });
+      if (rpcError) {
+        return { ok: false, error: rpcError.message };
+      }
+      if (data !== 1) {
+        return { ok: false, error: 'Update failed.' };
+      }
+      return { ok: true };
+    },
+    [sessionId, hostToken, isHost, timerState, session?.duration_minutes, session?.timer_segment]
+  );
+
   const logRound = useCallback(async () => {
     if (!sessionId || !participantId || timerState !== 'work') return;
     setLogRoundError(null);
@@ -471,8 +535,13 @@ export function useSocialAmrap(
   const recapDismissed = options?.recapDismissed ?? false;
   // When recap dismissed, clear round display for next workout segment
   const roundsForDisplay =
-    recapDismissed && timerState === 'finished' ? [] : rounds;
-  const leaderboard = buildLeaderboard(participants, roundsForDisplay);
+    recapDismissed && timerState === 'finished'
+      ? emptyRoundsForDisplayRef.current
+      : rounds;
+  const leaderboard = useMemo(
+    () => buildLeaderboard(participants, roundsForDisplay),
+    [participants, roundsForDisplay]
+  );
   const hostParticipant = participants.find((p) => p.role === 'host');
 
   const timerStyle = getTimerStyles(timerState);
@@ -547,28 +616,39 @@ export function useSocialAmrap(
     waitingScheduleDisplay?.value ??
     formatTime(timeLeft);
 
-  const participantsEngine: AmrapParticipantEngine[] = leaderboard.map(
-    (row) => {
-      const isSelf = row.participantId === participantId;
-      const isHostRow = row.participantId === hostParticipant?.id;
-      const videoUser = remoteUsers.find(
-        (u) => String(u.uid) === row.participantId
-      );
-      const videoTrack = isHostRow
-        ? undefined
-        : isSelf
-          ? localVideoTrack ?? undefined
-          : videoUser?.videoTrack;
-      return {
-        id: row.participantId,
-        name: row.nickname,
-        rounds: row.totalRounds,
-        splits: row.splits,
-        videoTrack: videoTrack ?? null,
-        isMe: isSelf,
-        isHost: isHostRow,
-      };
-    }
+  const hostCanEditWorkoutList =
+    !!isHost &&
+    !!hostToken &&
+    !!effectiveSessionId &&
+    (timerState === 'waiting' ||
+      timerState === 'setup' ||
+      timerState === 'work') &&
+    !isFreeWorkoutWork;
+
+  const participantsEngine: AmrapParticipantEngine[] = useMemo(
+    () =>
+      leaderboard.map((row) => {
+        const isSelf = row.participantId === participantId;
+        const isHostRow = row.participantId === hostParticipant?.id;
+        const videoUser = remoteUsers.find(
+          (u) => String(u.uid) === row.participantId
+        );
+        const videoTrack = isHostRow
+          ? undefined
+          : isSelf
+            ? localVideoTrack ?? undefined
+            : videoUser?.videoTrack;
+        return {
+          id: row.participantId,
+          name: row.nickname,
+          rounds: row.totalRounds,
+          splits: row.splits,
+          videoTrack: videoTrack ?? null,
+          isMe: isSelf,
+          isHost: isHostRow,
+        };
+      }),
+    [leaderboard, participantId, hostParticipant?.id, remoteUsers, localVideoTrack]
   );
 
   const engine: AmrapSessionEngine = {
@@ -620,11 +700,15 @@ export function useSocialAmrap(
     recapDismissed: recapDismissed && timerState === 'finished',
     isFreeWorkoutSegment: isFreeWorkoutWork,
 
+    hostCanEditWorkoutList,
+    onSaveWorkoutList: hostCanEditWorkoutList ? saveWorkoutListInPlace : undefined,
+
     loading: loading,
     error: error ?? null,
   };
 
-  const beforeLeaderboardSlot = (
+  const beforeLeaderboardSlot = useMemo(
+    () => (
     <section className="rounded-2xl border border-white/10 bg-black/30 overflow-hidden">
       <button
         type="button"
@@ -703,6 +787,18 @@ export function useSocialAmrap(
         </div>
       )}
     </section>
+    ),
+    [
+      participants,
+      whosHereCollapsed,
+      participantId,
+      isHost,
+      joinNickname,
+      joinLoading,
+      joinError,
+      animatingIds,
+      handleJoinSession,
+    ]
   );
 
   const messageBoard =
@@ -842,40 +938,49 @@ export function useSocialAmrap(
         })()
       : null;
 
-  const exerciseHeaderSlot =
-    isHost &&
-    (timerState === 'waiting' ||
-      timerState === 'setup' ||
-      timerState === 'work' ||
-      timerState === 'finished')
-      ? (
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={handleOpenNewWorkoutModal}
-              className="rounded-xl border border-orange-500/50 bg-orange-600/20 px-4 py-2 text-sm font-bold text-orange-300 transition-colors hover:border-orange-500 hover:bg-orange-600/30"
-            >
-              New Workout
-            </button>
-            <button
-              type="button"
-              onClick={handleOpenWarmupOverlay}
-              className="rounded-xl border border-orange-500/50 bg-orange-600/20 px-4 py-2 text-sm font-bold text-orange-300 transition-colors hover:border-orange-500 hover:bg-orange-600/30"
-            >
-              Daily Warmup
-            </button>
-            {timerState === 'finished' && recapDismissed && (
+  const exerciseHeaderSlot = useMemo(
+    () =>
+      isHost &&
+      (timerState === 'waiting' ||
+        timerState === 'setup' ||
+        timerState === 'work' ||
+        timerState === 'finished')
+        ? (
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
-                onClick={() => setShowFreeWorkoutModal(true)}
-                className="rounded-xl border border-emerald-500/50 bg-emerald-600/20 px-4 py-2 text-sm font-bold text-emerald-200 transition-colors hover:border-emerald-500 hover:bg-emerald-600/30"
+                onClick={handleOpenNewWorkoutModal}
+                className="rounded-xl border border-orange-500/50 bg-orange-600/20 px-4 py-2 text-sm font-bold text-orange-300 transition-colors hover:border-orange-500 hover:bg-orange-600/30"
               >
-                Free workout timer
+                New Workout
               </button>
-            )}
-          </div>
-        )
-      : null;
+              <button
+                type="button"
+                onClick={handleOpenWarmupOverlay}
+                className="rounded-xl border border-orange-500/50 bg-orange-600/20 px-4 py-2 text-sm font-bold text-orange-300 transition-colors hover:border-orange-500 hover:bg-orange-600/30"
+              >
+                Daily Warmup
+              </button>
+              {timerState === 'finished' && recapDismissed && (
+                <button
+                  type="button"
+                  onClick={() => setShowFreeWorkoutModal(true)}
+                  className="rounded-xl border border-emerald-500/50 bg-emerald-600/20 px-4 py-2 text-sm font-bold text-emerald-200 transition-colors hover:border-emerald-500 hover:bg-emerald-600/30"
+                >
+                  Free workout timer
+                </button>
+              )}
+            </div>
+          )
+        : null,
+    [
+      isHost,
+      timerState,
+      recapDismissed,
+      handleOpenNewWorkoutModal,
+      handleOpenWarmupOverlay,
+    ]
+  );
 
   const errorActionSlot = (
     <Link
@@ -886,13 +991,35 @@ export function useSocialAmrap(
     </Link>
   );
 
+  const chatDrawerLeaderboardSlot = useMemo(
+    () =>
+      options?.trainerLiveChatDrawerLeaderboard === true ? (
+        <AmrapLeaderboardSection
+          participants={participantsEngine}
+          variant="chatDrawer"
+        />
+      ) : null,
+    [options?.trainerLiveChatDrawerLeaderboard, participantsEngine]
+  );
+
   const engineWithSlots: AmrapSessionEngine = {
     ...engine,
     slots: {
-      beforeLeaderboard: beforeLeaderboardSlot,
+      beforeLeaderboard: options?.whosHereInSessionDrawer
+        ? undefined
+        : beforeLeaderboardSlot,
+      sessionDrawer: options?.whosHereInSessionDrawer
+        ? beforeLeaderboardSlot
+        : undefined,
       afterTimer: hostLivestreamSlot ?? undefined,
       rightColumn: rightColumnSlot ?? undefined,
-      exerciseHeader: exerciseHeaderSlot ?? undefined,
+      exerciseHeader: options?.trainerLiveHostNavActions
+        ? undefined
+        : exerciseHeaderSlot ?? undefined,
+      hostNavActions: options?.trainerLiveHostNavActions
+        ? exerciseHeaderSlot ?? undefined
+        : undefined,
+      chatDrawerLeaderboard: chatDrawerLeaderboardSlot ?? undefined,
       errorAction: errorActionSlot,
       finishedActions: finishedActionsSlot ?? undefined,
     },

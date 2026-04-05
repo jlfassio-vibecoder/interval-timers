@@ -52,10 +52,16 @@ export interface AmrapSessionEngine {
   /** Optional slots for mode-specific UI (Who's Here, Message Board, etc.) */
   slots?: {
     beforeLeaderboard?: ReactNode;
+    /** Trainer Live embed: Who's Here / join UI in the left Session drawer (not leaderboard column). */
+    sessionDrawer?: ReactNode;
     afterTimer?: ReactNode;
     rightColumn?: ReactNode;
     /** Content for exercise section header (e.g. New Workout button) */
     exerciseHeader?: ReactNode;
+    /** Trainer Live embed: host actions (New Workout, Daily Warmup) rendered in main nav instead of exercise header */
+    hostNavActions?: ReactNode;
+    /** Trainer Live: AMRAP leaderboard panel for the chat drawer (below room chat). */
+    chatDrawerLeaderboard?: ReactNode;
     /** Shown below error message when engine.error is set */
     errorAction?: ReactNode;
     /** Actions when timer is finished (e.g. Done, View in History, Copy results) */
@@ -76,6 +82,13 @@ export interface AmrapSessionEngine {
 
   /** Free-workout segment: hide LOG ROUND and show host-led copy instead of exercise list. */
   isFreeWorkoutSegment?: boolean;
+
+  /** Host can edit workout lines in-place (social/live; not during finished — see onSaveWorkoutList). */
+  hostCanEditWorkoutList?: boolean;
+  /** Persist workout list without New Workout modal side effects; only when hostCanEditWorkoutList. */
+  onSaveWorkoutList?: (
+    workoutList: string[]
+  ) => Promise<{ ok: boolean; error?: string }>;
 
   /** Loading/error states */
   loading?: boolean;

@@ -1,4 +1,6 @@
 import type { ReactNode } from 'react';
+import { useTrainerLiveAmrapChatDrawer } from '@/contexts/TrainerLiveAmrapChatDrawerContext';
+import { useTrainerLiveTimerBackgroundOptional } from '@/contexts/TrainerLiveTimerBackgroundContext';
 import type { TrainerLiveShell } from '@/lib/trainer-live/shells';
 import type { TrainerLiveIntervalWrapperKind } from '@/lib/trainer-live/wrappers/types';
 import { getTrainerLiveIntervalWrapper } from '@/lib/trainer-live/wrappers/registry';
@@ -39,6 +41,18 @@ export default function TrainerLiveSessionRoom({
   activityTimer?: ReactNode;
   className?: string;
 }) {
+  const { chatDrawerLeaderboard } = useTrainerLiveAmrapChatDrawer();
+  const timerBg = useTrainerLiveTimerBackgroundOptional();
+  const excludeUidForTiles =
+    role === 'trainer' &&
+    shell === 'countdown_timer' &&
+    intervalWrapperKind === 'amrap' &&
+    timerBg
+      ? timerBg.mode === 'self'
+        ? participantId
+        : (timerBg.leaderTrainerLiveParticipantId ?? participantId)
+      : null;
+
   const video = (
     <TrainerLiveVideoShell
       sessionId={sessionId}
@@ -47,6 +61,7 @@ export default function TrainerLiveSessionRoom({
       localLabel={localLabel}
       onLeaveRoom={onLeaveRoom}
       compact={shell === 'countdown_timer'}
+      excludeUidForTiles={excludeUidForTiles}
     />
   );
 
@@ -57,6 +72,9 @@ export default function TrainerLiveSessionRoom({
       </TrainerLiveActivityDrawerRail>
     ) : null;
 
+  const showChatDrawerLeaderboard =
+    intervalWrapperKind === 'amrap' && chatDrawerLeaderboard != null;
+
   const chatRail = (
     <TrainerLiveCollapsibleSideRail
       sessionId={sessionId}
@@ -66,11 +84,32 @@ export default function TrainerLiveSessionRoom({
       defaultOpen={false}
       data-testid="trainer-live-chat-rail"
     >
-      <TrainerLiveSessionMessageBoard
-        sessionId={sessionId}
-        participantId={participantId}
-        className="border-0 bg-transparent p-0"
-      />
+      {showChatDrawerLeaderboard ? (
+        <div className="flex h-full min-h-0 flex-col gap-2 overflow-hidden">
+          <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,5fr)_minmax(0,6fr)] gap-2 overflow-hidden">
+            <div className="flex min-h-0 min-w-0 flex-col overflow-hidden">
+              <TrainerLiveSessionMessageBoard
+                sessionId={sessionId}
+                participantId={participantId}
+                compactDrawerLayout
+                className="min-h-0 flex-1 border-0 bg-transparent p-0"
+              />
+            </div>
+            <div
+              className="min-h-0 overflow-y-auto overflow-x-hidden"
+              data-testid="trainer-live-chat-drawer-leaderboard"
+            >
+              {chatDrawerLeaderboard}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <TrainerLiveSessionMessageBoard
+          sessionId={sessionId}
+          participantId={participantId}
+          className="border-0 bg-transparent p-0"
+        />
+      )}
     </TrainerLiveCollapsibleSideRail>
   );
 

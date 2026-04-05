@@ -1,7 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../../../contexts/AppContext';
-import { adminPaths } from '@/lib/admin/config';
 import type { AppUser } from '@/contexts/AppContext';
 
 interface TrainerDashboardProps {
@@ -30,38 +29,29 @@ const TrainerDashboard: React.FC<TrainerDashboardProps> = ({ profile: profilePro
           <button
             type="button"
             onClick={() => navigate('/roster')}
-            className="rounded-lg bg-white/10 px-4 py-2 text-sm font-bold uppercase transition-colors hover:bg-orange-light hover:text-black"
+            className="rounded-lg bg-white/10 px-4 py-2 text-sm font-bold uppercase text-orange-light transition-colors hover:bg-orange-light hover:text-black"
           >
             View Clients
           </button>
         </div>
 
         <div className="hover:border-orange-light/50 group relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-8 transition-colors">
-          <h2 className="mb-2 text-2xl font-bold">Programming</h2>
+          <h2 className="mb-2 text-2xl font-bold">Workout Factory</h2>
           <p className="mb-6 text-white/60">Design workouts and training blocks.</p>
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
               onClick={() => navigate('/workouts')}
-              className="rounded-lg bg-white/10 px-4 py-2 text-sm font-bold uppercase transition-colors hover:bg-orange-light hover:text-black"
+              className="rounded-lg bg-white/10 px-4 py-2 text-sm font-bold uppercase text-orange-light transition-colors hover:bg-orange-light hover:text-black"
             >
-              Client Workouts
+              Workout
             </button>
             <button
               type="button"
               onClick={() => navigate('/workouts/factory')}
-              className="bg-orange-light/20 rounded-lg px-4 py-2 text-sm font-bold uppercase text-orange-light transition-colors hover:bg-orange-light hover:text-black"
+              className="rounded-lg bg-white/10 px-4 py-2 text-sm font-bold uppercase text-orange-light transition-colors hover:bg-orange-light hover:text-black"
             >
-              Workout Factory
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                window.location.href = adminPaths.root;
-              }}
-              className="rounded-lg bg-white/10 px-4 py-2 text-sm font-bold uppercase transition-colors hover:bg-orange-light hover:text-black"
-            >
-              Open Builder
+              Generate
             </button>
           </div>
         </div>
@@ -72,7 +62,7 @@ const TrainerDashboard: React.FC<TrainerDashboardProps> = ({ profile: profilePro
           <button
             type="button"
             onClick={() => navigate('/intel')}
-            className="rounded-lg bg-white/10 px-4 py-2 text-sm font-bold uppercase transition-colors hover:bg-orange-light hover:text-black"
+            className="rounded-lg bg-white/10 px-4 py-2 text-sm font-bold uppercase text-orange-light transition-colors hover:bg-orange-light hover:text-black"
           >
             View Analytics
           </button>

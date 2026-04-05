@@ -1,13 +1,16 @@
 /**
- * Unified AMRAP session shell. Renders leaderboard, timer, exercises (default) or timer, leaderboard, exercises (Trainer Live embed).
+ * Unified AMRAP session shell. Renders leaderboard, timer, exercises (default) or timer, exercises,
+ * and optionally leaderboard (Trainer Live embed — when `slots.chatDrawerLeaderboard` is set, the
+ * leaderboard is only in the chat drawer, not below exercises).
  * Used by both Solo (useSoloAmrap) and Social (useSocialAmrap) pages.
  */
+import type { ReactNode } from 'react';
 import type { AmrapSessionEngine } from '@/types/amrap-session';
 import AmrapTimerDisplay from './AmrapTimerDisplay';
 import AmrapWorkPhaseControls from './AmrapWorkPhaseControls';
-import AmrapExerciseList from './AmrapExerciseList';
+import AmrapExerciseListEditor from './AmrapExerciseListEditor';
+import AmrapLeaderboardSection from './AmrapLeaderboardSection';
 import FinishCelebration from './FinishCelebration';
-import LeaderboardRow from '@/components/LeaderboardRow';
 
 export type AmrapSessionShellLayout = 'default' | 'trainerLiveEmbed';
 
@@ -18,11 +21,16 @@ export interface AmrapSessionShellProps {
    * (avoids the 3-column + max-width layout meant for full-page AMRAP).
    */
   shellLayout?: AmrapSessionShellLayout;
+  /**
+   * Trainer Live host: Me/Leader timer-background toggle, placed before the timer subtitle.
+   */
+  embedTitleBarAccessoryBeforeSub?: ReactNode;
 }
 
 export default function AmrapSessionShell({
   engine,
   shellLayout = 'default',
+  embedTitleBarAccessoryBeforeSub,
 }: AmrapSessionShellProps) {
   const {
     timerPhase,
@@ -128,36 +136,17 @@ export default function AmrapSessionShell({
     >
       {slots?.beforeLeaderboard}
 
-      <section className="rounded-2xl border border-white/10 bg-black/30 p-4 lg:max-h-[56rem] lg:overflow-y-auto">
-        <h3 className="mb-2 text-lg font-bold text-white sm:text-xl">
-          Leaderboard
-        </h3>
-        <p className="mb-4 text-sm text-white/80">
-          Round counts and split times once the workout has started.
-        </p>
-        {participants.length === 0 ? (
-          <p className="text-sm text-white/50">No rounds logged yet.</p>
-        ) : (
-          <ul className="space-y-4">
-            {participants.map((p, index) => (
-              <li key={p.id}>
-                <LeaderboardRow
-                  nickname={p.name}
-                  totalRounds={p.rounds}
-                  splits={p.splits}
-                  rank={index + 1}
-                  videoTrack={p.videoTrack ?? undefined}
-                />
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      <AmrapLeaderboardSection
+        participants={participants}
+        variant={embed ? 'embed' : 'default'}
+      />
     </div>
   );
 
   const timerColumn = (
-    <div className={embed ? 'min-w-0 w-full' : 'min-w-0 flex-1 lg:max-w-2xl'}
+    <div
+      className={embed ? 'min-w-0 w-full' : 'min-w-0 flex-1 lg:max-w-2xl'}
+      data-tl-embed-timer={embed ? true : undefined}
     >
       <AmrapTimerDisplay
         phase={timerPhase}
@@ -169,17 +158,16 @@ export default function AmrapSessionShell({
         showStartButton={showStartButton}
         onStart={onStartSetup}
         stackStartWithClockAside={embed && showStartButton}
-        clockAsideLeft={
+        embedHostAndTimerInLeftColumn={
+          embed && !freeWorkoutWorkEmbed && (timerPhase === 'setup' || timerPhase === 'work')
+        }
+        titleBarAccessoryBeforeSub={embed ? embedTitleBarAccessoryBeforeSub : undefined}
+        beforeMainClock={
           embed &&
           !freeWorkoutWorkEmbed &&
-          (timerPhase === 'setup' || timerPhase === 'work') ? (
-            <div className="flex w-full flex-col gap-3 text-left">
-              {hostEmbedded ? (
-                <div className="flex flex-col gap-2">
-                  {hostEmbedded}
-                </div>
-              ) : null}
-            </div>
+          (timerPhase === 'setup' || timerPhase === 'work') &&
+          hostEmbedded ? (
+            <div className="flex w-full flex-col gap-2 text-left">{hostEmbedded}</div>
           ) : undefined
         }
         clockAsideRight={
@@ -199,22 +187,6 @@ export default function AmrapSessionShell({
           ) : undefined
         }
       >
-        {embed &&
-          !freeWorkoutWorkEmbed &&
-          timerPhase === 'work' && (
-            <div className="mt-8 flex w-full flex-col items-center">
-              {logRoundError && (
-                <p className="mb-2 text-[1.3125rem] text-red-400">{logRoundError}</p>
-              )}
-              <button
-                type="button"
-                onClick={onLogRound}
-                className="w-full max-w-[14rem] rounded-2xl border-2 border-orange-400 bg-orange-600 px-8 py-6 text-xl font-bold text-white shadow-[0_0_40px_rgba(234,88,12,0.4)] transition-all hover:bg-orange-500 active:scale-95 sm:text-2xl whitespace-nowrap"
-              >
-                LOG ROUND
-              </button>
-            </div>
-          )}
         {workPhaseInTimerChildren && !embed && (
           <AmrapWorkPhaseControls
             roundsCount={myRounds}
@@ -271,20 +243,23 @@ export default function AmrapSessionShell({
             timerPhase === 'work' ||
             timerPhase === 'finished'))) && (
         <div>
-          <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-            <h3 className="text-xl font-bold uppercase tracking-widest text-white/90 sm:text-2xl">
-              {engine.isFreeWorkoutSegment && timerPhase === 'work'
-                ? 'Free workout'
-                : 'This round'}
-            </h3>
-            {slots?.exerciseHeader}
-          </div>
+          {!embed && slots?.exerciseHeader ? (
+            <div className="mb-6 flex flex-wrap items-center justify-end gap-3">
+              {slots.exerciseHeader}
+            </div>
+          ) : null}
           {engine.isFreeWorkoutSegment && timerPhase === 'work' ? (
             <p className="text-sm text-white/70">
               No prescribed list for this segment — the host demonstrates movements for the group.
             </p>
           ) : (
-            <AmrapExerciseList workoutList={workoutList} fullWidthGrid={!embed} />
+            <AmrapExerciseListEditor
+              workoutList={workoutList}
+              fullWidthGrid
+              maxTwoColumns={embed}
+              hostCanEditWorkoutList={engine.hostCanEditWorkoutList}
+              onSaveWorkoutList={engine.onSaveWorkoutList}
+            />
           )}
         </div>
       )}
@@ -303,10 +278,8 @@ export default function AmrapSessionShell({
       {embed ? (
         <>
           {timerColumn}
-          <div className="grid w-full grid-cols-1 items-start gap-6 md:grid-cols-2">
-            {leaderboardColumn}
-            {exercisesColumn}
-          </div>
+          {exercisesColumn}
+          {!slots?.chatDrawerLeaderboard ? leaderboardColumn : null}
         </>
       ) : (
         <>

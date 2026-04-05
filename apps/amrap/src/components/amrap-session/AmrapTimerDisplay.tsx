@@ -2,7 +2,7 @@
  * Shared AMRAP timer display. Renders phase label, title, subtext, and time value.
  * Used by both Solo and Social session views.
  */
-import React from 'react';
+import React, { type ReactNode } from 'react';
 
 export type AmrapTimerPhase = 'waiting' | 'setup' | 'work' | 'finished';
 
@@ -22,12 +22,27 @@ export interface AmrapTimerDisplayProps {
   children?: React.ReactNode;
   /**
    * When set (or with `stackStartWithClockAside`), renders a row: left column | label+clock | right column.
-   * Used for Trainer Live embed so actions sit left of the clock digits.
+   * Used for layouts that place optional content beside the main clock.
    */
   clockAsideLeft?: React.ReactNode;
   clockAsideRight?: React.ReactNode;
   /** When true with `showStartButton`, renders Start in the left column above `clockAsideLeft`. */
   stackStartWithClockAside?: boolean;
+  /**
+   * Host controls (e.g. pause / finish) shown above the countdown in the **left** column when
+   * `embedHostAndTimerInLeftColumn` is true. Ignored otherwise.
+   */
+  beforeMainClock?: React.ReactNode;
+  /**
+   * Trainer Live embed (setup/work): left column = `beforeMainClock` then countdown;
+   * center = `children` (e.g. LOG ROUND); right = `clockAsideRight` (rounds). Waiting/Start uses the default aside row.
+   */
+  embedHostAndTimerInLeftColumn?: boolean;
+  /**
+   * Rendered before `displaySub` in the title row (e.g. Trainer Live Me/Leader video background toggle).
+   * Stacks above the subtitle on narrow viewports; sits to its left in a row when wider.
+   */
+  titleBarAccessoryBeforeSub?: ReactNode;
 }
 
 function getTimerBg(phase: AmrapTimerPhase): string {
@@ -57,6 +72,9 @@ export default function AmrapTimerDisplay({
   clockAsideLeft,
   clockAsideRight,
   stackStartWithClockAside = false,
+  beforeMainClock,
+  embedHostAndTimerInLeftColumn = false,
+  titleBarAccessoryBeforeSub,
 }: AmrapTimerDisplayProps) {
   const bg = containerClassName ?? getTimerBg(phase);
   const isTimeValue = /^\d{1,2}:\d{2}$/.test(displayValue);
@@ -116,44 +134,112 @@ export default function AmrapTimerDisplay({
     </div>
   );
 
+  const embedLeftColumnStack = (
+    <>
+      {beforeMainClock}
+      {labelAndClock}
+    </>
+  );
+
+  const embedSplitLayout = embedHostAndTimerInLeftColumn && useClockAsideRow;
+
+  const subTextClass = `text-sm font-medium opacity-90 ${
+    embedSplitLayout ? 'drop-shadow-[0_2px_8px_rgba(0,0,0,0.85)]' : ''
+  }`;
+
+  const titleBarTrailing =
+    titleBarAccessoryBeforeSub != null ? (
+      <div className="flex w-full min-w-0 flex-col items-end gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-baseline sm:justify-end sm:gap-3">
+        {titleBarAccessoryBeforeSub}
+        {displaySub ? (
+          <p className={`text-right ${subTextClass}`}>{displaySub}</p>
+        ) : null}
+      </div>
+    ) : displaySub ? (
+      <p className={`text-right ${subTextClass}`}>{displaySub}</p>
+    ) : (
+      <span />
+    );
+
+  const titleRowClassName =
+    titleBarAccessoryBeforeSub != null
+      ? `flex flex-col gap-3 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4 ${
+          embedSplitLayout ? 'mb-4 px-0.5' : ''
+        }`
+      : `flex items-baseline justify-between gap-4 ${
+          embedSplitLayout ? 'mb-4 px-0.5' : ''
+        }`;
+
   return (
     <div
-      className={`rounded-2xl border border-white/10 ${bg} p-6 transition-colors duration-300`}
+      className={
+        embedSplitLayout
+          ? 'w-full bg-transparent p-0'
+          : `rounded-2xl border border-white/10 ${bg} p-6 transition-colors duration-300`
+      }
     >
-      <div className="flex items-baseline justify-between gap-4">
-        <h2 className="font-display text-2xl font-bold">{displayTitle}</h2>
-        {displaySub ? (
-          <p className="text-right text-sm font-medium opacity-90">{displaySub}</p>
-        ) : (
-          <span />
-        )}
+      <div className={titleRowClassName}>
+        <h2
+          className={`min-w-0 font-display text-2xl font-bold ${
+            embedSplitLayout ? 'drop-shadow-[0_2px_8px_rgba(0,0,0,0.85)]' : ''
+          } ${titleBarAccessoryBeforeSub != null ? 'sm:max-w-[min(100%,28rem)] sm:pr-2' : ''}`}
+        >
+          {displayTitle}
+        </h2>
+        {titleBarTrailing}
       </div>
 
       {useClockAsideRow ? (
-        <div className="mt-8 grid w-full grid-cols-4 items-start gap-4 sm:gap-6">
-          <div className="col-span-1 flex min-h-0 min-w-0 flex-col items-center justify-start gap-3 text-left">
-            {stackStartWithClockAside && showStartButton && onStart && (
-              <button
-                type="button"
-                onClick={onStart}
-                className="w-full max-w-[14rem] rounded-2xl bg-orange-600 px-6 py-5 text-lg font-bold text-white shadow-[0_0_40px_rgba(234,88,12,0.4)] hover:bg-orange-500 sm:py-6 sm:text-xl"
-              >
-                Start
-              </button>
-            )}
-            {clockAsideLeft}
-          </div>
-          <div className="col-span-2 min-w-0 flex flex-col justify-start self-stretch">
-            {mainClockArea}
-          </div>
-          {clockAsideRight != null ? (
-            <div className="col-span-1 flex h-full min-w-0 flex-col items-center justify-start">
-              {clockAsideRight}
+        embedHostAndTimerInLeftColumn ? (
+          <div className="mt-2 grid w-full grid-cols-4 items-stretch gap-4 sm:gap-6">
+            <div className="col-span-1 flex min-h-0 min-w-0 flex-col items-stretch justify-start text-left">
+              <div className="flex min-h-0 w-full flex-col gap-3 rounded-2xl border border-white/10 bg-zinc-950/85 p-4 shadow-lg backdrop-blur-md transition-colors duration-300">
+                {embedLeftColumnStack}
+              </div>
             </div>
-          ) : (
-            <div className="col-span-1 min-w-0" aria-hidden />
-          )}
-        </div>
+            <div className="col-span-2 flex min-h-0 min-w-0 flex-col items-center justify-end self-stretch bg-transparent">
+              {children && (
+                <div className="flex w-full min-w-0 flex-col items-center px-1">
+                  {children}
+                </div>
+              )}
+            </div>
+            {clockAsideRight != null ? (
+              <div className="col-span-1 flex h-full min-w-0 flex-col items-stretch justify-start">
+                <div className="w-full rounded-2xl border border-white/10 bg-zinc-950/85 p-4 shadow-lg backdrop-blur-md">
+                  {clockAsideRight}
+                </div>
+              </div>
+            ) : (
+              <div className="col-span-1 min-w-0" aria-hidden />
+            )}
+          </div>
+        ) : (
+          <div className="mt-8 grid w-full grid-cols-4 items-start gap-4 sm:gap-6">
+            <div className="col-span-1 flex min-h-0 min-w-0 flex-col items-center justify-start gap-3 text-left">
+              {stackStartWithClockAside && showStartButton && onStart && (
+                <button
+                  type="button"
+                  onClick={onStart}
+                  className="w-full max-w-[14rem] rounded-2xl bg-orange-600 px-6 py-5 text-lg font-bold text-white shadow-[0_0_40px_rgba(234,88,12,0.4)] hover:bg-orange-500 sm:py-6 sm:text-xl"
+                >
+                  Start
+                </button>
+              )}
+              {clockAsideLeft}
+            </div>
+            <div className="col-span-2 min-w-0 flex flex-col justify-start self-stretch">
+              {mainClockArea}
+            </div>
+            {clockAsideRight != null ? (
+              <div className="col-span-1 flex h-full min-w-0 flex-col items-center justify-start">
+                {clockAsideRight}
+              </div>
+            ) : (
+              <div className="col-span-1 min-w-0" aria-hidden />
+            )}
+          </div>
+        )
       ) : (
         <div className="mt-8 text-center">
           {mainClockArea}

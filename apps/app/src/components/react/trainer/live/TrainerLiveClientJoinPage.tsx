@@ -3,6 +3,12 @@ import type { Session } from '@supabase/supabase-js';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase/supabase-instance';
 import { trainerLiveParticipantStorageKey } from '@/lib/trainer-live/storage';
+import { TrainerLiveAgoraProvider } from '@/contexts/TrainerLiveAgoraContext';
+import {
+  TrainerLiveAmrapSessionDrawerProvider,
+  TrainerLiveSessionDrawerSlot,
+} from '@/contexts/TrainerLiveAmrapSessionDrawerContext';
+import { TrainerLiveAmrapChatDrawerProvider } from '@/contexts/TrainerLiveAmrapChatDrawerContext';
 import FluidBackground from '../../FluidBackground';
 import { parseTrainerLiveShell, type TrainerLiveShell } from '@/lib/trainer-live/shells';
 import type { TrainerLiveIntervalWrapperKind } from '@/lib/trainer-live/wrappers/types';
@@ -250,36 +256,43 @@ export default function TrainerLiveClientJoinPage() {
               <div className="h-8 w-8 animate-spin rounded-full border-4 border-orange-light border-t-transparent" />
             </div>
           ) : (
-            <>
-              <TrainerLiveSessionRoom
-                shell={roomShell}
-                sessionId={sessionId}
-                participantId={participantId}
-                role="client"
-                localLabel={displayName}
-                onLeaveRoom={() => {
-                  sessionStorage.removeItem(trainerLiveParticipantStorageKey(sessionId));
-                  navigate('/live/join/' + sessionId, { replace: true });
-                  setParticipantId(null);
-                }}
-                intervalWrapperKind={intervalWrapperKind}
-                intervalWrapperConfig={intervalWrapperConfig}
-                displayName={displayName}
-                authUserId={authUserId}
-                onWrapperError={setWrapperErr}
-                activityTimer={
-                  <TrainerLiveActivityTimer
-                    sessionId={sessionId}
-                    participantId={participantId}
-                    authUserId={authUserId}
-                    role="client"
-                    shell={roomShell}
-                    compact
-                    drawerLayout
-                  />
-                }
-              />
-            </>
+            <TrainerLiveAmrapSessionDrawerProvider>
+              <TrainerLiveAmrapChatDrawerProvider>
+              <TrainerLiveAgoraProvider sessionId={sessionId} participantId={participantId}>
+                <TrainerLiveSessionRoom
+                  shell={roomShell}
+                  sessionId={sessionId}
+                  participantId={participantId}
+                  role="client"
+                  localLabel={displayName}
+                  onLeaveRoom={() => {
+                    sessionStorage.removeItem(trainerLiveParticipantStorageKey(sessionId));
+                    navigate('/live/join/' + sessionId, { replace: true });
+                    setParticipantId(null);
+                  }}
+                  intervalWrapperKind={intervalWrapperKind}
+                  intervalWrapperConfig={intervalWrapperConfig}
+                  displayName={displayName}
+                  authUserId={authUserId}
+                  onWrapperError={setWrapperErr}
+                  activityTimer={
+                    <>
+                      <TrainerLiveSessionDrawerSlot />
+                      <TrainerLiveActivityTimer
+                        sessionId={sessionId}
+                        participantId={participantId}
+                        authUserId={authUserId}
+                        role="client"
+                        shell={roomShell}
+                        compact
+                        drawerLayout
+                      />
+                    </>
+                  }
+                />
+              </TrainerLiveAgoraProvider>
+              </TrainerLiveAmrapChatDrawerProvider>
+            </TrainerLiveAmrapSessionDrawerProvider>
           )}
         </div>
       </div>

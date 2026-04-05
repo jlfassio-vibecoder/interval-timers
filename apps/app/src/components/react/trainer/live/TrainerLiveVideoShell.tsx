@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useTrainerLiveAgoraChannel } from '@/hooks/useTrainerLiveAgoraChannel';
+import { useTrainerLiveAgora } from '@/contexts/TrainerLiveAgoraContext';
 import { supabase } from '@/lib/supabase/supabase-instance';
-import { TrainerLiveLocalTile, TrainerLiveRemoteTile } from './TrainerLiveVideoTiles';
+import {
+  TrainerLiveLocalTile,
+  TrainerLiveRemoteTile,
+  TrainerLiveVideoPlaceholderTile,
+} from './TrainerLiveVideoTiles';
 
 export type TrainerLiveRole = 'trainer' | 'client';
 
@@ -24,24 +28,27 @@ export default function TrainerLiveVideoShell({
   localLabel,
   onLeaveRoom,
   compact = false,
+  /** When set, that Agora uid's tile is replaced with a placeholder (video shown on timer background). */
+  excludeUidForTiles,
 }: {
   sessionId: string;
   participantId: string;
-  role: TrainerLiveRole;
   localLabel: string;
+  role: TrainerLiveRole;
   onLeaveRoom: () => void;
   /** Narrow layout for the collapsible video drawer (avoid forcing tall min-height). */
   compact?: boolean;
+  excludeUidForTiles?: string | null;
 }) {
   const [participantMap, setParticipantMap] = useState<Map<string, ParticipantMeta>>(new Map());
   const [loadErr, setLoadErr] = useState<string | null>(null);
 
   const { joined, localVideoTrack, remoteUsers, leave, muteVideo, muteAudio, error } =
-    useTrainerLiveAgoraChannel(sessionId, participantId);
+    useTrainerLiveAgora();
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+    void (async () => {
       const { data, error: qErr } = await supabase.rpc('trainer_live_list_participants', {
         p_session_id: sessionId,
       });
@@ -80,6 +87,11 @@ export default function TrainerLiveVideoShell({
     (u) => participantMap.get(String(u.uid))?.role !== 'trainer'
   );
 
+  const exclude = excludeUidForTiles != null ? String(excludeUidForTiles) : null;
+  const excludeLocal = exclude != null && exclude === String(participantId);
+  const trainerRemoteExcluded =
+    trainerRemote != null && exclude != null && String(trainerRemote.uid) === exclude;
+
   const banner = error || loadErr;
 
   const root = compact
@@ -108,18 +120,40 @@ export default function TrainerLiveVideoShell({
               : 'grid flex-1 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3'
           }
         >
-          <TrainerLiveLocalTile videoTrack={localVideoTrack} label={localLabel} />
-          {remoteUsers.map((u) => (
-            <TrainerLiveRemoteTile
-              key={String(u.uid)}
-              user={u}
-              label={labelForUid(u.uid, participantMap)}
+          {excludeLocal ? (
+            <TrainerLiveVideoPlaceholderTile
+              label={localLabel}
+              hint="Video on timer background"
             />
-          ))}
+          ) : (
+            <TrainerLiveLocalTile videoTrack={localVideoTrack} label={localLabel} />
+          )}
+          {remoteUsers.map((u) =>
+            exclude != null && String(u.uid) === exclude ? (
+              <TrainerLiveVideoPlaceholderTile
+                key={String(u.uid)}
+                label={labelForUid(u.uid, participantMap)}
+                hint="Video on timer background"
+              />
+            ) : (
+              <TrainerLiveRemoteTile
+                key={String(u.uid)}
+                user={u}
+                label={labelForUid(u.uid, participantMap)}
+              />
+            )
+          )}
         </div>
       ) : (
         <div className="flex flex-1 flex-col gap-3">
-          {trainerRemote ? (
+          {trainerRemoteExcluded && trainerRemote ? (
+            <div className="min-h-0 flex-1">
+              <TrainerLiveVideoPlaceholderTile
+                label={labelForUid(trainerRemote.uid, participantMap)}
+                hint="Video on timer background"
+              />
+            </div>
+          ) : trainerRemote ? (
             <div className="min-h-0 flex-1">
               <TrainerLiveRemoteTile
                 user={trainerRemote}
@@ -133,14 +167,28 @@ export default function TrainerLiveVideoShell({
           )}
           <div className={`flex shrink-0 overflow-x-auto pb-1 ${compact ? 'gap-2' : 'gap-3'}`}>
             <div className={compact ? 'w-36 shrink-0' : 'w-44 shrink-0 sm:w-52'}>
-              <TrainerLiveLocalTile videoTrack={localVideoTrack} label={localLabel} />
+              {excludeLocal ? (
+                <TrainerLiveVideoPlaceholderTile
+                  label={localLabel}
+                  hint="Video on timer background"
+                />
+              ) : (
+                <TrainerLiveLocalTile videoTrack={localVideoTrack} label={localLabel} />
+              )}
             </div>
             {otherRemotes.map((u) => (
               <div
                 key={String(u.uid)}
                 className={compact ? 'w-36 shrink-0' : 'w-44 shrink-0 sm:w-52'}
               >
-                <TrainerLiveRemoteTile user={u} label={labelForUid(u.uid, participantMap)} />
+                {exclude != null && String(u.uid) === exclude ? (
+                  <TrainerLiveVideoPlaceholderTile
+                    label={labelForUid(u.uid, participantMap)}
+                    hint="Video on timer background"
+                  />
+                ) : (
+                  <TrainerLiveRemoteTile user={u} label={labelForUid(u.uid, participantMap)} />
+                )}
               </div>
             ))}
           </div>
