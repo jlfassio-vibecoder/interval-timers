@@ -2,14 +2,17 @@
  * Mission Control — library workouts with client assignments (one card per `public.workouts` row).
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { toast } from 'sonner';
 import { missionControlApiAuthHeaders } from '@/lib/mission-control-api-auth';
+import type { FactoryMetabolicMode } from '@/lib/trainer-live/workout-factory-metabolic-mode';
 import type {
   TrainerWorkoutOverviewRow,
   WorkoutAssignmentClientRow,
 } from '@/lib/supabase/admin/trainer-client-assignments';
+
+type ClientWorkoutMetabolicFilter = 'all' | FactoryMetabolicMode | 'unlabeled';
 
 type OverviewPayload = {
   workouts: TrainerWorkoutOverviewRow[];
@@ -54,6 +57,8 @@ function buildWorkoutDisplayList(workouts: TrainerWorkoutOverviewRow[]) {
 
 const TrainerClientWorkoutsView: React.FC = () => {
   const [overview, setOverview] = useState<OverviewPayload | null>(null);
+  const [workoutMetabolicFilter, setWorkoutMetabolicFilter] =
+    useState<ClientWorkoutMetabolicFilter>('all');
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [roster, setRoster] = useState<
@@ -235,6 +240,22 @@ const TrainerClientWorkoutsView: React.FC = () => {
     return 'bg-white/10 text-white/70';
   };
 
+  const filteredWorkouts = useMemo(() => {
+    const list = overview?.workouts ?? [];
+    if (workoutMetabolicFilter === 'all') return list;
+    if (workoutMetabolicFilter === 'unlabeled') {
+      return list.filter((w) => w.factoryMetabolicMode == null);
+    }
+    return list.filter((w) => w.factoryMetabolicMode === workoutMetabolicFilter);
+  }, [overview?.workouts, workoutMetabolicFilter]);
+
+  const factoryModeLabel = (m: FactoryMetabolicMode | null | undefined): string => {
+    if (m === 'amrap_density') return 'Density AMRAP';
+    if (m === 'tabata_balanced') return 'Balanced Tabata';
+    if (m === 'hiit') return 'HIIT';
+    return '';
+  };
+
   return (
     <div className="mx-auto max-w-7xl pb-12">
       <header className="mb-8">
@@ -244,6 +265,25 @@ const TrainerClientWorkoutsView: React.FC = () => {
           be edited or assigned. Assign clients from your roster; open a client in Mission Control
           from the links below.
         </p>
+        {!loading && overview && overview.workouts.length > 0 ? (
+          <div className="mt-6 flex flex-wrap items-center gap-3">
+            <label htmlFor="client-workouts-metabolic-filter" className="text-sm text-white/60">
+              Factory mode
+            </label>
+            <select
+              id="client-workouts-metabolic-filter"
+              value={workoutMetabolicFilter}
+              onChange={(e) => setWorkoutMetabolicFilter(e.target.value as ClientWorkoutMetabolicFilter)}
+              className="rounded-lg border border-white/20 bg-black/50 px-3 py-2 text-sm text-white"
+            >
+              <option value="all">All workouts</option>
+              <option value="amrap_density">Density AMRAP</option>
+              <option value="tabata_balanced">Balanced Tabata</option>
+              <option value="hiit">HIIT</option>
+              <option value="unlabeled">Unlabeled / other</option>
+            </select>
+          </div>
+        ) : null}
       </header>
 
       {loadError && (
@@ -266,9 +306,20 @@ const TrainerClientWorkoutsView: React.FC = () => {
             Generate in Workout Factory
           </NavLink>
         </div>
+      ) : !filteredWorkouts.length ? (
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-10 text-center text-white/60">
+          <p className="mb-4">No workouts match this factory mode filter.</p>
+          <button
+            type="button"
+            onClick={() => setWorkoutMetabolicFilter('all')}
+            className="bg-orange-light/20 inline-block rounded-lg px-4 py-2 text-sm font-bold uppercase text-orange-light transition-colors hover:bg-orange-light hover:text-black"
+          >
+            Show all workouts
+          </button>
+        </div>
       ) : (
         (() => {
-          const { seriesList, standalone } = buildWorkoutDisplayList(overview.workouts);
+          const { seriesList, standalone } = buildWorkoutDisplayList(filteredWorkouts);
           const renderWorkoutCard = (w: TrainerWorkoutOverviewRow) => {
             const assigned = overview.assignmentsByWorkoutId[w.id] ?? [];
             const busy = assignBusyByWorkoutId[w.id] ?? false;
@@ -301,6 +352,11 @@ const TrainerClientWorkoutsView: React.FC = () => {
                   </NavLink>
                 </div>
                 <div className="mb-4 flex flex-wrap gap-2">
+                  {factoryModeLabel(w.factoryMetabolicMode) ? (
+                    <span className="rounded-md bg-orange-light/15 px-2 py-0.5 text-xs font-medium uppercase tracking-wide text-orange-light/95">
+                      {factoryModeLabel(w.factoryMetabolicMode)}
+                    </span>
+                  ) : null}
                   {w.source && (
                     <span className="rounded-md bg-white/10 px-2 py-0.5 text-xs uppercase tracking-wide text-white/60">
                       {w.source}

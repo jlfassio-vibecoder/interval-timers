@@ -6,6 +6,7 @@ import {
   isValidTabataAttachInput,
   workoutRowToTabataAttachParams,
 } from '@/lib/trainer-live/tabata-workout-list-adapter';
+import { parseFactoryMetabolicModeFromApi } from '@/lib/trainer-live/workout-factory-metabolic-mode';
 
 const FOCUSABLE_SELECTOR =
   'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -115,7 +116,9 @@ export default function TrainerLiveTabataWorkoutPickerModal({
               blocks?: unknown;
               durationMinutes?: number | null;
               source?: string;
+              factoryMetabolicMode?: unknown;
             };
+            const mode = parseFactoryMetabolicModeFromApi(o.factoryMetabolicMode);
             return {
               id: typeof o.id === 'string' ? o.id : '',
               title: typeof o.title === 'string' && o.title.trim() ? o.title : 'Workout',
@@ -125,9 +128,17 @@ export default function TrainerLiveTabataWorkoutPickerModal({
                   ? o.durationMinutes
                   : null,
               source: typeof o.source === 'string' ? o.source : undefined,
+              mode,
             };
           })
-          .filter((x) => x.id);
+          .filter((x) => x.id && x.mode === 'tabata_balanced')
+          .map(({ id, title, blocks, durationMinutes, source }) => ({
+            id,
+            title,
+            blocks,
+            durationMinutes,
+            ...(source !== undefined ? { source } : {}),
+          }));
         setSavedLibrary(items);
       } catch {
         if (!cancelled) setSavedLibrary([]);
@@ -213,8 +224,9 @@ export default function TrainerLiveTabataWorkoutPickerModal({
         {phase === 'list' ? (
           <div className="space-y-3">
             <p className="text-sm text-white/70">
-              Pick a saved workout. You will set the number of Tabata rounds (20s work / 10s rest) on the
-              next step.
+              Only workouts generated in Workout Factory as{' '}
+              <span className="text-white/90">Balanced Tabata</span> appear here. Pick a saved workout; you
+              will set the number of Tabata rounds (20s work / 10s rest) on the next step.
             </p>
             {savedLibraryLoading ? (
               <div className="py-8 text-center text-sm text-white/50">Loading workouts…</div>

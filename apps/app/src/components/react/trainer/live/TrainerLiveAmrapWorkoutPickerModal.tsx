@@ -6,6 +6,7 @@ import {
 } from '@interval-timers/amrap-workout-picker';
 import { missionControlApiAuthHeaders } from '@/lib/mission-control-api-auth';
 import { workoutRowToAmrapAttachParams } from '@/lib/trainer-live/amrap-workout-list-adapter';
+import { parseFactoryMetabolicModeFromApi } from '@/lib/trainer-live/workout-factory-metabolic-mode';
 
 /** Same focusable query as ExerciseDetailModal / WorkoutSummaryModal (no shared util in repo). */
 const FOCUSABLE_SELECTOR =
@@ -109,7 +110,9 @@ export default function TrainerLiveAmrapWorkoutPickerModal({
               blocks?: unknown;
               durationMinutes?: number | null;
               source?: string;
+              factoryMetabolicMode?: unknown;
             };
+            const mode = parseFactoryMetabolicModeFromApi(o.factoryMetabolicMode);
             return {
               id: typeof o.id === 'string' ? o.id : '',
               title: typeof o.title === 'string' && o.title.trim() ? o.title : 'Workout',
@@ -119,9 +122,17 @@ export default function TrainerLiveAmrapWorkoutPickerModal({
                   ? o.durationMinutes
                   : null,
               source: typeof o.source === 'string' ? o.source : undefined,
+              mode,
             };
           })
-          .filter((x) => x.id);
+          .filter((x) => x.id && x.mode === 'amrap_density')
+          .map(({ id, title, blocks, durationMinutes, source }) => ({
+            id,
+            title,
+            blocks,
+            durationMinutes,
+            ...(source !== undefined ? { source } : {}),
+          }));
         setSavedLibrary(items);
       } catch {
         if (!cancelled) setSavedLibrary([]);
@@ -185,6 +196,10 @@ export default function TrainerLiveAmrapWorkoutPickerModal({
         >
           Choose AMRAP workout
         </h2>
+        <p className="mb-4 text-xs text-white/55">
+          Only workouts generated in Workout Factory as <span className="text-white/80">Density AMRAP</span>{' '}
+          appear here.
+        </p>
         <AmrapWorkoutPicker
           key={pickerKey}
           disabled={disabled}

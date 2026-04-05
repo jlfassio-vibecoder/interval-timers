@@ -5,6 +5,8 @@
 **Foundational example:** `apps/amrap` — [`AmrapWithFriendsPage.tsx`](../apps/amrap/src/pages/AmrapWithFriendsPage.tsx) + [`WorkoutPicker.tsx`](../apps/amrap/src/components/WorkoutPicker.tsx) + `create_session` RPC (same workout list + duration model as social AMRAP).  
 **Integration target:** [`TrainerLiveHostView.tsx`](../apps/app/src/components/react/trainer/live/TrainerLiveHostView.tsx) — header **Start AMRAP** opens the workout modal and runs attach (see §7). [`TrainerLiveSessionRoom.tsx`](../apps/app/src/components/react/trainer/live/TrainerLiveSessionRoom.tsx) remains layout + embedded AMRAP sidebar only (no duplicate **Start AMRAP** CTA).
 
+**Saved workouts filter:** [`TrainerLiveAmrapWorkoutPickerModal`](../apps/app/src/components/react/trainer/live/TrainerLiveAmrapWorkoutPickerModal.tsx) lists only library rows whose stored `ai_chain_metadata.workoutConfig` indicates **Density AMRAP** (see [`workout-factory-metabolic-mode.ts`](../apps/app/src/lib/trainer-live/workout-factory-metabolic-mode.ts) and `GET /api/trainer/workouts` field `factoryMetabolicMode`).
+
 ---
 
 ## 1. Purpose

@@ -20,6 +20,7 @@ import {
   UserCircle,
   Video,
   Sparkles,
+  ChevronDown,
 } from 'lucide-react';
 import { AppProvider, useAppContext } from '../../../contexts/AppContext';
 import { AuthModal } from '@interval-timers/auth-ui';
@@ -43,13 +44,15 @@ import TrainerClientWorkoutsView from './views/TrainerClientWorkoutsView';
 import TrainerWorkoutSeriesView from './views/TrainerWorkoutSeriesView';
 import TrainerLibraryWorkoutEditView from './views/TrainerLibraryWorkoutEditView';
 
-const TRAINER_NAV = [
-  { path: '/', label: 'Mission Control', icon: LayoutDashboard },
+const TOP_TRAINER_LINKS = [
   { path: '/roster', label: 'Roster', icon: Users },
   { path: '/live', label: 'Live', icon: Video },
+  { path: '/intel', label: 'Intel', icon: BarChart3 },
+] as const;
+
+const ONBOARDING_SUBLINKS = [
   { path: '/roster/welcome', label: 'Studio invite', icon: FileText },
   { path: '/roster/welcome/coach', label: 'Coach landing', icon: UserCircle },
-  { path: '/intel', label: 'Intel', icon: BarChart3 },
 ] as const;
 
 function isTrainerNavActive(path: string, pathname: string): boolean {
@@ -85,10 +88,37 @@ const WORKOUT_FACTORY_SUBLINKS = [
   { path: '/workouts/factory', label: 'Generate', icon: Sparkles },
 ] as const;
 
+function navLinkClass(active: boolean) {
+  return `flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors ${
+    active ? 'bg-orange-light/20 text-orange-light' : 'text-white/70 hover:bg-white/5 hover:text-white'
+  }`;
+}
+
 const TrainerLayout: React.FC = () => {
   const location = useLocation();
   const { isTrainer } = useAppContext();
   const showTrainerNav = isTrainer;
+  const pathname = location.pathname;
+
+  const [workoutFactoryOpen, setWorkoutFactoryOpen] = useState(true);
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
+  const [studioProOpen, setStudioProOpen] = useState(false);
+
+  const workoutsSectionActive = WORKOUT_FACTORY_SUBLINKS.some((s) =>
+    isTrainerNavActive(s.path, pathname)
+  );
+  const onboardingSectionActive = ONBOARDING_SUBLINKS.some((s) =>
+    isTrainerNavActive(s.path, pathname)
+  );
+
+  useEffect(() => {
+    if (workoutsSectionActive) setWorkoutFactoryOpen(true);
+  }, [workoutsSectionActive]);
+
+  useEffect(() => {
+    if (onboardingSectionActive) setOnboardingOpen(true);
+  }, [onboardingSectionActive]);
+
   return (
     <div className="flex min-h-screen bg-black text-white">
       <PageViewTracker pathname={location.pathname} supabase={supabase} appId="app" />
@@ -99,72 +129,154 @@ const TrainerLayout: React.FC = () => {
               Mission Control
             </h1>
           </div>
-          <nav className="flex-1 space-y-1 p-4">
-            {TRAINER_NAV.filter((item) => showTrainerNav || item.path === '/').map((item) => {
-              const Icon = item.icon;
-              const active = isTrainerNavActive(item.path, location.pathname);
-              return (
-                <React.Fragment key={item.path}>
+          <nav className="flex-1 space-y-1 overflow-y-auto p-4">
+            <NavLink
+              to="/"
+              end
+              className={() =>
+                // Do not use NavLink isActive here: prefix matching would highlight Mission Control on nested /trainer routes.
+                navLinkClass(isTrainerNavActive('/', pathname))
+              }
+            >
+              <LayoutDashboard className="h-5 w-5 shrink-0" />
+              Mission Control
+            </NavLink>
+
+            {showTrainerNav &&
+              TOP_TRAINER_LINKS.map((item) => {
+                const Icon = item.icon;
+                return (
                   <NavLink
+                    key={item.path}
                     to={item.path}
-                    end={item.path === '/'}
-                    className={({ isActive }) =>
-                      `flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors ${
-                        isActive || active
-                          ? 'bg-orange-light/20 text-orange-light'
-                          : 'text-white/70 hover:bg-white/5 hover:text-white'
-                      }`
+                    className={() =>
+                      // Roster must not look active on /roster/welcome*; rely on isTrainerNavActive only (not NavLink prefix match).
+                      navLinkClass(isTrainerNavActive(item.path, pathname))
                     }
                   >
-                    <Icon className="h-5 w-5" />
+                    <Icon className="h-5 w-5 shrink-0" />
                     {item.label}
                   </NavLink>
-                  {item.path === '/' && showTrainerNav && (
-                    <div className="space-y-1 pt-1">
-                      <p className="px-4 pb-1 pt-2 text-xs font-semibold uppercase tracking-wider text-white/50">
-                        Workout Factory
-                      </p>
-                      {WORKOUT_FACTORY_SUBLINKS.map((sub) => {
-                        const SubIcon = sub.icon;
-                        const subActive = isTrainerNavActive(sub.path, location.pathname);
-                        return (
-                          <NavLink
-                            key={sub.path}
-                            to={sub.path}
-                            end={sub.path === '/workouts'}
-                            className={({ isActive }) =>
-                              `flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors ${
-                                isActive || subActive
-                                  ? 'bg-orange-light/20 text-orange-light'
-                                  : 'text-white/70 hover:bg-white/5 hover:text-white'
-                              }`
-                            }
-                          >
-                            <SubIcon className="h-5 w-5" />
-                            {sub.label}
-                          </NavLink>
-                        );
-                      })}
-                    </div>
-                  )}
-                </React.Fragment>
-              );
-            })}
-            <a
-              href="/welcome"
-              className="flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-white/70 transition-colors hover:bg-white/5 hover:text-white"
-            >
-              <ExternalLink className="h-5 w-5 shrink-0" />
-              Landing Page
-            </a>
+                );
+              })}
+
             {showTrainerNav && (
-              <a
-                href={adminPaths.root}
-                className="flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-white/70 transition-colors hover:bg-white/5 hover:text-white"
-              >
-                <Wrench className="h-5 w-5" />
-                Open Builder
-              </a>
+              <>
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    id="nav-toggle-workout-factory"
+                    onClick={() => setWorkoutFactoryOpen((o) => !o)}
+                    className="flex w-full items-center justify-between rounded-lg px-4 py-2 text-left text-xs font-semibold uppercase tracking-wider text-white/50 transition-colors hover:bg-white/5 hover:text-white/70"
+                    aria-expanded={workoutFactoryOpen}
+                    aria-controls="nav-panel-workout-factory"
+                  >
+                    <span>Workout Factory</span>
+                    <ChevronDown
+                      className={`h-4 w-4 shrink-0 text-white/40 transition-transform ${
+                        workoutFactoryOpen ? 'rotate-180' : ''
+                      }`}
+                    />
+                  </button>
+                  <div
+                    id="nav-panel-workout-factory"
+                    hidden={!workoutFactoryOpen}
+                    className="space-y-1 pt-1"
+                    role="region"
+                    aria-labelledby="nav-toggle-workout-factory"
+                  >
+                    {WORKOUT_FACTORY_SUBLINKS.map((sub) => {
+                      const SubIcon = sub.icon;
+                      const subActive = isTrainerNavActive(sub.path, pathname);
+                      return (
+                        <NavLink
+                          key={sub.path}
+                          to={sub.path}
+                          end={sub.path === '/workouts'}
+                          className={() => navLinkClass(subActive)}
+                        >
+                          <SubIcon className="h-5 w-5 shrink-0" />
+                          {sub.label}
+                        </NavLink>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    id="nav-toggle-onboarding"
+                    onClick={() => setOnboardingOpen((o) => !o)}
+                    className="flex w-full items-center justify-between rounded-lg px-4 py-2 text-left text-xs font-semibold uppercase tracking-wider text-white/50 transition-colors hover:bg-white/5 hover:text-white/70"
+                    aria-expanded={onboardingOpen}
+                    aria-controls="nav-panel-onboarding"
+                  >
+                    <span>Onboarding</span>
+                    <ChevronDown
+                      className={`h-4 w-4 shrink-0 text-white/40 transition-transform ${
+                        onboardingOpen ? 'rotate-180' : ''
+                      }`}
+                    />
+                  </button>
+                  <div
+                    id="nav-panel-onboarding"
+                    hidden={!onboardingOpen}
+                    className="space-y-1 pt-1"
+                    role="region"
+                    aria-labelledby="nav-toggle-onboarding"
+                  >
+                    {ONBOARDING_SUBLINKS.map((sub) => {
+                      const SubIcon = sub.icon;
+                      const subActive = isTrainerNavActive(sub.path, pathname);
+                      return (
+                        <NavLink
+                          key={sub.path}
+                          to={sub.path}
+                          className={() => navLinkClass(subActive)}
+                        >
+                          <SubIcon className="h-5 w-5 shrink-0" />
+                          {sub.label}
+                        </NavLink>
+                      );
+                    })}
+                    <a href="/welcome" className={navLinkClass(false)}>
+                      <ExternalLink className="h-5 w-5 shrink-0" />
+                      Landing Page
+                    </a>
+                  </div>
+                </div>
+
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    id="nav-toggle-studio-pro"
+                    onClick={() => setStudioProOpen((o) => !o)}
+                    className="flex w-full items-center justify-between rounded-lg px-4 py-2 text-left text-xs font-semibold uppercase tracking-wider text-white/50 transition-colors hover:bg-white/5 hover:text-white/70"
+                    aria-expanded={studioProOpen}
+                    aria-controls="nav-panel-studio-pro"
+                  >
+                    <span>Studio Pro</span>
+                    <ChevronDown
+                      className={`h-4 w-4 shrink-0 text-white/40 transition-transform ${
+                        studioProOpen ? 'rotate-180' : ''
+                      }`}
+                    />
+                  </button>
+                  <div
+                    id="nav-panel-studio-pro"
+                    hidden={!studioProOpen}
+                    className="space-y-1 pt-1"
+                    role="region"
+                    aria-labelledby="nav-toggle-studio-pro"
+                  >
+                    <a href={adminPaths.root} className={navLinkClass(false)}>
+                      <Wrench className="h-5 w-5 shrink-0" />
+                      Open Builder
+                    </a>
+                  </div>
+                </div>
+              </>
             )}
           </nav>
           <div className="border-t border-white/10 p-4">

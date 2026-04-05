@@ -7,6 +7,10 @@
 
 import type { Artist, Exercise, WorkoutDetail } from '@/types';
 import type { WorkoutSetTemplate } from '@/types/ai-workout';
+import {
+  getFactoryMetabolicModeFromAiChainMetadata,
+  type FactoryMetabolicMode,
+} from '@/lib/trainer-live/workout-factory-metabolic-mode';
 import { getSupabaseServer } from '@/lib/supabase/server';
 import { isUserInViewerRoster } from '@/lib/supabase/admin/trainer-roster';
 import { supabaseWorkoutRowToArtist } from '@/lib/coach-assignment-map';
@@ -717,6 +721,8 @@ export interface TrainerWorkoutOverviewRow {
   sessionIndex?: number | null;
   /** Series title for grouping (same for all sessions in a series). */
   seriesTitle?: string | null;
+  /** From `ai_chain_metadata.workoutConfig` when saved from Workout Factory. */
+  factoryMetabolicMode: FactoryMetabolicMode | null;
 }
 
 export interface WorkoutAssignmentClientRow {
@@ -759,10 +765,10 @@ export async function fetchTrainerWorkoutClientOverview(
   const supabase = getSupabaseServer();
 
   const selectFull =
-    'id, title, source, visibility, duration_minutes, created_at, lineage_id, version_index, workout_series_id, session_index';
+    'id, title, source, visibility, duration_minutes, created_at, lineage_id, version_index, workout_series_id, session_index, ai_chain_metadata';
   const selectLineageNoSeries =
-    'id, title, source, visibility, duration_minutes, created_at, lineage_id, version_index';
-  const selectLegacy = 'id, title, source, visibility, duration_minutes, created_at';
+    'id, title, source, visibility, duration_minutes, created_at, lineage_id, version_index, ai_chain_metadata';
+  const selectLegacy = 'id, title, source, visibility, duration_minutes, created_at, ai_chain_metadata';
 
   let wData: unknown[] = [];
 
@@ -821,6 +827,7 @@ export async function fetchTrainerWorkoutClientOverview(
       version_index?: number | null;
       workout_series_id?: string | null;
       session_index?: number | null;
+      ai_chain_metadata?: unknown | null;
     };
     const title = typeof row.title === 'string' && row.title.trim() ? row.title.trim() : 'Workout';
     const source = typeof row.source === 'string' && row.source ? row.source : undefined;
@@ -845,9 +852,11 @@ export async function fetchTrainerWorkoutClientOverview(
       typeof row.session_index === 'number' && Number.isFinite(row.session_index)
         ? row.session_index
         : null;
+    const factoryMetabolicMode = getFactoryMetabolicModeFromAiChainMetadata(row.ai_chain_metadata);
     return {
       id: row.id,
       title,
+      factoryMetabolicMode,
       ...(source !== undefined ? { source } : {}),
       ...(visibility !== undefined ? { visibility } : {}),
       durationMinutes,

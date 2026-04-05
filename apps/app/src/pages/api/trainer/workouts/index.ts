@@ -10,6 +10,7 @@ import type { APIRoute } from 'astro';
 import { verifyRosterAccessRequest, verifyTrainerOrAdminRequest } from '@/lib/supabase/admin/auth';
 import { createTrainerAiWorkoutsFromFactory } from '@/lib/supabase/admin/trainer-ai-workouts';
 import { getSupabaseServer } from '@/lib/supabase/server';
+import { getFactoryMetabolicModeFromAiChainMetadata } from '@/lib/trainer-live/workout-factory-metabolic-mode';
 import type { WorkoutChainMetadata, WorkoutConfig, WorkoutSetTemplate } from '@/types/ai-workout';
 
 export const GET: APIRoute = async ({ request, cookies }) => {
@@ -25,7 +26,7 @@ export const GET: APIRoute = async ({ request, cookies }) => {
     const supabase = getSupabaseServer();
     const { data, error } = await supabase
       .from('workouts')
-      .select('id, title, source, visibility, duration_minutes, blocks')
+      .select('id, title, source, visibility, duration_minutes, blocks, ai_chain_metadata')
       .eq('trainer_id', uid)
       .order('created_at', { ascending: false });
 
@@ -47,6 +48,7 @@ export const GET: APIRoute = async ({ request, cookies }) => {
         visibility?: string | null;
         duration_minutes?: number | null;
         blocks?: unknown;
+        ai_chain_metadata?: unknown | null;
       };
       const title = typeof row.title === 'string' && row.title.trim() ? row.title : 'Workout';
       const source = typeof row.source === 'string' && row.source ? row.source : undefined;
@@ -58,9 +60,13 @@ export const GET: APIRoute = async ({ request, cookies }) => {
         typeof row.duration_minutes === 'number' && Number.isFinite(row.duration_minutes)
           ? row.duration_minutes
           : null;
+      const factoryMetabolicMode = getFactoryMetabolicModeFromAiChainMetadata(
+        row.ai_chain_metadata
+      );
       return {
         id: row.id,
         title,
+        factoryMetabolicMode,
         ...(source !== undefined ? { source } : {}),
         ...(visibility !== undefined ? { visibility } : {}),
         ...(durationMinutes != null ? { durationMinutes } : {}),
