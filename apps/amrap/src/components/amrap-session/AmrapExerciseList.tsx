@@ -10,15 +10,25 @@ export interface AmrapExerciseListProps {
    * Default: 2 cols until `lg` then 1 col — for the narrow right rail in the 3-column session shell.
    */
   fullWidthGrid?: boolean;
+  /**
+   * With `fullWidthGrid`, use at most two columns (Trainer Live embed full-width layout).
+   */
+  maxTwoColumns?: boolean;
 }
 
-export default function AmrapExerciseList({ workoutList, fullWidthGrid }: AmrapExerciseListProps) {
+export default function AmrapExerciseList({
+  workoutList,
+  fullWidthGrid,
+  maxTwoColumns,
+}: AmrapExerciseListProps) {
   if (workoutList.length === 0) {
     return null;
   }
 
   const gridClass = fullWidthGrid
-    ? 'grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 lg:gap-6'
+    ? maxTwoColumns
+      ? 'grid w-full grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6'
+      : 'grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 lg:gap-6'
     : 'grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-1 lg:gap-6';
 
   return (

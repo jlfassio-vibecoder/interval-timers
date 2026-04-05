@@ -6,8 +6,18 @@ export type TrainerLiveSessionMessageRow = {
   session_id: string;
   participant_id: string;
   body: string;
+  /** Present when message was sent via a quick reaction preset (see trainerLiveMessageReactions). */
+  reaction_key?: string | null;
+  /** Optional participant this message is directed at (@mention / reaction target). */
+  target_participant_id?: string | null;
+  target_display_name?: string | null;
   created_at: string;
   author_display_name: string;
+};
+
+export type SendTrainerLiveMessageOptions = {
+  reactionKey?: string;
+  targetParticipantId?: string;
 };
 
 const POLL_MS = 4000;
@@ -56,7 +66,7 @@ export function useTrainerLiveSessionMessages(
   }, [sessionId, participantId, fetchMessages]);
 
   const sendMessage = useCallback(
-    async (body: string) => {
+    async (body: string, options?: SendTrainerLiveMessageOptions) => {
       if (!sessionId || !participantId) return;
       setSendError(null);
       const trimmed = body.trim();
@@ -65,6 +75,8 @@ export function useTrainerLiveSessionMessages(
         p_session_id: sessionId,
         p_participant_id: participantId,
         p_body: trimmed,
+        p_reaction_key: options?.reactionKey ?? null,
+        p_target_participant_id: options?.targetParticipantId ?? null,
       });
       if (error) {
         setSendError(error.message);

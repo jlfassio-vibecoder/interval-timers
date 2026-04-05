@@ -4,6 +4,10 @@
  */
 import React from 'react';
 
+/** Keeps label inside the border at narrow widths (wraps at space; scales padding/type). */
+const LOG_ROUND_BUTTON_CLASSES =
+  'box-border w-full min-w-0 max-w-[min(14rem,100%)] rounded-2xl border-2 border-orange-400 bg-orange-600 px-3 py-4 text-center text-sm font-bold leading-tight text-white shadow-[0_0_40px_rgba(234,88,12,0.4)] transition-all hover:bg-orange-500 active:scale-95 sm:px-6 sm:py-5 sm:text-base md:px-8 md:py-6 md:text-xl lg:text-2xl';
+
 export type AmrapWorkPhaseControlsLayout =
   | 'default'
   /** LOG ROUND + footer; pair with `embedBesideClockRounds` in `AmrapTimerDisplay` clock row */
@@ -70,7 +74,7 @@ export default function AmrapWorkPhaseControls({
         <button
           type="button"
           onClick={onLogRound}
-          className="w-full max-w-[14rem] rounded-2xl border-2 border-orange-400 bg-orange-600 px-8 py-6 text-xl font-bold text-white shadow-[0_0_40px_rgba(234,88,12,0.4)] transition-all hover:bg-orange-500 active:scale-95 whitespace-nowrap"
+          className={LOG_ROUND_BUTTON_CLASSES}
         >
           LOG ROUND
         </button>
@@ -89,7 +93,25 @@ export default function AmrapWorkPhaseControls({
   }
 
   if (layout === 'embedBesideClockRounds') {
-    return roundsColumn;
+    return (
+      <div className="flex w-full min-w-0 flex-col items-center gap-4">
+        {roundsColumn}
+        {timerState === 'work' ? (
+          <div className="flex w-full flex-col items-center gap-2">
+            {logRoundError && (
+              <p className="text-center text-[1.3125rem] text-red-400">{logRoundError}</p>
+            )}
+            <button
+              type="button"
+              onClick={onLogRound}
+              className={LOG_ROUND_BUTTON_CLASSES}
+            >
+              LOG ROUND
+            </button>
+          </div>
+        ) : null}
+      </div>
+    );
   }
 
   return (

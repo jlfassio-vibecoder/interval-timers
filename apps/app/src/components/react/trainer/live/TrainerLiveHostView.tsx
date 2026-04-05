@@ -9,10 +9,19 @@ import { trainerLiveParticipantStorageKey } from '@/lib/trainer-live/storage';
 import { parseTrainerLiveShell, type TrainerLiveShell } from '@/lib/trainer-live/shells';
 import type { TrainerLiveIntervalWrapperKind } from '@/lib/trainer-live/wrappers/types';
 import { parseIntervalWrapperKind } from '@/lib/trainer-live/wrappers/kind';
+import { TrainerLiveAgoraProvider } from '@/contexts/TrainerLiveAgoraContext';
+import {
+  TrainerLiveAmrapSessionDrawerProvider,
+  TrainerLiveSessionDrawerSlot,
+} from '@/contexts/TrainerLiveAmrapSessionDrawerContext';
+import { TrainerLiveAmrapChatDrawerProvider } from '@/contexts/TrainerLiveAmrapChatDrawerContext';
+import { TrainerLiveTimerBackgroundProvider } from '@/contexts/TrainerLiveTimerBackgroundContext';
 import TrainerLiveActivityTimer from './TrainerLiveActivityTimer';
 import TrainerLiveAmrapWorkoutPickerModal from './TrainerLiveAmrapWorkoutPickerModal';
 import TrainerLiveTabataWorkoutPickerModal from './TrainerLiveTabataWorkoutPickerModal';
 import TrainerLiveSessionRoom from './TrainerLiveSessionRoom';
+import { TrainerLiveAmrapHostNavProvider } from '@/contexts/TrainerLiveAmrapHostNavContext';
+import TrainerLiveHostNavHeaderBar from './TrainerLiveHostNavHeaderBar';
 
 export default function TrainerLiveHostView() {
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -281,12 +290,9 @@ export default function TrainerLiveHostView() {
   const authUserId = user?.uid ?? null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex flex-col bg-black text-white">
-      <div className="flex shrink-0 items-center justify-between gap-4 border-b border-white/10 px-4 py-3 md:px-6">
-        <h1 className="font-heading text-sm font-bold uppercase tracking-tight text-orange-light md:text-base">
-          Live session
-        </h1>
-        <div className="flex flex-wrap items-center gap-2">
+    <TrainerLiveAmrapHostNavProvider>
+      <div className="fixed inset-0 z-[100] flex flex-col bg-black text-white">
+        <TrainerLiveHostNavHeaderBar>
           {wrapperErr ? (
             <p className="max-w-xs text-xs text-amber-200 md:max-w-md" role="status">
               {wrapperErr}
@@ -368,60 +374,69 @@ export default function TrainerLiveHostView() {
           >
             {endBusy ? 'Ending…' : 'End for everyone'}
           </button>
-        </div>
-      </div>
-      <div className="min-h-0 flex-1 overflow-y-auto p-4 md:p-6">
+        </TrainerLiveHostNavHeaderBar>
+        <div className="min-h-0 flex-1 overflow-y-auto p-4 md:p-6">
         {shell === null ? (
           <div className="flex h-48 items-center justify-center text-white/60">
             <div className="h-8 w-8 animate-spin rounded-full border-4 border-orange-light border-t-transparent" />
           </div>
         ) : (
-          <>
-            <TrainerLiveSessionRoom
-              shell={shell}
-              sessionId={sessionId}
-              participantId={participantId}
-              role="trainer"
-              localLabel={localLabel}
-              onLeaveRoom={() => {
-                sessionStorage.removeItem(trainerLiveParticipantStorageKey(sessionId));
-                navigate('/live', { replace: true });
-              }}
-              intervalWrapperKind={intervalWrapperKind}
-              intervalWrapperConfig={intervalWrapperConfig}
-              displayName={localLabel}
-              authUserId={authUserId}
-              onWrapperError={setWrapperErr}
-              activityTimer={
-                <TrainerLiveActivityTimer
+          <TrainerLiveAmrapSessionDrawerProvider>
+            <TrainerLiveAmrapChatDrawerProvider>
+            <TrainerLiveAgoraProvider sessionId={sessionId} participantId={participantId}>
+              <TrainerLiveTimerBackgroundProvider sessionId={sessionId}>
+                <TrainerLiveSessionRoom
+                  shell={shell}
                   sessionId={sessionId}
                   participantId={participantId}
-                  authUserId={user?.uid ?? null}
                   role="trainer"
-                  shell={shell}
-                  drawerLayout
+                  localLabel={localLabel}
+                  onLeaveRoom={() => {
+                    sessionStorage.removeItem(trainerLiveParticipantStorageKey(sessionId));
+                    navigate('/live', { replace: true });
+                  }}
+                  intervalWrapperKind={intervalWrapperKind}
+                  intervalWrapperConfig={intervalWrapperConfig}
+                  displayName={localLabel}
+                  authUserId={authUserId}
+                  onWrapperError={setWrapperErr}
+                  activityTimer={
+                    <>
+                      <TrainerLiveSessionDrawerSlot />
+                      <TrainerLiveActivityTimer
+                        sessionId={sessionId}
+                        participantId={participantId}
+                        authUserId={user?.uid ?? null}
+                        role="trainer"
+                        shell={shell}
+                        drawerLayout
+                      />
+                    </>
+                  }
                 />
-              }
-            />
-          </>
+              </TrainerLiveTimerBackgroundProvider>
+            </TrainerLiveAgoraProvider>
+            </TrainerLiveAmrapChatDrawerProvider>
+          </TrainerLiveAmrapSessionDrawerProvider>
         )}
+        </div>
+        <TrainerLiveAmrapWorkoutPickerModal
+          open={amrapPickerOpen}
+          pickerKey={amrapPickerKey}
+          onOpenChange={setAmrapPickerOpen}
+          disabled={attachBusy}
+          onWorkoutChosen={(workoutList, durationMinutes) =>
+            attachAmrap(workoutList, durationMinutes)
+          }
+        />
+        <TrainerLiveTabataWorkoutPickerModal
+          open={tabataPickerOpen}
+          pickerKey={tabataPickerKey}
+          onOpenChange={setTabataPickerOpen}
+          disabled={attachBusy}
+          onWorkoutChosen={(workoutList, roundCount) => attachTabata(workoutList, roundCount)}
+        />
       </div>
-      <TrainerLiveAmrapWorkoutPickerModal
-        open={amrapPickerOpen}
-        pickerKey={amrapPickerKey}
-        onOpenChange={setAmrapPickerOpen}
-        disabled={attachBusy}
-        onWorkoutChosen={(workoutList, durationMinutes) =>
-          attachAmrap(workoutList, durationMinutes)
-        }
-      />
-      <TrainerLiveTabataWorkoutPickerModal
-        open={tabataPickerOpen}
-        pickerKey={tabataPickerKey}
-        onOpenChange={setTabataPickerOpen}
-        disabled={attachBusy}
-        onWorkoutChosen={(workoutList, roundCount) => attachTabata(workoutList, roundCount)}
-      />
-    </div>
+    </TrainerLiveAmrapHostNavProvider>
   );
 }
