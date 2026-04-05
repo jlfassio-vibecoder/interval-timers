@@ -115,6 +115,7 @@ export default function TrainerLiveTabataWorkoutPickerModal({
               blocks?: unknown;
               durationMinutes?: number | null;
               source?: string;
+              factoryMetabolicMode?: string | null;
             };
             return {
               id: typeof o.id === 'string' ? o.id : '',
@@ -125,9 +126,18 @@ export default function TrainerLiveTabataWorkoutPickerModal({
                   ? o.durationMinutes
                   : null,
               source: typeof o.source === 'string' ? o.source : undefined,
+              factoryMetabolicMode:
+                typeof o.factoryMetabolicMode === 'string' ? o.factoryMetabolicMode : null,
             };
           })
-          .filter((x) => x.id);
+          .filter((x) => x.id && x.factoryMetabolicMode === 'tabata_balanced')
+          .map(({ id, title, blocks, durationMinutes, source }) => ({
+            id,
+            title,
+            blocks,
+            durationMinutes,
+            ...(source !== undefined ? { source } : {}),
+          }));
         setSavedLibrary(items);
       } catch {
         if (!cancelled) setSavedLibrary([]);
@@ -213,8 +223,9 @@ export default function TrainerLiveTabataWorkoutPickerModal({
         {phase === 'list' ? (
           <div className="space-y-3">
             <p className="text-sm text-white/70">
-              Pick a saved workout. You will set the number of Tabata rounds (20s work / 10s rest) on the
-              next step.
+              Only workouts generated in Workout Factory as{' '}
+              <span className="text-white/90">Balanced Tabata</span> appear here. Pick a saved workout; you
+              will set the number of Tabata rounds (20s work / 10s rest) on the next step.
             </p>
             {savedLibraryLoading ? (
               <div className="py-8 text-center text-sm text-white/50">Loading workouts…</div>

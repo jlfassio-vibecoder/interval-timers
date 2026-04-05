@@ -20,6 +20,8 @@ Add a **`tabata`** interval tool to the **Video + Intervals** layout (`shell = '
 
 **Workout data:** Tabata-oriented workouts are **generated and stored** the same way as other Mission Control outputs (e.g. **Balanced Tabata** and timer-schema blocks in `public.workouts`). The Tabata shell consumes that data via a **server-side create/attach path** and/or a **client adapter** (same pattern as the AMRAP workout picker adapter in [MISSION_CONTROL_WORKOUT_FACTORY_V1_TDD.md](./MISSION_CONTROL_WORKOUT_FACTORY_V1_TDD.md) §207).
 
+**Saved workouts filter:** [`TrainerLiveTabataWorkoutPickerModal`](../apps/app/src/components/react/trainer/live/TrainerLiveTabataWorkoutPickerModal.tsx) lists only rows whose `ai_chain_metadata.workoutConfig` indicates **Balanced Tabata** (`factoryMetabolicMode === 'tabata_balanced'` from [`workout-factory-metabolic-mode.ts`](../apps/app/src/lib/trainer-live/workout-factory-metabolic-mode.ts)).
+
 ---
 
 ## 2. Goals and non-goals

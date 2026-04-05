@@ -109,6 +109,7 @@ export default function TrainerLiveAmrapWorkoutPickerModal({
               blocks?: unknown;
               durationMinutes?: number | null;
               source?: string;
+              factoryMetabolicMode?: string | null;
             };
             return {
               id: typeof o.id === 'string' ? o.id : '',
@@ -119,9 +120,18 @@ export default function TrainerLiveAmrapWorkoutPickerModal({
                   ? o.durationMinutes
                   : null,
               source: typeof o.source === 'string' ? o.source : undefined,
+              factoryMetabolicMode:
+                typeof o.factoryMetabolicMode === 'string' ? o.factoryMetabolicMode : null,
             };
           })
-          .filter((x) => x.id);
+          .filter((x) => x.id && x.factoryMetabolicMode === 'amrap_density')
+          .map(({ id, title, blocks, durationMinutes, source }) => ({
+            id,
+            title,
+            blocks,
+            durationMinutes,
+            ...(source !== undefined ? { source } : {}),
+          }));
         setSavedLibrary(items);
       } catch {
         if (!cancelled) setSavedLibrary([]);
@@ -185,6 +195,10 @@ export default function TrainerLiveAmrapWorkoutPickerModal({
         >
           Choose AMRAP workout
         </h2>
+        <p className="mb-4 text-xs text-white/55">
+          Only workouts generated in Workout Factory as <span className="text-white/80">Density AMRAP</span>{' '}
+          appear here.
+        </p>
         <AmrapWorkoutPicker
           key={pickerKey}
           disabled={disabled}
