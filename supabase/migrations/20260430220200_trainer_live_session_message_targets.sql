@@ -1,4 +1,5 @@
 -- Optional target participant (@mention / reaction-to-user) on Trainer Live session messages.
+-- Must run after 20260430220100_trainer_live_session_message_reactions.sql (extends same RPCs).
 
 ALTER TABLE public.trainer_live_session_messages
   ADD COLUMN IF NOT EXISTS target_participant_id uuid NULL

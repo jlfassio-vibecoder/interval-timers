@@ -1,4 +1,5 @@
 -- Optional reaction_key on Trainer Live session messages (Lucide preset quick-reactions).
+-- Must run after 20260430220000_trainer_live_session_messages.sql (lexical migration order).
 
 ALTER TABLE public.trainer_live_session_messages
   ADD COLUMN IF NOT EXISTS reaction_key text NULL;
