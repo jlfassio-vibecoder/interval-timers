@@ -6,6 +6,7 @@ import {
 } from '@interval-timers/amrap-workout-picker';
 import { missionControlApiAuthHeaders } from '@/lib/mission-control-api-auth';
 import { workoutRowToAmrapAttachParams } from '@/lib/trainer-live/amrap-workout-list-adapter';
+import { parseFactoryMetabolicModeFromApi } from '@/lib/trainer-live/workout-factory-metabolic-mode';
 
 /** Same focusable query as ExerciseDetailModal / WorkoutSummaryModal (no shared util in repo). */
 const FOCUSABLE_SELECTOR =
@@ -109,8 +110,9 @@ export default function TrainerLiveAmrapWorkoutPickerModal({
               blocks?: unknown;
               durationMinutes?: number | null;
               source?: string;
-              factoryMetabolicMode?: string | null;
+              factoryMetabolicMode?: unknown;
             };
+            const mode = parseFactoryMetabolicModeFromApi(o.factoryMetabolicMode);
             return {
               id: typeof o.id === 'string' ? o.id : '',
               title: typeof o.title === 'string' && o.title.trim() ? o.title : 'Workout',
@@ -120,11 +122,10 @@ export default function TrainerLiveAmrapWorkoutPickerModal({
                   ? o.durationMinutes
                   : null,
               source: typeof o.source === 'string' ? o.source : undefined,
-              factoryMetabolicMode:
-                typeof o.factoryMetabolicMode === 'string' ? o.factoryMetabolicMode : null,
+              mode,
             };
           })
-          .filter((x) => x.id && x.factoryMetabolicMode === 'amrap_density')
+          .filter((x) => x.id && x.mode === 'amrap_density')
           .map(({ id, title, blocks, durationMinutes, source }) => ({
             id,
             title,

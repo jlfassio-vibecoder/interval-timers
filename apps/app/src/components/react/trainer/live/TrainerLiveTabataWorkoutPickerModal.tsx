@@ -6,6 +6,7 @@ import {
   isValidTabataAttachInput,
   workoutRowToTabataAttachParams,
 } from '@/lib/trainer-live/tabata-workout-list-adapter';
+import { parseFactoryMetabolicModeFromApi } from '@/lib/trainer-live/workout-factory-metabolic-mode';
 
 const FOCUSABLE_SELECTOR =
   'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -115,8 +116,9 @@ export default function TrainerLiveTabataWorkoutPickerModal({
               blocks?: unknown;
               durationMinutes?: number | null;
               source?: string;
-              factoryMetabolicMode?: string | null;
+              factoryMetabolicMode?: unknown;
             };
+            const mode = parseFactoryMetabolicModeFromApi(o.factoryMetabolicMode);
             return {
               id: typeof o.id === 'string' ? o.id : '',
               title: typeof o.title === 'string' && o.title.trim() ? o.title : 'Workout',
@@ -126,11 +128,10 @@ export default function TrainerLiveTabataWorkoutPickerModal({
                   ? o.durationMinutes
                   : null,
               source: typeof o.source === 'string' ? o.source : undefined,
-              factoryMetabolicMode:
-                typeof o.factoryMetabolicMode === 'string' ? o.factoryMetabolicMode : null,
+              mode,
             };
           })
-          .filter((x) => x.id && x.factoryMetabolicMode === 'tabata_balanced')
+          .filter((x) => x.id && x.mode === 'tabata_balanced')
           .map(({ id, title, blocks, durationMinutes, source }) => ({
             id,
             title,

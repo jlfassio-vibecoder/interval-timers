@@ -133,8 +133,9 @@ const TrainerLayout: React.FC = () => {
             <NavLink
               to="/"
               end
-              className={({ isActive }) =>
-                navLinkClass(isActive || isTrainerNavActive('/', pathname))
+              className={() =>
+                // Do not use NavLink isActive here: prefix matching would highlight Mission Control on nested /trainer routes.
+                navLinkClass(isTrainerNavActive('/', pathname))
               }
             >
               <LayoutDashboard className="h-5 w-5 shrink-0" />
@@ -148,8 +149,9 @@ const TrainerLayout: React.FC = () => {
                   <NavLink
                     key={item.path}
                     to={item.path}
-                    className={({ isActive }) =>
-                      navLinkClass(isActive || isTrainerNavActive(item.path, pathname))
+                    className={() =>
+                      // Roster must not look active on /roster/welcome*; rely on isTrainerNavActive only (not NavLink prefix match).
+                      navLinkClass(isTrainerNavActive(item.path, pathname))
                     }
                   >
                     <Icon className="h-5 w-5 shrink-0" />
@@ -163,9 +165,11 @@ const TrainerLayout: React.FC = () => {
                 <div className="pt-2">
                   <button
                     type="button"
+                    id="nav-toggle-workout-factory"
                     onClick={() => setWorkoutFactoryOpen((o) => !o)}
                     className="flex w-full items-center justify-between rounded-lg px-4 py-2 text-left text-xs font-semibold uppercase tracking-wider text-white/50 transition-colors hover:bg-white/5 hover:text-white/70"
                     aria-expanded={workoutFactoryOpen}
+                    aria-controls="nav-panel-workout-factory"
                   >
                     <span>Workout Factory</span>
                     <ChevronDown
@@ -174,33 +178,39 @@ const TrainerLayout: React.FC = () => {
                       }`}
                     />
                   </button>
-                  {workoutFactoryOpen && (
-                    <div className="space-y-1 pt-1">
-                      {WORKOUT_FACTORY_SUBLINKS.map((sub) => {
-                        const SubIcon = sub.icon;
-                        const subActive = isTrainerNavActive(sub.path, pathname);
-                        return (
-                          <NavLink
-                            key={sub.path}
-                            to={sub.path}
-                            end={sub.path === '/workouts'}
-                            className={({ isActive }) => navLinkClass(isActive || subActive)}
-                          >
-                            <SubIcon className="h-5 w-5 shrink-0" />
-                            {sub.label}
-                          </NavLink>
-                        );
-                      })}
-                    </div>
-                  )}
+                  <div
+                    id="nav-panel-workout-factory"
+                    hidden={!workoutFactoryOpen}
+                    className="space-y-1 pt-1"
+                    role="region"
+                    aria-labelledby="nav-toggle-workout-factory"
+                  >
+                    {WORKOUT_FACTORY_SUBLINKS.map((sub) => {
+                      const SubIcon = sub.icon;
+                      const subActive = isTrainerNavActive(sub.path, pathname);
+                      return (
+                        <NavLink
+                          key={sub.path}
+                          to={sub.path}
+                          end={sub.path === '/workouts'}
+                          className={() => navLinkClass(subActive)}
+                        >
+                          <SubIcon className="h-5 w-5 shrink-0" />
+                          {sub.label}
+                        </NavLink>
+                      );
+                    })}
+                  </div>
                 </div>
 
                 <div className="pt-2">
                   <button
                     type="button"
+                    id="nav-toggle-onboarding"
                     onClick={() => setOnboardingOpen((o) => !o)}
                     className="flex w-full items-center justify-between rounded-lg px-4 py-2 text-left text-xs font-semibold uppercase tracking-wider text-white/50 transition-colors hover:bg-white/5 hover:text-white/70"
                     aria-expanded={onboardingOpen}
+                    aria-controls="nav-panel-onboarding"
                   >
                     <span>Onboarding</span>
                     <ChevronDown
@@ -209,36 +219,42 @@ const TrainerLayout: React.FC = () => {
                       }`}
                     />
                   </button>
-                  {onboardingOpen && (
-                    <div className="space-y-1 pt-1">
-                      {ONBOARDING_SUBLINKS.map((sub) => {
-                        const SubIcon = sub.icon;
-                        const subActive = isTrainerNavActive(sub.path, pathname);
-                        return (
-                          <NavLink
-                            key={sub.path}
-                            to={sub.path}
-                            className={({ isActive }) => navLinkClass(isActive || subActive)}
-                          >
-                            <SubIcon className="h-5 w-5 shrink-0" />
-                            {sub.label}
-                          </NavLink>
-                        );
-                      })}
-                      <a href="/welcome" className={navLinkClass(false)}>
-                        <ExternalLink className="h-5 w-5 shrink-0" />
-                        Landing Page
-                      </a>
-                    </div>
-                  )}
+                  <div
+                    id="nav-panel-onboarding"
+                    hidden={!onboardingOpen}
+                    className="space-y-1 pt-1"
+                    role="region"
+                    aria-labelledby="nav-toggle-onboarding"
+                  >
+                    {ONBOARDING_SUBLINKS.map((sub) => {
+                      const SubIcon = sub.icon;
+                      const subActive = isTrainerNavActive(sub.path, pathname);
+                      return (
+                        <NavLink
+                          key={sub.path}
+                          to={sub.path}
+                          className={() => navLinkClass(subActive)}
+                        >
+                          <SubIcon className="h-5 w-5 shrink-0" />
+                          {sub.label}
+                        </NavLink>
+                      );
+                    })}
+                    <a href="/welcome" className={navLinkClass(false)}>
+                      <ExternalLink className="h-5 w-5 shrink-0" />
+                      Landing Page
+                    </a>
+                  </div>
                 </div>
 
                 <div className="pt-2">
                   <button
                     type="button"
+                    id="nav-toggle-studio-pro"
                     onClick={() => setStudioProOpen((o) => !o)}
                     className="flex w-full items-center justify-between rounded-lg px-4 py-2 text-left text-xs font-semibold uppercase tracking-wider text-white/50 transition-colors hover:bg-white/5 hover:text-white/70"
                     aria-expanded={studioProOpen}
+                    aria-controls="nav-panel-studio-pro"
                   >
                     <span>Studio Pro</span>
                     <ChevronDown
@@ -247,14 +263,18 @@ const TrainerLayout: React.FC = () => {
                       }`}
                     />
                   </button>
-                  {studioProOpen && (
-                    <div className="space-y-1 pt-1">
-                      <a href={adminPaths.root} className={navLinkClass(false)}>
-                        <Wrench className="h-5 w-5 shrink-0" />
-                        Open Builder
-                      </a>
-                    </div>
-                  )}
+                  <div
+                    id="nav-panel-studio-pro"
+                    hidden={!studioProOpen}
+                    className="space-y-1 pt-1"
+                    role="region"
+                    aria-labelledby="nav-toggle-studio-pro"
+                  >
+                    <a href={adminPaths.root} className={navLinkClass(false)}>
+                      <Wrench className="h-5 w-5 shrink-0" />
+                      Open Builder
+                    </a>
+                  </div>
                 </div>
               </>
             )}

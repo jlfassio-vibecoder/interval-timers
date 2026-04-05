@@ -7,6 +7,12 @@ import type { WorkoutConfig } from '@/types/ai-workout';
 
 export type FactoryMetabolicMode = 'amrap_density' | 'tabata_balanced' | 'hiit';
 
+/** Narrow JSON API values to the known union (GET /api/trainer/workouts, client-overview). */
+export function parseFactoryMetabolicModeFromApi(value: unknown): FactoryMetabolicMode | null {
+  if (value === 'amrap_density' || value === 'tabata_balanced' || value === 'hiit') return value;
+  return null;
+}
+
 /**
  * Reads `workoutConfig` from stored chain metadata JSON.
  * Precedence matches Factory UI mutual exclusivity: Tabata > Density AMRAP > HIIT.

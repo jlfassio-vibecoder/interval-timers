@@ -1,5 +1,24 @@
 import { describe, expect, it } from 'vitest';
-import { getFactoryMetabolicModeFromAiChainMetadata } from '@/lib/trainer-live/workout-factory-metabolic-mode';
+import {
+  getFactoryMetabolicModeFromAiChainMetadata,
+  parseFactoryMetabolicModeFromApi,
+} from '@/lib/trainer-live/workout-factory-metabolic-mode';
+
+describe('parseFactoryMetabolicModeFromApi', () => {
+  it('returns null for unknown or invalid values', () => {
+    expect(parseFactoryMetabolicModeFromApi(undefined)).toBeNull();
+    expect(parseFactoryMetabolicModeFromApi(null)).toBeNull();
+    expect(parseFactoryMetabolicModeFromApi('')).toBeNull();
+    expect(parseFactoryMetabolicModeFromApi('amrap_density ')).toBeNull();
+    expect(parseFactoryMetabolicModeFromApi({})).toBeNull();
+  });
+
+  it('accepts each known union member', () => {
+    expect(parseFactoryMetabolicModeFromApi('amrap_density')).toBe('amrap_density');
+    expect(parseFactoryMetabolicModeFromApi('tabata_balanced')).toBe('tabata_balanced');
+    expect(parseFactoryMetabolicModeFromApi('hiit')).toBe('hiit');
+  });
+});
 
 describe('getFactoryMetabolicModeFromAiChainMetadata', () => {
   it('returns null for null, non-object, or missing workoutConfig', () => {
