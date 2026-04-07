@@ -34,6 +34,25 @@ Deploy-oriented: `npm run verify:deploy` / `security:scan` — follow team norms
 
 ---
 
+## Vercel / CI build minutes (`apps/app`)
+
+**Problem:** The **`prebuild`** hook used to run **`npm install --include=optional --force`** before every **`astro build`**. Vercel already runs **`npm install`** in the Install step, so that duplicated work and could add **many minutes per deploy**.
+
+**Fix:** `prebuild` runs [`apps/app/scripts/prebuild-install.mjs`](../apps/app/scripts/prebuild-install.mjs). It **no-ops when `VERCEL=1` or `CI=true`** — Linux builders already get **`@rollup/rollup-linux-x64-gnu`** via **`optionalDependencies`** during the normal install. Locally (without those env vars), it still tries the targeted optional package, then falls back to a full optional install, using **`--no-audit` / `--no-fund`** where applicable.
+
+**Related optimizations already in the app:**
+
+- **Vite:** `build.reportCompressedSize: false` — skips extra gzip/brotli accounting during build (saves CPU on large client graphs).
+- **Client chunks:** Heavy deps split into **`vendor-agora`**, **`vendor-recharts`**, and **`vendor-misc`** so caches are more granular (bandwidth / repeat visits); Agora still increases transform/minify time for the client build.
+- **Bundle analysis:** `npm run analyze:bundle` in `apps/app` (sets **`ANALYZE=1`**, writes **`dist/client/bundle-stats.html`**).
+
+**Further savings (configuration, not code):**
+
+- Enable **Turborepo Remote Cache** on Vercel (`TURBO_TOKEN`, team/org) so unchanged workspace packages don’t rebuild every time.
+- If minutes spike on the **repo root** project, **`build:deploy`** runs **turbo build across many apps**, not only `apps/app` — check which Vercel project’s graph matches your dashboard.
+
+---
+
 ## Astro + Vite + React boundaries
 
 ### Environment variables

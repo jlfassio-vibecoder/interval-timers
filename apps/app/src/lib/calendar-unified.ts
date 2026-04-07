@@ -17,12 +17,15 @@ import {
   getTimerLogEventsForRange,
   getReadinessEventsForRange,
 } from '@/lib/supabase/client/calendar-unified';
+import { getLiveScheduledCalendarEventsForRange } from '@/lib/supabase/client/live-scheduled-calendar';
 
 export type { CalendarEvent };
 
 export interface GetUnifiedCalendarEventsOptions {
   programs: ProgramForCalendar[];
   loggedMap: Map<string, Set<string>>;
+  /** When set (IANA), scheduled live session invites are merged using this zone for calendar day keys. */
+  displayTimeZone?: string;
 }
 
 /**
@@ -35,7 +38,12 @@ export async function getUnifiedCalendarEvents(
   rangeEnd: string,
   options: GetUnifiedCalendarEventsOptions
 ): Promise<CalendarEvent[]> {
-  const { programs, loggedMap } = options;
+  const { programs, loggedMap, displayTimeZone } = options;
+
+  const liveScheduledPromise =
+    typeof displayTimeZone === 'string' && displayTimeZone.trim().length > 0
+      ? getLiveScheduledCalendarEventsForRange(userId, rangeStart, rangeEnd, displayTimeZone.trim())
+      : Promise.resolve([] as CalendarEvent[]);
 
   const [
     programEvents,
@@ -44,6 +52,7 @@ export async function getUnifiedCalendarEvents(
     scheduledWorkoutEvents,
     timerEvents,
     readinessEvents,
+    liveScheduledEvents,
   ] = await Promise.all([
     Promise.resolve(getCalendarEventsForRange(rangeStart, rangeEnd, programs, loggedMap)),
     getAmrapCompletedEventsForRange(userId, rangeStart, rangeEnd),
@@ -51,6 +60,7 @@ export async function getUnifiedCalendarEvents(
     getScheduledWorkoutEventsForRange(userId, rangeStart, rangeEnd),
     getTimerLogEventsForRange(userId, rangeStart, rangeEnd),
     getReadinessEventsForRange(userId, rangeStart, rangeEnd),
+    liveScheduledPromise,
   ]);
 
   const merged: CalendarEvent[] = [
@@ -60,6 +70,7 @@ export async function getUnifiedCalendarEvents(
     ...scheduledWorkoutEvents,
     ...timerEvents,
     ...readinessEvents,
+    ...liveScheduledEvents,
   ];
 
   return merged.sort((a, b) => a.date.localeCompare(b.date));

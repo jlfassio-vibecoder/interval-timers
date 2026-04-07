@@ -351,6 +351,7 @@ export interface Database {
           client_user_id: string;
           trainer_user_id: string;
           scheduled_at: string;
+          trainer_live_session_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -360,11 +361,14 @@ export interface Database {
           client_user_id: string;
           trainer_user_id: string;
           scheduled_at: string;
+          trainer_live_session_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
         Update: {
+          assignment_id?: string;
           scheduled_at?: string;
+          trainer_live_session_id?: string | null;
           updated_at?: string;
         };
         Relationships: [];
@@ -391,6 +395,120 @@ export interface Database {
         Update: {
           body?: string;
           created_at?: string;
+        };
+        Relationships: [];
+      };
+      trainer_live_session_series: {
+        Row: {
+          id: string;
+          trainer_user_id: string;
+          frequency: string;
+          interval_weeks: number;
+          weekday: number;
+          iana_timezone: string;
+          duration_minutes: number;
+          local_start_time: string;
+          status: string;
+          expand_horizon_weeks: number;
+          until_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          trainer_user_id: string;
+          frequency?: string;
+          interval_weeks?: number;
+          weekday: number;
+          iana_timezone: string;
+          duration_minutes: number;
+          local_start_time: string;
+          status?: string;
+          expand_horizon_weeks?: number;
+          until_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          status?: string;
+          expand_horizon_weeks?: number;
+          until_at?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      trainer_live_session_invites: {
+        Row: {
+          id: string;
+          occurrence_id: string;
+          invitee_user_id: string | null;
+          status:
+            | 'pending'
+            | 'accepted'
+            | 'declined'
+            | 'waitlisted'
+            | 'expired'
+            | 'cancelled';
+          roster_invitation_id: string | null;
+          responded_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          occurrence_id: string;
+          invitee_user_id?: string | null;
+          status?: 'pending' | 'accepted' | 'declined' | 'waitlisted' | 'expired' | 'cancelled';
+          roster_invitation_id?: string | null;
+          responded_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          status?: 'pending' | 'accepted' | 'declined' | 'waitlisted' | 'expired' | 'cancelled';
+          invitee_user_id?: string | null;
+          roster_invitation_id?: string | null;
+          responded_at?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      trainer_live_session_occurrences: {
+        Row: {
+          id: string;
+          trainer_user_id: string;
+          series_id: string | null;
+          scheduled_start_at: string;
+          scheduled_end_at: string;
+          status: 'scheduled' | 'cancelled' | 'completed';
+          live_session_id: string | null;
+          reminder_24h_sent_at: string | null;
+          reminder_1h_sent_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          trainer_user_id: string;
+          series_id?: string | null;
+          scheduled_start_at: string;
+          scheduled_end_at: string;
+          status?: 'scheduled' | 'cancelled' | 'completed';
+          live_session_id?: string | null;
+          reminder_24h_sent_at?: string | null;
+          reminder_1h_sent_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          series_id?: string | null;
+          scheduled_start_at?: string;
+          scheduled_end_at?: string;
+          status?: 'scheduled' | 'cancelled' | 'completed';
+          live_session_id?: string | null;
+          reminder_24h_sent_at?: string | null;
+          reminder_1h_sent_at?: string | null;
+          updated_at?: string;
         };
         Relationships: [];
       };
@@ -463,6 +581,7 @@ export interface Database {
         Relationships: [];
       };
     };
+    Views: Record<string, never>;
     Functions: {
       is_mission_control_staff: {
         Args: Record<PropertyKey, never>;
@@ -471,6 +590,14 @@ export interface Database {
       get_trainer_profile_for_client: {
         Args: { p_program_id: string };
         Returns: Record<string, unknown> | null;
+      };
+      trainer_live_schedule_invite_accept: {
+        Args: { p_invite_id: string };
+        Returns: Record<string, unknown>;
+      };
+      trainer_live_schedule_invite_decline: {
+        Args: { p_invite_id: string };
+        Returns: Record<string, unknown>;
       };
     };
   };

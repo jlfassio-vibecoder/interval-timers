@@ -30,6 +30,8 @@ import {
 } from '@/lib/calendar-events';
 import { sortEventsByTypeOrder } from '@/lib/calendar-event-order';
 import { formatDayTooltip } from '@/lib/calendar-insights';
+import { safeIanaZone } from '@/lib/performance-lab/trainer-calendar-time';
+import { DateTime } from 'luxon';
 
 const DRAGGABLE_TYPES = ['timer_scheduled', 'amrap_scheduled'] as const;
 type DraggableType = (typeof DRAGGABLE_TYPES)[number];
@@ -71,6 +73,8 @@ export interface AppCalendarProps {
   onSelectModeToggle?: () => void;
   /** When provided, same-day events are sorted by this type order (Phase 5.9). */
   eventTypeOrder?: CalendarEventType[];
+  /** When set, month header syncs to "now" in this IANA zone when the value changes (e.g. profile timezone). */
+  anchorTimezone?: string;
 }
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -115,11 +119,23 @@ const TYPE_STYLES: Record<CalendarEvent['type'], { border: string; bg: string; t
     text: 'text-emerald-300',
   },
   readiness: { border: 'border-violet-400', bg: 'bg-violet-400/10', text: 'text-violet-400' },
+  live_scheduled: {
+    border: 'border-cyan-400',
+    bg: 'bg-cyan-500/10',
+    text: 'text-cyan-200',
+  },
 };
 
 function getEventStyle(ev: CalendarEvent): { border: string; bg: string; text: string } {
   const status = ev.status ?? 'completed';
   if (ev.type === 'program') return STATUS_STYLES[status];
+  if (ev.type === 'live_scheduled' && ev.metadata?.inviteStatus === 'waitlisted') {
+    return {
+      border: 'border-amber-300/90 border-dashed',
+      bg: 'bg-amber-500/10',
+      text: 'text-amber-200/95',
+    };
+  }
   return TYPE_STYLES[ev.type];
 }
 
@@ -335,6 +351,7 @@ const AppCalendar: React.FC<AppCalendarProps> = ({
   onDaySelect,
   onSelectModeToggle,
   eventTypeOrder,
+  anchorTimezone,
 }) => {
   const { user } = useAppContext();
   const [year, setYear] = useState(() => new Date().getFullYear());
@@ -343,6 +360,16 @@ const AppCalendar: React.FC<AppCalendarProps> = ({
   const [loading, setLoading] = useState(true);
 
   const events = eventsProp ?? internalEvents;
+
+  useEffect(() => {
+    if (!anchorTimezone) return;
+    const z = safeIanaZone(anchorTimezone);
+    const dt = DateTime.now().setZone(z);
+    if (!dt.isValid) return;
+    setYear(dt.year);
+    setMonth(dt.month);
+    onMonthChange?.(dt.year, dt.month);
+  }, [anchorTimezone, onMonthChange]);
 
   useEffect(() => {
     if (eventsProp !== undefined) {

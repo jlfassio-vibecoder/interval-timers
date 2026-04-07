@@ -15,7 +15,8 @@ export type CalendarEventType =
   | 'timer'
   | 'readiness'
   | 'amrap_scheduled'
-  | 'timer_scheduled';
+  | 'timer_scheduled'
+  | 'live_scheduled';
 
 export interface CalendarEvent {
   type: CalendarEventType;
@@ -45,6 +46,14 @@ export interface CalendarEvent {
     notes?: string;
     /** timer_scheduled: full scheduled_at ISO string for display. */
     scheduledAt?: string;
+    /** live_scheduled: invite + occurrence ids and wall times. */
+    liveInviteId?: string;
+    occurrenceId?: string;
+    inviteStatus?: string;
+    /** 1-based queue position among waitlisted invites for this occurrence (FIFO). */
+    waitlistPosition?: number;
+    trainerUserId?: string;
+    scheduledEndAt?: string;
     /** AMRAP: full exercise list for display in drawer. */
     workoutList?: string[];
     /** When the event is backed by a coach assignment (e.g. merged weekly board). */

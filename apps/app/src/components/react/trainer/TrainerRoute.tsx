@@ -21,6 +21,7 @@ import {
   Video,
   Sparkles,
   ChevronDown,
+  Calendar,
 } from 'lucide-react';
 import { AppProvider, useAppContext } from '../../../contexts/AppContext';
 import { AuthModal } from '@interval-timers/auth-ui';
@@ -30,6 +31,7 @@ import RosterView from './views/RosterView';
 import ClientDetailView from './views/ClientDetailView';
 import ClientMissionControlLayout from './views/ClientMissionControlLayout';
 import PerformanceLabView from './views/PerformanceLabView';
+import TrainerUnifiedCalendarView from './views/TrainerUnifiedCalendarView';
 import IntelView from './views/IntelView';
 import StudioWelcomeEditorView from './views/StudioWelcomeEditorView';
 import TrainerWelcomeEditorView from './views/TrainerWelcomeEditorView';
@@ -46,6 +48,7 @@ import TrainerLibraryWorkoutEditView from './views/TrainerLibraryWorkoutEditView
 
 const TOP_TRAINER_LINKS = [
   { path: '/roster', label: 'Roster', icon: Users },
+  { path: '/roster/calendar', label: 'Calendar', icon: Calendar },
   { path: '/live', label: 'Live', icon: Video },
   { path: '/intel', label: 'Intel', icon: BarChart3 },
 ] as const;
@@ -75,9 +78,13 @@ function isTrainerNavActive(path: string, pathname: string): boolean {
   if (path === '/roster/welcome') {
     return pathname === '/roster/welcome';
   }
+  if (path === '/roster/calendar') {
+    return pathname === '/roster/calendar' || pathname.startsWith('/roster/calendar/');
+  }
   if (path === '/roster') {
     if (pathname === '/roster') return true;
     if (!pathname.startsWith('/roster/')) return false;
+    if (pathname === '/roster/calendar' || pathname.startsWith('/roster/calendar/')) return false;
     return !pathname.startsWith('/roster/welcome');
   }
   return pathname === path || pathname.startsWith(path + '/');
@@ -411,6 +418,11 @@ function TrainerRosterRoute() {
   return isTrainer ? <RosterView /> : <Navigate to="/" replace />;
 }
 
+function TrainerUnifiedCalendarRoute() {
+  const { isTrainer } = useAppContext();
+  return isTrainer ? <TrainerUnifiedCalendarView /> : <Navigate to="/" replace />;
+}
+
 function TrainerStudioWelcomeRoute() {
   const { isTrainer } = useAppContext();
   return isTrainer ? <StudioWelcomeEditorView /> : <Navigate to="/" replace />;
@@ -463,9 +475,10 @@ const TrainerBrowser: React.FC = () => {
             <Route path="workouts/series/:seriesId" element={<TrainerWorkoutSeriesRoute />} />
             <Route path="workouts/:workoutId/edit" element={<TrainerLibraryWorkoutEditRoute />} />
             <Route path="workouts" element={<TrainerClientWorkoutsRoute />} />
-            <Route path="roster" element={<TrainerRosterRoute />} />
-            <Route path="roster/welcome" element={<TrainerStudioWelcomeRoute />} />
+            <Route path="roster/calendar" element={<TrainerUnifiedCalendarRoute />} />
             <Route path="roster/welcome/coach" element={<TrainerCoachWelcomeRoute />} />
+            <Route path="roster/welcome" element={<TrainerStudioWelcomeRoute />} />
+            <Route path="roster" element={<TrainerRosterRoute />} />
             <Route path="roster/:userId" element={<TrainerClientMissionRoute />}>
               <Route index element={<ClientDetailView />} />
               <Route path="lab" element={<PerformanceLabView />} />

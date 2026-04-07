@@ -58,6 +58,10 @@ function secondaryId(ev: CalendarEvent, index: number): string {
   if (ev.type === 'program' && ev.programId != null && ev.weekId != null && ev.workoutId != null)
     return `${ev.programId}-${ev.weekId}-${ev.workoutId}`;
   if (ev.metadata?.logId) return ev.metadata.logId;
+  if (ev.type === 'live_scheduled') {
+    if (ev.metadata?.occurrenceId) return `live-occ-${ev.metadata.occurrenceId}`;
+    if (ev.metadata?.liveInviteId) return `live-inv-${ev.metadata.liveInviteId}`;
+  }
   return `i${index}`;
 }
 
@@ -87,7 +91,7 @@ function isCompleted(ev: CalendarEvent): boolean {
 /**
  * Build RFC 5545 .ics string from unified calendar events.
  * - program: all-day (DATE)
- * - amrap_scheduled, timer_scheduled: timed (DATETIME from metadata.scheduledAt)
+ * - amrap_scheduled, timer_scheduled, live_scheduled: timed (DATETIME from metadata.scheduledAt)
  * - amrap, timer, readiness (completed): all-day with [Done] prefix
  */
 export function buildIcsFromEvents(events: CalendarEvent[]): string {
@@ -112,9 +116,13 @@ export function buildIcsFromEvents(events: CalendarEvent[]): string {
     summary = escapeIcsText(summary);
 
     const isTimed =
-      (ev.type === 'amrap_scheduled' || ev.type === 'timer_scheduled') && ev.metadata?.scheduledAt;
+      (ev.type === 'amrap_scheduled' ||
+        ev.type === 'timer_scheduled' ||
+        ev.type === 'live_scheduled') &&
+      Boolean(ev.metadata?.scheduledAt);
     const startIso = isTimed ? ev.metadata!.scheduledAt! : ev.date;
     const durationMinutes = ev.metadata?.durationMinutes;
+    const endIso = ev.metadata?.scheduledEndAt;
 
     lines.push('BEGIN:VEVENT');
     lines.push(`UID:${foldLine(eventUid)}`);
@@ -123,8 +131,14 @@ export function buildIcsFromEvents(events: CalendarEvent[]): string {
 
     if (isTimed) {
       lines.push(`DTSTART:${toIcsDateTime(startIso)}`);
-      if (durationMinutes != null && durationMinutes > 0) {
+      const endMs = endIso ? Date.parse(endIso) : NaN;
+      const startMs = Date.parse(startIso);
+      if (Number.isFinite(endMs) && endMs > startMs) {
+        lines.push(`DTEND:${toIcsDateTime(endIso!)}`);
+      } else if (durationMinutes != null && durationMinutes > 0) {
         lines.push(`DURATION:PT${durationMinutes}M`);
+      } else if (ev.type === 'live_scheduled') {
+        lines.push(`DURATION:PT60M`);
       }
     } else {
       lines.push(`DTSTART;VALUE=DATE:${dateToIcsDate(ev.date)}`);
