@@ -6,7 +6,7 @@
  */
 
 import React, { useEffect } from 'react';
-import { X, Activity, Dumbbell, Timer, Heart, Calendar, Plus } from 'lucide-react';
+import { X, Activity, Dumbbell, Timer, Heart, Calendar, Plus, Video } from 'lucide-react';
 import type { CalendarEvent, CalendarEventType } from '@/lib/calendar-events';
 
 export interface MultiActivityDayDrawerProps {
@@ -39,6 +39,8 @@ function typeIcon(type: CalendarEvent['type']) {
       return Timer;
     case 'readiness':
       return Heart;
+    case 'live_scheduled':
+      return Video;
     default:
       return Calendar;
   }
@@ -58,6 +60,8 @@ function typeLabel(type: CalendarEvent['type']): string {
       return 'Scheduled';
     case 'readiness':
       return 'Readiness';
+    case 'live_scheduled':
+      return 'Live session';
     default:
       return 'Activity';
   }
@@ -80,6 +84,7 @@ const TYPE_ORDER: CalendarEvent['type'][] = [
   'amrap_scheduled',
   'timer',
   'timer_scheduled',
+  'live_scheduled',
   'readiness',
 ];
 

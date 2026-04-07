@@ -14,6 +14,7 @@ const TYPE_LABELS: Record<CalendarEventType, string> = {
   program: 'Program',
   amrap_scheduled: 'AMRAP scheduled',
   timer_scheduled: 'Timer scheduled',
+  live_scheduled: 'Live session (scheduled)',
   amrap: 'AMRAP',
   timer: 'Timer',
   readiness: 'Readiness',

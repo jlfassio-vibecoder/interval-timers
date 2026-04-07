@@ -8,6 +8,7 @@ import AstroPWA from '@vite-pwa/astro';
 import { fileURLToPath } from 'url';
 import { existsSync, statSync } from 'fs';
 import { resolve, join } from 'path';
+import { visualizer } from 'rollup-plugin-visualizer';
 
 const root = fileURLToPath(new URL('.', import.meta.url));
 const monorepoRoot = resolve(root, '../..');
@@ -57,6 +58,7 @@ const src = resolve(root, './src');
 // Use Vercel adapter on Vercel (fixes 404 NOT_FOUND); Node adapter elsewhere (e.g. local preview, other hosts)
 const isVercel = process.env.VERCEL === '1';
 const isProduction = process.env.NODE_ENV === 'production' || process.env.CI === 'true';
+const analyzeBundle = process.env.ANALYZE === '1' || process.env.ANALYZE === 'true';
 
 export default defineConfig({
   site: process.env.PUBLIC_SITE_URL || undefined,
@@ -105,7 +107,20 @@ export default defineConfig({
     host: true
   },
   vite: {
-    plugins: [monorepoAtPathPlugin(src)],
+    plugins: [
+      monorepoAtPathPlugin(src),
+      ...(analyzeBundle
+        ? [
+            visualizer({
+              filename: resolve(root, 'dist/client/bundle-stats.html'),
+              gzipSize: true,
+              brotliSize: true,
+              template: 'treemap',
+              open: false,
+            }),
+          ]
+        : []),
+    ],
     // Inject Supabase env from any name (SUPABASE_*, VITE_*, PUBLIC_*) so client and SSR get them.
     // Vite only exposes VITE_* by default; Vercel uses SUPABASE_*. Define all variants so every code path sees values.
     define: {
@@ -197,18 +212,27 @@ export default defineConfig({
       rollupOptions: {
         output: {
           manualChunks(id) {
-            // Don't split React into vendor; keep with entry to avoid "useState of null" / jsxDEV errors
-            if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/') || id.includes('node_modules/scheduler/')) {
+            // Keep React in the app graph — splitting it caused "useState of null" / jsxDEV errors.
+            if (
+              id.includes('node_modules/react/') ||
+              id.includes('node_modules/react-dom/') ||
+              id.includes('node_modules/scheduler/')
+            ) {
               return undefined;
             }
-            if (id.includes('node_modules')) {
-              return 'vendor';
-            }
-          }
-        }
+            if (!id.includes('node_modules')) return undefined;
+
+            // Isolate only deps that are huge and rarely change together with the rest of the app.
+            // Finer splits (Supabase vs markdown vs Lucide) caused Rollup circular-chunk warnings and extra requests without a clean graph.
+            if (id.includes('agora-')) return 'vendor-agora';
+            if (id.includes('recharts')) return 'vendor-recharts';
+            return 'vendor-misc';
+          },
+        },
       },
-      // Consolidated `vendor` manualChunk is ~1.6MB (React kept in-app per comment above; recharts, etc.).
       chunkSizeWarningLimit: 1700,
+      // Skip per-chunk gzip/brotli sizing in the build log — saves noticeable CPU on large client graphs.
+      reportCompressedSize: false,
       commonjsOptions: {
         // Transform CommonJS modules to ES modules
         transformMixedEsModules: true

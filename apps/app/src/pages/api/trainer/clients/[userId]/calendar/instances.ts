@@ -20,7 +20,13 @@ export const POST: APIRoute = async ({ request, cookies, params }) => {
       });
     }
 
-    let body: { assignmentId?: string; scheduledAt?: string } = {};
+    let body: {
+      assignmentId?: string;
+      scheduledAt?: string;
+      preflight?: boolean;
+      allowOverlap?: boolean;
+      trainerLiveSessionId?: string | null;
+    } = {};
     try {
       body = (await request.json()) as typeof body;
     } catch {
@@ -39,19 +45,60 @@ export const POST: APIRoute = async ({ request, cookies, params }) => {
       });
     }
 
+    const preflight = body.preflight === true;
+    const allowOverlap = body.allowOverlap === true;
+
+    let trainerLiveSessionId: string | null | undefined = undefined;
+    if ('trainerLiveSessionId' in body) {
+      if (body.trainerLiveSessionId === null) trainerLiveSessionId = null;
+      else if (
+        typeof body.trainerLiveSessionId === 'string' &&
+        body.trainerLiveSessionId.trim() !== ''
+      ) {
+        trainerLiveSessionId = body.trainerLiveSessionId.trim();
+      } else {
+        trainerLiveSessionId = null;
+      }
+    }
+
     const result = await createCoachScheduleInstance(
       viewerId,
       userId,
       role,
       assignmentId,
-      scheduledAt
+      scheduledAt,
+      { preflight, allowOverlap, trainerLiveSessionId }
     );
     if (!result.ok) {
+      if (result.error === 'Scheduling conflict' && 'conflicts' in result) {
+        return new Response(
+          JSON.stringify({ error: result.error, conflicts: result.conflicts }),
+          {
+            status: 409,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        );
+      }
       const notFound =
         result.error === 'Client not found or not in your roster' ||
-        result.error === 'Assignment not found';
+        result.error === 'Assignment not found' ||
+        result.error === 'Live session not found';
       return new Response(JSON.stringify({ error: result.error }), {
         status: notFound ? 404 : 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    if ('preflight' in result && result.preflight) {
+      return new Response(JSON.stringify({ ok: true, conflicts: result.conflicts }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (!('id' in result)) {
+      return new Response(JSON.stringify({ error: 'Unexpected response' }), {
+        status: 500,
         headers: { 'Content-Type': 'application/json' },
       });
     }

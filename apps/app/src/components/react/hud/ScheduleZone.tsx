@@ -5,7 +5,8 @@
  * Schedule Zone: calendar with log markers + click-to-open drawer + 7-day upcoming strip.
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { DateTime } from 'luxon';
 import { toast } from 'sonner';
 import {
   DndContext,
@@ -68,41 +69,28 @@ import CalendarClearConfirmModal from './CalendarClearConfirmModal';
 import CalendarWeekView from './CalendarWeekView';
 import CalendarListView from './CalendarListView';
 import EventOrderSettings from './EventOrderSettings';
+import LiveScheduledInviteDrawer from './LiveScheduledInviteDrawer';
 import type { ProgramSchedule } from '@/types/ai-program';
 import type { WorkoutLog } from '@/types';
+import { safeIanaZone } from '@/lib/performance-lab/trainer-calendar-time';
+import {
+  addDaysInScheduleZone,
+  isDateInThisWeekInZone,
+  sundayWeekStartContainingDateInZone,
+  sundayWeekStartForInstantInZone,
+  todayISOInZone,
+} from '@/lib/schedule-calendar-zone';
+import {
+  getProfileTimezone,
+  getResolvedBrowserTimeZone,
+  updateMyProfileTimezone,
+} from '@/lib/profile-timezone';
+import { CalendarTimezoneControl } from '@/components/react/calendar/CalendarTimezoneControl';
 
 const HUD_SCHEDULE_VIEW_KEY = 'hud_schedule_view';
 export type ScheduleViewMode = 'month' | 'week' | 'list';
 
 type WorkoutFromSchedule = ProgramSchedule['workouts'][number];
-
-function addDays(isoDate: string, days: number): string {
-  const d = new Date(isoDate + 'T12:00:00Z');
-  d.setUTCDate(d.getUTCDate() + days);
-  const y = d.getUTCFullYear();
-  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
-  const day = String(d.getUTCDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
-
-function todayISO(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function getStartOfWeek(): Date {
-  const now = new Date();
-  const start = new Date(now);
-  start.setDate(now.getDate() - now.getDay());
-  start.setHours(0, 0, 0, 0);
-  return start;
-}
-
-// Parse date-only (YYYY-MM-DD) with noon UTC to match project pattern and avoid timezone edge cases.
-function isDateInThisWeek(isoDate: string): boolean {
-  const d = isoDate ? new Date(isoDate + 'T12:00:00Z') : null;
-  if (!d) return false;
-  return d >= getStartOfWeek();
-}
 
 function formatDuration(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -143,8 +131,19 @@ const ScheduleZone: React.FC<ScheduleZoneProps> = ({
   onStripDataReady,
 }) => {
   const { user, activeProgramId } = useAppContext();
-  const [year, setYear] = useState(() => new Date().getFullYear());
-  const [month, setMonth] = useState(() => new Date().getMonth() + 1);
+  const [calendarTimezone, setCalendarTimezone] = useState(() =>
+    safeIanaZone(getResolvedBrowserTimeZone())
+  );
+  const [year, setYear] = useState(() => {
+    const z = safeIanaZone(getResolvedBrowserTimeZone());
+    const dt = DateTime.now().setZone(z);
+    return dt.isValid ? dt.year : new Date().getFullYear();
+  });
+  const [month, setMonth] = useState(() => {
+    const z = safeIanaZone(getResolvedBrowserTimeZone());
+    const dt = DateTime.now().setZone(z);
+    return dt.isValid ? dt.month : new Date().getMonth() + 1;
+  });
   const [_programs, setPrograms] = useState<ProgramForCalendar[]>([]);
   /** User set calendar start date(s) but schedule cannot render (missing program row or empty program_weeks). */
   const [scheduleGap, setScheduleGap] = useState<null | 'missing_program' | 'no_workout_content'>(
@@ -183,8 +182,6 @@ const ScheduleZone: React.FC<ScheduleZoneProps> = ({
   const [clearConfirmModalOpen, setClearConfirmModalOpen] = useState(false);
   const [eventOrderModalOpen, setEventOrderModalOpen] = useState(false);
 
-  const today = todayISO();
-
   const [viewMode, setViewModeState] = useState<ScheduleViewMode>(() => {
     if (typeof window === 'undefined') return 'month';
     try {
@@ -204,40 +201,79 @@ const ScheduleZone: React.FC<ScheduleZoneProps> = ({
     }
   }, []);
 
-  const [weekStart, setWeekStart] = useState<string>(() => {
-    const d = new Date(today + 'T12:00:00Z');
-    const day = d.getUTCDay();
-    const start = new Date(d);
-    start.setUTCDate(d.getUTCDate() - day);
-    return start.toISOString().slice(0, 10);
-  });
+  const [weekStart, setWeekStart] = useState<string>(() =>
+    sundayWeekStartForInstantInZone(Date.now(), safeIanaZone(getResolvedBrowserTimeZone()))
+  );
   const [weekEvents, setWeekEvents] = useState<CalendarEvent[]>([]);
   const [listEvents, setListEvents] = useState<CalendarEvent[]>([]);
   const [eventTypeOrder, setEventTypeOrder] = useState<CalendarEventType[]>(
     () => DEFAULT_EVENT_TYPE_ORDER
   );
 
-  /** Sunday–Saturday week bounds for an anchor date (ISO). */
-  const getWeekBounds = useCallback((anchorIso: string) => {
-    const d = new Date(anchorIso + 'T12:00:00Z');
-    const day = d.getUTCDay();
-    const start = new Date(d);
-    start.setUTCDate(d.getUTCDate() - day);
-    const startIso = start.toISOString().slice(0, 10);
-    const endIso = addDays(startIso, 6);
-    return { start: startIso, end: endIso };
-  }, []);
+  const today = useMemo(() => todayISOInZone(calendarTimezone), [calendarTimezone]);
 
-  const shiftDate = useCallback((iso: string, days: number) => addDays(iso, days), []);
+  useEffect(() => {
+    if (!user?.uid) return;
+    let cancelled = false;
+    getProfileTimezone(user.uid)
+      .then((tz) => {
+        if (cancelled) return;
+        const z = safeIanaZone(tz ?? getResolvedBrowserTimeZone());
+        setCalendarTimezone(z);
+        setWeekStart(sundayWeekStartForInstantInZone(Date.now(), z));
+        const dt = DateTime.now().setZone(z);
+        if (dt.isValid) {
+          setYear(dt.year);
+          setMonth(dt.month);
+        }
+      })
+      .catch(() => {
+        if (cancelled) return;
+        const z = safeIanaZone(getResolvedBrowserTimeZone());
+        setCalendarTimezone(z);
+        setWeekStart(sundayWeekStartForInstantInZone(Date.now(), z));
+        const dt = DateTime.now().setZone(z);
+        if (dt.isValid) {
+          setYear(dt.year);
+          setMonth(dt.month);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.uid]);
+
+  /** Sunday–Saturday week bounds for an anchor date (ISO) in `calendarTimezone`. */
+  const getWeekBounds = useCallback(
+    (anchorIso: string) => {
+      const startIso = sundayWeekStartContainingDateInZone(anchorIso, calendarTimezone);
+      const endIso = addDaysInScheduleZone(startIso, 6, calendarTimezone);
+      return { start: startIso, end: endIso };
+    },
+    [calendarTimezone]
+  );
+
+  const shiftDate = useCallback(
+    (iso: string, days: number) => addDaysInScheduleZone(iso, days, calendarTimezone),
+    [calendarTimezone]
+  );
+
+  const thisWeekSunday = useMemo(
+    () => sundayWeekStartForInstantInZone(Date.now(), calendarTimezone),
+    [calendarTimezone]
+  );
+  const thisWeekSaturday = useMemo(
+    () => addDaysInScheduleZone(thisWeekSunday, 6, calendarTimezone),
+    [thisWeekSunday, calendarTimezone]
+  );
 
   const durationThisWeekSeconds = React.useMemo(() => {
-    const startOfWeek = getStartOfWeek();
     return workoutLogs.reduce((sum, log) => {
-      const d = log.date ? new Date(log.date) : null;
-      if (!d || d < startOfWeek) return sum;
+      const d = typeof log.date === 'string' ? log.date.slice(0, 10) : '';
+      if (!d || d < thisWeekSunday || d > thisWeekSaturday) return sum;
       return sum + (log.durationSeconds ?? 0);
     }, 0);
-  }, [workoutLogs]);
+  }, [workoutLogs, thisWeekSunday, thisWeekSaturday]);
 
   useEffect(() => {
     if (!user?.uid) {
@@ -248,7 +284,9 @@ const ScheduleZone: React.FC<ScheduleZoneProps> = ({
     getPersonalRecords(user.uid, 50)
       .then((prs) => {
         if (cancelled) return;
-        const count = prs.filter((pr) => isDateInThisWeek(pr.date)).length;
+        const count = prs.filter((pr) =>
+          isDateInThisWeekInZone(String(pr.date).slice(0, 10), Date.now(), calendarTimezone)
+        ).length;
         setPrCountThisWeek(count);
       })
       .catch(() => {
@@ -257,7 +295,7 @@ const ScheduleZone: React.FC<ScheduleZoneProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [user?.uid]);
+  }, [user?.uid, calendarTimezone]);
 
   const loadPrograms = useCallback(async (): Promise<{
     programs: ProgramForCalendar[];
@@ -338,7 +376,7 @@ const ScheduleZone: React.FC<ScheduleZoneProps> = ({
 
         if (viewMode === 'month') {
           const { start: monthStart, end: monthEnd } = getMonthRange(year, month);
-          const stripEnd = addDays(today, 6);
+          const stripEnd = addDaysInScheduleZone(today, 6, calendarTimezone);
           const rangeStart = monthStart < today ? monthStart : today;
           const rangeEnd = monthEnd > stripEnd ? monthEnd : stripEnd;
           const loggedMap = await getLoggedDatesForCalendar(user.uid, rangeStart, rangeEnd);
@@ -347,6 +385,7 @@ const ScheduleZone: React.FC<ScheduleZoneProps> = ({
             getUnifiedCalendarEvents(user.uid, rangeStart, rangeEnd, {
               programs: progList,
               loggedMap,
+              displayTimeZone: calendarTimezone,
             }),
             getRestDaysForRange(user.uid, rangeStart, rangeEnd),
           ]);
@@ -362,7 +401,7 @@ const ScheduleZone: React.FC<ScheduleZoneProps> = ({
           }
           const days: UpcomingStripDay[] = [];
           for (let i = 0; i < 7; i++) {
-            const date = addDays(today, i);
+            const date = addDaysInScheduleZone(today, i, calendarTimezone);
             const list = eventsByDate.get(date) ?? [];
             let sorted = sortEventsByTypeOrder(list, eventTypeOrder);
             if (activeProgramId != null) {
@@ -380,11 +419,12 @@ const ScheduleZone: React.FC<ScheduleZoneProps> = ({
           setWeekEvents([]);
           setListEvents([]);
         } else if (viewMode === 'week') {
-          const weekEnd = addDays(weekStart, 6);
+          const weekEnd = addDaysInScheduleZone(weekStart, 6, calendarTimezone);
           const [allEvents, restSet] = await Promise.all([
             getUnifiedCalendarEvents(user.uid, weekStart, weekEnd, {
               programs: progList,
               loggedMap: await getLoggedDatesForCalendar(user.uid, weekStart, weekEnd),
+              displayTimeZone: calendarTimezone,
             }),
             getRestDaysForRange(user.uid, weekStart, weekEnd),
           ]);
@@ -395,11 +435,12 @@ const ScheduleZone: React.FC<ScheduleZoneProps> = ({
           setStripDays([]);
           setListEvents([]);
         } else {
-          const listEnd = addDays(today, 21);
+          const listEnd = addDaysInScheduleZone(today, 21, calendarTimezone);
           const [allEvents, restSet] = await Promise.all([
             getUnifiedCalendarEvents(user.uid, today, listEnd, {
               programs: progList,
               loggedMap: await getLoggedDatesForCalendar(user.uid, today, listEnd),
+              displayTimeZone: calendarTimezone,
             }),
             getRestDaysForRange(user.uid, today, listEnd),
           ]);
@@ -437,6 +478,7 @@ const ScheduleZone: React.FC<ScheduleZoneProps> = ({
     loadPrograms,
     activeProgramId,
     eventTypeOrder,
+    calendarTimezone,
   ]);
 
   const amrapEvent = selectedDayEvents?.length === 1 ? selectedDayEvents[0] : null;
@@ -474,6 +516,28 @@ const ScheduleZone: React.FC<ScheduleZoneProps> = ({
     setYear(newYear);
     setMonth(newMonth);
   }, []);
+
+  const commitCalendarTimezone = useCallback(
+    async (zone: string) => {
+      if (!user?.uid) return;
+      const z = safeIanaZone(zone);
+      try {
+        await updateMyProfileTimezone(user.uid, z);
+        setCalendarTimezone(z);
+        setWeekStart(sundayWeekStartForInstantInZone(Date.now(), z));
+        const dt = DateTime.now().setZone(z);
+        if (dt.isValid) {
+          setYear(dt.year);
+          setMonth(dt.month);
+        }
+        toast.success('Timezone saved');
+        onCalendarRefresh?.();
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Failed to save timezone');
+      }
+    },
+    [user?.uid, onCalendarRefresh]
+  );
 
   const handleDayClick = useCallback(
     (date: string, events: CalendarEvent[]) => {
@@ -671,13 +735,14 @@ const ScheduleZone: React.FC<ScheduleZoneProps> = ({
     if (!user?.uid || exportingIcs) return;
     setExportingIcs(true);
     try {
-      const rangeStart = addDays(today, -7);
-      const rangeEnd = addDays(today, 30);
+      const rangeStart = addDaysInScheduleZone(today, -7, calendarTimezone);
+      const rangeEnd = addDaysInScheduleZone(today, 30, calendarTimezone);
       const { programs: progList } = await loadPrograms();
       const loggedMap = await getLoggedDatesForCalendar(user.uid, rangeStart, rangeEnd);
       const raw = await getUnifiedCalendarEvents(user.uid, rangeStart, rangeEnd, {
         programs: progList,
         loggedMap,
+        displayTimeZone: calendarTimezone,
       });
       const byDate = new Map<string, CalendarEvent[]>();
       for (const e of raw) {
@@ -704,7 +769,7 @@ const ScheduleZone: React.FC<ScheduleZoneProps> = ({
     } finally {
       setExportingIcs(false);
     }
-  }, [user?.uid, today, loadPrograms, exportingIcs, eventTypeOrder]);
+  }, [user?.uid, today, calendarTimezone, loadPrograms, exportingIcs, eventTypeOrder]);
 
   const handleBulkMarkRest = useCallback(async () => {
     if (!user?.uid || selectedDates.size === 0) return;
@@ -870,8 +935,8 @@ const ScheduleZone: React.FC<ScheduleZoneProps> = ({
 
   return (
     <div id="schedule-zone">
-      <div className="mb-3 flex items-center justify-between gap-2 border-b border-white/10">
-        <div className="flex items-center gap-2">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-white/10">
+        <div className="flex flex-wrap items-center gap-2">
           {(['month', 'week', 'list'] as const).map((mode) => (
             <button
               key={mode}
@@ -887,13 +952,22 @@ const ScheduleZone: React.FC<ScheduleZoneProps> = ({
             </button>
           ))}
         </div>
-        <button
-          type="button"
-          onClick={() => setEventOrderModalOpen(true)}
-          className="font-mono text-[10px] uppercase tracking-wider text-white/60 transition-colors hover:text-white/80"
-        >
-          Order events
-        </button>
+        <div className="flex flex-wrap items-center justify-end gap-3">
+          {user?.uid ? (
+            <CalendarTimezoneControl
+              value={calendarTimezone}
+              onCommit={commitCalendarTimezone}
+              id="hud-schedule-timezone"
+            />
+          ) : null}
+          <button
+            type="button"
+            onClick={() => setEventOrderModalOpen(true)}
+            className="font-mono text-[10px] uppercase tracking-wider text-white/60 transition-colors hover:text-white/80"
+          >
+            Order events
+          </button>
+        </div>
       </div>
       {scheduleGap === 'no_workout_content' && (
         <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-white/90">
@@ -930,6 +1004,7 @@ const ScheduleZone: React.FC<ScheduleZoneProps> = ({
         {viewMode === 'month' && (
           <AppCalendar
             refreshKey={refreshKey}
+            anchorTimezone={calendarTimezone}
             events={monthEvents}
             eventTypeOrder={eventTypeOrder}
             onEventClick={(date, events) => handleDayClick(date, events)}
@@ -1037,10 +1112,18 @@ const ScheduleZone: React.FC<ScheduleZoneProps> = ({
           onRemoved={onCalendarRefresh}
         />
       )}
+      {selectedDayEvents?.length === 1 && selectedDayEvents[0].type === 'live_scheduled' && (
+        <LiveScheduledInviteDrawer
+          event={selectedDayEvents[0]}
+          onClose={() => setSelectedDayEvents(null)}
+          onUpdated={onCalendarRefresh}
+        />
+      )}
       {selectedDayEvents?.length === 1 &&
         selectedDayEvents[0].type !== 'program' &&
         selectedDayEvents[0].type !== 'timer' &&
-        selectedDayEvents[0].type !== 'timer_scheduled' && (
+        selectedDayEvents[0].type !== 'timer_scheduled' &&
+        selectedDayEvents[0].type !== 'live_scheduled' && (
           <SimpleActivityDrawer
             event={selectedDayEvents[0]}
             onClose={() => setSelectedDayEvents(null)}

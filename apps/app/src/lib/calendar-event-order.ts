@@ -14,6 +14,7 @@ export const DEFAULT_EVENT_TYPE_ORDER: CalendarEventType[] = [
   'amrap_scheduled',
   'timer',
   'timer_scheduled',
+  'live_scheduled',
   'readiness',
 ];
 

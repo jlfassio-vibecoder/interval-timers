@@ -10,7 +10,7 @@
   "scripts": {
     "dev": "NODE_PATH=../../node_modules npx astro dev --port 3006",
     "dev:fresh": "rm -rf node_modules/.vite ../../node_modules/.vite 2>/dev/null; NODE_PATH=../../node_modules npx astro dev --port 3006",
-    "prebuild": "npm install --include=optional --force @rollup/rollup-linux-x64-gnu 2>/dev/null || npm install --include=optional --force",
+    "prebuild": "node scripts/prebuild-install.mjs",
     "copy:favicon": "node scripts/copy-favicon.js",
     "build": "npm run copy:favicon && NODE_PATH=../../node_modules astro build",
     "preview": "astro preview",
@@ -30,7 +30,8 @@
     "check-env": "node scripts/check-env.js",
     "db:push": "node scripts/db-push.js",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "analyze:bundle": "ANALYZE=1 NODE_PATH=../../node_modules astro build"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -67,6 +68,7 @@
     "google-auth-library": "^10.5.0",
     "jsonrepair": "^3.13.2",
     "lucide-react": "^0.553.0",
+    "luxon": "^3.7.2",
     "marked": "^17.0.1",
     "piccolore": "^0.1.3",
     "react": "^19.2.0",
@@ -100,6 +102,7 @@
     "@astrojs/tailwind": "^6.0.2",
     "@astrojs/vercel": "9.0.4",
     "@eslint/js": "^9.39.2",
+    "@types/luxon": "^3.7.1",
     "@types/node": "^22.14.0",
     "@types/prop-types": "^15.7.15",
     "@types/react": "^19.0.0",
@@ -122,6 +125,7 @@
     "prettier": "^3.8.1",
     "prettier-plugin-astro": "^0.14.1",
     "prettier-plugin-tailwindcss": "^0.7.2",
+    "rollup-plugin-visualizer": "^6.0.5",
     "tailwindcss": "^3.4.19",
     "typescript": "~5.8.2",
     "vitest": "^3.2.4"

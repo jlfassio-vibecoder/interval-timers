@@ -25,6 +25,7 @@ const TYPE_LABELS: Record<CalendarEvent['type'], string> = {
   amrap_scheduled: 'AMRAP',
   timer: 'Timer',
   timer_scheduled: 'Scheduled',
+  live_scheduled: 'Live',
   readiness: 'Readiness',
 };
 
@@ -39,6 +40,11 @@ const TYPE_STYLES: Record<CalendarEvent['type'], { border: string; bg: string; t
     text: 'text-emerald-300',
   },
   readiness: { border: 'border-violet-400', bg: 'bg-violet-400/10', text: 'text-violet-400' },
+  live_scheduled: {
+    border: 'border-cyan-400',
+    bg: 'bg-cyan-500/10',
+    text: 'text-cyan-200',
+  },
 };
 
 function getEventStyle(ev: CalendarEvent): { border: string; bg: string; text: string } {

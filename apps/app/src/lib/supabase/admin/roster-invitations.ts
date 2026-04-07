@@ -169,14 +169,31 @@ export function resolvePublicAppUrlFromRequest(request: Request): string {
 export function buildRosterInviteAcceptUrl(
   rawToken: string,
   studioSlug?: string | null,
-  publicAppBaseHint?: string | null
+  publicAppBaseHint?: string | null,
+  extraQuery?: Record<string, string> | null
 ): string {
   const base = getPublicAppBase(publicAppBaseHint);
   const slug = typeof studioSlug === 'string' ? studioSlug.trim() : '';
+  let path: string;
   if (slug) {
-    return `${base}/s/${encodeURIComponent(slug)}/i/${encodeURIComponent(rawToken)}`;
+    path = `${base}/s/${encodeURIComponent(slug)}/i/${encodeURIComponent(rawToken)}`;
+  } else {
+    path = `${base}/welcome?invite=${encodeURIComponent(rawToken)}`;
   }
-  return `${base}/welcome?invite=${encodeURIComponent(rawToken)}`;
+  if (!extraQuery || Object.keys(extraQuery).length === 0) {
+    return path;
+  }
+  try {
+    const u = new URL(path);
+    for (const [k, v] of Object.entries(extraQuery)) {
+      if (v) u.searchParams.set(k, v);
+    }
+    return u.toString();
+  } catch {
+    const q = new URLSearchParams(extraQuery as Record<string, string>).toString();
+    const sep = path.includes('?') ? '&' : '?';
+    return `${path}${sep}${q}`;
+  }
 }
 
 /** Resolve studio vanity slug for invite URLs (trainer profiles only). */
