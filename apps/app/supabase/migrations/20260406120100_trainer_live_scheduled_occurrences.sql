@@ -1,4 +1,5 @@
 -- P0: Scheduled live session occurrences + invites (roster clients only).
+-- Version 20260406120100: must not share 20260406120000 with trainer_client_messages.sql (schema_migrations PK).
 -- Design: docs/trainer-unified-calendar-live-session-scheduling-design.md
 
 CREATE TABLE public.trainer_live_session_occurrences (

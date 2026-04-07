@@ -94,7 +94,13 @@ export async function runScheduledLiveReminders(nowMs: number = Date.now()): Pro
         .eq('occurrence_id', occId)
         .eq('status', 'accepted');
 
-      if (invErr || !invs?.length) {
+      // Do not mark reminder sent on transient read errors (would suppress retries).
+      if (invErr) {
+        if (import.meta.env.DEV) console.warn('[live-schedule-reminders] invites query', invErr);
+        continue;
+      }
+
+      if (!invs?.length) {
         await supabase
           .from('trainer_live_session_occurrences')
           .update({ [sentCol]: new Date().toISOString(), updated_at: new Date().toISOString() })

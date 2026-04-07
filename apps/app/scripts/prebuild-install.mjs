@@ -14,7 +14,9 @@ function runNpm(args) {
   return spawnSync('npm', args, { stdio: 'inherit' });
 }
 
-if (process.env.VERCEL === '1' || process.env.CI === 'true') {
+// Skip redundant install when the platform already ran one; honor CI=true (GitHub) and CI=1 (common runners).
+const ci = process.env.CI;
+if (process.env.VERCEL === '1' || ci === 'true' || ci === '1') {
   process.exit(0);
 }
 

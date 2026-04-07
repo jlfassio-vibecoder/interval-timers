@@ -351,6 +351,7 @@ export interface Database {
           client_user_id: string;
           trainer_user_id: string;
           scheduled_at: string;
+          trainer_live_session_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -360,12 +361,14 @@ export interface Database {
           client_user_id: string;
           trainer_user_id: string;
           scheduled_at: string;
+          trainer_live_session_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
         Update: {
           assignment_id?: string;
           scheduled_at?: string;
+          trainer_live_session_id?: string | null;
           updated_at?: string;
         };
         Relationships: [];

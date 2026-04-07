@@ -59,14 +59,23 @@ export const PATCH: APIRoute = async ({ request, cookies, params }) => {
 
     let trainerLiveSessionPatch: string | null | undefined = undefined;
     if (hasLiveKey) {
-      if (body.trainerLiveSessionId === null) trainerLiveSessionPatch = null;
-      else if (
-        typeof body.trainerLiveSessionId === 'string' &&
-        body.trainerLiveSessionId.trim() !== ''
-      ) {
-        trainerLiveSessionPatch = body.trainerLiveSessionId.trim();
-      } else {
+      const v = body.trainerLiveSessionId;
+      if (v === null) {
         trainerLiveSessionPatch = null;
+      } else if (typeof v === 'string') {
+        const t = v.trim();
+        if (!t) {
+          return new Response(
+            JSON.stringify({ error: 'trainerLiveSessionId must be null or a non-empty string' }),
+            { status: 400, headers: { 'Content-Type': 'application/json' } }
+          );
+        }
+        trainerLiveSessionPatch = t;
+      } else {
+        return new Response(
+          JSON.stringify({ error: 'trainerLiveSessionId must be null or a string' }),
+          { status: 400, headers: { 'Content-Type': 'application/json' } }
+        );
       }
     }
 
