@@ -30,6 +30,13 @@ export interface AmrapWorkoutPickerProps {
    * Parent fetches trainer `public.workouts` and maps blocks + duration; confirm runs `onConfirmSavedWorkout`.
    */
   savedWorkouts?: AmrapSavedWorkoutItem[];
+  /**
+   * Trainer-curated shortcuts for Live AMRAP. Shown above "My saved workouts" on the protocol step.
+   * Omit both this and `featuredSavedWorkoutsLoading` when not used (e.g. non–Mission Control embeds).
+   */
+  featuredSavedWorkouts?: AmrapSavedWorkoutItem[];
+  /** When true, shows a placeholder above "My saved workouts" until featured rows are ready. */
+  featuredSavedWorkoutsLoading?: boolean;
   /** After user confirms duration for a saved row; parent maps blocks → attach RPC inputs. */
   onConfirmSavedWorkout?: (item: AmrapSavedWorkoutItem, durationMinutes: number) => void;
 }
@@ -43,6 +50,8 @@ export function AmrapWorkoutPicker({
   disabled = false,
   className,
   savedWorkouts,
+  featuredSavedWorkouts,
+  featuredSavedWorkoutsLoading = false,
   onConfirmSavedWorkout,
 }: AmrapWorkoutPickerProps) {
   const [step, setStep] = useState<Step>('protocol');
@@ -53,6 +62,20 @@ export function AmrapWorkoutPicker({
 
   const workouts = selectedLevel ? AMRAP_WORKOUT_LIBRARY[selectedLevel] : [];
   const duration = selectedLevel ? AMRAP_LEVEL_DURATION[selectedLevel] : 15;
+
+  const openSavedConfirm = (item: AmrapSavedWorkoutItem) => {
+    setStep('saved');
+    setSavedPhase('confirm');
+    setSelectedSaved(item);
+    const d =
+      typeof item.durationMinutes === 'number' &&
+      Number.isFinite(item.durationMinutes) &&
+      item.durationMinutes >= 1 &&
+      item.durationMinutes <= 180
+        ? String(Math.round(item.durationMinutes))
+        : '15';
+    setSavedDurationInput(d);
+  };
 
   const handleCancel = () => {
     setStep('protocol');
@@ -70,6 +93,9 @@ export function AmrapWorkoutPicker({
 
   const showSavedEntry =
     savedWorkouts !== undefined && typeof onConfirmSavedWorkout === 'function';
+
+  /** Featured Live is independent of `savedWorkouts` load state — library fetch must not block it. */
+  const canConfirmSavedWorkout = typeof onConfirmSavedWorkout === 'function';
 
   if (step === 'build') {
     return (
@@ -172,18 +198,7 @@ export function AmrapWorkoutPicker({
                   key={item.id}
                   type="button"
                   disabled={disabled}
-                  onClick={() => {
-                    setSelectedSaved(item);
-                    const d =
-                      typeof item.durationMinutes === 'number' &&
-                      Number.isFinite(item.durationMinutes) &&
-                      item.durationMinutes >= 1 &&
-                      item.durationMinutes <= 180
-                        ? String(Math.round(item.durationMinutes))
-                        : '15';
-                    setSavedDurationInput(d);
-                    setSavedPhase('confirm');
-                  }}
+                  onClick={() => openSavedConfirm(item)}
                   className="rounded-xl border border-white/10 bg-black/20 p-3 text-left transition-all hover:border-orange-500 hover:bg-orange-600/10 disabled:pointer-events-none disabled:opacity-50"
                 >
                   <div className="font-bold text-white">{label}</div>
@@ -214,6 +229,44 @@ export function AmrapWorkoutPicker({
         <p className="mb-4 text-sm text-white/70">
           Choose a level, build your own, or use a saved library workout.
         </p>
+        {canConfirmSavedWorkout && featuredSavedWorkoutsLoading ? (
+          <div className="mb-4 space-y-2" aria-busy="true">
+            <div className="h-3 w-36 animate-pulse rounded bg-white/10" />
+            <div className="h-16 w-full animate-pulse rounded-xl border border-white/10 bg-white/5" />
+          </div>
+        ) : null}
+        {canConfirmSavedWorkout &&
+        !featuredSavedWorkoutsLoading &&
+        featuredSavedWorkouts &&
+        featuredSavedWorkouts.length > 0 ? (
+          <div className="mb-4">
+            <p className="mb-2 text-[10px] font-mono uppercase tracking-wide text-orange-400/95">
+              Featured for Live
+            </p>
+            <div className="grid grid-cols-1 gap-2">
+              {featuredSavedWorkouts.map((item) => {
+                const label =
+                  item.source === 'ai_factory' ? `${item.title} (AI)` : item.title;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    disabled={disabled}
+                    onClick={() => openSavedConfirm(item)}
+                    className="rounded-xl border border-orange-500/30 bg-orange-600/10 p-3 text-left transition-all hover:border-orange-400/50 hover:bg-orange-600/15 disabled:pointer-events-none disabled:opacity-50"
+                  >
+                    <div className="font-bold text-white">{label}</div>
+                    {item.durationMinutes != null ? (
+                      <div className="mt-1 text-[10px] text-white/60">
+                        {item.durationMinutes} min (default)
+                      </div>
+                    ) : null}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
         {showSavedEntry ? (
           <button
             type="button"
