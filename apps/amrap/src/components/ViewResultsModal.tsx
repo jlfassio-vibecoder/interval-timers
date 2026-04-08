@@ -9,6 +9,8 @@ import RoundConsistencyChart from './RoundConsistencyChart';
 export interface ViewResultsModalProps {
   isOpen: boolean;
   onClose: () => void;
+  /** When true, class-summary copy and no per-viewer round consistency chart. */
+  isHost?: boolean;
   resultsText: string;
   onCopy: () => void;
   onSaveResults?: () => void;
@@ -22,6 +24,7 @@ export interface ViewResultsModalProps {
 export default function ViewResultsModal({
   isOpen,
   onClose,
+  isHost = false,
   resultsText,
   onCopy,
   onSaveResults,
@@ -55,7 +58,9 @@ export default function ViewResultsModal({
       onClick={handleBackdropClick}
     >
       <div
-        className="relative w-full max-w-2xl rounded-2xl border border-white/10 bg-[#0d0500] p-6 shadow-xl"
+        className={`relative w-full rounded-2xl border border-white/10 bg-[#0d0500] p-6 shadow-xl ${
+          isHost ? 'max-w-3xl' : 'max-w-2xl'
+        }`}
         onClick={(e) => e.stopPropagation()}
       >
         <button
@@ -68,9 +73,13 @@ export default function ViewResultsModal({
         </button>
 
         <h2 id="view-results-modal-title" className="mb-3 pr-8 text-xl font-bold text-white">
-          Your results
+          {isHost ? 'Session results' : 'Your results'}
         </h2>
-        <p className="mb-4 text-sm text-white/70">Share, copy, or save this summary.</p>
+        <p className="mb-4 text-sm text-white/70">
+          {isHost
+            ? 'Share or copy the class summary.'
+            : 'Share, copy, or save this summary.'}
+        </p>
         {showAccountCta && (
           <div className="mb-4 rounded-xl border border-orange-500/30 bg-orange-600/10 p-3">
             <p className="mb-2 text-sm text-white/90">
@@ -97,12 +106,14 @@ export default function ViewResultsModal({
           </div>
         )}
 
-        {roundDurations.length > 0 && (
+        {!isHost && roundDurations.length > 0 && (
           <RoundConsistencyChart roundDurations={roundDurations} />
         )}
 
         <pre
-          className="mb-6 max-h-48 overflow-y-auto rounded-xl border border-white/20 bg-black/30 p-4 text-sm text-white/90 whitespace-pre-wrap break-words font-sans"
+          className={`mb-6 overflow-y-auto rounded-xl border border-white/20 bg-black/30 p-4 text-sm text-white/90 whitespace-pre-wrap break-words font-sans ${
+            isHost ? 'max-h-72' : 'max-h-48'
+          }`}
           role="article"
         >
           {resultsText}

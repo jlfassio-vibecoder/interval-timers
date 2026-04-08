@@ -34,6 +34,9 @@ describe('useSocialAmrapEmbedded', () => {
       onDismissFinishedRecap: onDismiss,
       skipAgora: true,
       hideMessageBoard: true,
+      whosHereInSessionDrawer: true,
+      trainerLiveHostNavActions: true,
+      trainerLiveChatDrawerLeaderboard: true,
     })
   })
 
@@ -49,7 +52,28 @@ describe('useSocialAmrapEmbedded', () => {
     expect(useSocialAmrapMock).toHaveBeenCalledWith('sess-2', {
       skipAgora: true,
       hideMessageBoard: false,
+      whosHereInSessionDrawer: true,
+      trainerLiveHostNavActions: true,
+      trainerLiveChatDrawerLeaderboard: true,
     })
+  })
+
+  it('forwards trainerLiveJoinNickname to useSocialAmrap', () => {
+    renderHook(() =>
+      useSocialAmrapEmbedded({
+        amrapSessionId: 'sess-nick',
+        embedVideo: 'trainer_live',
+        trainerLiveJoinNickname: 'Alex',
+      })
+    )
+
+    expect(useSocialAmrapMock).toHaveBeenCalledWith(
+      'sess-nick',
+      expect.objectContaining({
+        skipAgora: true,
+        trainerLiveJoinNickname: 'Alex',
+      })
+    )
   })
 
   it('throws when embedVideo is not trainer_live', () => {

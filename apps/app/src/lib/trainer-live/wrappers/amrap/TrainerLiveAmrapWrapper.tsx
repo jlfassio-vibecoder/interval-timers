@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   AmrapAuthProvider,
+  AmrapEmbedExerciseSection,
   AmrapSessionShell,
   useSocialAmrapEmbedded,
   type AmrapSessionEngine,
@@ -22,12 +23,14 @@ function AmrapEmbedBody({
   trainerLiveSessionId,
   participantId,
   role,
+  displayName,
   onWrapperError,
 }: {
   amrapSessionId: string;
   trainerLiveSessionId: string;
   participantId: string;
   role: 'trainer' | 'client';
+  displayName: string;
   onWrapperError?: (message: string) => void;
 }) {
   const [recapDismissed, setRecapDismissed] = useState(false);
@@ -37,6 +40,8 @@ function AmrapEmbedBody({
     embedVideo: 'trainer_live',
     onDismissFinishedRecap: () => setRecapDismissed(true),
     recapDismissed,
+    trainerLiveJoinNickname:
+      role === 'client' ? (displayName.trim() || 'Guest') : undefined,
   }) as EmbeddedSocialAmrap;
 
   const { setSessionDrawerNode } = useTrainerLiveAmrapSessionDrawer();
@@ -74,17 +79,24 @@ function AmrapEmbedBody({
       className="trainer-live-amrap-embed relative w-full min-w-0 text-white [&_.min-h-screen]:min-h-0"
       data-testid="trainer-live-amrap-shell"
     >
-      {isTrainer ? (
-        <TrainerLiveAmrapTimerBackground
-          engine={result}
-          trainerLiveSessionId={trainerLiveSessionId}
-          participantId={participantId}
-        />
-      ) : null}
+      <TrainerLiveAmrapTimerBackground
+        engine={result}
+        trainerLiveSessionId={trainerLiveSessionId}
+        participantId={participantId}
+        role={role}
+        videoBottomOverlay={
+          <AmrapEmbedExerciseSection
+            engine={result}
+            maxTwoColumns
+            className="flex w-full flex-col gap-2 sm:gap-3"
+          />
+        }
+      />
       <div className="relative z-10">
         <AmrapSessionShell
           engine={result}
           shellLayout="trainerLiveEmbed"
+          embedSuppressExercises
           embedTitleBarAccessoryBeforeSub={
             isTrainer ? <TrainerLiveTimerBackgroundMeLeaderToggle /> : undefined
           }
@@ -95,7 +107,8 @@ function AmrapEmbedBody({
 }
 
 export default function TrainerLiveAmrapWrapper(props: TrainerLiveWrapperBaseProps) {
-  const { wrapperConfig, onWrapperError, trainerLiveSessionId, participantId, role } = props;
+  const { wrapperConfig, onWrapperError, trainerLiveSessionId, participantId, role, displayName } =
+    props;
   const amrapSessionId = parseAmrapSessionIdFromWrapperConfig(wrapperConfig);
 
   if (!amrapSessionId) {
@@ -113,6 +126,7 @@ export default function TrainerLiveAmrapWrapper(props: TrainerLiveWrapperBasePro
         trainerLiveSessionId={trainerLiveSessionId}
         participantId={participantId}
         role={role}
+        displayName={displayName}
         onWrapperError={onWrapperError}
       />
     </AmrapAuthProvider>

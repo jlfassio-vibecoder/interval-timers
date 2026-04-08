@@ -3,6 +3,7 @@
  * (useSoloAmrap, useSocialAmrap) for unified Solo/Social views.
  */
 import type { ReactNode } from 'react';
+import type { AmrapSplitRecord } from '@/lib/amrapSplitTypes';
 
 /** Video source: Agora track (live) or MediaStream (solo recording) */
 export type AmrapVideoSource =
@@ -33,7 +34,8 @@ export interface AmrapSessionEngine {
   /** When true, timer uses compact text (e.g. scheduled/countdown display) */
   beforeCountdownWindow?: boolean;
 
-  onLogRound: () => void;
+  /** Return `false` on failure so UI can revert optimistic updates; void/`true` = success. */
+  onLogRound: () => void | boolean | Promise<void | boolean | undefined>;
   onPause?: () => void;
   onResume?: () => void;
   onFinish?: () => void;
@@ -93,4 +95,7 @@ export interface AmrapSessionEngine {
   /** Loading/error states */
   loading?: boolean;
   error?: string | null;
+
+  /** Logged rounds for every participant in the current segment (Trainer Live / shared UI). */
+  allUsersSplitRecords?: AmrapSplitRecord[];
 }

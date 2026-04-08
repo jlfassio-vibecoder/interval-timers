@@ -16,6 +16,8 @@ export interface LeaderboardRowProps {
   rank?: number;
   /** Agora track (live) or MediaStream (solo recording) */
   videoTrack?: AmrapVideoSource | null;
+  /** Dense row for Trainer Live chat drawer (latest split + round count). */
+  compact?: boolean;
 }
 
 function RoundSplitCard({ roundIndex, timeSec }: { roundIndex: number; timeSec: number }) {
@@ -29,7 +31,47 @@ function RoundSplitCard({ roundIndex, timeSec }: { roundIndex: number; timeSec: 
   );
 }
 
-export default function LeaderboardRow({ nickname, totalRounds, splits, rank, videoTrack }: LeaderboardRowProps) {
+export default function LeaderboardRow({
+  nickname,
+  totalRounds,
+  splits,
+  rank,
+  videoTrack,
+  compact = false,
+}: LeaderboardRowProps) {
+  const lastSplit = splits.length > 0 ? splits[splits.length - 1]! : null;
+
+  if (compact) {
+    return (
+      <div className="relative overflow-hidden rounded-xl border border-white/10 bg-black/20 p-3">
+        {videoTrack && (
+          <>
+            <VideoSourcePlayer source={videoTrack} />
+            <div className="pointer-events-none absolute inset-0 bg-black/40" aria-hidden />
+          </>
+        )}
+        <div className="relative z-10 flex flex-wrap items-center gap-2">
+          {rank != null && (
+            <span className="rounded bg-white/10 px-1.5 py-0.5 text-xs font-bold text-white/90">
+              #{rank}
+            </span>
+          )}
+          <span className="min-w-0 flex-1 truncate text-sm font-bold text-white">{nickname}</span>
+          <span className="shrink-0 text-xs text-white/70">
+            {totalRounds} rnd{totalRounds !== 1 ? 's' : ''}
+          </span>
+          {lastSplit != null ? (
+            <span className="w-full font-mono text-sm font-semibold tabular-nums text-orange-300">
+              Last split {formatTime(lastSplit)}
+            </span>
+          ) : (
+            <span className="w-full text-xs text-white/45">No rounds yet</span>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-black/20 p-6 sm:p-8">
       {videoTrack && (

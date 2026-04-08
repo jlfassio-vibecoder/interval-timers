@@ -24,12 +24,20 @@ import {
   isLockAbortInResult,
 } from '@/lib/lock-retry';
 import { getWorkoutTitle } from '@/lib/workoutLabel';
-import { buildResultsText, computeVolumeLines } from '@/lib/workoutResults';
+import {
+  buildResultsText,
+  buildTrainerClassResultsText,
+  computeVolumeLines,
+  formatCompactVolumeSummary,
+  type AmrapSessionResultsParticipantRow,
+} from '@/lib/workoutResults';
 import {
   formatTime,
   formatScheduledAt,
   getTimerStyles,
   buildLeaderboard,
+  buildSplitRecordsForSegment,
+  computeElapsedSecForLogRound,
 } from '@/lib/socialAmrapUtils';
 import type { AmrapParticipantRow } from '@/lib/supabase';
 import type {
@@ -44,6 +52,9 @@ import AmrapLeaderboardSection from '@/components/amrap-session/AmrapLeaderboard
 import { useSocialAmrapEffects } from '@/hooks/useSocialAmrapEffects';
 
 const COUNTDOWN_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
+
+/** Dedupe concurrent Trainer Live embed auto-join for the same AMRAP session (e.g. React Strict Mode). */
+const trainerLiveAmrapAutoJoinBySession = new Map<string, Promise<void>>();
 
 export interface UseSocialAmrapOptions {
   /** Called when user dismisses the post-workout recap; keeps them in the live session */
@@ -81,6 +92,11 @@ export interface UseSocialAmrapOptions {
    * When true, expose `slots.chatDrawerLeaderboard` for Trainer Live chat drawer (embed only).
    */
   trainerLiveChatDrawerLeaderboard?: boolean;
+  /**
+   * Trainer Live embed: auto `join_session` with this nickname when the user has no stored AMRAP
+   * participant and is not the host (so clients can log rounds without the standalone join UI).
+   */
+  trainerLiveJoinNickname?: string;
 }
 
 export function useSocialAmrap(
@@ -141,6 +157,7 @@ export function useSocialAmrap(
     localMicMuted: boolean;
     toggleLocalCamera: () => void;
     toggleLocalMic: () => void;
+    sessionResultsParticipantRows: AmrapSessionResultsParticipantRow[];
   };
 } {
   const { user, loading: authLoading } = useAmrapAuth();
@@ -295,6 +312,73 @@ export function useSocialAmrap(
     await refetch();
   }, [sessionId, joinNickname, refetch, user?.id]);
 
+  const trainerLiveJoinNickname = options?.trainerLiveJoinNickname;
+
+  useEffect(() => {
+    const nick = trainerLiveJoinNickname?.trim();
+    if (!nick || !effectiveSessionId || authLoading) return;
+    if (participantId || hostToken) return;
+
+    const sid = effectiveSessionId;
+    const existing = trainerLiveAmrapAutoJoinBySession.get(sid);
+    if (existing) {
+      void existing.then(() => refetch());
+      return;
+    }
+
+    const p = (async () => {
+      try {
+        const res = await withLockRetry(() =>
+          supabase.rpc('join_session', {
+            p_session_id: sid,
+            p_nickname: nick,
+            p_user_id: user?.id ?? null,
+          })
+        );
+        if (res.error) {
+          setJoinError(
+            isLockAbortInResult({ error: res.error })
+              ? 'Join was interrupted. Please try again.'
+              : res.error.message ?? 'Could not join this AMRAP session.'
+          );
+          return;
+        }
+        const data = res.data as { participant_id?: string; claim_token?: string | null } | null;
+        const pid = data?.participant_id;
+        if (!pid) {
+          setJoinError('Join failed');
+          return;
+        }
+        setStoredParticipantId(sid, pid);
+        if (typeof data?.claim_token === 'string' && data.claim_token.trim()) {
+          setStoredGuestClaimToken(sid, data.claim_token.trim());
+        }
+        await refetch();
+      } catch (e) {
+        setJoinError(
+          isLockAbortError(e)
+            ? 'Join was interrupted. Please try again.'
+            : e instanceof Error
+              ? e.message
+              : 'Something went wrong.'
+        );
+      } finally {
+        trainerLiveAmrapAutoJoinBySession.delete(sid);
+      }
+    })();
+
+    trainerLiveAmrapAutoJoinBySession.set(sid, p);
+    void p;
+  }, [
+    trainerLiveJoinNickname,
+    effectiveSessionId,
+    authLoading,
+    participantId,
+    hostToken,
+    user?.id,
+    refetch,
+  ]);
+
   const handleOpenNewWorkoutModal = useCallback(async () => {
     if (!sessionId || !hostToken || !isHost) return;
     await supabase.rpc('set_new_workout_modal', {
@@ -424,17 +508,43 @@ export function useSocialAmrap(
     [sessionId, hostToken, isHost, timerState, session?.duration_minutes, session?.timer_segment]
   );
 
+  const participantRoundCountInSegment = useMemo(
+    () =>
+      participantId ? rounds.filter((r) => r.participant_id === participantId).length : 0,
+    [rounds, participantId]
+  );
+
   const logRound = useCallback(async () => {
-    if (!sessionId || !participantId || timerState !== 'work') return;
+    if (!sessionId || !participantId || timerState !== 'work') return false;
     setLogRoundError(null);
-    const elapsedSec = totalTime - timeLeft;
+    const elapsedSec = computeElapsedSecForLogRound({
+      totalTime,
+      timeLeft,
+      timerState,
+      isPaused,
+      session,
+      participantRoundCountInSegment,
+    });
     const { error: logErr } = await supabase.rpc('log_round', {
       p_session_id: sessionId,
       p_participant_id: participantId,
       p_elapsed_sec_at_round: elapsedSec,
     });
-    if (logErr) setLogRoundError(logErr.message);
-  }, [sessionId, participantId, timerState, totalTime, timeLeft]);
+    if (logErr) {
+      setLogRoundError(logErr.message);
+      return false;
+    }
+    return true;
+  }, [
+    sessionId,
+    participantId,
+    timerState,
+    totalTime,
+    timeLeft,
+    isPaused,
+    session,
+    participantRoundCountInSegment,
+  ]);
 
   const copyShareLink = useCallback(async () => {
     if (copyToastTimeoutRef.current) {
@@ -457,6 +567,29 @@ export function useSocialAmrap(
   const getResultsText = useCallback(
     (opts?: { forCopy?: boolean }) => {
       const duration = session?.duration_minutes ?? 15;
+      const workoutListLocal = session?.workout_list ?? [];
+      const sessionUrl = window.location.href.replace(/\?.*$/, '');
+      const workoutTitle = getWorkoutTitle(workoutListLocal);
+
+      if (isHost) {
+        const hp = participants.find((p) => p.role === 'host');
+        const lb = buildLeaderboard(participants, rounds);
+        const roster = lb.map((row) => ({
+          participantId: row.participantId,
+          nickname: row.nickname,
+          isHostParticipant: row.participantId === hp?.id,
+          roundCount: row.totalRounds,
+        }));
+        return buildTrainerClassResultsText(
+          workoutListLocal,
+          duration,
+          sessionUrl,
+          roster,
+          workoutTitle,
+          { forCopy: opts?.forCopy === true }
+        );
+      }
+
       const myRoundsData = participantId
         ? rounds
             .filter((r) => r.participant_id === participantId)
@@ -464,19 +597,22 @@ export function useSocialAmrap(
         : [];
       const myRoundsCount = myRoundsData.length;
       const splits = myRoundsData.map((r) => r.elapsed_sec_at_round);
-      const workoutList = session?.workout_list ?? [];
-      const sessionUrl = window.location.href.replace(/\?.*$/, '');
-      const workoutTitle = getWorkoutTitle(workoutList);
-      const volumeLines = computeVolumeLines(workoutList, myRoundsCount);
-      const compact =
-        opts?.forCopy === true && volumeLines.length > 6;
-      return buildResultsText(workoutList, myRoundsCount, duration, sessionUrl, {
+      const volumeLines = computeVolumeLines(workoutListLocal, myRoundsCount);
+      const compact = opts?.forCopy === true && volumeLines.length > 6;
+      return buildResultsText(workoutListLocal, myRoundsCount, duration, sessionUrl, {
         workoutTitle,
         compact,
         splits,
       });
     },
-    [session?.duration_minutes, session?.workout_list, participantId, rounds]
+    [
+      session?.duration_minutes,
+      session?.workout_list,
+      participantId,
+      rounds,
+      isHost,
+      participants,
+    ]
   );
 
   const copyResults = useCallback(async () => {
@@ -520,6 +656,17 @@ export function useSocialAmrap(
   }, []);
 
   const workoutList = session?.workout_list ?? [];
+  const sessionResultsParticipantRows: AmrapSessionResultsParticipantRow[] = useMemo(() => {
+    const hp = participants.find((p) => p.role === 'host');
+    const lb = buildLeaderboard(participants, rounds);
+    return lb.map((row) => ({
+      participantId: row.participantId,
+      nickname: row.nickname,
+      isHostParticipant: row.participantId === hp?.id,
+      roundCount: row.totalRounds,
+      volumeSummary: formatCompactVolumeSummary(workoutList, row.totalRounds),
+    }));
+  }, [participants, rounds, workoutList]);
   const myRounds = participantId
     ? rounds.filter((r) => r.participant_id === participantId)
     : [];
@@ -541,6 +688,11 @@ export function useSocialAmrap(
   const leaderboard = useMemo(
     () => buildLeaderboard(participants, roundsForDisplay),
     [participants, roundsForDisplay]
+  );
+  const segmentIndexForSplits = session?.segment_index ?? 0;
+  const allUsersSplitRecords = useMemo(
+    () => buildSplitRecordsForSegment(participants, roundsForDisplay, segmentIndexForSplits),
+    [participants, roundsForDisplay, segmentIndexForSplits]
   );
   const hostParticipant = participants.find((p) => p.role === 'host');
 
@@ -705,6 +857,8 @@ export function useSocialAmrap(
 
     loading: loading,
     error: error ?? null,
+
+    allUsersSplitRecords,
   };
 
   const beforeLeaderboardSlot = useMemo(
@@ -1072,6 +1226,7 @@ export function useSocialAmrap(
     localMicMuted,
     toggleLocalCamera,
     toggleLocalMic,
+    sessionResultsParticipantRows,
   };
 
   return {

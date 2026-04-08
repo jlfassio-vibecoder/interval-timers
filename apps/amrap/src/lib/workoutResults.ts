@@ -153,3 +153,70 @@ export function buildResultsText(
   parts.push(`View: ${sessionUrl}`);
   return parts.join('\n\n');
 }
+
+/** Single-line volume summary for roster cards (e.g. "50 burpees, 75 squats"). */
+export function formatCompactVolumeSummary(workoutList: string[], rounds: number): string {
+  const volumeLines = computeVolumeLines(workoutList, rounds);
+  if (volumeLines.length === 0) return '';
+  return volumeLines.map(formatVolumeLine).join(', ');
+}
+
+export type AmrapSessionResultsParticipantRow = {
+  participantId: string;
+  nickname: string;
+  isHostParticipant: boolean;
+  roundCount: number;
+  volumeSummary: string;
+};
+
+const MAX_TRAINER_SHARE_CHARS = 3500;
+
+/**
+ * Clipboard-oriented class summary for the host. Adds per-athlete volume only if the full
+ * string stays under ~MAX_TRAINER_SHARE_CHARS; otherwise roster is rounds-only + URL.
+ */
+export function buildTrainerClassResultsText(
+  workoutList: string[],
+  durationMinutes: number,
+  sessionUrl: string,
+  roster: {
+    participantId: string;
+    nickname: string;
+    isHostParticipant: boolean;
+    roundCount: number;
+  }[],
+  workoutTitle: string | undefined,
+  opts?: { forCopy?: boolean }
+): string {
+  const rawTitle = workoutTitle?.trim();
+  const head =
+    rawTitle && rawTitle !== 'AMRAP'
+      ? rawTitle.length <= MAX_TITLE_LENGTH
+        ? rawTitle
+        : `${rawTitle.slice(0, MAX_TITLE_LENGTH - 3).trim()}…`
+      : 'AMRAP session';
+  const sorted = [...roster].sort((a, b) => b.roundCount - a.roundCount);
+  const bullets = sorted
+    .map((r) => {
+      const label = r.isHostParticipant ? `${r.nickname} (Host)` : r.nickname;
+      return `• ${label}: ${r.roundCount} round${r.roundCount === 1 ? '' : 's'}`;
+    })
+    .join('\n');
+  let text = `${head} — ${durationMinutes} min\n\nClass results:\n${bullets}`;
+
+  const detailParts: string[] = [];
+  for (const r of sorted) {
+    if (r.roundCount <= 0) continue;
+    const vol = formatCompactVolumeSummary(workoutList, r.roundCount);
+    const label = r.isHostParticipant ? `${r.nickname} (Host)` : r.nickname;
+    detailParts.push(`${label}\n${vol || 'Volume: —'}`);
+  }
+  const detailBlock = detailParts.length > 0 ? `\n\n${detailParts.join('\n\n')}` : '';
+  const footer = `\n\nView: ${sessionUrl}`;
+  const withDetail = `${text}${detailBlock}${footer}`;
+
+  if (opts?.forCopy === true && withDetail.length > MAX_TRAINER_SHARE_CHARS) {
+    return `${text}${footer}`;
+  }
+  return withDetail;
+}

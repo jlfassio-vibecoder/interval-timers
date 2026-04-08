@@ -8,10 +8,15 @@ import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { HUD_REDIRECT_URL } from '@/lib/account-redirect-url';
+import type { AmrapSessionResultsParticipantRow } from '@/lib/workoutResults';
 
 export interface PostWorkoutRecapModalProps {
   isOpen: boolean;
   onClose: () => void;
+  /** When true, show class roster summary instead of the solo "You did…" recap. */
+  isHost?: boolean;
+  /** Leaderboard-style rows with per-person round counts and volume summaries (host view). */
+  sessionResultsParticipantRows?: AmrapSessionResultsParticipantRow[];
   myRounds: number;
   durationMinutes: number;
   onCopyResults: () => void;
@@ -31,6 +36,8 @@ export interface PostWorkoutRecapModalProps {
 export default function PostWorkoutRecapModal({
   isOpen,
   onClose,
+  isHost = false,
+  sessionResultsParticipantRows = [],
   myRounds,
   durationMinutes,
   onCopyResults,
@@ -94,6 +101,10 @@ export default function PostWorkoutRecapModal({
     if (e.target === e.currentTarget) onClose();
   };
 
+  const sortedRoster = isHost
+    ? [...sessionResultsParticipantRows].sort((a, b) => b.roundCount - a.roundCount)
+    : [];
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
@@ -103,7 +114,9 @@ export default function PostWorkoutRecapModal({
       onClick={handleBackdropClick}
     >
       <div
-        className="relative w-full max-w-md rounded-2xl border border-white/10 bg-[#0d0500] p-6 shadow-xl"
+        className={`relative w-full rounded-2xl border border-white/10 bg-[#0d0500] p-6 shadow-xl ${
+          isHost ? 'max-w-lg' : 'max-w-md'
+        }`}
         onClick={(e) => e.stopPropagation()}
       >
         <button
@@ -116,7 +129,7 @@ export default function PostWorkoutRecapModal({
         </button>
 
         <h2 id="recap-modal-title" className="mb-2 pr-8 text-xl font-bold text-white">
-          Workout complete!
+          {isHost ? 'Session results' : 'Workout complete!'}
         </h2>
         {showSignInCta && onSignInClick && (
           <div className="mb-4 rounded-xl border border-orange-500/30 bg-orange-600/10 p-4">
@@ -149,11 +162,40 @@ export default function PostWorkoutRecapModal({
             </div>
           </div>
         )}
-        <p className="mb-6 text-white/80">
-          {myRounds > 0
-            ? `You did ${myRounds} round${myRounds === 1 ? '' : 's'} in ${durationMinutes} min.`
-            : `${durationMinutes} min AMRAP completed.`}
-        </p>
+        {isHost ? (
+          <div className="mb-6 space-y-3 text-white/80">
+            <p className="text-sm text-white/70">
+              {durationMinutes} min AMRAP — class summary
+            </p>
+            <ul className="max-h-56 space-y-2 overflow-y-auto text-sm">
+              {sortedRoster.map((row) => {
+                const label = row.isHostParticipant
+                  ? `${row.nickname} (Host)`
+                  : row.nickname;
+                const roundsBit = `${row.roundCount} round${row.roundCount === 1 ? '' : 's'}`;
+                const detail =
+                  row.roundCount > 0 && row.volumeSummary
+                    ? `${roundsBit} (${row.volumeSummary})`
+                    : roundsBit;
+                return (
+                  <li
+                    key={row.participantId}
+                    className="rounded-lg border border-white/10 bg-black/20 px-3 py-2"
+                  >
+                    <span className="font-semibold text-white/90">{label}:</span>{' '}
+                    {detail}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ) : (
+          <p className="mb-6 text-white/80">
+            {myRounds > 0
+              ? `You did ${myRounds} round${myRounds === 1 ? '' : 's'} in ${durationMinutes} min.`
+              : `${durationMinutes} min AMRAP completed.`}
+          </p>
+        )}
 
         {recoveryUrl && (
           <div className="mb-6 rounded-xl border border-white/10 bg-black/30 p-4">

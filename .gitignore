@@ -22,6 +22,12 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Cursor IDE — MCP URLs often embed project_ref; keep tooling local per developer
+**/.cursor/mcp.json
+
+# Local side project (nested clone); not part of the monorepo release surface
+apps/comms/
+
 # Editor
 .vscode/*
 !.vscode/extensions.json

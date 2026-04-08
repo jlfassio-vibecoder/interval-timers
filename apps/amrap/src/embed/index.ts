@@ -21,12 +21,14 @@ export type {
   AmrapTimerPhase,
   AmrapParticipantEngine,
 } from '../types/amrap-session';
+export type { AmrapSplitRecord } from '../lib/amrapSplitTypes';
 
 export { AmrapAuthProvider, useAmrapAuth } from '../contexts/AmrapAuthContext';
 export type { AmrapProfile } from '../contexts/AmrapAuthContext';
 
 export { default as AmrapSessionShell } from '../components/amrap-session/AmrapSessionShell';
 export type { AmrapSessionShellLayout } from '../components/amrap-session/AmrapSessionShell';
+export { default as AmrapEmbedExerciseSection } from '../components/amrap-session/AmrapEmbedExerciseSection';
 
 /** Persist AMRAP host credentials after `trainer_live_attach_amrap_session` (same keys as standalone AMRAP). */
 export {
@@ -41,6 +43,8 @@ export type UseSocialAmrapEmbeddedOptions = Omit<
   amrapSessionId: string;
   /** Must be `'trainer_live'`; single supported embed mode (no AMRAP Agora channel). */
   embedVideo: 'trainer_live';
+  /** Passed through to `useSocialAmrap` for client auto-join (see `trainerLiveJoinNickname` there). */
+  trainerLiveJoinNickname?: string;
 };
 
 export function useSocialAmrapEmbedded(

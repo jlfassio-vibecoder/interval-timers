@@ -63,6 +63,7 @@ export type AmrapParticipantRow = {
   nickname: string;
   role: 'host' | 'joiner';
   joined_at: string;
+  user_id?: string | null;
 };
 
 export type AmrapRoundRow = {
