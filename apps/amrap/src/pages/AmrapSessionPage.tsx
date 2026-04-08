@@ -379,6 +379,8 @@ export default function AmrapSessionPage() {
           }
           setRecapDismissed(true);
         }}
+        isHost={pageState.isHost}
+        sessionResultsParticipantRows={pageState.sessionResultsParticipantRows}
         myRounds={result.myRounds}
         durationMinutes={result.durationMinutes ?? 15}
         onCopyResults={pageState.copyResults}
@@ -412,6 +414,7 @@ export default function AmrapSessionPage() {
           }
           pageState.handleCloseViewResults();
         }}
+        isHost={pageState.isHost}
         resultsText={pageState.viewResultsText}
         onCopy={pageState.copyResults}
         onSaveResults={() => {

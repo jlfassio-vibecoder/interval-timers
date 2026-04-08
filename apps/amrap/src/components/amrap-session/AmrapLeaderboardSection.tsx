@@ -44,6 +44,7 @@ export default function AmrapLeaderboardSection({
                 splits={p.splits}
                 rank={index + 1}
                 videoTrack={p.videoTrack ?? undefined}
+                compact={chatDrawer}
               />
             </li>
           ))}

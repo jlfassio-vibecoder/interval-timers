@@ -2,11 +2,15 @@
  * Shared AMRAP work-phase controls: rounds display and LOG ROUND button.
  * Used by both Solo and Social session views.
  */
-import React from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Check } from 'lucide-react';
 
 /** Keeps label inside the border at narrow widths (wraps at space; scales padding/type). */
 const LOG_ROUND_BUTTON_CLASSES =
-  'box-border w-full min-w-0 max-w-[min(14rem,100%)] rounded-2xl border-2 border-orange-400 bg-orange-600 px-3 py-4 text-center text-sm font-bold leading-tight text-white shadow-[0_0_40px_rgba(234,88,12,0.4)] transition-all hover:bg-orange-500 active:scale-95 sm:px-6 sm:py-5 sm:text-base md:px-8 md:py-6 md:text-xl lg:text-2xl';
+  'box-border w-full min-w-0 max-w-[min(14rem,100%)] rounded-2xl border-2 border-orange-400 bg-orange-600 px-3 py-4 text-center text-sm font-bold leading-tight text-white shadow-[0_0_40px_rgba(234,88,12,0.4)] transition-all hover:bg-orange-500 active:scale-95 disabled:pointer-events-none disabled:opacity-95 sm:px-6 sm:py-5 sm:text-base md:px-8 md:py-6 md:text-xl lg:text-2xl';
+
+const LOG_ROUND_COOLDOWN_CLASSES =
+  'border-emerald-400/90 bg-emerald-700 text-white shadow-[0_0_28px_rgba(16,185,129,0.45)] hover:bg-emerald-700';
 
 export type AmrapWorkPhaseControlsLayout =
   | 'default'
@@ -19,7 +23,7 @@ export interface AmrapWorkPhaseControlsProps {
   roundsCount: number;
   logRoundError: string | null;
   timerState: 'setup' | 'work' | 'finished';
-  onLogRound: () => void;
+  onLogRound: () => void | boolean | Promise<void | boolean | undefined>;
   /** When true (free-workout segment), hide rounds count and LOG ROUND */
   hideAmrapRounds?: boolean;
   /** Optional content between rounds count and LOG ROUND button (e.g. exercise list) */
@@ -27,7 +31,14 @@ export interface AmrapWorkPhaseControlsProps {
   layout?: AmrapWorkPhaseControlsLayout;
   /** Rendered below LOG ROUND when `layout` is `embedBesideClockActions` (e.g. host pause/finish). */
   leftColumnFooter?: React.ReactNode;
+  /**
+   * Live/social only: +1 rounds display until realtime confirms (solo skips — parent updates count synchronously).
+   */
+  optimisticLogRoundCount?: boolean;
 }
+
+const EMBED_LOG_ROUND_BASE =
+  'box-border w-full min-w-0 max-w-full rounded-2xl border-2 px-3 py-3 text-center text-sm font-bold leading-tight transition-all active:scale-95 disabled:pointer-events-none disabled:opacity-95 sm:py-4 sm:text-base';
 
 export default function AmrapWorkPhaseControls({
   roundsCount,
@@ -38,7 +49,77 @@ export default function AmrapWorkPhaseControls({
   children,
   layout = 'default',
   leftColumnFooter,
+  optimisticLogRoundCount = false,
 }: AmrapWorkPhaseControlsProps) {
+  const [isCooldown, setIsCooldown] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [optimisticDelta, setOptimisticDelta] = useState(0);
+  const cooldownTimeoutRef = useRef<number | null>(null);
+  const prevRoundsCountRef = useRef(roundsCount);
+
+  const clearCooldownTimer = useCallback(() => {
+    if (cooldownTimeoutRef.current != null) {
+      clearTimeout(cooldownTimeoutRef.current);
+      cooldownTimeoutRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => clearCooldownTimer();
+  }, [clearCooldownTimer]);
+
+  useEffect(() => {
+    if (roundsCount > prevRoundsCountRef.current) {
+      setOptimisticDelta(0);
+    }
+    prevRoundsCountRef.current = roundsCount;
+  }, [roundsCount]);
+
+  const handleLogRound = useCallback(async () => {
+    if (timerState !== 'work' || isCooldown || isSubmitting) return;
+    clearCooldownTimer();
+    setIsCooldown(true);
+    setIsSubmitting(true);
+    if (optimisticLogRoundCount) {
+      setOptimisticDelta(1);
+    }
+    try {
+      const out = await Promise.resolve(onLogRound());
+      if (out === false) {
+        setOptimisticDelta(0);
+        setIsCooldown(false);
+        return;
+      }
+      cooldownTimeoutRef.current = window.setTimeout(() => {
+        setIsCooldown(false);
+        cooldownTimeoutRef.current = null;
+      }, 5000);
+    } catch {
+      setOptimisticDelta(0);
+      setIsCooldown(false);
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [
+    timerState,
+    isCooldown,
+    isSubmitting,
+    onLogRound,
+    optimisticLogRoundCount,
+    clearCooldownTimer,
+  ]);
+
+  const displayedRounds = optimisticLogRoundCount ? roundsCount + optimisticDelta : roundsCount;
+
+  const logRoundLabel = isCooldown ? (
+    <span className="inline-flex items-center justify-center gap-1.5">
+      <Check className="h-5 w-5 shrink-0" strokeWidth={2.75} aria-hidden />
+      Logged!
+    </span>
+  ) : (
+    'LOG ROUND'
+  );
+
   if (timerState !== 'setup' && timerState !== 'work') {
     return null;
   }
@@ -54,16 +135,9 @@ export default function AmrapWorkPhaseControls({
     );
   }
 
-  const roundsColumn = (
-    <div className="flex shrink-0 flex-col items-center text-center">
-      <div className="mb-1 text-xs font-bold uppercase tracking-widest text-white/60 sm:text-sm">
-        Your rounds
-      </div>
-      <div className="text-6xl font-bold leading-none text-white tabular-nums sm:text-7xl">
-        {roundsCount}
-      </div>
-    </div>
-  );
+  const defaultButtonClass = isCooldown
+    ? `${LOG_ROUND_BUTTON_CLASSES} ${LOG_ROUND_COOLDOWN_CLASSES}`
+    : LOG_ROUND_BUTTON_CLASSES;
 
   const logRoundColumn =
     timerState === 'work' ? (
@@ -73,10 +147,12 @@ export default function AmrapWorkPhaseControls({
         )}
         <button
           type="button"
-          onClick={onLogRound}
-          className={LOG_ROUND_BUTTON_CLASSES}
+          onClick={handleLogRound}
+          disabled={isCooldown || isSubmitting}
+          aria-busy={isSubmitting}
+          className={defaultButtonClass}
         >
-          LOG ROUND
+          {logRoundLabel}
         </button>
       </>
     ) : null;
@@ -93,20 +169,33 @@ export default function AmrapWorkPhaseControls({
   }
 
   if (layout === 'embedBesideClockRounds') {
+    const embedButtonClass = isCooldown
+      ? `${EMBED_LOG_ROUND_BASE} border-emerald-400/90 bg-emerald-700 text-white shadow-[0_0_24px_rgba(16,185,129,0.4)] hover:bg-emerald-700`
+      : `${EMBED_LOG_ROUND_BASE} border-orange-400 bg-orange-600 text-white shadow-[0_0_40px_rgba(234,88,12,0.4)] hover:bg-orange-500`;
+
     return (
-      <div className="flex w-full min-w-0 flex-col items-center gap-4">
-        {roundsColumn}
+      <div className="flex h-full w-full min-w-0 flex-col items-center justify-center gap-3 text-center">
+        <div className="flex w-full flex-col items-center">
+          <div className="mb-1 text-xs font-bold uppercase tracking-widest text-white/60 sm:text-sm">
+            Your rounds
+          </div>
+          <div className="text-5xl font-bold leading-none text-white tabular-nums sm:text-6xl">
+            {displayedRounds}
+          </div>
+        </div>
         {timerState === 'work' ? (
-          <div className="flex w-full flex-col items-center gap-2">
-            {logRoundError && (
-              <p className="text-center text-[1.3125rem] text-red-400">{logRoundError}</p>
-            )}
+          <div className="flex w-full min-w-0 flex-col items-center gap-2">
+            {logRoundError ? (
+              <p className="text-center text-sm text-red-400 sm:text-[1.0625rem]">{logRoundError}</p>
+            ) : null}
             <button
               type="button"
-              onClick={onLogRound}
-              className={LOG_ROUND_BUTTON_CLASSES}
+              onClick={handleLogRound}
+              disabled={isCooldown || isSubmitting}
+              aria-busy={isSubmitting}
+              className={embedButtonClass}
             >
-              LOG ROUND
+              {logRoundLabel}
             </button>
           </div>
         ) : null}
@@ -125,7 +214,7 @@ export default function AmrapWorkPhaseControls({
         <div className="mb-4 text-[1.3125rem] font-bold uppercase tracking-widest text-white/60">
           Your rounds
         </div>
-        <div className="mb-4 text-[3.375rem] font-bold text-white">{roundsCount}</div>
+        <div className="mb-4 text-[3.375rem] font-bold text-white">{displayedRounds}</div>
       </div>
       {children}
     </div>

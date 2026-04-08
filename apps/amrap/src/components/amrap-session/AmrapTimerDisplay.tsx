@@ -39,11 +39,20 @@ export interface AmrapTimerDisplayProps {
    */
   embedHostAndTimerInLeftColumn?: boolean;
   /**
+   * Trainer Live embed: when `embedHostAndTimerInLeftColumn` is true, use a 4-column row (host + optional center)
+   * or a 2-column row (timer card | rounds card) for participants without host controls — avoids an empty center gutter.
+   */
+  embedMetricsVariant?: 'hostFourColumn' | 'participantTwoColumn';
+  /**
    * Rendered before `displaySub` in the title row (e.g. Trainer Live Me/Leader video background toggle).
    * Stacks above the subtitle on narrow viewports; sits to its left in a row when wider.
    */
   titleBarAccessoryBeforeSub?: ReactNode;
 }
+
+/** Matches exercise list cards (`AmrapExerciseListEditor` / `AmrapExerciseList`). */
+const EMBED_METRIC_CARD_SURFACE =
+  'rounded-2xl border border-white/10 bg-black/30 p-3 sm:p-4';
 
 function getTimerBg(phase: AmrapTimerPhase): string {
   switch (phase) {
@@ -74,6 +83,7 @@ export default function AmrapTimerDisplay({
   stackStartWithClockAside = false,
   beforeMainClock,
   embedHostAndTimerInLeftColumn = false,
+  embedMetricsVariant = 'hostFourColumn',
   titleBarAccessoryBeforeSub,
 }: AmrapTimerDisplayProps) {
   const bg = containerClassName ?? getTimerBg(phase);
@@ -94,6 +104,38 @@ export default function AmrapTimerDisplay({
         Start
       </button>
     ) : null;
+
+  const labelAndClockEmbed = (
+    <div className="flex w-full flex-col items-center text-center">
+      <div className="mb-2 text-[15px] font-bold uppercase tracking-widest opacity-80">
+        {displayLabel}
+      </div>
+      <div
+        className={`flex w-full min-w-0 justify-center overflow-hidden text-center font-bold tabular-nums ${
+          beforeCountdownWindow
+            ? 'text-[2.25rem] text-white/90 md:text-[2.8125rem]'
+            : `font-mono ${phase === 'work' ? 'text-orange-500' : 'text-white/90'}`
+        }`}
+        style={!beforeCountdownWindow ? { containerType: 'inline-size' } : undefined}
+      >
+        {beforeCountdownWindow ? (
+          displayValue
+        ) : (
+          <span
+            style={
+              isTimeValue
+                ? { fontSize: 'clamp(2rem, min(15cqw, 15cqh), 9rem)' }
+                : undefined
+            }
+            className={!isTimeValue ? 'text-[clamp(1.5rem,5vmin,4rem)]' : undefined}
+          >
+            {displayValue}
+          </span>
+        )}
+      </div>
+      {!(stackStartWithClockAside && showStartButton) && startButtonEl}
+    </div>
+  );
 
   const labelAndClock = (
     <div className="flex w-full flex-col items-center text-center">
@@ -137,7 +179,7 @@ export default function AmrapTimerDisplay({
   const embedLeftColumnStack = (
     <>
       {beforeMainClock}
-      {labelAndClock}
+      {labelAndClockEmbed}
     </>
   );
 
@@ -170,6 +212,28 @@ export default function AmrapTimerDisplay({
           embedSplitLayout ? 'mb-4 px-0.5' : ''
         }`;
 
+  const embedTitleGrid = (
+    <div className="mb-4 grid w-full grid-cols-1 gap-3 px-0.5 sm:grid-cols-2 sm:items-start sm:gap-4">
+      <h2
+        className={`min-w-0 font-display text-2xl font-bold drop-shadow-[0_2px_8px_rgba(0,0,0,0.85)] ${
+          titleBarAccessoryBeforeSub != null ? 'sm:max-w-[min(100%,28rem)] sm:pr-2' : ''
+        }`}
+      >
+        {displayTitle}
+      </h2>
+      <div className="flex flex-col items-center gap-2 text-center">
+        {titleBarAccessoryBeforeSub != null ? (
+          <div className="flex w-full flex-col items-center gap-2 sm:flex-row sm:flex-wrap sm:justify-center">
+            {titleBarAccessoryBeforeSub}
+          </div>
+        ) : null}
+        {displaySub ? (
+          <p className={`max-w-sm ${subTextClass} text-balance text-center`}>{displaySub}</p>
+        ) : null}
+      </div>
+    </div>
+  );
+
   return (
     <div
       className={
@@ -178,42 +242,73 @@ export default function AmrapTimerDisplay({
           : `rounded-2xl border border-white/10 ${bg} p-6 transition-colors duration-300`
       }
     >
-      <div className={titleRowClassName}>
-        <h2
-          className={`min-w-0 font-display text-2xl font-bold ${
-            embedSplitLayout ? 'drop-shadow-[0_2px_8px_rgba(0,0,0,0.85)]' : ''
-          } ${titleBarAccessoryBeforeSub != null ? 'sm:max-w-[min(100%,28rem)] sm:pr-2' : ''}`}
-        >
-          {displayTitle}
-        </h2>
-        {titleBarTrailing}
-      </div>
+      {embedSplitLayout ? (
+        embedTitleGrid
+      ) : (
+        <div className={titleRowClassName}>
+          <h2
+            className={`min-w-0 font-display text-2xl font-bold ${
+              titleBarAccessoryBeforeSub != null ? 'sm:max-w-[min(100%,28rem)] sm:pr-2' : ''
+            }`}
+          >
+            {displayTitle}
+          </h2>
+          {titleBarTrailing}
+        </div>
+      )}
 
       {useClockAsideRow ? (
         embedHostAndTimerInLeftColumn ? (
-          <div className="mt-2 grid w-full grid-cols-4 items-stretch gap-4 sm:gap-6">
-            <div className="col-span-1 flex min-h-0 min-w-0 flex-col items-stretch justify-start text-left">
-              <div className="flex min-h-0 w-full flex-col gap-3 rounded-2xl border border-white/10 bg-zinc-950/85 p-4 shadow-lg backdrop-blur-md transition-colors duration-300">
+          embedMetricsVariant === 'participantTwoColumn' ? (
+            <div className="mt-2 flex w-full flex-row items-start gap-3 sm:gap-4">
+              <div
+                className={`${EMBED_METRIC_CARD_SURFACE} flex aspect-square w-[min(46%,12.5rem)] shrink-0 flex-col justify-center overflow-hidden sm:w-[13rem]`}
+              >
                 {embedLeftColumnStack}
               </div>
-            </div>
-            <div className="col-span-2 flex min-h-0 min-w-0 flex-col items-center justify-end self-stretch bg-transparent">
-              {children && (
-                <div className="flex w-full min-w-0 flex-col items-center px-1">
-                  {children}
+              {clockAsideRight != null ? (
+                <div className="flex min-w-0 flex-1 flex-col items-end justify-start">
+                  <div
+                    className={`${EMBED_METRIC_CARD_SURFACE} flex w-full max-w-[13rem] flex-col items-center justify-center gap-3 py-4`}
+                  >
+                    {clockAsideRight}
+                  </div>
                 </div>
+              ) : (
+                <div className="min-w-0 shrink-0" aria-hidden />
               )}
             </div>
-            {clockAsideRight != null ? (
-              <div className="col-span-1 flex h-full min-w-0 flex-col items-stretch justify-start">
-                <div className="w-full rounded-2xl border border-white/10 bg-zinc-950/85 p-4 shadow-lg backdrop-blur-md">
-                  {clockAsideRight}
+          ) : (
+            <div className="mt-2 grid w-full grid-cols-4 items-stretch gap-4 sm:gap-6">
+              <div className="col-span-1 flex min-h-0 min-w-0 flex-col items-start justify-start text-left">
+                <div
+                  className={`${EMBED_METRIC_CARD_SURFACE} flex min-h-0 w-full flex-col gap-3 ${
+                    beforeMainClock ? 'min-h-[14rem] justify-start overflow-y-auto' : 'aspect-square justify-center overflow-hidden'
+                  }`}
+                >
+                  {embedLeftColumnStack}
                 </div>
               </div>
-            ) : (
-              <div className="col-span-1 min-w-0" aria-hidden />
-            )}
-          </div>
+              <div className="col-span-2 flex min-h-0 min-w-0 flex-col items-center justify-end self-stretch bg-transparent">
+                {children && (
+                  <div className="flex w-full min-w-0 flex-col items-center px-1">
+                    {children}
+                  </div>
+                )}
+              </div>
+              {clockAsideRight != null ? (
+                <div className="col-span-1 flex h-full min-w-0 flex-col items-end justify-start">
+                  <div
+                    className={`${EMBED_METRIC_CARD_SURFACE} flex w-full max-w-[13rem] flex-col items-center justify-center gap-3 py-4`}
+                  >
+                    {clockAsideRight}
+                  </div>
+                </div>
+              ) : (
+                <div className="col-span-1 min-w-0" aria-hidden />
+              )}
+            </div>
+          )
         ) : (
           <div className="mt-8 grid w-full grid-cols-4 items-start gap-4 sm:gap-6">
             <div className="col-span-1 flex min-h-0 min-w-0 flex-col items-center justify-start gap-3 text-left">

@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
+import { useEffect, useState } from 'react';
 import { useTrainerLiveAmrapChatDrawer } from '@/contexts/TrainerLiveAmrapChatDrawerContext';
 import { useTrainerLiveTimerBackgroundOptional } from '@/contexts/TrainerLiveTimerBackgroundContext';
+import { supabase } from '@/lib/supabase/supabase-instance';
 import type { TrainerLiveShell } from '@/lib/trainer-live/shells';
 import type { TrainerLiveIntervalWrapperKind } from '@/lib/trainer-live/wrappers/types';
 import { getTrainerLiveIntervalWrapper } from '@/lib/trainer-live/wrappers/registry';
@@ -43,14 +45,44 @@ export default function TrainerLiveSessionRoom({
 }) {
   const { chatDrawerLeaderboard } = useTrainerLiveAmrapChatDrawer();
   const timerBg = useTrainerLiveTimerBackgroundOptional();
+  // Depend on presence only: timerBg object identity changes on leader/mode toggles; trainer id is stable.
+  const hasTimerBackground = timerBg != null;
+  const [clientTrainerParticipantId, setClientTrainerParticipantId] = useState<string | null>(
+    null
+  );
+
+  useEffect(() => {
+    if (
+      role !== 'client' ||
+      shell !== 'countdown_timer' ||
+      intervalWrapperKind !== 'amrap' ||
+      !hasTimerBackground
+    ) {
+      setClientTrainerParticipantId(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const { data, error: qErr } = await supabase.rpc('trainer_live_list_participants', {
+        p_session_id: sessionId,
+      });
+      if (cancelled || qErr) return;
+      const rows = (data ?? []) as { id: string; role: string }[];
+      const trainer = rows.find((r) => r.role === 'trainer');
+      if (!cancelled) setClientTrainerParticipantId(trainer?.id ?? null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [role, shell, intervalWrapperKind, sessionId, hasTimerBackground]);
+
   const excludeUidForTiles =
-    role === 'trainer' &&
-    shell === 'countdown_timer' &&
-    intervalWrapperKind === 'amrap' &&
-    timerBg
-      ? timerBg.mode === 'self'
-        ? participantId
-        : (timerBg.leaderTrainerLiveParticipantId ?? participantId)
+    shell === 'countdown_timer' && intervalWrapperKind === 'amrap' && timerBg
+      ? role === 'trainer'
+        ? timerBg.mode === 'self'
+          ? participantId
+          : (timerBg.leaderTrainerLiveParticipantId ?? participantId)
+        : clientTrainerParticipantId
       : null;
 
   const video = (

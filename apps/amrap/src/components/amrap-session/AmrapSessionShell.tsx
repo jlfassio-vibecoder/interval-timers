@@ -8,8 +8,9 @@ import type { ReactNode } from 'react';
 import type { AmrapSessionEngine } from '@/types/amrap-session';
 import AmrapTimerDisplay from './AmrapTimerDisplay';
 import AmrapWorkPhaseControls from './AmrapWorkPhaseControls';
-import AmrapExerciseListEditor from './AmrapExerciseListEditor';
+import AmrapEmbedExerciseSection from './AmrapEmbedExerciseSection';
 import AmrapLeaderboardSection from './AmrapLeaderboardSection';
+import AmrapAllUsersSplitGrid from './AmrapAllUsersSplitGrid';
 import FinishCelebration from './FinishCelebration';
 
 export type AmrapSessionShellLayout = 'default' | 'trainerLiveEmbed';
@@ -25,12 +26,18 @@ export interface AmrapSessionShellProps {
    * Trainer Live host: Me/Leader timer-background toggle, placed before the timer subtitle.
    */
   embedTitleBarAccessoryBeforeSub?: ReactNode;
+  /**
+   * When true with `trainerLiveEmbed`, omit the exercise list from this shell — host renders it
+   * on the timer video background (e.g. `TrainerLiveAmrapTimerBackground`).
+   */
+  embedSuppressExercises?: boolean;
 }
 
 export default function AmrapSessionShell({
   engine,
   shellLayout = 'default',
   embedTitleBarAccessoryBeforeSub,
+  embedSuppressExercises = false,
 }: AmrapSessionShellProps) {
   const {
     timerPhase,
@@ -49,7 +56,6 @@ export default function AmrapSessionShell({
     logRoundError,
     isPaused,
     participants,
-    workoutList,
     slots,
     loading,
     error,
@@ -161,6 +167,7 @@ export default function AmrapSessionShell({
         embedHostAndTimerInLeftColumn={
           embed && !freeWorkoutWorkEmbed && (timerPhase === 'setup' || timerPhase === 'work')
         }
+        embedMetricsVariant={showHostControls ? 'hostFourColumn' : 'participantTwoColumn'}
         titleBarAccessoryBeforeSub={embed ? embedTitleBarAccessoryBeforeSub : undefined}
         beforeMainClock={
           embed &&
@@ -183,6 +190,7 @@ export default function AmrapSessionShell({
               onLogRound={onLogRound}
               hideAmrapRounds={!!engine.isFreeWorkoutSegment && timerPhase === 'work'}
               layout="embedBesideClockRounds"
+              optimisticLogRoundCount={engine.sessionMode === 'live'}
             />
           ) : undefined
         }
@@ -196,6 +204,7 @@ export default function AmrapSessionShell({
             }
             onLogRound={onLogRound}
             hideAmrapRounds={!!engine.isFreeWorkoutSegment && timerPhase === 'work'}
+            optimisticLogRoundCount={engine.sessionMode === 'live'}
           />
         )}
         {embed &&
@@ -210,9 +219,22 @@ export default function AmrapSessionShell({
         {timerPhase === 'finished' && !engine.recapDismissed && (
           <>
             <div className="mt-6 text-lg text-white/80 animate-finished-pulse-once">
-              {engine.myRounds > 0
-                ? `You completed ${engine.myRounds} round${engine.myRounds === 1 ? '' : 's'} in ${engine.durationMinutes ?? 15} min`
-                : 'Work complete'}
+              {engine.isHost
+                ? (() => {
+                    const athletesWithRounds = engine.participants.filter(
+                      (p) => !p.isHost && p.rounds > 0
+                    ).length;
+                    if (athletesWithRounds > 0) {
+                      return `Session complete! ${athletesWithRounds} athlete${athletesWithRounds === 1 ? '' : 's'} finished.`;
+                    }
+                    if (engine.myRounds > 0) {
+                      return `You completed ${engine.myRounds} round${engine.myRounds === 1 ? '' : 's'} in ${engine.durationMinutes ?? 15} min`;
+                    }
+                    return 'Session complete!';
+                  })()
+                : engine.myRounds > 0
+                  ? `You completed ${engine.myRounds} round${engine.myRounds === 1 ? '' : 's'} in ${engine.durationMinutes ?? 15} min`
+                  : 'Work complete'}
             </div>
             {slots?.finishedActions}
           </>
@@ -222,49 +244,35 @@ export default function AmrapSessionShell({
         )}
       </AmrapTimerDisplay>
 
+      {embed &&
+        !freeWorkoutWorkEmbed &&
+        timerPhase === 'work' &&
+        engine.allUsersSplitRecords &&
+        engine.allUsersSplitRecords.length > 0 && (
+          <AmrapAllUsersSplitGrid records={engine.allUsersSplitRecords} />
+        )}
+
       {slots?.afterTimer}
     </div>
   );
 
-  const exercisesColumn = (
-    <div
-      className={
-        embed
-          ? 'flex w-full flex-col gap-6'
-          : 'flex w-full shrink-0 flex-col gap-6 lg:min-w-96 lg:flex-1 lg:max-w-[32rem] xl:max-w-[36rem]'
-      }
-    >
-      {slots?.rightColumn}
-
-      {(workoutList.length > 0 ||
-        (engine.isHost &&
-          (timerPhase === 'waiting' ||
-            timerPhase === 'setup' ||
-            timerPhase === 'work' ||
-            timerPhase === 'finished'))) && (
-        <div>
-          {!embed && slots?.exerciseHeader ? (
-            <div className="mb-6 flex flex-wrap items-center justify-end gap-3">
-              {slots.exerciseHeader}
-            </div>
-          ) : null}
-          {engine.isFreeWorkoutSegment && timerPhase === 'work' ? (
-            <p className="text-sm text-white/70">
-              No prescribed list for this segment — the host demonstrates movements for the group.
-            </p>
-          ) : (
-            <AmrapExerciseListEditor
-              workoutList={workoutList}
-              fullWidthGrid
-              maxTwoColumns={embed}
-              hostCanEditWorkoutList={engine.hostCanEditWorkoutList}
-              onSaveWorkoutList={engine.onSaveWorkoutList}
-            />
-          )}
-        </div>
-      )}
-    </div>
-  );
+  const exercisesColumn =
+    embed && embedSuppressExercises ? null : (
+      <div
+        className={
+          embed
+            ? 'flex w-full flex-col gap-6'
+            : 'flex w-full shrink-0 flex-col gap-6 lg:min-w-96 lg:flex-1 lg:max-w-[32rem] xl:max-w-[36rem]'
+        }
+      >
+        {!embed && slots?.exerciseHeader ? (
+          <div className="mb-6 flex flex-wrap items-center justify-end gap-3">
+            {slots.exerciseHeader}
+          </div>
+        ) : null}
+        <AmrapEmbedExerciseSection engine={engine} maxTwoColumns={embed} />
+      </div>
+    );
 
   return (
     <div
