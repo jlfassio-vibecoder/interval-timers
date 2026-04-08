@@ -65,7 +65,7 @@ Store **ordered** featured workout references per trainer, scoped by **modal mod
 | `trainer_user_id` | uuid | FK → `auth.users` / `profiles` (match existing trainer FK patterns) |
 | `workout_id` | uuid | FK → `public.workouts` (or equivalent library table used by `/api/trainer/workouts`) |
 | `context` | text | Enum: `'trainer_live_amrap'` \| `'trainer_live_tabata'` |
-| `sort_order` | int | 0..N-1 for stable ordering |
+| `sort_order` | int | 1..N for stable ordering (1-based, aligned with SQL `WITH ORDINALITY` in `update_featured_workouts`) |
 | `created_at` | timestamptz | |
 
 **Constraints**

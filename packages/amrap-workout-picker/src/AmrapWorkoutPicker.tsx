@@ -125,6 +125,13 @@ export function AmrapWorkoutPicker({
           <button
             type="button"
             onClick={() => {
+              // Featured shortcuts can open confirm before `savedWorkouts` resolves; list step uses `savedWorkouts` — return to protocol instead of crashing on undefined.
+              if (savedWorkouts === undefined) {
+                setStep('protocol');
+                setSavedPhase('list');
+                setSelectedSaved(null);
+                return;
+              }
               setSavedPhase('list');
               setSelectedSaved(null);
             }}
@@ -186,11 +193,13 @@ export function AmrapWorkoutPicker({
           ← Back
         </button>
         <p className="mb-3 text-sm text-white/70">Choose a workout from your Mission Control library.</p>
-        {savedWorkouts!.length === 0 ? (
+        {savedWorkouts === undefined ? (
+          <p className="text-sm text-white/50">Loading your library…</p>
+        ) : savedWorkouts.length === 0 ? (
           <p className="text-sm text-white/50">No saved workouts yet. Save from Workout Factory first.</p>
         ) : (
           <div className="grid max-h-[45vh] grid-cols-1 gap-2 overflow-y-auto">
-            {savedWorkouts!.map((item) => {
+            {savedWorkouts.map((item) => {
               const label =
                 item.source === 'ai_factory' ? `${item.title} (AI)` : item.title;
               return (

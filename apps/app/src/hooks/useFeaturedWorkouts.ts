@@ -5,6 +5,12 @@ import type { Database } from '@/types/supabase';
 
 type WorkoutRow = Database['public']['Tables']['workouts']['Row'];
 
+/** Workout fields loaded for featured rows (embed + hydration use the same shape). */
+export type TrainerFeaturedWorkoutPayload = Pick<
+  WorkoutRow,
+  'id' | 'title' | 'blocks' | 'duration_minutes' | 'source' | 'trainer_id'
+>;
+
 export type TrainerFeaturedLiveWorkoutRow = {
   id: string;
   trainer_user_id: string;
@@ -12,7 +18,7 @@ export type TrainerFeaturedLiveWorkoutRow = {
   sort_order: number;
   context: FeaturedWorkoutContext;
   created_at: string;
-  workouts: WorkoutRow | null;
+  workouts: TrainerFeaturedWorkoutPayload | null;
 };
 
 export type UpdateFeaturedWorkoutsParams = {
@@ -34,10 +40,11 @@ function extractSupabaseErrorMessage(err: unknown): string {
   return 'Could not update featured workouts';
 }
 
-function normalizeWorkoutJoin(raw: unknown): WorkoutRow | null {
+function normalizeWorkoutJoin(raw: unknown): TrainerFeaturedWorkoutPayload | null {
   if (raw == null) return null;
-  if (Array.isArray(raw)) return (raw[0] as WorkoutRow | undefined) ?? null;
-  return raw as WorkoutRow;
+  if (Array.isArray(raw))
+    return (raw[0] as TrainerFeaturedWorkoutPayload | undefined) ?? null;
+  return raw as TrainerFeaturedWorkoutPayload;
 }
 
 /**
@@ -98,7 +105,7 @@ export function useFeaturedWorkoutsQuery(
         baseRows.filter((row) => row.workouts == null).map((row) => row.workout_id)
       ),
     ];
-    let workoutById = new Map<string, WorkoutRow>();
+    let workoutById = new Map<string, TrainerFeaturedWorkoutPayload>();
     if (missingIds.length > 0) {
       const { data: wRows, error: wErr } = await supabase
         .from('workouts')
@@ -106,9 +113,7 @@ export function useFeaturedWorkoutsQuery(
         .in('id', missingIds)
         .eq('trainer_id', user.id);
       if (!wErr && wRows) {
-        workoutById = new Map(
-          (wRows as WorkoutRow[]).map((w) => [w.id, w])
-        );
+        workoutById = new Map(wRows.map((w) => [w.id, w]));
       }
     }
 
