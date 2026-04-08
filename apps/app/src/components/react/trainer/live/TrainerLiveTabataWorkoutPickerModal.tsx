@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import type { AmrapSavedWorkoutItem } from '@interval-timers/amrap-workout-picker';
 import { missionControlApiAuthHeaders } from '@/lib/mission-control-api-auth';
@@ -7,6 +7,8 @@ import {
   workoutRowToTabataAttachParams,
 } from '@/lib/trainer-live/tabata-workout-list-adapter';
 import { parseFactoryMetabolicModeFromApi } from '@/lib/trainer-live/workout-factory-metabolic-mode';
+import { mapFeaturedRowsToPickerItems } from '@/lib/trainer-live/featured-workouts-picker-adapter';
+import { useFeaturedWorkoutsQuery } from '@/hooks/useFeaturedWorkouts';
 
 const FOCUSABLE_SELECTOR =
   'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -37,6 +39,12 @@ export default function TrainerLiveTabataWorkoutPickerModal({
   const [phase, setPhase] = useState<'list' | 'confirm'>('list');
   const [selected, setSelected] = useState<AmrapSavedWorkoutItem | null>(null);
   const [roundInput, setRoundInput] = useState('8');
+
+  const featuredQuery = useFeaturedWorkoutsQuery('trainer_live_tabata', { enabled: open });
+  const featuredPickerItems = useMemo(
+    () => mapFeaturedRowsToPickerItems(featuredQuery.rows, savedLibrary),
+    [featuredQuery.rows, savedLibrary]
+  );
 
   const handleClose = useCallback(() => {
     onOpenChange(false);
@@ -228,28 +236,67 @@ export default function TrainerLiveTabataWorkoutPickerModal({
               <span className="text-white/90">Balanced Tabata</span> appear here. Pick a saved workout; you
               will set the number of Tabata rounds (20s work / 10s rest) on the next step.
             </p>
+            {open && featuredQuery.loading ? (
+              <div className="py-4 text-center text-sm text-white/50">Loading featured…</div>
+            ) : featuredPickerItems.length > 0 ? (
+              <div className="space-y-2">
+                <p className="text-[10px] font-mono uppercase tracking-wide text-orange-400/95">
+                  Featured for Live
+                </p>
+                <ul className="max-h-[22vh] space-y-2 overflow-y-auto">
+                  {featuredPickerItems.map((item) => (
+                    <li key={`featured-${item.id}`}>
+                      <button
+                        type="button"
+                        disabled={disabled}
+                        onClick={() => {
+                          setSelected(item);
+                          setPhase('confirm');
+                        }}
+                        className="w-full rounded-xl border border-orange-500/30 bg-orange-600/10 px-4 py-3 text-left text-sm text-white hover:bg-orange-600/15 disabled:opacity-40"
+                      >
+                        <span className="font-medium">{item.title}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
             {savedLibraryLoading ? (
               <div className="py-8 text-center text-sm text-white/50">Loading workouts…</div>
             ) : !savedLibrary?.length ? (
-              <div className="py-8 text-center text-sm text-white/50">No saved workouts yet.</div>
+              !featuredPickerItems.length && !featuredQuery.loading ? (
+                <div className="py-8 text-center text-sm text-white/50">No saved workouts yet.</div>
+              ) : featuredPickerItems.length > 0 ? (
+                <p className="py-2 text-center text-xs text-white/45">
+                  No additional workouts in your library for this list.
+                </p>
+              ) : null
             ) : (
-              <ul className="max-h-[50vh] space-y-2 overflow-y-auto">
-                {savedLibrary.map((item) => (
-                  <li key={item.id}>
-                    <button
-                      type="button"
-                      disabled={disabled}
-                      onClick={() => {
-                        setSelected(item);
-                        setPhase('confirm');
-                      }}
-                      className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-left text-sm text-white hover:bg-white/10 disabled:opacity-40"
-                    >
-                      <span className="font-medium">{item.title}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
+              <>
+                {featuredPickerItems.length > 0 ? (
+                  <p className="mb-2 text-[10px] font-mono uppercase tracking-wider text-white/45">
+                    All saved workouts
+                  </p>
+                ) : null}
+                <ul className="max-h-[50vh] space-y-2 overflow-y-auto">
+                  {savedLibrary!.map((item) => (
+                    <li key={item.id}>
+                      <button
+                        type="button"
+                        disabled={disabled}
+                        onClick={() => {
+                          setSelected(item);
+                          setPhase('confirm');
+                        }}
+                        className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-left text-sm text-white hover:bg-white/10 disabled:opacity-40"
+                      >
+                        <span className="font-medium">{item.title}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </>
             )}
             <div className="flex justify-end pt-2">
               <button

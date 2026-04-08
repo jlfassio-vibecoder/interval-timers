@@ -7,10 +7,16 @@ import { NavLink } from 'react-router-dom';
 import { toast } from 'sonner';
 import { missionControlApiAuthHeaders } from '@/lib/mission-control-api-auth';
 import type { FactoryMetabolicMode } from '@/lib/trainer-live/workout-factory-metabolic-mode';
+import type { FeaturedWorkoutContext } from '@/lib/trainer-live/featured-workout-context';
 import type {
   TrainerWorkoutOverviewRow,
   WorkoutAssignmentClientRow,
 } from '@/lib/supabase/admin/trainer-client-assignments';
+import {
+  useFeaturedWorkoutsQuery,
+  useUpdateFeaturedWorkoutsMutation,
+} from '@/hooks/useFeaturedWorkouts';
+import TrainerLibraryWorkoutCard from '@/components/react/trainer/workouts/TrainerLibraryWorkoutCard';
 
 type ClientWorkoutMetabolicFilter = 'all' | FactoryMetabolicMode | 'unlabeled';
 
@@ -67,6 +73,52 @@ const TrainerClientWorkoutsView: React.FC = () => {
   const [rosterLoading, setRosterLoading] = useState(true);
   const [assignByWorkoutId, setAssignByWorkoutId] = useState<Record<string, string[]>>({});
   const [assignBusyByWorkoutId, setAssignBusyByWorkoutId] = useState<Record<string, boolean>>({});
+
+  const featuredAmrap = useFeaturedWorkoutsQuery('trainer_live_amrap');
+  const featuredTabata = useFeaturedWorkoutsQuery('trainer_live_tabata');
+
+  const refetchFeaturedWorkouts = useCallback(async () => {
+    await Promise.all([featuredAmrap.refetch(), featuredTabata.refetch()]);
+  }, [featuredAmrap.refetch, featuredTabata.refetch]);
+
+  const {
+    mutateAsync: mutateFeaturedWorkouts,
+    pending: featuredUpdatePending,
+  } = useUpdateFeaturedWorkoutsMutation({
+    onSuccess: refetchFeaturedWorkouts,
+  });
+
+  const featuredAmrapIds = useMemo(
+    () => new Set(featuredAmrap.rows.map((r) => r.workout_id)),
+    [featuredAmrap.rows]
+  );
+  const featuredTabataIds = useMemo(
+    () => new Set(featuredTabata.rows.map((r) => r.workout_id)),
+    [featuredTabata.rows]
+  );
+
+  const applyFeaturedToggle = useCallback(
+    async (workoutId: string, context: FeaturedWorkoutContext, enable: boolean) => {
+      const currentIds =
+        context === 'trainer_live_amrap'
+          ? featuredAmrap.rows.map((r) => r.workout_id)
+          : featuredTabata.rows.map((r) => r.workout_id);
+      const next = enable
+        ? currentIds.includes(workoutId)
+          ? currentIds
+          : [...currentIds, workoutId]
+        : currentIds.filter((id) => id !== workoutId);
+      try {
+        await mutateFeaturedWorkouts({
+          p_context: context,
+          p_workout_ids: next,
+        });
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : 'Could not update featured workouts');
+      }
+    },
+    [featuredAmrap.rows, featuredTabata.rows, mutateFeaturedWorkouts]
+  );
 
   const loadOverview = useCallback(async () => {
     setLoadError(null);
@@ -234,12 +286,6 @@ const TrainerClientWorkoutsView: React.FC = () => {
     }
   };
 
-  const visibilityClass = (v?: string) => {
-    if (v === 'assigned') return 'bg-emerald-500/20 text-emerald-200';
-    if (v === 'ready') return 'bg-sky-500/20 text-sky-200';
-    return 'bg-white/10 text-white/70';
-  };
-
   const filteredWorkouts = useMemo(() => {
     const list = overview?.workouts ?? [];
     if (workoutMetabolicFilter === 'all') return list;
@@ -248,13 +294,6 @@ const TrainerClientWorkoutsView: React.FC = () => {
     }
     return list.filter((w) => w.factoryMetabolicMode === workoutMetabolicFilter);
   }, [overview?.workouts, workoutMetabolicFilter]);
-
-  const factoryModeLabel = (m: FactoryMetabolicMode | null | undefined): string => {
-    if (m === 'amrap_density') return 'Density AMRAP';
-    if (m === 'tabata_balanced') return 'Balanced Tabata';
-    if (m === 'hiit') return 'HIIT';
-    return '';
-  };
 
   return (
     <div className="mx-auto max-w-7xl pb-12">
@@ -324,145 +363,28 @@ const TrainerClientWorkoutsView: React.FC = () => {
             const assigned = overview.assignmentsByWorkoutId[w.id] ?? [];
             const busy = assignBusyByWorkoutId[w.id] ?? false;
             const selected = assignByWorkoutId[w.id] ?? [];
-            const labClientId =
-              selected.length === 1
-                ? selected[0]
-                : selected.length === 0 && assigned[0]
-                  ? assigned[0].clientUserId
-                  : '';
             return (
-              <div className="hover:border-orange-light/40 flex flex-col rounded-2xl border border-white/10 bg-white/5 p-6 transition-colors">
-                <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <h2 className="text-lg font-bold leading-tight">{w.title}</h2>
-                    <p className="mt-1 text-xs text-white/45">v{w.versionIndex}</p>
-                  </div>
-                  {w.durationMinutes != null && (
-                    <span className="shrink-0 rounded-md bg-white/10 px-2 py-0.5 text-xs text-white/70">
-                      {w.durationMinutes} min
-                    </span>
-                  )}
-                </div>
-                <div className="mb-3">
-                  <NavLink
-                    to={`/workouts/${encodeURIComponent(w.id)}/edit`}
-                    className="hover:bg-orange-light/20 inline-block rounded-lg bg-white/10 px-3 py-1.5 text-xs font-bold uppercase text-white transition-colors hover:text-orange-light"
-                  >
-                    Edit workout
-                  </NavLink>
-                </div>
-                <div className="mb-4 flex flex-wrap gap-2">
-                  {factoryModeLabel(w.factoryMetabolicMode) ? (
-                    <span className="rounded-md bg-orange-light/15 px-2 py-0.5 text-xs font-medium uppercase tracking-wide text-orange-light/95">
-                      {factoryModeLabel(w.factoryMetabolicMode)}
-                    </span>
-                  ) : null}
-                  {w.source && (
-                    <span className="rounded-md bg-white/10 px-2 py-0.5 text-xs uppercase tracking-wide text-white/60">
-                      {w.source}
-                    </span>
-                  )}
-                  {w.visibility && (
-                    <span
-                      className={`rounded-md px-2 py-0.5 text-xs font-medium uppercase tracking-wide ${visibilityClass(w.visibility)}`}
-                    >
-                      {w.visibility}
-                    </span>
-                  )}
-                </div>
-                <div className="mb-4 flex-1">
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-white/50">
-                    Assigned clients
-                  </p>
-                  {assigned.length === 0 ? (
-                    <p className="text-sm text-white/40">None yet</p>
-                  ) : (
-                    <ul className="space-y-1.5 text-sm">
-                      {assigned.map((a) => (
-                        <li key={a.assignmentId}>
-                          <NavLink
-                            to={`/roster/${encodeURIComponent(a.clientUserId)}`}
-                            className="text-orange-light hover:underline"
-                          >
-                            {a.clientName}
-                          </NavLink>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-                <div className="border-t border-white/10 pt-4">
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-white/50">
-                    Assign to clients
-                  </p>
-                  {rosterLoading ? (
-                    <p className="text-sm text-white/50">Loading roster…</p>
-                  ) : roster.length === 0 ? (
-                    <p className="text-sm text-white/50">No clients on your roster yet.</p>
-                  ) : (
-                    <>
-                      <div className="mb-3 max-h-40 space-y-2 overflow-y-auto pr-1">
-                        {roster.map((r) => {
-                          const checked = selected.includes(r.id);
-                          return (
-                            <label
-                              key={r.id}
-                              className="flex cursor-pointer items-center gap-2 text-sm text-white/80"
-                            >
-                              <input
-                                type="checkbox"
-                                className="rounded border-white/30 bg-black/40"
-                                checked={checked}
-                                disabled={busy}
-                                onChange={() => toggleAssign(w.id, r.id)}
-                              />
-                              <span>{rosterLabel(r.id)}</span>
-                            </label>
-                          );
-                        })}
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          disabled={busy || selected.length === 0}
-                          onClick={() => void assignWorkoutToClients(w.id)}
-                          className="bg-orange-light/20 rounded-lg px-3 py-2 text-xs font-bold uppercase text-orange-light transition-colors enabled:hover:bg-orange-light enabled:hover:text-black disabled:opacity-40"
-                        >
-                          {busy ? 'Assigning…' : 'Assign selected'}
-                        </button>
-                        <button
-                          type="button"
-                          disabled={busy}
-                          onClick={() =>
-                            setAssignByWorkoutId((p) => ({
-                              ...p,
-                              [w.id]: roster.map((x) => x.id),
-                            }))
-                          }
-                          className="rounded-lg bg-white/10 px-3 py-2 text-xs font-bold uppercase transition-colors hover:bg-white/20 disabled:opacity-40"
-                        >
-                          Select all
-                        </button>
-                        {labClientId ? (
-                          <NavLink
-                            to={`/roster/${encodeURIComponent(labClientId)}/lab?prefillWorkout=${encodeURIComponent(w.id)}`}
-                            className="rounded-lg bg-white/10 px-3 py-2 text-xs font-bold uppercase transition-colors hover:bg-white/20"
-                          >
-                            Performance Lab
-                          </NavLink>
-                        ) : (
-                          <span
-                            className="cursor-not-allowed rounded-lg bg-white/5 px-3 py-2 text-xs font-bold uppercase text-white/30"
-                            title="Pick exactly one client above, or assign a client first"
-                          >
-                            Performance Lab
-                          </span>
-                        )}
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
+              <TrainerLibraryWorkoutCard
+                workout={w}
+                assigned={assigned}
+                assignBusy={busy}
+                selectedClientIds={selected}
+                roster={roster}
+                rosterLoading={rosterLoading}
+                rosterLabel={rosterLabel}
+                onToggleAssignClient={(clientUserId) => toggleAssign(w.id, clientUserId)}
+                onAssignSelected={() => void assignWorkoutToClients(w.id)}
+                onSelectAllClients={() =>
+                  setAssignByWorkoutId((p) => ({
+                    ...p,
+                    [w.id]: roster.map((x) => x.id),
+                  }))
+                }
+                isFeaturedAmrap={featuredAmrapIds.has(w.id)}
+                isFeaturedTabata={featuredTabataIds.has(w.id)}
+                featuredUpdatePending={featuredUpdatePending}
+                onFeaturedToggle={(ctx, enable) => void applyFeaturedToggle(w.id, ctx, enable)}
+              />
             );
           };
 

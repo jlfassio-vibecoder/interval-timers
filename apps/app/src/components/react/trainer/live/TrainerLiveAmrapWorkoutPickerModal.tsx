@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import {
   AmrapWorkoutPicker,
@@ -7,6 +7,8 @@ import {
 import { missionControlApiAuthHeaders } from '@/lib/mission-control-api-auth';
 import { workoutRowToAmrapAttachParams } from '@/lib/trainer-live/amrap-workout-list-adapter';
 import { parseFactoryMetabolicModeFromApi } from '@/lib/trainer-live/workout-factory-metabolic-mode';
+import { mapFeaturedRowsToPickerItems } from '@/lib/trainer-live/featured-workouts-picker-adapter';
+import { useFeaturedWorkoutsQuery } from '@/hooks/useFeaturedWorkouts';
 
 /** Same focusable query as ExerciseDetailModal / WorkoutSummaryModal (no shared util in repo). */
 const FOCUSABLE_SELECTOR =
@@ -38,6 +40,12 @@ export default function TrainerLiveAmrapWorkoutPickerModal({
   const savedFocusRef = useRef<HTMLElement | null>(null);
   const [savedLibrary, setSavedLibrary] = useState<AmrapSavedWorkoutItem[] | undefined>(undefined);
   const [savedLibraryLoading, setSavedLibraryLoading] = useState(false);
+
+  const featuredQuery = useFeaturedWorkoutsQuery('trainer_live_amrap', { enabled: open });
+  const featuredPickerItems = useMemo(
+    () => mapFeaturedRowsToPickerItems(featuredQuery.rows, savedLibrary),
+    [featuredQuery.rows, savedLibrary]
+  );
 
   const handleClose = useCallback(() => {
     onOpenChange(false);
@@ -207,6 +215,8 @@ export default function TrainerLiveAmrapWorkoutPickerModal({
           onSelect={(workoutList, durationMinutes) => {
             void onWorkoutChosen(workoutList, durationMinutes);
           }}
+          featuredSavedWorkouts={featuredPickerItems}
+          featuredSavedWorkoutsLoading={open && featuredQuery.loading}
           savedWorkouts={savedLibraryLoading ? undefined : savedLibrary}
           onConfirmSavedWorkout={(item, durationMinutes) => {
             try {

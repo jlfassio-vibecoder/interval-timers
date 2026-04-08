@@ -580,6 +580,30 @@ export interface Database {
         };
         Relationships: [];
       };
+      trainer_featured_live_workouts: {
+        Row: {
+          id: string;
+          trainer_user_id: string;
+          workout_id: string;
+          context: 'trainer_live_amrap' | 'trainer_live_tabata';
+          sort_order: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          trainer_user_id: string;
+          workout_id: string;
+          context: 'trainer_live_amrap' | 'trainer_live_tabata';
+          sort_order: number;
+          created_at?: string;
+        };
+        Update: {
+          workout_id?: string;
+          context?: 'trainer_live_amrap' | 'trainer_live_tabata';
+          sort_order?: number;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -598,6 +622,14 @@ export interface Database {
       trainer_live_schedule_invite_decline: {
         Args: { p_invite_id: string };
         Returns: Record<string, unknown>;
+      };
+      update_featured_workouts: {
+        Args: {
+          p_trainer_id: string;
+          p_context: string;
+          p_workout_ids: string[];
+        };
+        Returns: undefined;
       };
     };
   };
