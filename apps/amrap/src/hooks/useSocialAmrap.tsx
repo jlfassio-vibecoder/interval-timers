@@ -508,10 +508,17 @@ export function useSocialAmrap(
     [sessionId, hostToken, isHost, timerState, session?.duration_minutes, session?.timer_segment]
   );
 
+  const currentSegmentIndex = session?.segment_index ?? 0;
   const participantRoundCountInSegment = useMemo(
     () =>
-      participantId ? rounds.filter((r) => r.participant_id === participantId).length : 0,
-    [rounds, participantId]
+      participantId
+        ? rounds.filter(
+            (r) =>
+              r.participant_id === participantId &&
+              (r.segment_index ?? 0) === currentSegmentIndex
+          ).length
+        : 0,
+    [rounds, participantId, currentSegmentIndex]
   );
 
   const logRound = useCallback(async () => {

@@ -139,17 +139,6 @@ export default function AmrapWorkPhaseControls({
     ? `${LOG_ROUND_BUTTON_CLASSES} ${LOG_ROUND_COOLDOWN_CLASSES}`
     : LOG_ROUND_BUTTON_CLASSES;
 
-  const roundsColumn = (
-    <div className="flex shrink-0 flex-col items-center text-center">
-      <div className="mb-1 text-xs font-bold uppercase tracking-widest text-white/60 sm:text-sm">
-        Your rounds
-      </div>
-      <div className="text-6xl font-bold leading-none text-white tabular-nums sm:text-7xl">
-        {displayedRounds}
-      </div>
-    </div>
-  );
-
   const logRoundColumn =
     timerState === 'work' ? (
       <>
