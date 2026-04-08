@@ -139,25 +139,26 @@ export function buildSplitRecordsForSegment(
   }
 
   const out: AmrapSplitRecord[] = [];
-  for (const r of scoped) {
-    const list = byParticipant.get(r.participant_id) ?? [];
-    const idx = list.findIndex((x) => x.id === r.id);
-    const prev = idx > 0 ? list[idx - 1] : undefined;
-    const split =
-      prev != null
-        ? r.elapsed_sec_at_round - prev.elapsed_sec_at_round
-        : r.elapsed_sec_at_round;
-    const uid = userByParticipant.get(r.participant_id);
-    out.push({
-      id: r.id,
-      session_id: r.session_id,
-      participant_id: r.participant_id,
-      round_number: r.round_index,
-      split_time_sec: split,
-      segment_index: r.segment_index ?? 0,
-      nickname: nick.get(r.participant_id) ?? 'Unknown',
-      user_id: uid ?? undefined,
-    });
+  for (const list of byParticipant.values()) {
+    let prevElapsedSecAtRound: number | undefined;
+    for (const r of list) {
+      const split =
+        prevElapsedSecAtRound != null
+          ? r.elapsed_sec_at_round - prevElapsedSecAtRound
+          : r.elapsed_sec_at_round;
+      const uid = userByParticipant.get(r.participant_id);
+      out.push({
+        id: r.id,
+        session_id: r.session_id,
+        participant_id: r.participant_id,
+        round_number: r.round_index,
+        split_time_sec: split,
+        segment_index: r.segment_index ?? 0,
+        nickname: nick.get(r.participant_id) ?? 'Unknown',
+        user_id: uid ?? undefined,
+      });
+      prevElapsedSecAtRound = r.elapsed_sec_at_round;
+    }
   }
   const elapsedByRoundId = new Map(scoped.map((x) => [x.id, x.elapsed_sec_at_round]));
   out.sort(

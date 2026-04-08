@@ -45,6 +45,8 @@ export default function TrainerLiveSessionRoom({
 }) {
   const { chatDrawerLeaderboard } = useTrainerLiveAmrapChatDrawer();
   const timerBg = useTrainerLiveTimerBackgroundOptional();
+  // Depend on presence only: timerBg object identity changes on leader/mode toggles; trainer id is stable.
+  const hasTimerBackground = timerBg != null;
   const [clientTrainerParticipantId, setClientTrainerParticipantId] = useState<string | null>(
     null
   );
@@ -54,7 +56,7 @@ export default function TrainerLiveSessionRoom({
       role !== 'client' ||
       shell !== 'countdown_timer' ||
       intervalWrapperKind !== 'amrap' ||
-      !timerBg
+      !hasTimerBackground
     ) {
       setClientTrainerParticipantId(null);
       return;
@@ -72,7 +74,7 @@ export default function TrainerLiveSessionRoom({
     return () => {
       cancelled = true;
     };
-  }, [role, shell, intervalWrapperKind, sessionId, timerBg]);
+  }, [role, shell, intervalWrapperKind, sessionId, hasTimerBackground]);
 
   const excludeUidForTiles =
     shell === 'countdown_timer' && intervalWrapperKind === 'amrap' && timerBg

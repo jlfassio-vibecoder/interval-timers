@@ -2,6 +2,7 @@
  * Full-viewport overlay when a Trainer Live session has ended (trainer called end session).
  * Shadcn is not used in this app; styling matches Trainer Live (rounded card, orange accents).
  */
+import { useEffect, useRef } from 'react';
 import { Trophy } from 'lucide-react';
 
 export default function TrainerLiveSessionEndedOverlay({
@@ -12,6 +13,12 @@ export default function TrainerLiveSessionEndedOverlay({
   /** Clear sessionStorage participant key before navigating away */
   onClearParticipant: () => void;
 }) {
+  const primaryActionRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    primaryActionRef.current?.focus();
+  }, []);
+
   const go = (path: string) => {
     onClearParticipant();
     window.location.assign(path);
@@ -23,6 +30,7 @@ export default function TrainerLiveSessionEndedOverlay({
     <div
       className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 p-4 text-white backdrop-blur-sm"
       role="alertdialog"
+      aria-modal="true"
       aria-labelledby="trainer-live-ended-title"
       aria-describedby="trainer-live-ended-desc"
     >
@@ -43,6 +51,7 @@ export default function TrainerLiveSessionEndedOverlay({
         </p>
         <div className="flex flex-col gap-3">
           <button
+            ref={primaryActionRef}
             type="button"
             onClick={() => go(resultsHref)}
             className="w-full rounded-xl bg-orange-light py-3.5 text-center text-sm font-bold uppercase tracking-wide text-black transition-colors hover:bg-white"
