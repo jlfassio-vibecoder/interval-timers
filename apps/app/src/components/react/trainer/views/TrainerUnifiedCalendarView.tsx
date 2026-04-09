@@ -13,7 +13,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { UnifiedCalendarItem } from '@/lib/supabase/admin/trainer-unified-calendar';
 import {
@@ -29,6 +29,8 @@ import { useAppContext } from '@/contexts/AppContext';
 import { CalendarTimezoneControl } from '@/components/react/calendar/CalendarTimezoneControl';
 import { updateMyProfileTimezone } from '@/lib/profile-timezone';
 import type { CoachScheduleConflictItem } from '@/lib/supabase/admin/trainer-client-calendar';
+import { supabase } from '@/lib/supabase/supabase-instance';
+import { trainerLiveParticipantStorageKey } from '@/lib/trainer-live/storage';
 
 const WEEK_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -67,6 +69,7 @@ function dayKeyForItem(ev: UnifiedCalendarItem, viewerTz: string): string {
 }
 
 const TrainerUnifiedCalendarView: React.FC = () => {
+  const navigate = useNavigate();
   const { user: authUser } = useAppContext();
   const [weekStart, setWeekStart] = useState(() => mondayOfWeekForZone(Date.now(), 'UTC'));
   const [viewerTimezone, setViewerTimezone] = useState('UTC');
@@ -86,6 +89,9 @@ const TrainerUnifiedCalendarView: React.FC = () => {
     null
   );
   const [busyLiveConflictRetry, setBusyLiveConflictRetry] = useState(false);
+  /** `occ:${id}` or `coach:${clientUserId}:${instanceId}` while starting / linking live */
+  const [startLiveBusyKey, setStartLiveBusyKey] = useState<string | null>(null);
+  const [startLiveErr, setStartLiveErr] = useState<string | null>(null);
   const alignedWeekRef = useRef(false);
   const viewerTzForFetchRef = useRef(viewerTimezone);
 
@@ -142,6 +148,111 @@ const TrainerUnifiedCalendarView: React.FC = () => {
       setLoading(false);
     }
   }, [weekStart]);
+
+  const openTrainerLiveRoom = useCallback(
+    (sessionId: string) => {
+      navigate(`/live/${encodeURIComponent(sessionId)}`);
+    },
+    [navigate]
+  );
+
+  const runCreateTrainerLiveSession = useCallback(async (invitedClientUserId: string | null) => {
+    const { data, error } = await supabase.rpc('trainer_live_create_session', {
+      p_shell: 'video_only',
+      p_invited_client_user_id: invitedClientUserId,
+    });
+    if (error) return { ok: false as const, error: error.message };
+    const row = data as { session_id?: string; participant_id?: string } | null;
+    const sid = row?.session_id;
+    const pid = row?.participant_id;
+    if (!sid || !pid) return { ok: false as const, error: 'Could not create live session' };
+    return { ok: true as const, sid, pid };
+  }, []);
+
+  const onScheduledOccurrenceLiveCta = useCallback(
+    async (ev: UnifiedCalendarItem & { kind: 'scheduled_live_occurrence' }) => {
+      setStartLiveErr(null);
+      if (ev.liveSessionId) {
+        openTrainerLiveRoom(ev.liveSessionId);
+        return;
+      }
+      setStartLiveBusyKey(`occ:${ev.occurrenceId}`);
+      try {
+        const created = await runCreateTrainerLiveSession(null);
+        if (!created.ok) {
+          setStartLiveErr(created.error);
+          return;
+        }
+        const auth = await missionControlApiAuthHeaders();
+        const res = await fetch(
+          `/api/trainer/live-schedule/occurrences/${encodeURIComponent(ev.occurrenceId)}`,
+          {
+            method: 'PATCH',
+            credentials: 'include',
+            headers: { ...auth, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ liveSessionId: created.sid }),
+          }
+        );
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        if (!res.ok) {
+          setStartLiveErr(typeof body.error === 'string' ? body.error : 'Failed to link calendar');
+          return;
+        }
+        sessionStorage.setItem(trainerLiveParticipantStorageKey(created.sid), created.pid);
+        await loadUnified();
+        openTrainerLiveRoom(created.sid);
+      } finally {
+        setStartLiveBusyKey(null);
+      }
+    },
+    [loadUnified, openTrainerLiveRoom, runCreateTrainerLiveSession]
+  );
+
+  const onCoachInstanceLiveCta = useCallback(
+    async (ev: UnifiedCalendarItem & { kind: 'coach_instance' }) => {
+      setStartLiveErr(null);
+      const liveId = ev.trainerLiveSessionId;
+      if (liveId) {
+        openTrainerLiveRoom(liveId);
+        return;
+      }
+      setStartLiveBusyKey(`coach:${ev.clientUserId}:${ev.instanceId}`);
+      try {
+        let created = await runCreateTrainerLiveSession(ev.clientUserId);
+        if (
+          !created.ok &&
+          /not on your roster|Client is not/i.test(created.error)
+        ) {
+          created = await runCreateTrainerLiveSession(null);
+        }
+        if (!created.ok) {
+          setStartLiveErr(created.error);
+          return;
+        }
+        const auth = await missionControlApiAuthHeaders();
+        const res = await fetch(
+          `/api/trainer/clients/${encodeURIComponent(ev.clientUserId)}/calendar/instances/${encodeURIComponent(ev.instanceId)}`,
+          {
+            method: 'PATCH',
+            credentials: 'include',
+            headers: { ...auth, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ trainerLiveSessionId: created.sid }),
+          }
+        );
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        if (!res.ok) {
+          setStartLiveErr(typeof body.error === 'string' ? body.error : 'Failed to link calendar');
+          return;
+        }
+        sessionStorage.setItem(trainerLiveParticipantStorageKey(created.sid), created.pid);
+        await loadUnified();
+        openTrainerLiveRoom(created.sid);
+      } finally {
+        setStartLiveBusyKey(null);
+      }
+    },
+    [loadUnified, openTrainerLiveRoom, runCreateTrainerLiveSession]
+  );
 
   const commitViewerTimezone = useCallback(
     async (zone: string) => {
@@ -571,6 +682,7 @@ const TrainerUnifiedCalendarView: React.FC = () => {
       ) : null}
 
       {error ? <p className="text-sm text-red-300">{error}</p> : null}
+      {startLiveErr ? <p className="text-sm text-red-300">{startLiveErr}</p> : null}
 
       {loading ? (
         <div className="flex min-h-[200px] items-center justify-center">
@@ -619,6 +731,18 @@ const TrainerUnifiedCalendarView: React.FC = () => {
                           {ev.inviteSummaries.map((s) => `${s.label} (${s.status})`).join(', ')}
                         </div>
                       ) : null}
+                      <button
+                        type="button"
+                        disabled={startLiveBusyKey === `occ:${ev.occurrenceId}`}
+                        onClick={() => void onScheduledOccurrenceLiveCta(ev)}
+                        className="mt-1 w-full rounded border border-teal-400/50 bg-teal-500/15 px-1.5 py-1 text-[8px] font-medium text-teal-100/95 hover:bg-teal-500/25 disabled:opacity-40"
+                      >
+                        {startLiveBusyKey === `occ:${ev.occurrenceId}`
+                          ? '…'
+                          : ev.liveSessionId
+                            ? 'Open live'
+                            : 'Start session'}
+                      </button>
                     </div>
                   ) : ev.kind === 'live_session' ? (
                     <div
@@ -648,7 +772,7 @@ const TrainerUnifiedCalendarView: React.FC = () => {
                         </div>
                       ) : null}
                       <Link
-                        to={`/trainer/live/${encodeURIComponent(ev.sessionId)}`}
+                        to={`/live/${encodeURIComponent(ev.sessionId)}`}
                         className="mt-1 inline-block text-[8px] text-cyan-200/90 underline decoration-cyan-400/40 hover:decoration-cyan-200"
                       >
                         Open Live
@@ -707,9 +831,25 @@ const TrainerUnifiedCalendarView: React.FC = () => {
                         )}
                       </div>
                       {ev.kind === 'coach_instance' ? (
-                        <div className="text-white/60">
-                          {formatTimeInZone(ev.scheduledAt, viewerLabel)}
-                        </div>
+                        <>
+                          <div className="text-white/60">
+                            {formatTimeInZone(ev.scheduledAt, viewerLabel)}
+                          </div>
+                          <button
+                            type="button"
+                            disabled={
+                              startLiveBusyKey === `coach:${ev.clientUserId}:${ev.instanceId}`
+                            }
+                            onClick={() => void onCoachInstanceLiveCta(ev)}
+                            className="mt-1 w-full rounded border border-orange-light/50 bg-orange-light/15 px-1.5 py-1 text-[8px] font-medium text-orange-light hover:bg-orange-light/25 disabled:opacity-40"
+                          >
+                            {startLiveBusyKey === `coach:${ev.clientUserId}:${ev.instanceId}`
+                              ? '…'
+                              : ev.trainerLiveSessionId
+                                ? 'Open live'
+                                : 'Start session'}
+                          </button>
+                        </>
                       ) : (
                         <div className="text-white/45">All day</div>
                       )}

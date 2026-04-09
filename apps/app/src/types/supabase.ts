@@ -631,6 +631,10 @@ export interface Database {
         };
         Returns: undefined;
       };
+      get_live_session_summary: {
+        Args: { p_session_id: string };
+        Returns: Record<string, unknown>;
+      };
     };
   };
 }

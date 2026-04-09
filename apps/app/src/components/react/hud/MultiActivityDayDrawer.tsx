@@ -40,6 +40,7 @@ function typeIcon(type: CalendarEvent['type']) {
     case 'readiness':
       return Heart;
     case 'live_scheduled':
+    case 'coach_live':
       return Video;
     default:
       return Calendar;
@@ -62,6 +63,8 @@ function typeLabel(type: CalendarEvent['type']): string {
       return 'Readiness';
     case 'live_scheduled':
       return 'Live session';
+    case 'coach_live':
+      return 'Coach live';
     default:
       return 'Activity';
   }
@@ -85,6 +88,7 @@ const TYPE_ORDER: CalendarEvent['type'][] = [
   'timer',
   'timer_scheduled',
   'live_scheduled',
+  'coach_live',
   'readiness',
 ];
 

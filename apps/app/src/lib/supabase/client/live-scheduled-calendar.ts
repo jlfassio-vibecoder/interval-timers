@@ -55,7 +55,7 @@ export async function getLiveScheduledCalendarEventsForRange(
   const occIds = [...new Set(rows.map((r) => r.occurrence_id as string))];
   const { data: occs, error: occErr } = await supabase
     .from('trainer_live_session_occurrences')
-    .select('id, scheduled_start_at, scheduled_end_at, status, trainer_user_id')
+    .select('id, scheduled_start_at, scheduled_end_at, status, trainer_user_id, live_session_id')
     .in('id', occIds)
     .eq('status', 'scheduled');
 
@@ -106,6 +106,10 @@ export async function getLiveScheduledCalendarEventsForRange(
         waitlistPosition: wlPos,
         trainerUserId: occ.trainer_user_id as string,
         scheduledEndAt: occ.scheduled_end_at as string,
+        liveSessionId:
+          occ.live_session_id != null && String(occ.live_session_id).length > 0
+            ? String(occ.live_session_id)
+            : undefined,
       },
     });
   }

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useTrainerLiveAgora } from '@/contexts/TrainerLiveAgoraContext';
 import { supabase } from '@/lib/supabase/supabase-instance';
 import {
@@ -30,6 +31,8 @@ export default function TrainerLiveVideoShell({
   compact = false,
   /** When set, that Agora uid's tile is replaced with a placeholder (video shown on timer background). */
   excludeUidForTiles,
+  /** When set with trainer + compact, primary feed + controls port into this DOM id (SESSION column). */
+  trainerMainPortalRootId,
 }: {
   sessionId: string;
   participantId: string;
@@ -39,6 +42,7 @@ export default function TrainerLiveVideoShell({
   /** Narrow layout for the collapsible video drawer (avoid forcing tall min-height). */
   compact?: boolean;
   excludeUidForTiles?: string | null;
+  trainerMainPortalRootId?: string;
 }) {
   const [participantMap, setParticipantMap] = useState<Map<string, ParticipantMeta>>(new Map());
   const [loadErr, setLoadErr] = useState<string | null>(null);
@@ -98,6 +102,122 @@ export default function TrainerLiveVideoShell({
     ? 'flex min-h-0 flex-col gap-3 text-white'
     : 'flex min-h-[70vh] flex-col gap-4 text-white';
 
+  const shouldSplitTrainerMain =
+    role === 'trainer' &&
+    compact &&
+    typeof trainerMainPortalRootId === 'string' &&
+    trainerMainPortalRootId.length > 0;
+
+  const portalMount =
+    typeof document !== 'undefined' && shouldSplitTrainerMain
+      ? document.getElementById(trainerMainPortalRootId)
+      : null;
+
+  const controlBar = (
+    <div
+      className={`flex flex-wrap items-center border-t border-white/10 ${compact ? 'gap-2 pt-3' : 'gap-3 pt-4'}`}
+    >
+      <button
+        type="button"
+        onClick={() => {
+          const next = !videoMuted;
+          muteVideo(next);
+          setVideoMuted(next);
+        }}
+        className={
+          compact
+            ? 'rounded-lg border border-white/20 px-2 py-1.5 text-xs hover:bg-white/10'
+            : 'rounded-lg border border-white/20 px-4 py-2 text-sm hover:bg-white/10'
+        }
+      >
+        {videoMuted ? 'Camera off' : 'Camera on'}
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          const next = !audioMuted;
+          muteAudio(next);
+          setAudioMuted(next);
+        }}
+        className={
+          compact
+            ? 'rounded-lg border border-white/20 px-2 py-1.5 text-xs hover:bg-white/10'
+            : 'rounded-lg border border-white/20 px-4 py-2 text-sm hover:bg-white/10'
+        }
+      >
+        {audioMuted ? 'Mic muted' : 'Mic on'}
+      </button>
+      <button
+        type="button"
+        onClick={() => void handleLeave()}
+        className={
+          compact
+            ? 'rounded-lg bg-red-600/80 px-2 py-1.5 text-xs font-medium hover:bg-red-600'
+            : 'rounded-lg bg-red-600/80 px-4 py-2 text-sm font-medium hover:bg-red-600'
+        }
+      >
+        Leave room
+      </button>
+    </div>
+  );
+
+  const trainerPrimaryBlock = (
+    <>
+      {banner ? (
+        <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-2 text-sm text-amber-100">
+          {banner}
+        </div>
+      ) : null}
+      {!joined && !banner ? (
+        <div className="flex min-h-[8rem] flex-1 items-center justify-center text-white/60">
+          Connecting to room…
+        </div>
+      ) : null}
+      {joined || banner ? (
+        excludeLocal ? (
+          <TrainerLiveVideoPlaceholderTile label={localLabel} hint="Video on timer background" />
+        ) : (
+          <TrainerLiveLocalTile videoTrack={localVideoTrack} label={localLabel} />
+        )
+      ) : null}
+      {controlBar}
+    </>
+  );
+
+  const trainerRemoteTiles = remoteUsers.map((u) =>
+    exclude != null && String(u.uid) === exclude ? (
+      <TrainerLiveVideoPlaceholderTile
+        key={String(u.uid)}
+        label={labelForUid(u.uid, participantMap)}
+        hint="Video on timer background"
+      />
+    ) : (
+      <TrainerLiveRemoteTile
+        key={String(u.uid)}
+        user={u}
+        label={labelForUid(u.uid, participantMap)}
+      />
+    )
+  );
+
+  if (role === 'trainer' && shouldSplitTrainerMain && portalMount) {
+    return (
+      <>
+        {createPortal(
+          <div className="flex min-h-0 w-full flex-col gap-3 text-white">{trainerPrimaryBlock}</div>,
+          portalMount
+        )}
+        <div className={root}>
+          {remoteUsers.length === 0 ? (
+            <p className="py-4 text-center text-xs text-white/45">No participants yet</p>
+          ) : (
+            <div className="grid flex-1 grid-cols-1 gap-2">{trainerRemoteTiles}</div>
+          )}
+        </div>
+      </>
+    );
+  }
+
   return (
     <div className={root}>
       {banner ? (
@@ -128,21 +248,7 @@ export default function TrainerLiveVideoShell({
           ) : (
             <TrainerLiveLocalTile videoTrack={localVideoTrack} label={localLabel} />
           )}
-          {remoteUsers.map((u) =>
-            exclude != null && String(u.uid) === exclude ? (
-              <TrainerLiveVideoPlaceholderTile
-                key={String(u.uid)}
-                label={labelForUid(u.uid, participantMap)}
-                hint="Video on timer background"
-              />
-            ) : (
-              <TrainerLiveRemoteTile
-                key={String(u.uid)}
-                user={u}
-                label={labelForUid(u.uid, participantMap)}
-              />
-            )
-          )}
+          {trainerRemoteTiles}
         </div>
       ) : (
         <div className="flex flex-1 flex-col gap-3">
@@ -195,51 +301,7 @@ export default function TrainerLiveVideoShell({
         </div>
       )}
 
-      <div
-        className={`flex flex-wrap items-center border-t border-white/10 ${compact ? 'gap-2 pt-3' : 'gap-3 pt-4'}`}
-      >
-        <button
-          type="button"
-          onClick={() => {
-            const next = !videoMuted;
-            muteVideo(next);
-            setVideoMuted(next);
-          }}
-          className={
-            compact
-              ? 'rounded-lg border border-white/20 px-2 py-1.5 text-xs hover:bg-white/10'
-              : 'rounded-lg border border-white/20 px-4 py-2 text-sm hover:bg-white/10'
-          }
-        >
-          {videoMuted ? 'Camera off' : 'Camera on'}
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            const next = !audioMuted;
-            muteAudio(next);
-            setAudioMuted(next);
-          }}
-          className={
-            compact
-              ? 'rounded-lg border border-white/20 px-2 py-1.5 text-xs hover:bg-white/10'
-              : 'rounded-lg border border-white/20 px-4 py-2 text-sm hover:bg-white/10'
-          }
-        >
-          {audioMuted ? 'Mic muted' : 'Mic on'}
-        </button>
-        <button
-          type="button"
-          onClick={() => void handleLeave()}
-          className={
-            compact
-              ? 'rounded-lg bg-red-600/80 px-2 py-1.5 text-xs font-medium hover:bg-red-600'
-              : 'rounded-lg bg-red-600/80 px-4 py-2 text-sm font-medium hover:bg-red-600'
-          }
-        >
-          Leave room
-        </button>
-      </div>
+      {controlBar}
     </div>
   );
 }

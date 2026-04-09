@@ -13,6 +13,9 @@ import TrainerLiveVideoFeedDrawer from './TrainerLiveVideoFeedDrawer';
 import TrainerLiveVideoShell, { type TrainerLiveRole } from './TrainerLiveVideoShell';
 import TrainerLiveCountdownPanel from './shells/TrainerLiveCountdownPanel';
 
+/** DOM mount for `TrainerLiveVideoShell` portal (trainer primary video + controls in SESSION column). */
+export const TRAINER_LIVE_TRAINER_MAIN_SLOT_ID = 'trainer-live-trainer-main-slot';
+
 export default function TrainerLiveSessionRoom({
   shell,
   sessionId,
@@ -85,6 +88,9 @@ export default function TrainerLiveSessionRoom({
         : clientTrainerParticipantId
       : null;
 
+  const trainerMainPortalRootId =
+    shell === 'countdown_timer' && role === 'trainer' ? TRAINER_LIVE_TRAINER_MAIN_SLOT_ID : undefined;
+
   const video = (
     <TrainerLiveVideoShell
       sessionId={sessionId}
@@ -94,6 +100,7 @@ export default function TrainerLiveSessionRoom({
       onLeaveRoom={onLeaveRoom}
       compact={shell === 'countdown_timer'}
       excludeUidForTiles={excludeUidForTiles}
+      trainerMainPortalRootId={trainerMainPortalRootId}
     />
   );
 
@@ -188,7 +195,16 @@ export default function TrainerLiveSessionRoom({
     return (
       <div className={`flex min-h-0 flex-1 flex-row items-stretch ${className ?? ''}`}>
         {activityRail}
-        <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">{intervalSidebar}</div>
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto">
+          {role === 'trainer' ? (
+            <div
+              id={TRAINER_LIVE_TRAINER_MAIN_SLOT_ID}
+              className="min-h-0 w-full max-h-[min(50vh,28rem)] shrink-0 px-2 pt-2 md:px-4"
+              data-testid="trainer-live-trainer-main-slot"
+            />
+          ) : null}
+          <div className="min-h-0 flex-1 px-2 pb-2 pt-2 md:px-4 md:pb-4">{intervalSidebar}</div>
+        </div>
         <TrainerLiveVideoFeedDrawer
           sessionId={sessionId}
           defaultOpen={intervalWrapperKind !== 'amrap' && intervalWrapperKind !== 'tabata'}

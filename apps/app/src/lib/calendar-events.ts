@@ -16,7 +16,9 @@ export type CalendarEventType =
   | 'readiness'
   | 'amrap_scheduled'
   | 'timer_scheduled'
-  | 'live_scheduled';
+  | 'live_scheduled'
+  /** 1:1 coach schedule instance with optional linked `trainer_live_sessions` row. */
+  | 'coach_live';
 
 export interface CalendarEvent {
   type: CalendarEventType;
@@ -49,6 +51,8 @@ export interface CalendarEvent {
     /** live_scheduled: invite + occurrence ids and wall times. */
     liveInviteId?: string;
     occurrenceId?: string;
+    /** Set when trainer linked a native room (`trainer_live_session_occurrences.live_session_id`). */
+    liveSessionId?: string;
     inviteStatus?: string;
     /** 1-based queue position among waitlisted invites for this occurrence (FIFO). */
     waitlistPosition?: number;
@@ -60,6 +64,10 @@ export interface CalendarEvent {
     coachAssignmentId?: string;
     coachResourceId?: string;
     coachAssignmentType?: 'workout' | 'wod';
+    /** coach_live: `client_coach_schedule_instances.id`. */
+    coachScheduleInstanceId?: string;
+    /** coach_live: linked native room when trainer started session. */
+    trainerLiveSessionId?: string;
   };
 }
 

@@ -629,6 +629,8 @@ export async function patchLiveScheduleOccurrence(
     scheduledEndAt?: string;
     status?: 'scheduled' | 'cancelled' | 'completed';
     allowOverlap?: boolean;
+    /** Link / unlink native `trainer_live_sessions` row (viewer must own the session). */
+    liveSessionId?: string | null;
   }
 ): Promise<{ ok: true } | { ok: false; error: string } | LiveScheduleConflictFailure> {
   const supabase = getSupabaseServer();
@@ -642,11 +644,31 @@ export async function patchLiveScheduleOccurrence(
     return { ok: false, error: 'Occurrence not found' };
   }
 
+  const hasLiveKey = 'liveSessionId' in patch;
+  if (hasLiveKey && patch.liveSessionId != null && String(patch.liveSessionId).trim() !== '') {
+    const sid = String(patch.liveSessionId).trim();
+    const { data: sess, error: sErr } = await supabase
+      .from('trainer_live_sessions')
+      .select('id, trainer_user_id, status')
+      .eq('id', sid)
+      .maybeSingle();
+    if (sErr || !sess) {
+      return { ok: false, error: 'Live session not found' };
+    }
+    if ((sess.trainer_user_id as string) !== viewerId) {
+      return { ok: false, error: 'Live session not found' };
+    }
+    if ((sess.status as string) !== 'active') {
+      return { ok: false, error: 'Live session must be active to link' };
+    }
+  }
+
   const updates: {
     updated_at: string;
     scheduled_start_at?: string;
     scheduled_end_at?: string;
     status?: 'scheduled' | 'cancelled' | 'completed';
+    live_session_id?: string | null;
   } = { updated_at: new Date().toISOString() };
   if (patch.status) {
     updates.status = patch.status;
@@ -656,6 +678,12 @@ export async function patchLiveScheduleOccurrence(
   }
   if (patch.scheduledEndAt?.trim()) {
     updates.scheduled_end_at = patch.scheduledEndAt.trim();
+  }
+  if (hasLiveKey) {
+    updates.live_session_id =
+      patch.liveSessionId != null && String(patch.liveSessionId).trim() !== ''
+        ? String(patch.liveSessionId).trim()
+        : null;
   }
 
   const finalStart = updates.scheduled_start_at ?? (row.scheduled_start_at as string);

@@ -8,6 +8,11 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { X, ExternalLink } from 'lucide-react';
 import type { CalendarEvent } from '@/lib/calendar-events';
+import { supabase } from '@/lib/supabase/supabase-instance';
+import {
+  isWithinTrainerLiveJoinWindow,
+  trainerLiveClientJoinPath,
+} from '@/lib/trainer-live/client-join-window';
 import { getAmrapSessionDisplayTitle } from '@/lib/amrap-preset-name';
 import { getAmrapSessionUrl } from '@/lib/amrap-urls';
 import { getAppById } from '@/lib/app-registry';
@@ -44,6 +49,8 @@ function typeLabel(type: CalendarEvent['type']): string {
       return 'Timer';
     case 'readiness':
       return 'Readiness';
+    case 'coach_live':
+      return 'Coach live';
     default:
       return 'Activity';
   }
@@ -56,6 +63,8 @@ function getAmrapExerciseList(workoutList: unknown): string[] {
   return asStrings.filter((s) => !/^\d+\s*min$/i.test(s) && !/^\d+$/.test(s));
 }
 
+const COACH_LIVE_POLL_MS = 30_000;
+
 const SimpleActivityDrawer: React.FC<SimpleActivityDrawerProps> = ({
   event,
   onClose,
@@ -64,6 +73,46 @@ const SimpleActivityDrawer: React.FC<SimpleActivityDrawerProps> = ({
   onSessionRescheduled,
 }) => {
   const [showSessionModal, setShowSessionModal] = useState(false);
+  const [coachResolvedLiveId, setCoachResolvedLiveId] = useState<string | null>(() => {
+    if (event.type !== 'coach_live') return null;
+    const m = event.metadata?.trainerLiveSessionId;
+    return m != null && String(m).trim() !== '' ? String(m).trim() : null;
+  });
+
+  useEffect(() => {
+    if (event.type !== 'coach_live') return;
+    const m = event.metadata?.trainerLiveSessionId;
+    if (m != null && String(m).trim() !== '') {
+      setCoachResolvedLiveId(String(m).trim());
+    }
+  }, [event.type, event.metadata?.trainerLiveSessionId]);
+
+  useEffect(() => {
+    if (event.type !== 'coach_live') return;
+    const iid = event.metadata?.coachScheduleInstanceId;
+    if (!iid) return;
+    let cancelled = false;
+
+    const pull = async () => {
+      const { data, error } = await supabase
+        .from('client_coach_schedule_instances')
+        .select('trainer_live_session_id')
+        .eq('id', iid)
+        .maybeSingle();
+      if (cancelled || error) return;
+      const raw = data?.trainer_live_session_id;
+      if (raw != null && String(raw).trim() !== '') {
+        setCoachResolvedLiveId(String(raw).trim());
+      }
+    };
+
+    void pull();
+    const id = window.setInterval(() => void pull(), COACH_LIVE_POLL_MS);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [event.type, event.metadata?.coachScheduleInstanceId]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -75,6 +124,15 @@ const SimpleActivityDrawer: React.FC<SimpleActivityDrawerProps> = ({
 
   const dateLabel = formatDate(event.date);
   const meta = event.metadata;
+  const coachLiveSessionId =
+    event.type === 'coach_live' ? coachResolvedLiveId ?? meta?.trainerLiveSessionId : null;
+  const coachScheduledAt =
+    event.type === 'coach_live' && typeof meta?.scheduledAt === 'string' ? meta.scheduledAt : '';
+  const coachCanJoin =
+    event.type === 'coach_live' &&
+    coachLiveSessionId != null &&
+    coachScheduledAt.length > 0 &&
+    isWithinTrainerLiveJoinWindow(coachScheduledAt, null);
   const app = event.sourceApp ? getAppById(event.sourceApp) : null;
   const isAmrap = event.type === 'amrap' || event.type === 'amrap_scheduled';
   const amrapExercises = isAmrap ? getAmrapExerciseList(meta?.workoutList) : [];
@@ -208,6 +266,24 @@ const SimpleActivityDrawer: React.FC<SimpleActivityDrawerProps> = ({
                 Do again — {app.name}
               </a>
             )}
+            {event.type === 'coach_live' && coachCanJoin && coachLiveSessionId ? (
+              <a
+                href={trainerLiveClientJoinPath(coachLiveSessionId)}
+                className="flex items-center justify-center rounded-2xl border border-cyan-400/50 bg-cyan-500/15 py-3 text-sm font-semibold text-cyan-100 hover:bg-cyan-500/25"
+              >
+                Join live class
+              </a>
+            ) : null}
+            {event.type === 'coach_live' && !coachLiveSessionId ? (
+              <p className="font-mono text-[10px] text-white/50">
+                Your coach will open the live room before this session. Checking every 30 seconds — or refresh your calendar.
+              </p>
+            ) : null}
+            {event.type === 'coach_live' && coachLiveSessionId && !coachCanJoin ? (
+              <p className="font-mono text-[10px] text-white/50">
+                Join opens 15 minutes before the scheduled time.
+              </p>
+            ) : null}
           </div>
         </div>
       </div>

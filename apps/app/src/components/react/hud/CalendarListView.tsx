@@ -26,6 +26,7 @@ const TYPE_LABELS: Record<CalendarEvent['type'], string> = {
   timer: 'Timer',
   timer_scheduled: 'Scheduled',
   live_scheduled: 'Live',
+  coach_live: 'Coach live',
   readiness: 'Readiness',
 };
 
@@ -41,6 +42,11 @@ const TYPE_STYLES: Record<CalendarEvent['type'], { border: string; bg: string; t
   },
   readiness: { border: 'border-violet-400', bg: 'bg-violet-400/10', text: 'text-violet-400' },
   live_scheduled: {
+    border: 'border-cyan-400',
+    bg: 'bg-cyan-500/10',
+    text: 'text-cyan-200',
+  },
+  coach_live: {
     border: 'border-cyan-400',
     bg: 'bg-cyan-500/10',
     text: 'text-cyan-200',

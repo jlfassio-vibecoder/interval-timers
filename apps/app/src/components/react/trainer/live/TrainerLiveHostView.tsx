@@ -1,11 +1,14 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { setStoredHostToken, setStoredParticipantId } from 'amrap/embed';
 import { isValidAttachWorkoutInput } from '@interval-timers/amrap-workout-picker';
 import { isValidTabataAttachInput } from '@/lib/trainer-live/tabata-workout-list-adapter';
 import { useAppContext } from '@/contexts/AppContext';
 import { supabase } from '@/lib/supabase/supabase-instance';
-import { trainerLiveParticipantStorageKey } from '@/lib/trainer-live/storage';
+import {
+  trainerLiveParticipantStorageKey,
+  readTrainerLiveParticipantIdFromStorage,
+} from '@/lib/trainer-live/storage';
 import { parseTrainerLiveShell, type TrainerLiveShell } from '@/lib/trainer-live/shells';
 import type { TrainerLiveIntervalWrapperKind } from '@/lib/trainer-live/wrappers/types';
 import { parseIntervalWrapperKind } from '@/lib/trainer-live/wrappers/kind';
@@ -44,10 +47,41 @@ export default function TrainerLiveHostView() {
   const [tabataPickerOpen, setTabataPickerOpen] = useState(false);
   const [tabataPickerKey, setTabataPickerKey] = useState(0);
 
-  const participantId = useMemo(() => {
-    if (!sessionId || typeof window === 'undefined') return null;
-    return sessionStorage.getItem(trainerLiveParticipantStorageKey(sessionId));
+  const [participantId, setParticipantId] = useState<string | null>(() =>
+    readTrainerLiveParticipantIdFromStorage(sessionId)
+  );
+  const [hostParticipantHydrating, setHostParticipantHydrating] = useState(false);
+
+  useEffect(() => {
+    setParticipantId(readTrainerLiveParticipantIdFromStorage(sessionId));
   }, [sessionId]);
+
+  useEffect(() => {
+    if (!sessionId || !user?.uid || participantId) return;
+    let cancelled = false;
+    setHostParticipantHydrating(true);
+    void (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('trainer_live_participants')
+          .select('id')
+          .eq('session_id', sessionId)
+          .eq('role', 'trainer')
+          .eq('user_id', user.uid)
+          .maybeSingle();
+        if (cancelled || error || !data?.id) return;
+        const id = data.id as string;
+        sessionStorage.setItem(trainerLiveParticipantStorageKey(sessionId), id);
+        setParticipantId(id);
+      } finally {
+        if (!cancelled) setHostParticipantHydrating(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+      setHostParticipantHydrating(false);
+    };
+  }, [sessionId, user?.uid, participantId]);
 
   useEffect(() => {
     if (!sessionId || !participantId) return;
@@ -144,6 +178,13 @@ export default function TrainerLiveHostView() {
   }
 
   if (!participantId) {
+    if (hostParticipantHydrating) {
+      return (
+        <div className="flex min-h-[40vh] items-center justify-center text-white/70">
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-orange-light border-t-transparent" />
+        </div>
+      );
+    }
     return (
       <div className="max-w-lg text-white">
         <p className="mb-4 text-white/80">
@@ -183,7 +224,7 @@ export default function TrainerLiveHostView() {
         return;
       }
       sessionStorage.removeItem(trainerLiveParticipantStorageKey(sessionId));
-      navigate('/live', { replace: true });
+      navigate(`/live/${encodeURIComponent(sessionId)}/summary`, { replace: true });
     } finally {
       setEndBusy(false);
     }
@@ -383,7 +424,11 @@ export default function TrainerLiveHostView() {
         ) : (
           <TrainerLiveAmrapSessionDrawerProvider>
             <TrainerLiveAmrapChatDrawerProvider>
-            <TrainerLiveAgoraProvider sessionId={sessionId} participantId={participantId}>
+            <TrainerLiveAgoraProvider
+              sessionId={sessionId}
+              participantId={participantId}
+              authUserId={authUserId}
+            >
               <TrainerLiveTimerBackgroundProvider sessionId={sessionId}>
                 <TrainerLiveSessionRoom
                   shell={shell}

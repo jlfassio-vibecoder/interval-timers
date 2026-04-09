@@ -12,6 +12,15 @@ import {
   getTrainerLiveToken,
 } from '@/lib/trainer-live/agora';
 
+/** When set, join uses `/api/agora/token` credentials instead of the legacy trainer-live token fetch. */
+export type TrainerLiveSecureAgoraToken = {
+  loading: boolean;
+  error: string | null;
+  token: string | null;
+  joinUid: string | null;
+  channelName: string | null;
+};
+
 export interface TrainerLiveRemoteUser {
   uid: string | number;
   videoTrack?: IRemoteVideoTrack;
@@ -31,7 +40,8 @@ export interface UseTrainerLiveAgoraChannelResult {
 
 export function useTrainerLiveAgoraChannel(
   channelName: string,
-  participantId: string | null
+  participantId: string | null,
+  secureToken: TrainerLiveSecureAgoraToken | null = null
 ): UseTrainerLiveAgoraChannelResult {
   const [joined, setJoined] = useState(false);
   const [localVideoTrack, setLocalVideoTrack] = useState<ICameraVideoTrack | null>(null);
@@ -131,6 +141,19 @@ export function useTrainerLiveAgoraChannel(
       return () => {};
     }
 
+    if (secureToken) {
+      if (secureToken.loading) {
+        return () => {};
+      }
+      if (secureToken.error) {
+        setError(secureToken.error);
+        return () => {};
+      }
+      if (!secureToken.token || !secureToken.joinUid || !secureToken.channelName) {
+        return () => {};
+      }
+    }
+
     const appId = getTrainerLiveAppId();
     if (!appId) {
       setError('VITE_AGORA_APP_ID is not set');
@@ -171,14 +194,28 @@ export function useTrainerLiveAgoraChannel(
           previousLeavePromiseRef.current = null;
         }
         if (cancelled) return;
-        const result = await getTrainerLiveToken(channelName, participantId);
-        if (cancelled) return;
-        if ('error' in result) {
-          if (typeof window !== 'undefined') console.warn('[TrainerLive Agora]', result.error);
-          setError(result.error);
-          return;
+
+        let joinToken: string;
+        let joinChannel: string;
+        let joinAccount: string;
+        if (secureToken?.token && secureToken.joinUid && secureToken.channelName) {
+          joinToken = secureToken.token;
+          joinChannel = secureToken.channelName;
+          joinAccount = secureToken.joinUid;
+        } else {
+          const result = await getTrainerLiveToken(channelName, participantId);
+          if (cancelled) return;
+          if ('error' in result) {
+            if (typeof window !== 'undefined') console.warn('[TrainerLive Agora]', result.error);
+            setError(result.error);
+            return;
+          }
+          joinToken = result.token;
+          joinChannel = channelName;
+          joinAccount = participantId;
         }
-        await client.join(appId, channelName, result.token, participantId);
+
+        await client.join(appId, joinChannel, joinToken, joinAccount);
         if (cancelled) return;
 
         const [audioTrack, videoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
@@ -259,7 +296,18 @@ export function useTrainerLiveAgoraChannel(
       setRemoteUsers([]);
       setJoined(false);
     };
-  }, [channelName, participantId, addRemoteUser, removeRemoteUser, clearRemoteUserTrack]);
+  }, [
+    channelName,
+    participantId,
+    secureToken?.loading,
+    secureToken?.error,
+    secureToken?.token,
+    secureToken?.joinUid,
+    secureToken?.channelName,
+    addRemoteUser,
+    removeRemoteUser,
+    clearRemoteUserTrack,
+  ]);
 
   return {
     joined,

@@ -62,6 +62,9 @@ function secondaryId(ev: CalendarEvent, index: number): string {
     if (ev.metadata?.occurrenceId) return `live-occ-${ev.metadata.occurrenceId}`;
     if (ev.metadata?.liveInviteId) return `live-inv-${ev.metadata.liveInviteId}`;
   }
+  if (ev.type === 'coach_live' && ev.metadata?.coachScheduleInstanceId) {
+    return `coach-live-${ev.metadata.coachScheduleInstanceId}`;
+  }
   return `i${index}`;
 }
 
@@ -118,7 +121,8 @@ export function buildIcsFromEvents(events: CalendarEvent[]): string {
     const isTimed =
       (ev.type === 'amrap_scheduled' ||
         ev.type === 'timer_scheduled' ||
-        ev.type === 'live_scheduled') &&
+        ev.type === 'live_scheduled' ||
+        ev.type === 'coach_live') &&
       Boolean(ev.metadata?.scheduledAt);
     const startIso = isTimed ? ev.metadata!.scheduledAt! : ev.date;
     const durationMinutes = ev.metadata?.durationMinutes;
@@ -137,7 +141,7 @@ export function buildIcsFromEvents(events: CalendarEvent[]): string {
         lines.push(`DTEND:${toIcsDateTime(endIso!)}`);
       } else if (durationMinutes != null && durationMinutes > 0) {
         lines.push(`DURATION:PT${durationMinutes}M`);
-      } else if (ev.type === 'live_scheduled') {
+      } else if (ev.type === 'live_scheduled' || ev.type === 'coach_live') {
         lines.push(`DURATION:PT60M`);
       }
     } else {
