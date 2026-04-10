@@ -10,8 +10,9 @@
  * without `participantId` has been removed — all RTC tokens use the trainer live
  * session namespace.
  *
- * Secrets: production uses AGORA_APP_ID + AGORA_APP_CERTIFICATE only.
- * In dev, certificate may fall back to VITE_AGORA_APP_CERTIFICATE if the server-prefixed copy is unset (local .env often uses VITE_* only).
+ * Secrets: prefer AGORA_APP_ID + AGORA_APP_CERTIFICATE on the server.
+ * If unset, falls back to VITE_AGORA_APP_ID / VITE_AGORA_APP_CERTIFICATE via process.env
+ * (same pattern as local .env); API routes read process.env only — never PUBLIC_* / client bundle.
  */
 
 import type { APIRoute } from 'astro';
@@ -42,10 +43,7 @@ function readAgoraAppId(): string {
 function readAgoraCertificate(): string {
   const fromServer = (process.env.AGORA_APP_CERTIFICATE || '').trim();
   if (fromServer) return fromServer;
-  if (import.meta.env.DEV) {
-    return (process.env.VITE_AGORA_APP_CERTIFICATE || '').trim();
-  }
-  return '';
+  return (process.env.VITE_AGORA_APP_CERTIFICATE || '').trim();
 }
 
 async function authorizeTrainerLiveToken(
@@ -147,7 +145,7 @@ export const GET: APIRoute = async ({ request, cookies }) => {
     return json(
       {
         error:
-          'Server misconfiguration: set AGORA_APP_ID and AGORA_APP_CERTIFICATE (server env only; never PUBLIC_*)',
+          'Server misconfiguration: set AGORA_APP_ID and AGORA_APP_CERTIFICATE (or VITE_AGORA_APP_ID / VITE_AGORA_APP_CERTIFICATE in host env); server process.env only — never PUBLIC_*',
       },
       500
     );
