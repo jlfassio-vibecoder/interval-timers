@@ -468,7 +468,11 @@ const TrainerUnifiedCalendarView: React.FC = () => {
       }
       await loadUnified();
     } catch {
-      setCreateErr('Network error');
+      if (pending.mode === 'create') {
+        setCreateErr('Network error');
+      } else {
+        setStartLiveErr('Network error');
+      }
     } finally {
       setBusyLiveConflictRetry(false);
     }
