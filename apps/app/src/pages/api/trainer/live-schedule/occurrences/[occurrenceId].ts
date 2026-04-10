@@ -53,12 +53,17 @@ export const PATCH: APIRoute = async ({ request, cookies, params }) => {
           : undefined;
 
     const hasDisplayNameKey = 'displayName' in body;
-    const displayName =
-      hasDisplayNameKey && body.displayName === null
+    if (hasDisplayNameKey && body.displayName !== null && typeof body.displayName !== 'string') {
+      return new Response(JSON.stringify({ error: 'displayName must be a string or null' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+    const displayName: string | null | undefined = hasDisplayNameKey
+      ? body.displayName === null
         ? null
-        : hasDisplayNameKey && typeof body.displayName === 'string'
-          ? body.displayName
-          : undefined;
+        : (body.displayName as string).trim() || null
+      : undefined;
 
     const result = await patchLiveScheduleOccurrence(viewerId, occurrenceId, {
       scheduledStartAt: body.scheduledStartAt,
@@ -66,7 +71,7 @@ export const PATCH: APIRoute = async ({ request, cookies, params }) => {
       status: body.status,
       allowOverlap: body.allowOverlap === true,
       ...(hasLiveKey ? { liveSessionId } : {}),
-      ...(hasDisplayNameKey ? { displayName } : {}),
+      ...(displayName !== undefined ? { displayName } : {}),
     });
 
     if (!result.ok) {

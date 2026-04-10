@@ -28,6 +28,7 @@ export default function UnifiedCalendarDraggableCard({ id, data, children }: Pro
       }
     : undefined;
 
+  // Copilot suggestion ignored: P2 is pointer-primary day snap only; a dedicated drag handle / reduced tab stops is a follow-up if we add keyboard DnD or stricter a11y for drag.
   return (
     <div
       ref={setNodeRef}
