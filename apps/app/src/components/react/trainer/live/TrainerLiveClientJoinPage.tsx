@@ -287,26 +287,28 @@ export default function TrainerLiveClientJoinPage() {
               ) : null}
             </div>
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto p-4 md:p-6">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-4 pt-3 pb-0 md:px-6 md:pt-4 md:pb-0">
             {!roomShellReady ? (
               <div className="flex h-48 items-center justify-center text-white/60">
                 <div className="h-8 w-8 animate-spin rounded-full border-4 border-orange-light border-t-transparent" />
               </div>
             ) : (
-              <TrainerLiveAmrapSessionDrawerProvider>
-                <TrainerLiveAmrapChatDrawerProvider>
-                  <TrainerLiveAgoraProvider
-                    sessionId={sessionId}
-                    participantId={participantId}
-                    authUserId={authUserId}
-                  >
-                    <TrainerLiveTimerBackgroundProvider sessionId={sessionId}>
-                      <TrainerLiveSessionRoom
-                        shell={roomShell}
-                        sessionId={sessionId}
-                        participantId={participantId}
-                        role="client"
-                        localLabel={displayName}
+              <div className="flex min-h-0 flex-1 flex-col">
+                <TrainerLiveAmrapSessionDrawerProvider>
+                  <TrainerLiveAmrapChatDrawerProvider>
+                    <TrainerLiveAgoraProvider
+                      sessionId={sessionId}
+                      participantId={participantId}
+                      authUserId={authUserId}
+                    >
+                      <TrainerLiveTimerBackgroundProvider sessionId={sessionId}>
+                        <TrainerLiveSessionRoom
+                          shell={roomShell}
+                          sessionId={sessionId}
+                          participantId={participantId}
+                          className="h-full min-h-0 min-w-0 flex-1"
+                          role="client"
+                          localLabel={displayName}
                         onLeaveRoom={() => {
                           sessionStorage.removeItem(trainerLiveParticipantStorageKey(sessionId));
                           navigate('/live/join/' + sessionId, { replace: true });
@@ -331,11 +333,12 @@ export default function TrainerLiveClientJoinPage() {
                             />
                           </>
                         }
-                      />
-                    </TrainerLiveTimerBackgroundProvider>
-                  </TrainerLiveAgoraProvider>
-                </TrainerLiveAmrapChatDrawerProvider>
-              </TrainerLiveAmrapSessionDrawerProvider>
+                        />
+                      </TrainerLiveTimerBackgroundProvider>
+                    </TrainerLiveAgoraProvider>
+                  </TrainerLiveAmrapChatDrawerProvider>
+                </TrainerLiveAmrapSessionDrawerProvider>
+              </div>
             )}
           </div>
         </div>

@@ -631,6 +631,8 @@ export async function patchLiveScheduleOccurrence(
     allowOverlap?: boolean;
     /** Link / unlink native `trainer_live_sessions` row (viewer must own the session). */
     liveSessionId?: string | null;
+    /** Batch series reschedule: extra occurrence ids to ignore in overlap scan (in addition to this row). */
+    conflictExcludeScheduledOccurrenceIds?: string[];
   }
 ): Promise<{ ok: true } | { ok: false; error: string } | LiveScheduleConflictFailure> {
   const supabase = getSupabaseServer();
@@ -707,9 +709,13 @@ export async function patchLiveScheduleOccurrence(
     finalEnd &&
     Date.parse(finalEnd) > Date.parse(finalStart)
   ) {
+    const extraEx = (patch.conflictExcludeScheduledOccurrenceIds ?? []).filter(
+      (id): id is string => typeof id === 'string' && id.trim() !== '' && id.trim() !== occurrenceId
+    );
     const conflicts = await findCoachScheduleConflictsForTrainer(viewerId, finalStart, {
       proposedEndAtIso: finalEnd,
       excludeScheduledOccurrenceId: occurrenceId,
+      ...(extraEx.length > 0 ? { excludeScheduledOccurrenceIds: extraEx } : {}),
     });
     if (conflicts.length > 0) {
       return { ok: false, error: 'Scheduling conflict', conflicts };
@@ -724,6 +730,276 @@ export async function patchLiveScheduleOccurrence(
   if (upErr) {
     return { ok: false, error: upErr.message ?? 'Update failed' };
   }
+  return { ok: true };
+}
+
+export async function addInvitesToLiveScheduleOccurrence(
+  viewerId: string,
+  viewerRole: string,
+  occurrenceId: string,
+  inviteeUserIds: string[]
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const raw = [
+    ...new Set(
+      inviteeUserIds
+        .filter((x): x is string => typeof x === 'string')
+        .map((x) => x.trim())
+        .filter((x) => x.length > 0)
+    ),
+  ];
+  if (raw.length === 0) {
+    return { ok: false, error: 'At least one inviteeUserId required' };
+  }
+
+  const supabase = getSupabaseServer();
+  const { data: occ, error: occErr } = await supabase
+    .from('trainer_live_session_occurrences')
+    .select('id, trainer_user_id, status')
+    .eq('id', occurrenceId)
+    .maybeSingle();
+
+  if (occErr || !occ || (occ.trainer_user_id as string) !== viewerId) {
+    return { ok: false, error: 'Occurrence not found' };
+  }
+  if ((occ.status as string) !== 'scheduled') {
+    return { ok: false, error: 'Can only add invites to scheduled occurrences' };
+  }
+
+  // Copilot suggestion ignored: batching roster lookups would need a shared helper; per-id check matches existing admin patterns here.
+  for (const uid of raw) {
+    const allowed = await isUserInViewerRoster(viewerId, viewerRole, uid);
+    if (!allowed) {
+      return { ok: false, error: `Client not on roster: ${uid}` };
+    }
+  }
+
+  const { data: existing, error: existingErr } = await supabase
+    .from('trainer_live_session_invites')
+    .select('invitee_user_id')
+    .eq('occurrence_id', occurrenceId);
+
+  if (existingErr) {
+    return { ok: false, error: existingErr.message ?? 'Failed to load invites' };
+  }
+
+  const existingUserIds = new Set(
+    (existing ?? [])
+      .map((r) => r.invitee_user_id as string | null)
+      .filter((x): x is string => typeof x === 'string' && x.length > 0)
+  );
+
+  const toAdd = raw.filter((id) => !existingUserIds.has(id));
+  if (toAdd.length === 0) {
+    return { ok: true };
+  }
+
+  const rows = toAdd.map((invitee_user_id) => ({
+    occurrence_id: occurrenceId,
+    invitee_user_id,
+    status: 'pending' as const,
+  }));
+
+  const { error: insErr } = await supabase.from('trainer_live_session_invites').insert(rows);
+  if (insErr) {
+    return { ok: false, error: insErr.message ?? 'Failed to add invites' };
+  }
+  return { ok: true };
+}
+
+export async function cancelLiveScheduleInvite(
+  viewerId: string,
+  inviteId: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const supabase = getSupabaseServer();
+  const { data: inv, error: invErr } = await supabase
+    .from('trainer_live_session_invites')
+    .select('id, occurrence_id, status')
+    .eq('id', inviteId)
+    .maybeSingle();
+
+  if (invErr || !inv) {
+    return { ok: false, error: 'Invite not found' };
+  }
+
+  const { data: occ, error: occErr } = await supabase
+    .from('trainer_live_session_occurrences')
+    .select('trainer_user_id')
+    .eq('id', inv.occurrence_id as string)
+    .maybeSingle();
+
+  if (occErr || !occ || (occ.trainer_user_id as string) !== viewerId) {
+    return { ok: false, error: 'Invite not found' };
+  }
+
+  const st = inv.status as string;
+  if (st !== 'pending' && st !== 'waitlisted') {
+    return { ok: false, error: 'Only pending or waitlisted invites can be cancelled' };
+  }
+
+  const now = new Date().toISOString();
+  const { error: upErr } = await supabase
+    .from('trainer_live_session_invites')
+    .update({ status: 'cancelled', updated_at: now })
+    .eq('id', inviteId);
+
+  if (upErr) {
+    return { ok: false, error: upErr.message ?? 'Failed to cancel invite' };
+  }
+  return { ok: true };
+}
+
+/**
+ * Shift this occurrence and all future scheduled rows in the series by the same UTC delta,
+ * then align series weekly metadata to the anchor's new wall window.
+ */
+export async function rescheduleLiveScheduleSeriesFutureFromAnchor(
+  viewerId: string,
+  seriesId: string,
+  anchorOccurrenceId: string,
+  newScheduledStartAt: string,
+  newScheduledEndAt: string,
+  allowOverlap: boolean
+): Promise<{ ok: true } | { ok: false; error: string } | LiveScheduleConflictFailure> {
+  const start = newScheduledStartAt?.trim();
+  const end = newScheduledEndAt?.trim();
+  if (!start || !end || Date.parse(end) <= Date.parse(start)) {
+    return { ok: false, error: 'End must be after start' };
+  }
+
+  const supabase = getSupabaseServer();
+  const { data: ser, error: serErr } = await supabase
+    .from('trainer_live_session_series')
+    .select('id, trainer_user_id, iana_timezone, status')
+    .eq('id', seriesId)
+    .maybeSingle();
+
+  if (serErr || !ser || (ser.trainer_user_id as string) !== viewerId) {
+    return { ok: false, error: 'Series not found' };
+  }
+  if ((ser.status as string) !== 'active') {
+    return { ok: false, error: 'Series is not active' };
+  }
+
+  const zone = String(ser.iana_timezone ?? '').trim();
+  if (!zone) {
+    return { ok: false, error: 'Series timezone missing' };
+  }
+
+  const { data: anchor, error: aErr } = await supabase
+    .from('trainer_live_session_occurrences')
+    .select('id, trainer_user_id, series_id, status, scheduled_start_at, scheduled_end_at')
+    .eq('id', anchorOccurrenceId)
+    .maybeSingle();
+
+  if (aErr || !anchor || (anchor.trainer_user_id as string) !== viewerId) {
+    return { ok: false, error: 'Occurrence not found' };
+  }
+  if ((anchor.series_id as string | null) !== seriesId) {
+    return { ok: false, error: 'Occurrence is not in this series' };
+  }
+  if ((anchor.status as string) !== 'scheduled') {
+    return { ok: false, error: 'Anchor occurrence must be scheduled' };
+  }
+
+  let meta: ReturnType<typeof seriesMetaFromFirstSlot>;
+  try {
+    meta = seriesMetaFromFirstSlot(start, end, zone);
+  } catch {
+    return { ok: false, error: 'Invalid schedule window' };
+  }
+
+  const oldAnchorStartMs = Date.parse(anchor.scheduled_start_at as string);
+  const newStartMs = Date.parse(start);
+  if (!Number.isFinite(oldAnchorStartMs) || !Number.isFinite(newStartMs)) {
+    return { ok: false, error: 'Invalid timestamps' };
+  }
+  const deltaMs = newStartMs - oldAnchorStartMs;
+  const newDurationMs = Date.parse(end) - Date.parse(start);
+  if (!Number.isFinite(newDurationMs) || newDurationMs <= 0) {
+    return { ok: false, error: 'Invalid schedule window' };
+  }
+
+  const anchorStartIso = anchor.scheduled_start_at as string;
+
+  const { data: futureRows, error: fErr } = await supabase
+    .from('trainer_live_session_occurrences')
+    .select('id, scheduled_start_at, scheduled_end_at')
+    .eq('trainer_user_id', viewerId)
+    .eq('series_id', seriesId)
+    .eq('status', 'scheduled')
+    .gte('scheduled_start_at', anchorStartIso)
+    .order('scheduled_start_at', { ascending: true });
+
+  if (fErr) {
+    return { ok: false, error: fErr.message ?? 'Failed to load occurrences' };
+  }
+
+  const rows = futureRows ?? [];
+  if (rows.length === 0) {
+    return { ok: false, error: 'No scheduled occurrences to reschedule' };
+  }
+
+  const batchIds = rows.map((r) => r.id as string);
+
+  const proposals: Array<{ id: string; nextStart: string; nextEnd: string }> = [];
+  for (const r of rows) {
+    const sMs = Date.parse(r.scheduled_start_at as string);
+    const eMs = Date.parse(r.scheduled_end_at as string);
+    if (!Number.isFinite(sMs) || !Number.isFinite(eMs)) {
+      return { ok: false, error: 'Invalid occurrence timestamps' };
+    }
+    const ns = new Date(sMs + deltaMs).toISOString();
+    const ne = new Date(sMs + deltaMs + newDurationMs).toISOString();
+    if (Date.parse(ne) <= Date.parse(ns)) {
+      return { ok: false, error: 'Invalid shifted window' };
+    }
+    proposals.push({ id: r.id as string, nextStart: ns, nextEnd: ne });
+  }
+
+  // Copilot suggestion ignored: a single conflict query over a merged window can report conflicts outside the shifted slots; per-slot checks stay precise.
+  if (!allowOverlap) {
+    for (const p of proposals) {
+      const conflicts = await findCoachScheduleConflictsForTrainer(viewerId, p.nextStart, {
+        proposedEndAtIso: p.nextEnd,
+        excludeScheduledOccurrenceIds: batchIds,
+      });
+      if (conflicts.length > 0) {
+        return { ok: false, error: 'Scheduling conflict', conflicts };
+      }
+    }
+  }
+
+  const nowIso = new Date().toISOString();
+  // Copilot suggestion ignored: true atomicity belongs in a DB transaction/RPC; client upsert would not match this update-only flow safely without broader schema review.
+  for (const p of proposals) {
+    const { error: uErr } = await supabase
+      .from('trainer_live_session_occurrences')
+      .update({
+        scheduled_start_at: p.nextStart,
+        scheduled_end_at: p.nextEnd,
+        updated_at: nowIso,
+      })
+      .eq('id', p.id);
+
+    if (uErr) {
+      return { ok: false, error: uErr.message ?? 'Failed to update occurrence' };
+    }
+  }
+
+  const { error: sErr } = await supabase
+    .from('trainer_live_session_series')
+    .update({
+      weekday: meta.weekday,
+      local_start_time: meta.localStartTime,
+      duration_minutes: meta.durationMinutes,
+      updated_at: nowIso,
+    })
+    .eq('id', seriesId);
+
+  if (sErr) {
+    return { ok: false, error: sErr.message ?? 'Failed to update series' };
+  }
+
   return { ok: true };
 }
 

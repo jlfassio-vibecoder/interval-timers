@@ -481,6 +481,8 @@ export type FindCoachScheduleConflictsOptions = {
   proposedEndAtIso?: string;
   /** When rescheduling an existing planned occurrence, exclude it from overlap checks. */
   excludeScheduledOccurrenceId?: string;
+  /** Batch series reschedule: ignore these occurrence ids in the scheduled-live overlap scan. */
+  excludeScheduledOccurrenceIds?: string[];
 };
 
 /** Half-open interval overlap: [aStart,aEnd) vs [bStart,bEnd) in epoch ms. */
@@ -676,6 +678,12 @@ export async function findCoachScheduleConflictsForTrainer(
       : proposedStartMs + coachSlotMs();
   const slot = coachSlotMs();
   const excludeScheduledOccurrenceId = options?.excludeScheduledOccurrenceId?.trim();
+  const excludeScheduledOccurrenceSet = new Set<string>();
+  if (excludeScheduledOccurrenceId) excludeScheduledOccurrenceSet.add(excludeScheduledOccurrenceId);
+  for (const id of options?.excludeScheduledOccurrenceIds ?? []) {
+    const t = id?.trim();
+    if (t) excludeScheduledOccurrenceSet.add(t);
+  }
 
   const raw = await fetchTrainerCoachInstancesForConflictScan(
     trainerUserId,
@@ -769,7 +777,7 @@ export async function findCoachScheduleConflictsForTrainer(
     proposedEndMs
   );
   for (const row of schedRows) {
-    if (excludeScheduledOccurrenceId && row.id === excludeScheduledOccurrenceId) continue;
+    if (excludeScheduledOccurrenceSet.has(row.id)) continue;
     const s = Date.parse(row.scheduled_start_at);
     const e = Date.parse(row.scheduled_end_at);
     if (!Number.isFinite(s) || !Number.isFinite(e)) continue;

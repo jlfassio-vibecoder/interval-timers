@@ -23,13 +23,13 @@ export default function TrainerLiveActivityDrawerRail({
 
   return (
     <div
-      className="flex min-h-0 shrink-0 border-r border-white/10 bg-zinc-950/95 backdrop-blur-sm"
+      className="flex h-full min-h-0 shrink-0 self-stretch border-r border-white/10 bg-zinc-950/95 backdrop-blur-sm"
       data-testid="trainer-live-activity-drawer-rail"
     >
       <div
         className={
           open
-            ? 'min-h-0 w-[min(20rem,calc(100vw-2.75rem))] max-w-[20rem] overflow-hidden transition-[width] duration-200 ease-out'
+            ? 'flex h-full min-h-0 w-[min(20rem,calc(100vw-2.75rem))] max-w-[20rem] flex-col overflow-hidden transition-[width] duration-200 ease-out'
             : 'w-0 overflow-hidden transition-[width] duration-200 ease-out'
         }
         aria-hidden={!open}
@@ -37,7 +37,7 @@ export default function TrainerLiveActivityDrawerRail({
         <div
           className={
             open
-              ? 'h-full max-h-[min(85vh,calc(100vh-6rem))] min-h-0 overflow-y-auto overflow-x-hidden p-2'
+              ? 'h-full min-h-0 overflow-y-auto overflow-x-hidden p-2'
               : 'pointer-events-none opacity-0'
           }
           inert={!open}

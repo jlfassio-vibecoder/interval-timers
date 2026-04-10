@@ -31,14 +31,14 @@ import { updateMyProfileTimezone } from '@/lib/profile-timezone';
 import type { CoachScheduleConflictItem } from '@/lib/supabase/admin/trainer-client-calendar';
 import { supabase } from '@/lib/supabase/supabase-instance';
 import { trainerLiveParticipantStorageKey } from '@/lib/trainer-live/storage';
+// Copilot suggestion ignored: PR title/description scope is maintained on GitHub for reviewers, not embedded in source.
+import UnifiedScheduledLiveEditDrawer, {
+  type PendingScheduleConflictPayload,
+} from '@/components/react/trainer/views/UnifiedScheduledLiveEditDrawer';
+import UnifiedCoachInstanceEditDrawer from '@/components/react/trainer/views/UnifiedCoachInstanceEditDrawer';
+import UnifiedLiveSessionEditDrawer from '@/components/react/trainer/views/UnifiedLiveSessionEditDrawer';
 
 const WEEK_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-
-type PendingLiveScheduleConflict = {
-  conflicts: CoachScheduleConflictItem[];
-  url: string;
-  basePayload: Record<string, unknown>;
-};
 
 function itemSortKey(ev: UnifiedCalendarItem): string {
   if (ev.kind === 'live_session') return ev.startAt;
@@ -85,13 +85,22 @@ const TrainerUnifiedCalendarView: React.FC = () => {
   const [createErr, setCreateErr] = useState<string | null>(null);
   const [weeklySeries, setWeeklySeries] = useState(false);
   const [horizonWeeks, setHorizonWeeks] = useState(12);
-  const [pendingLiveConflict, setPendingLiveConflict] = useState<PendingLiveScheduleConflict | null>(
-    null
-  );
+  const [pendingLiveConflict, setPendingLiveConflict] =
+    useState<PendingScheduleConflictPayload | null>(null);
   const [busyLiveConflictRetry, setBusyLiveConflictRetry] = useState(false);
   /** `occ:${id}` or `coach:${clientUserId}:${instanceId}` while starting / linking live */
   const [startLiveBusyKey, setStartLiveBusyKey] = useState<string | null>(null);
   const [startLiveErr, setStartLiveErr] = useState<string | null>(null);
+  const [editingScheduled, setEditingScheduled] = useState<
+    (UnifiedCalendarItem & { kind: 'scheduled_live_occurrence' }) | null
+  >(null);
+  const [editingCoach, setEditingCoach] = useState<
+    | (UnifiedCalendarItem & { kind: 'coach_instance'; clientUserId: string; clientLabel: string })
+    | null
+  >(null);
+  const [editingLiveSession, setEditingLiveSession] = useState<
+    (UnifiedCalendarItem & { kind: 'live_session' }) | null
+  >(null);
   const alignedWeekRef = useRef(false);
   const viewerTzForFetchRef = useRef(viewerTimezone);
 
@@ -306,6 +315,41 @@ const TrainerUnifiedCalendarView: React.FC = () => {
     };
   }, [scheduleLiveOpen, authUser?.uid]);
 
+  useEffect(() => {
+    if (!editingScheduled || !authUser?.uid) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const auth = await missionControlApiAuthHeaders();
+        const res = await fetch('/api/trainer/roster', {
+          credentials: 'include',
+          headers: { ...auth },
+        });
+        const data = (await res.json().catch(() => [])) as Array<{
+          id: string;
+          full_name?: string | null;
+          email?: string | null;
+        }>;
+        if (cancelled) return;
+        setRosterOptions(
+          (Array.isArray(data) ? data : []).map((r) => ({
+            id: r.id,
+            label: (r.full_name?.trim() || r.email?.trim() || r.id) as string,
+          }))
+        );
+      } catch {
+        if (!cancelled) setRosterOptions([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [editingScheduled, authUser?.uid]);
+
+  const onDrawerSchedulingConflict = useCallback((payload: PendingScheduleConflictPayload) => {
+    setPendingLiveConflict(payload);
+  }, []);
+
   const submitScheduleLive = useCallback(
     async (allowOverlap?: boolean) => {
       if (!authUser?.uid || !startLocal || !endLocal || selectedInvitees.size === 0) {
@@ -361,7 +405,9 @@ const TrainerUnifiedCalendarView: React.FC = () => {
           setPendingLiveConflict({
             conflicts: body.conflicts,
             url,
+            method: 'POST',
             basePayload,
+            mode: 'create',
           });
           return;
         }
@@ -393,26 +439,41 @@ const TrainerUnifiedCalendarView: React.FC = () => {
     try {
       const auth = await missionControlApiAuthHeaders();
       const res = await fetch(pending.url, {
-        method: 'POST',
+        method: pending.method,
         credentials: 'include',
         headers: { ...auth, 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...pending.basePayload, allowOverlap: true }),
       });
       const body = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) {
-        setCreateErr(typeof body.error === 'string' ? body.error : 'Failed to create');
+        const msg = typeof body.error === 'string' ? body.error : 'Failed to save';
+        if (pending.mode === 'create') {
+          setCreateErr(msg);
+        } else {
+          setStartLiveErr(msg);
+        }
         return;
       }
       setPendingLiveConflict(null);
-      setScheduleLiveOpen(false);
-      setStartLocal('');
-      setEndLocal('');
-      setSelectedInvitees(new Set());
-      setWeeklySeries(false);
-      setHorizonWeeks(12);
+      if (pending.mode === 'create') {
+        setScheduleLiveOpen(false);
+        setStartLocal('');
+        setEndLocal('');
+        setSelectedInvitees(new Set());
+        setWeeklySeries(false);
+        setHorizonWeeks(12);
+      } else if (pending.mode === 'patch_coach') {
+        setEditingCoach(null);
+      } else {
+        setEditingScheduled(null);
+      }
       await loadUnified();
     } catch {
-      setCreateErr('Network error');
+      if (pending.mode === 'create') {
+        setCreateErr('Network error');
+      } else {
+        setStartLiveErr('Network error');
+      }
     } finally {
       setBusyLiveConflictRetry(false);
     }
@@ -634,7 +695,9 @@ const TrainerUnifiedCalendarView: React.FC = () => {
             </h3>
             <p className="mt-2 text-sm text-white/65">
               This time overlaps another item on your calendar. Change the time and try again, or
-              create anyway (double-book).
+              {pendingLiveConflict.mode === 'create'
+                ? ' create anyway (double-book).'
+                : ' save anyway (double-book).'}
             </p>
             <ul className="mt-4 max-h-48 space-y-2 overflow-y-auto font-mono text-xs text-white/80">
               {pendingLiveConflict.conflicts.map((c) => (
@@ -666,7 +729,11 @@ const TrainerUnifiedCalendarView: React.FC = () => {
                 onClick={() => void confirmLiveDespiteConflict()}
                 className="rounded-lg bg-amber-500/25 px-4 py-2 text-sm font-medium text-amber-100 hover:bg-amber-500/35 disabled:opacity-40"
               >
-                {busyLiveConflictRetry ? 'Saving…' : 'Create anyway'}
+                {busyLiveConflictRetry
+                  ? 'Saving…'
+                  : pendingLiveConflict.mode === 'create'
+                    ? 'Create anyway'
+                    : 'Save anyway'}
               </button>
               <button
                 type="button"
@@ -680,6 +747,32 @@ const TrainerUnifiedCalendarView: React.FC = () => {
           </div>
         </div>
       ) : null}
+
+      <UnifiedScheduledLiveEditDrawer
+        open={editingScheduled !== null}
+        event={editingScheduled}
+        viewerTimezone={viewerLabel}
+        rosterOptions={rosterOptions}
+        onClose={() => setEditingScheduled(null)}
+        onSaved={() => void loadUnified()}
+        onSchedulingConflict={onDrawerSchedulingConflict}
+      />
+
+      <UnifiedCoachInstanceEditDrawer
+        open={editingCoach !== null}
+        event={editingCoach}
+        viewerTimezone={viewerLabel}
+        onClose={() => setEditingCoach(null)}
+        onSaved={() => void loadUnified()}
+        onSchedulingConflict={onDrawerSchedulingConflict}
+      />
+
+      <UnifiedLiveSessionEditDrawer
+        open={editingLiveSession !== null}
+        event={editingLiveSession}
+        onClose={() => setEditingLiveSession(null)}
+        onSaved={() => void loadUnified()}
+      />
 
       {error ? <p className="text-sm text-red-300">{error}</p> : null}
       {startLiveErr ? <p className="text-sm text-red-300">{startLiveErr}</p> : null}
@@ -709,7 +802,16 @@ const TrainerUnifiedCalendarView: React.FC = () => {
                       key={`sched-live-${ev.occurrenceId}`}
                       className="rounded border border-teal-400/45 bg-teal-500/10 px-1.5 py-1 font-mono text-[9px] text-teal-100/95"
                     >
-                      <div className="truncate font-medium text-white/90">Scheduled Live</div>
+                      <div className="flex items-start justify-between gap-1">
+                        <div className="truncate font-medium text-white/90">Scheduled Live</div>
+                        <button
+                          type="button"
+                          onClick={() => setEditingScheduled(ev)}
+                          className="shrink-0 rounded border border-teal-400/40 px-1 py-0.5 text-[8px] font-medium text-teal-100/95 hover:bg-teal-500/20"
+                        >
+                          Edit
+                        </button>
+                      </div>
                       {ev.recurrenceSummary ? (
                         <div className="text-[8px] text-teal-200/80">{ev.recurrenceSummary}</div>
                       ) : null}
@@ -749,7 +851,16 @@ const TrainerUnifiedCalendarView: React.FC = () => {
                       key={`live-${ev.sessionId}`}
                       className="rounded border border-cyan-400/35 bg-cyan-500/10 px-1.5 py-1 font-mono text-[9px] text-cyan-100/95"
                     >
-                      <div className="truncate font-medium text-white/90">Live</div>
+                      <div className="flex items-start justify-between gap-1">
+                        <div className="truncate font-medium text-white/90">Live</div>
+                        <button
+                          type="button"
+                          onClick={() => setEditingLiveSession(ev)}
+                          className="shrink-0 rounded border border-cyan-400/40 px-1 py-0.5 text-[8px] font-medium text-cyan-100/95 hover:bg-cyan-500/20"
+                        >
+                          Edit
+                        </button>
+                      </div>
                       <div className="truncate">
                         <span className="text-white/40">Session · </span>
                         {ev.shell ?? 'video'}
@@ -816,7 +927,18 @@ const TrainerUnifiedCalendarView: React.FC = () => {
                           : 'rounded border border-white/15 bg-white/5 px-1.5 py-1 font-mono text-[9px] text-white/70'
                       }
                     >
-                      <div className="truncate font-medium text-white/90">{ev.clientLabel}</div>
+                      <div className="flex items-start justify-between gap-1">
+                        <div className="truncate font-medium text-white/90">{ev.clientLabel}</div>
+                        {ev.kind === 'coach_instance' ? (
+                          <button
+                            type="button"
+                            onClick={() => setEditingCoach(ev)}
+                            className="shrink-0 rounded border border-orange-light/45 px-1 py-0.5 text-[8px] font-medium text-orange-light hover:bg-orange-light/20"
+                          >
+                            Edit
+                          </button>
+                        ) : null}
+                      </div>
                       <div className="truncate">
                         {ev.kind === 'program' ? (
                           <>

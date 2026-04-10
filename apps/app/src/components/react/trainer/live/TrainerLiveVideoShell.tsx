@@ -99,7 +99,7 @@ export default function TrainerLiveVideoShell({
   const banner = error || loadErr;
 
   const root = compact
-    ? 'flex min-h-0 flex-col gap-3 text-white'
+    ? 'flex h-full min-h-0 flex-col gap-3 text-white'
     : 'flex min-h-[70vh] flex-col gap-4 text-white';
 
   const shouldSplitTrainerMain =
@@ -115,7 +115,7 @@ export default function TrainerLiveVideoShell({
 
   const controlBar = (
     <div
-      className={`flex flex-wrap items-center border-t border-white/10 ${compact ? 'gap-2 pt-3' : 'gap-3 pt-4'}`}
+      className={`flex flex-wrap items-center ${compact ? 'gap-2 pt-2' : 'gap-3 pt-4'}`}
     >
       <button
         type="button"
@@ -161,27 +161,33 @@ export default function TrainerLiveVideoShell({
     </div>
   );
 
-  const trainerPrimaryBlock = (
-    <>
+  /**
+   * SESSION column: stack banner → video → controls. Video uses shrink-0 + aspect-video height
+   * (do not wrap the tile in flex-1 + overflow-hidden or a wide tile gets vertically clipped).
+   */
+  const trainerPortalColumn = (
+    <div className="flex h-full min-h-0 w-full flex-col gap-2 overflow-y-auto text-white">
       {banner ? (
-        <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-2 text-sm text-amber-100">
+        <div className="shrink-0 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs text-amber-100 sm:text-sm">
           {banner}
         </div>
       ) : null}
       {!joined && !banner ? (
-        <div className="flex min-h-[8rem] flex-1 items-center justify-center text-white/60">
+        <div className="flex min-h-[6rem] shrink-0 items-center justify-center text-xs text-white/60 sm:text-sm">
           Connecting to room…
         </div>
       ) : null}
       {joined || banner ? (
-        excludeLocal ? (
-          <TrainerLiveVideoPlaceholderTile label={localLabel} hint="Video on timer background" />
-        ) : (
-          <TrainerLiveLocalTile videoTrack={localVideoTrack} label={localLabel} />
-        )
+        <div className="w-full shrink-0">
+          {excludeLocal ? (
+            <TrainerLiveVideoPlaceholderTile label={localLabel} hint="Video on timer background" />
+          ) : (
+            <TrainerLiveLocalTile videoTrack={localVideoTrack} label={localLabel} />
+          )}
+        </div>
       ) : null}
-      {controlBar}
-    </>
+      <div className="shrink-0">{controlBar}</div>
+    </div>
   );
 
   const trainerRemoteTiles = remoteUsers.map((u) =>
@@ -203,10 +209,7 @@ export default function TrainerLiveVideoShell({
   if (role === 'trainer' && shouldSplitTrainerMain && portalMount) {
     return (
       <>
-        {createPortal(
-          <div className="flex min-h-0 w-full flex-col gap-3 text-white">{trainerPrimaryBlock}</div>,
-          portalMount
-        )}
+        {createPortal(trainerPortalColumn, portalMount)}
         <div className={root}>
           {remoteUsers.length === 0 ? (
             <p className="py-4 text-center text-xs text-white/45">No participants yet</p>

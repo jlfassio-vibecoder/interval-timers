@@ -415,54 +415,57 @@ export default function TrainerLiveHostView() {
             {endBusy ? 'Ending…' : 'End for everyone'}
           </button>
         </TrainerLiveHostNavHeaderBar>
-        <div className="min-h-0 flex-1 overflow-y-auto p-4 md:p-6">
-        {shell === null ? (
-          <div className="flex h-48 items-center justify-center text-white/60">
-            <div className="h-8 w-8 animate-spin rounded-full border-4 border-orange-light border-t-transparent" />
-          </div>
-        ) : (
-          <TrainerLiveAmrapSessionDrawerProvider>
-            <TrainerLiveAmrapChatDrawerProvider>
-            <TrainerLiveAgoraProvider
-              sessionId={sessionId}
-              participantId={participantId}
-              authUserId={authUserId}
-            >
-              <TrainerLiveTimerBackgroundProvider sessionId={sessionId}>
-                <TrainerLiveSessionRoom
-                  shell={shell}
-                  sessionId={sessionId}
-                  participantId={participantId}
-                  role="trainer"
-                  localLabel={localLabel}
-                  onLeaveRoom={() => {
-                    sessionStorage.removeItem(trainerLiveParticipantStorageKey(sessionId));
-                    navigate('/live', { replace: true });
-                  }}
-                  intervalWrapperKind={intervalWrapperKind}
-                  intervalWrapperConfig={intervalWrapperConfig}
-                  displayName={localLabel}
-                  authUserId={authUserId}
-                  onWrapperError={setWrapperErr}
-                  activityTimer={
-                    <>
-                      <TrainerLiveSessionDrawerSlot />
-                      <TrainerLiveActivityTimer
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-4 pt-3 pb-0 md:px-6 md:pt-4 md:pb-0">
+          {shell === null ? (
+            <div className="flex h-48 items-center justify-center text-white/60">
+              <div className="h-8 w-8 animate-spin rounded-full border-4 border-orange-light border-t-transparent" />
+            </div>
+          ) : (
+            <div className="flex min-h-0 flex-1 flex-col">
+              <TrainerLiveAmrapSessionDrawerProvider>
+                <TrainerLiveAmrapChatDrawerProvider>
+                  <TrainerLiveAgoraProvider
+                    sessionId={sessionId}
+                    participantId={participantId}
+                    authUserId={authUserId}
+                  >
+                    <TrainerLiveTimerBackgroundProvider sessionId={sessionId}>
+                      <TrainerLiveSessionRoom
+                        shell={shell}
                         sessionId={sessionId}
                         participantId={participantId}
-                        authUserId={user?.uid ?? null}
                         role="trainer"
-                        shell={shell}
-                        drawerLayout
+                        localLabel={localLabel}
+                        className="h-full min-h-0 min-w-0 flex-1"
+                        onLeaveRoom={() => {
+                          sessionStorage.removeItem(trainerLiveParticipantStorageKey(sessionId));
+                          navigate('/live', { replace: true });
+                        }}
+                        intervalWrapperKind={intervalWrapperKind}
+                        intervalWrapperConfig={intervalWrapperConfig}
+                        displayName={localLabel}
+                        authUserId={authUserId}
+                        onWrapperError={setWrapperErr}
+                        activityTimer={
+                          <>
+                            <TrainerLiveSessionDrawerSlot />
+                            <TrainerLiveActivityTimer
+                              sessionId={sessionId}
+                              participantId={participantId}
+                              authUserId={user?.uid ?? null}
+                              role="trainer"
+                              shell={shell}
+                              drawerLayout
+                            />
+                          </>
+                        }
                       />
-                    </>
-                  }
-                />
-              </TrainerLiveTimerBackgroundProvider>
-            </TrainerLiveAgoraProvider>
-            </TrainerLiveAmrapChatDrawerProvider>
-          </TrainerLiveAmrapSessionDrawerProvider>
-        )}
+                    </TrainerLiveTimerBackgroundProvider>
+                  </TrainerLiveAgoraProvider>
+                </TrainerLiveAmrapChatDrawerProvider>
+              </TrainerLiveAmrapSessionDrawerProvider>
+            </div>
+          )}
         </div>
         <TrainerLiveAmrapWorkoutPickerModal
           open={amrapPickerOpen}
