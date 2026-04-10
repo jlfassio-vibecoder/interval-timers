@@ -2,9 +2,11 @@
  * GET /api/agora/token?sessionId=:uuid&participantId=:uuid
  *
  * **Trainer Live only:** `sessionId` must be `trainer_live_sessions.id`;
- * `participantId` must be `trainer_live_participants.id`. Verifies
- * server-side checks on `trainer_live_sessions` / `trainer_live_participants` (service role)
- * so authorization does not depend on the client RPC (avoids prod-only RPC/permission drift).
+ * `participantId` must be `trainer_live_participants.id`.
+ * Uses `trainer_live_verify_token_targets` (SECURITY DEFINER) on the caller’s JWT client so
+ * active-session + id-pair checks work without `SUPABASE_SERVICE_ROLE_KEY`. Identity is then
+ * confirmed with the same user-scoped client (RLS: trainer owns session or user is a linked
+ * participant) — anon-key-only `getSupabaseServer()` cannot be used here without RLS empty reads.
  *
  * The legacy path that used `client_coach_schedule_instances.id` as the channel
  * without `participantId` has been removed — all RTC tokens use the trainer live
@@ -16,7 +18,9 @@
  */
 
 import type { APIRoute } from 'astro';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import agoraToken from 'agora-token';
+import type { Database } from '@/types/supabase';
 import { authenticateInvitationsApiRequest } from '@/lib/supabase/admin/auth';
 import { getSupabaseServer } from '@/lib/supabase/server';
 
@@ -45,26 +49,40 @@ function readAgoraCertificate(): string {
 }
 
 async function authorizeTrainerLiveToken(
+  userSupabase: SupabaseClient<Database>,
   liveSessionId: string,
   participantId: string,
   authUserId: string
 ): Promise<boolean> {
-  const server = getSupabaseServer();
-  const { data: part } = await server
+  const { data: verifiedRaw, error: verifyErr } = await userSupabase.rpc(
+    'trainer_live_verify_token_targets' as never,
+    {
+      p_session_id: liveSessionId,
+      p_participant_id: participantId,
+    } as never
+  );
+  if (verifyErr) return false;
+  if (verifiedRaw !== true) return false;
+
+  const { data: sessRow } = await userSupabase
+    .from('trainer_live_sessions')
+    .select('trainer_user_id, status')
+    .eq('id', liveSessionId)
+    .maybeSingle();
+  const { data: partRow } = await userSupabase
     .from('trainer_live_participants')
     .select('user_id')
     .eq('id', participantId)
     .eq('session_id', liveSessionId)
     .maybeSingle();
-  const { data: sess } = await server
-    .from('trainer_live_sessions')
-    .select('trainer_user_id, status')
-    .eq('id', liveSessionId)
-    .maybeSingle();
+
+  const sess = sessRow as { trainer_user_id: string; status: string } | null;
+  const part = partRow as { user_id: string | null } | null;
+
   if (!part || !sess) return false;
-  if ((sess.status as string) !== 'active') return false;
-  const trainerUid = sess.trainer_user_id as string;
-  const partUserId = part.user_id as string | null;
+  if (sess.status !== 'active') return false;
+  const trainerUid = sess.trainer_user_id;
+  const partUserId = part.user_id;
   if (trainerUid === authUserId) return true;
   if (partUserId != null && partUserId === authUserId) return true;
   return false;
@@ -91,7 +109,7 @@ export const GET: APIRoute = async ({ request, cookies }) => {
   const auth = await authenticateInvitationsApiRequest(request, cookies);
   if (!auth.ok) return auth.response;
 
-  const { user } = auth;
+  const { supabase: userSupabase, user } = auth;
   const uid = user.id;
 
   const { searchParams } = new URL(request.url);
@@ -145,7 +163,7 @@ export const GET: APIRoute = async ({ request, cookies }) => {
     return json({ error: 'AGORA_APP_CERTIFICATE must be 32 hex characters' }, 500);
   }
 
-  const ok = await authorizeTrainerLiveToken(sessionId, participantId, uid);
+  const ok = await authorizeTrainerLiveToken(userSupabase, sessionId, participantId, uid);
   if (!ok) {
     return json({ error: 'Forbidden' }, 403);
   }
