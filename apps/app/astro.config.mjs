@@ -155,6 +155,10 @@ export default defineConfig({
       'import.meta.env.PUBLIC_AMRAP_BASE_URL': JSON.stringify(
         (process.env.PUBLIC_AMRAP_BASE_URL || '').trim()
       ),
+      // Marketing / merged-landing origin when app deploy omits /amrap; getAmrapAppBase appends /amrap
+      'import.meta.env.PUBLIC_MARKETING_SITE_URL': JSON.stringify(
+        (process.env.PUBLIC_MARKETING_SITE_URL || '').trim()
+      ),
       'import.meta.env.VITE_AGORA_APP_ID': JSON.stringify(
         (process.env.VITE_AGORA_APP_ID || '').trim()
       )

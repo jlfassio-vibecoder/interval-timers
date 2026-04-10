@@ -1,6 +1,6 @@
 # Technical Design: Unified Calendar — Open, Edit & Reorder (Trainer)
 
-**Status:** Draft (decisions resolved; P0/P1 implemented in app)  
+**Status:** Draft (decisions resolved; **P0/P1/P2** implemented in app)  
 **Scope:** Trainer **Unified calendar** (`TrainerUnifiedCalendarView`, `/api/trainer/calendar/unified`)  
 **Related:** `apps/app/src/lib/supabase/admin/trainer-unified-calendar.ts`, `trainer-live-scheduled.ts`, `trainer-client-calendar.ts`
 
@@ -8,18 +8,18 @@
 
 ## 1. Problem & goals
 
-### 1.1 Today
+### 1.1 Today (post P0–P2)
 
-- The unified week grid renders **read-only** cards (per-day columns, sorted by time).
-- **Scheduled live** (`kind: 'scheduled_live_occurrence'`) only exposes **Start session** / **Open live**; **no click-to-detail** or **edit** flow (being added in P0).
-- **Coach schedule instances** (`kind: 'coach_instance'`) show time + **Start session** + **Open lab**; **no inline reschedule** from this view (P1).
-- **Program** and **client-originated** rows (`program`, `scheduled_workout`, `amrap_scheduled`) are labeled read-only in UI copy; scope below focuses on **trainer-owned schedulable live surfaces** unless product extends.
+- The unified week grid uses **per-day columns**, sorted by time.
+- **Scheduled live** cards: **Edit** drawer (P0), **Start session** / **Open live**, and **P2 drag** to another day (same local time on target date).
+- **Coach instances:** **Edit** drawer (P1), live CTAs, **Open lab**, and **P2 drag** to another day.
+- **Program** and **client-originated** rows remain **non-draggable**; UI copy treats them as read-only for reschedule unless product extends.
 
 ### 1.2 Goals
 
 1. **Click** a scheduled session card → open a **session detail / edit** surface (drawer or modal).
 2. **Edit** fields available per **current backend** contracts; extend schema/API where “name” or missing fields are required.
-3. **Drag** (within the week grid or onto another day/time) to **reorder / reschedule** — interpreted as **changing wall-clock schedule** (and optionally **explicit sort** if we add ordering metadata later).
+3. **Drag** (P2) onto **another day column** to **reschedule** — **same local time-of-day** in the viewer timezone on the target calendar date (**day snap**; vertical position does not change time). **Y-axis / intra-day time from drop position** is **out of scope** for P2 (future phase if product wants it). Optional later: **explicit sort** metadata if order ≠ time order.
 
 ---
 
@@ -149,15 +149,19 @@ Trainer-owned mutation surface for **ended** transition (sets `ended_at`), optio
 
 ### 6.3 Drag–reorder (P2) and accessibility
 
-**Drag (P2):** **Drag-and-drop reschedule** — drag card to another day/time; compute new ISO; same APIs as form save.
+**Drag (P2) — shipped behavior:**
 
-**Accessibility (required in P0/P1):** **Non-pointer parity** for reschedule: datetime fields and keyboard-reachable controls in drawers; **do not** require drag to change time. When P2 adds drag, it is an enhancement, not the only path.
+- **Scope:** Only **`scheduled_live_occurrence`** and **`coach_instance`** cards are draggable. **`program`**, **`scheduled_workout`**, **`amrap_scheduled`**, and **`live_session`** rows are not (unless product extends).
+- **Drop semantics:** **Day column only.** `useDroppable({ id })` uses the column’s calendar id **`YYYY-MM-DD`**. On drop, **`reschedulePreservingViewerLocalTime`** (see `trainer-calendar-time.ts`) moves **start/end** (scheduled live) or **`scheduledAt`** (coach) to that date while preserving **hour/minute/second in the viewer timezone**. Dropping on the **same** day is a no-op.
+- **Client mutations:** The view uses **`fetch`** to the same **PATCH** routes as the drawers (not a separate React helper named `patchCoachScheduleInstance` / `patchLiveScheduleOccurrence`). Server-side logic remains `patchCoachScheduleInstance` / `patchLiveScheduleOccurrence` in admin modules.
+- **409 conflicts:** Same **`pendingLiveConflict`** modal as P0/P1; DnD uses modes **`patch_occurrence_dnd`** / **`patch_coach_dnd`** so **Save anyway** retries with **`allowOverlap: true`** without closing unrelated drawers.
+- **UX:** **`DragOverlay`** shows a compact card clone; **`PointerSensor`** with **`activationConstraint: { distance: 8 }`**; **`onPointerDown` + `stopPropagation`** on **Edit**, **Start session** / **Open live**, and **Open lab** so clicks do not start drags.
 
-**Implementation notes (P2):**
+**Dependencies (`apps/app/package.json`):** **`@dnd-kit/core`**, **`@dnd-kit/utilities`**, **`@dnd-kit/sortable`** (present). **`@dnd-kit/modifiers`** is **not** required for P2; add only if you introduce modifiers (e.g. `restrictToWindowEdges`).
 
-- Accessible DnD (`@dnd-kit` or similar if not already in repo).
-- **Drop target:** each day column + optional time snap from drop Y or secondary picker.
-- **Optimistic UI** with rollback on API error.
+**Accessibility (P0/P1 requirement unchanged):** **Non-pointer parity** for reschedule: datetime fields and keyboard-reachable controls in drawers; drag does **not** replace form-based reschedule.
+
+**Not in P2:** **Optimistic UI** with rollback; **Y-axis time** from drop position; **keyboard drag** (`KeyboardSensor`) — optional follow-ups.
 
 **Later:** Persist **custom order** per day → migration + `display_order` — only if product requires order ≠ time order.
 
@@ -172,6 +176,7 @@ Trainer-owned mutation surface for **ended** transition (sets `ended_at`), optio
 | **PATCH** `.../live-schedule/invites/[inviteId]` | Cancel invite (trainer-owned occurrence) |
 | Series PATCH reschedule block | Shift future occurrences + update series meta |
 | Coach instance PATCH | Existing |
+| **P2** DnD reschedule (unified view) | Same occurrence / coach PATCH routes + shared 409 modal (`patch_*_dnd` modes); no new API |
 | **PATCH** `.../live-sessions/[sessionId]` | Runtime session (end / shell per policy) |
 | `display_name` on occurrences | Optional (P3) |
 | Conflict scan | `excludeScheduledOccurrenceIds` for batch series reschedule |
@@ -183,11 +188,13 @@ Trainer-owned mutation surface for **ended** transition (sets `ended_at`), optio
 
 | Layer | Responsibility |
 |-------|----------------|
-| `TrainerUnifiedCalendarView` | Wire `onCardClick`, mount drawer(s), pass `viewerTimezone`, refetch |
+| `TrainerUnifiedCalendarView` | Wire `onCardClick`, mount drawer(s), pass `viewerTimezone`, refetch; **P2:** `DndContext`, `applyDropFromDnD`, conflict retry |
 | `UnifiedScheduledLiveEditDrawer` | Form + PATCH occurrence + invites + series scope + conflict modal |
 | `UnifiedCoachInstanceEditDrawer` | Form + PATCH instance + assignment fetch |
 | `UnifiedLiveSessionEditDrawer` | PATCH live session + link to host |
-| DnD wrapper | P2: `DndContext` around week grid |
+| `UnifiedCalendarDayColumn` | P2: `useDroppable({ id: date })` on column body + `isOver` styling |
+| `UnifiedCalendarDraggableCard` | P2: `useDraggable` + listeners on card shell |
+| `unified-calendar-dnd-types.ts` | P2: `UnifiedCalendarDragData` for draggable payloads |
 
 **State:** Keep edits server-authoritative; avoid duplicating full `UnifiedCalendarItem` in local state except form drafts.
 
@@ -204,6 +211,7 @@ Trainer-owned mutation surface for **ended** transition (sets `ended_at`), optio
 
 - Unit: timezone conversion helpers (start/end preservation).
 - Integration: PATCH success, 409 conflict path, `allowOverlap` retry, series batch reschedule.
+- **P2 manual:** drag scheduled live + coach cards across columns; confirm refetch and DB times; force overlap → conflict modal → **Save anyway** with `allowOverlap: true`.
 - E2E (optional): open drawer → change time → save → card updates after refetch.
 
 ---
@@ -223,13 +231,18 @@ Trainer-owned mutation surface for **ended** transition (sets `ended_at`), optio
 - **UnifiedCoachInstanceEditDrawer:** `scheduledAt`, assignment picker (`GET .../clients/[userId]/assignments`), `trainerLiveSessionId` clear/set, conflicts.
 - **UnifiedLiveSessionEditDrawer:** `PATCH .../live-sessions/[sessionId]` (e.g. end session, shell where allowed), **Open live** link.
 
-### P2+
+### P2 — Drag–drop day reschedule (**shipped**)
+
+- **`@dnd-kit/core`** week grid: droppable day columns, draggable scheduled live + coach cards, overlay.
+- **PATCH** via `fetch` to existing occurrence / coach instance routes; **409** → shared modal → **`allowOverlap: true`** retry.
+
+### P3+
 
 | Phase | Deliverable |
 |-------|-------------|
-| **P2** | Drag–drop reschedule for occurrence + coach instance |
 | **P3** | `display_name` (or series title) + API |
 | **P4** | Deeper series edits (interval weeks, timezone-only changes) if needed beyond reschedule block |
+| **Future** | Optional **Y-axis / time-slot** drop within a column; optimistic UI; keyboard DnD |
 
 ---
 
@@ -241,7 +254,9 @@ Trainer-owned mutation surface for **ended** transition (sets `ended_at`), optio
 
 3. **Invite editing in-drawer:** **In scope** for scheduled live (list, add roster invitees, cancel where allowed). Implemented via dedicated trainer invite routes (§7).
 
-4. **Accessibility:** **Required** non-pointer paths (datetime fields, focusable controls). Drag in P2 does not replace form-based reschedule.
+4. **Accessibility:** **Required** non-pointer paths (datetime fields, focusable controls). P2 drag is **pointer-primary** day-column reschedule only; it does not replace form-based reschedule.
+
+5. **P2 drop model:** **Day snap** (preserve local time-of-day on target date). **Not** “drag to a different hour via vertical position” unless a future phase adds it.
 
 ---
 
@@ -249,7 +264,8 @@ Trainer-owned mutation surface for **ended** transition (sets `ended_at`), optio
 
 - Unified types: `apps/app/src/lib/supabase/admin/trainer-unified-calendar.ts`
 - Scheduled occurrence + series: `apps/app/src/lib/supabase/admin/trainer-live-scheduled.ts`
-- Coach instance PATCH: `apps/app/src/lib/supabase/admin/trainer-client-calendar.ts` (`findCoachScheduleConflictsForTrainer`, `patchCoachScheduleInstance`)
+- Coach instance PATCH (server): `apps/app/src/lib/supabase/admin/trainer-client-calendar.ts` (`findCoachScheduleConflictsForTrainer`, `patchCoachScheduleInstance`)
 - UI: `apps/app/src/components/react/trainer/views/TrainerUnifiedCalendarView.tsx`
+- P2 DnD: `UnifiedCalendarDayColumn.tsx`, `UnifiedCalendarDraggableCard.tsx`, `unified-calendar-dnd-types.ts` (same `views` folder)
 - Drawers: `apps/app/src/components/react/trainer/views/UnifiedScheduledLiveEditDrawer.tsx`, `UnifiedCoachInstanceEditDrawer.tsx`, `UnifiedLiveSessionEditDrawer.tsx`
 - Schema: `supabase/migrations/20260406120100_trainer_live_scheduled_occurrences.sql`, `20260406140000_trainer_live_schedule_p1_series.sql`

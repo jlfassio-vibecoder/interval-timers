@@ -26,6 +26,7 @@ export const PATCH: APIRoute = async ({ request, cookies, params }) => {
       status?: 'scheduled' | 'cancelled' | 'completed';
       allowOverlap?: boolean;
       liveSessionId?: string | null;
+      displayName?: string | null;
     } = {};
     try {
       body = (await request.json()) as typeof body;
@@ -51,12 +52,21 @@ export const PATCH: APIRoute = async ({ request, cookies, params }) => {
           ? body.liveSessionId.trim() || null
           : undefined;
 
+    const hasDisplayNameKey = 'displayName' in body;
+    const displayName =
+      hasDisplayNameKey && body.displayName === null
+        ? null
+        : hasDisplayNameKey && typeof body.displayName === 'string'
+          ? body.displayName
+          : undefined;
+
     const result = await patchLiveScheduleOccurrence(viewerId, occurrenceId, {
       scheduledStartAt: body.scheduledStartAt,
       scheduledEndAt: body.scheduledEndAt,
       status: body.status,
       allowOverlap: body.allowOverlap === true,
       ...(hasLiveKey ? { liveSessionId } : {}),
+      ...(hasDisplayNameKey ? { displayName } : {}),
     });
 
     if (!result.ok) {

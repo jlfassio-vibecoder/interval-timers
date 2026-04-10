@@ -482,6 +482,7 @@ export interface Database {
           scheduled_end_at: string;
           status: 'scheduled' | 'cancelled' | 'completed';
           live_session_id: string | null;
+          display_name: string | null;
           reminder_24h_sent_at: string | null;
           reminder_1h_sent_at: string | null;
           created_at: string;
@@ -495,6 +496,7 @@ export interface Database {
           scheduled_end_at: string;
           status?: 'scheduled' | 'cancelled' | 'completed';
           live_session_id?: string | null;
+          display_name?: string | null;
           reminder_24h_sent_at?: string | null;
           reminder_1h_sent_at?: string | null;
           created_at?: string;
@@ -506,6 +508,7 @@ export interface Database {
           scheduled_end_at?: string;
           status?: 'scheduled' | 'cancelled' | 'completed';
           live_session_id?: string | null;
+          display_name?: string | null;
           reminder_24h_sent_at?: string | null;
           reminder_1h_sent_at?: string | null;
           updated_at?: string;

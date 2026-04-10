@@ -3,6 +3,7 @@
  * Used to resolve app name/path when redirecting with ?from=<appId>.
  */
 
+import { getAmrapAppBase } from '@/lib/amrap-app-base';
 import { appendQuery } from '@/lib/url-utils';
 
 export interface AppEntry {
@@ -64,15 +65,12 @@ export function getAppById(id: string): AppEntry | undefined {
   return APP_REGISTRY.find((app) => app.id === id);
 }
 
-const PUBLIC_AMRAP_BASE =
-  (typeof import.meta !== 'undefined' && (import.meta.env?.PUBLIC_AMRAP_BASE_URL ?? '').trim()) ||
-  '';
-
-/** Resolves the launch URL for an app. Uses PUBLIC_AMRAP_BASE_URL for AMRAP when set (custom domain). */
+/** Resolves the launch URL for an app. AMRAP uses {@link getAmrapAppBase} when set (see amrap-app-base.ts). */
 export function getAppLaunchUrl(app: AppEntry, params: Record<string, string>): string {
+  const amrapBase = app.id === 'amrap' ? getAmrapAppBase() : '';
   const base =
     (app.baseUrl && app.baseUrl.trim()) ||
-    (app.id === 'amrap' && PUBLIC_AMRAP_BASE ? PUBLIC_AMRAP_BASE.replace(/\/+$/, '') + '/' : '');
+    (amrapBase ? `${amrapBase}/` : '');
   if (base) return appendQuery(base, params);
   return appendQuery(app.path, params);
 }

@@ -32,6 +32,7 @@ describe('unifiedCalendarItemSortKey', () => {
         occurrenceId: 'o1',
         seriesId: null,
         recurrenceSummary: null,
+        displayName: null,
         scheduledStartAt: '2026-04-10T14:00:00.000Z',
         scheduledEndAt: '2026-04-10T15:00:00.000Z',
         status: 'scheduled',

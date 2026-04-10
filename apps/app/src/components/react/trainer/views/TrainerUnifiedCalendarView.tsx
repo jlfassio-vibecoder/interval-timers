@@ -21,9 +21,11 @@ import {
   calendarDateInZone,
   formatTimeInZone,
   mondayOfWeekForZone,
+  reschedulePreservingViewerLocalTime,
   safeIanaZone,
   weekDayListFromMonday,
 } from '@/lib/performance-lab/trainer-calendar-time';
+import { scheduledLiveCardTitle } from '@/lib/scheduled-live-card-title';
 import { missionControlApiAuthHeaders } from '@/lib/mission-control-api-auth';
 import { useAppContext } from '@/contexts/AppContext';
 import { CalendarTimezoneControl } from '@/components/react/calendar/CalendarTimezoneControl';
@@ -37,6 +39,18 @@ import UnifiedScheduledLiveEditDrawer, {
 } from '@/components/react/trainer/views/UnifiedScheduledLiveEditDrawer';
 import UnifiedCoachInstanceEditDrawer from '@/components/react/trainer/views/UnifiedCoachInstanceEditDrawer';
 import UnifiedLiveSessionEditDrawer from '@/components/react/trainer/views/UnifiedLiveSessionEditDrawer';
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent,
+} from '@dnd-kit/core';
+import UnifiedCalendarDayColumn from '@/components/react/trainer/views/UnifiedCalendarDayColumn';
+import UnifiedCalendarDraggableCard from '@/components/react/trainer/views/UnifiedCalendarDraggableCard';
+import type { UnifiedCalendarDragData } from '@/components/react/trainer/views/unified-calendar-dnd-types';
 
 const WEEK_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -101,6 +115,7 @@ const TrainerUnifiedCalendarView: React.FC = () => {
   const [editingLiveSession, setEditingLiveSession] = useState<
     (UnifiedCalendarItem & { kind: 'live_session' }) | null
   >(null);
+  const [activeDrag, setActiveDrag] = useState<UnifiedCalendarDragData | null>(null);
   const alignedWeekRef = useRef(false);
   const viewerTzForFetchRef = useRef(viewerTimezone);
 
@@ -464,6 +479,11 @@ const TrainerUnifiedCalendarView: React.FC = () => {
         setHorizonWeeks(12);
       } else if (pending.mode === 'patch_coach') {
         setEditingCoach(null);
+      } else if (
+        pending.mode === 'patch_occurrence_dnd' ||
+        pending.mode === 'patch_coach_dnd'
+      ) {
+        // Drag reschedule only; keep any open edit drawers.
       } else {
         setEditingScheduled(null);
       }
@@ -494,6 +514,154 @@ const TrainerUnifiedCalendarView: React.FC = () => {
     }
     return m;
   }, [items, weekDays, viewerLabel]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 8 },
+    })
+  );
+
+  const applyDropFromDnD = useCallback(
+    async (data: UnifiedCalendarDragData, targetDateYmd: string, allowOverlap: boolean) => {
+      try {
+        const auth = await missionControlApiAuthHeaders();
+        if (data.kind === 'coach_instance') {
+          const scheduledAt = reschedulePreservingViewerLocalTime(
+            data.scheduledAt,
+            targetDateYmd,
+            viewerLabel,
+            '09:00'
+          );
+          const url = `/api/trainer/clients/${encodeURIComponent(data.clientUserId)}/calendar/instances/${encodeURIComponent(data.instanceId)}`;
+          const basePayload: Record<string, unknown> = {
+            scheduledAt,
+            assignmentId: data.assignmentId,
+          };
+          const body = allowOverlap ? { ...basePayload, allowOverlap: true } : basePayload;
+          const res = await fetch(url, {
+            method: 'PATCH',
+            credentials: 'include',
+            headers: { ...auth, 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+          });
+          const j = (await res.json().catch(() => ({}))) as {
+            error?: string;
+            conflicts?: CoachScheduleConflictItem[];
+          };
+          if (
+            res.status === 409 &&
+            Array.isArray(j.conflicts) &&
+            j.conflicts.length > 0 &&
+            !allowOverlap
+          ) {
+            setPendingLiveConflict({
+              conflicts: j.conflicts,
+              url,
+              method: 'PATCH',
+              basePayload,
+              mode: 'patch_coach_dnd',
+            });
+            return;
+          }
+          if (!res.ok) {
+            setStartLiveErr(typeof j.error === 'string' ? j.error : 'Failed to reschedule');
+            return;
+          }
+          await loadUnified();
+          return;
+        }
+
+        const scheduledStartAt = reschedulePreservingViewerLocalTime(
+          data.scheduledStartAt,
+          targetDateYmd,
+          viewerLabel,
+          '09:00'
+        );
+        const scheduledEndAt = reschedulePreservingViewerLocalTime(
+          data.scheduledEndAt,
+          targetDateYmd,
+          viewerLabel,
+          '10:00'
+        );
+        const url = `/api/trainer/live-schedule/occurrences/${encodeURIComponent(data.occurrenceId)}`;
+        const basePayload: Record<string, unknown> = {
+          scheduledStartAt,
+          scheduledEndAt,
+        };
+        const body = allowOverlap ? { ...basePayload, allowOverlap: true } : basePayload;
+        const res = await fetch(url, {
+          method: 'PATCH',
+          credentials: 'include',
+          headers: { ...auth, 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        const j = (await res.json().catch(() => ({}))) as {
+          error?: string;
+          conflicts?: CoachScheduleConflictItem[];
+        };
+        if (
+          res.status === 409 &&
+          Array.isArray(j.conflicts) &&
+          j.conflicts.length > 0 &&
+          !allowOverlap
+        ) {
+          setPendingLiveConflict({
+            conflicts: j.conflicts,
+            url,
+            method: 'PATCH',
+            basePayload,
+            mode: 'patch_occurrence_dnd',
+          });
+          return;
+        }
+        if (!res.ok) {
+          setStartLiveErr(typeof j.error === 'string' ? j.error : 'Failed to reschedule');
+          return;
+        }
+        await loadUnified();
+      } catch {
+        setStartLiveErr('Network error');
+      }
+    },
+    [viewerLabel, loadUnified]
+  );
+
+  const onUnifiedCalendarDragStart = useCallback((event: DragStartEvent) => {
+    const d = event.active.data.current as UnifiedCalendarDragData | undefined;
+    setActiveDrag(d ?? null);
+  }, []);
+
+  const onUnifiedCalendarDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      const { active, over } = event;
+      setActiveDrag(null);
+      if (!over?.id || !active.data.current) return;
+      const targetDate = String(over.id);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(targetDate)) return;
+      const data = active.data.current as UnifiedCalendarDragData;
+      const sourceDay =
+        data.kind === 'coach_instance'
+          ? calendarDateInZone(data.scheduledAt, viewerLabel)
+          : calendarDateInZone(data.scheduledStartAt, viewerLabel);
+      if (sourceDay === targetDate) return;
+      void applyDropFromDnD(data, targetDate, false);
+    },
+    [applyDropFromDnD, viewerLabel]
+  );
+
+  const dragOverlaySource = useMemo(() => {
+    if (!activeDrag) return null;
+    if (activeDrag.kind === 'scheduled_live_occurrence') {
+      return items.find(
+        (i): i is UnifiedCalendarItem & { kind: 'scheduled_live_occurrence' } =>
+          i.kind === 'scheduled_live_occurrence' && i.occurrenceId === activeDrag.occurrenceId
+      );
+    }
+    return items.find(
+      (i): i is UnifiedCalendarItem & { kind: 'coach_instance' } =>
+        i.kind === 'coach_instance' && i.instanceId === activeDrag.instanceId
+    );
+  }, [activeDrag, items]);
 
   return (
     <div className="space-y-6">
@@ -783,69 +951,81 @@ const TrainerUnifiedCalendarView: React.FC = () => {
           <span className="ml-3 text-white/60">Loading…</span>
         </div>
       ) : (
-        <div className="flex gap-1 overflow-x-auto pb-2">
-          {weekDays.map((date, i) => (
-            <div
-              key={date}
-              className="flex min-h-[200px] min-w-[7.5rem] flex-1 flex-col border border-white/10 bg-black/30 p-2"
-            >
-              <div className="mb-2 border-b border-white/10 pb-1 text-center">
-                <div className="font-mono text-[10px] uppercase text-white/45">
-                  {WEEK_LABELS[i] ?? ''}
-                </div>
-                <div className="font-mono text-xs text-white/80">{date.slice(5)}</div>
-              </div>
-              <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto">
+        <DndContext
+          sensors={sensors}
+          onDragStart={onUnifiedCalendarDragStart}
+          onDragEnd={onUnifiedCalendarDragEnd}
+        >
+          <div className="flex gap-1 overflow-x-auto pb-2">
+            {weekDays.map((date, i) => (
+              <UnifiedCalendarDayColumn
+                key={date}
+                date={date}
+                weekdayLabel={WEEK_LABELS[i] ?? ''}
+                dateShort={date.slice(5)}
+              >
                 {(byDay.get(date) ?? []).map((ev) =>
                   ev.kind === 'scheduled_live_occurrence' ? (
-                    <div
+                    <UnifiedCalendarDraggableCard
                       key={`sched-live-${ev.occurrenceId}`}
-                      className="rounded border border-teal-400/45 bg-teal-500/10 px-1.5 py-1 font-mono text-[9px] text-teal-100/95"
+                      id={`unified-dnd-sched-${ev.occurrenceId}`}
+                      data={{
+                        kind: 'scheduled_live_occurrence',
+                        occurrenceId: ev.occurrenceId,
+                        scheduledStartAt: ev.scheduledStartAt,
+                        scheduledEndAt: ev.scheduledEndAt,
+                      }}
                     >
-                      <div className="flex items-start justify-between gap-1">
-                        <div className="truncate font-medium text-white/90">Scheduled Live</div>
+                      <div className="rounded border border-teal-400/45 bg-teal-500/10 px-1.5 py-1 font-mono text-[9px] text-teal-100/95">
+                        <div className="flex items-start justify-between gap-1">
+                          <div className="truncate font-medium text-white/90">
+                            {scheduledLiveCardTitle(ev)}
+                          </div>
+                          <button
+                            type="button"
+                            onPointerDown={(e) => e.stopPropagation()}
+                            onClick={() => setEditingScheduled(ev)}
+                            className="shrink-0 rounded border border-teal-400/40 px-1 py-0.5 text-[8px] font-medium text-teal-100/95 hover:bg-teal-500/20"
+                          >
+                            Edit
+                          </button>
+                        </div>
+                        {ev.recurrenceSummary ? (
+                          <div className="text-[8px] text-teal-200/80">{ev.recurrenceSummary}</div>
+                        ) : null}
+                        <div className="text-white/65">
+                          {formatTimeInZone(ev.scheduledStartAt, viewerLabel)}
+                          {ev.scheduledEndAt !== ev.scheduledStartAt ? (
+                            <span className="text-white/45">
+                              {' '}
+                              – {formatTimeInZone(ev.scheduledEndAt, viewerLabel)}
+                            </span>
+                          ) : null}
+                        </div>
+                        <div className="mt-0.5 text-[8px] text-white/50">
+                          P {ev.pendingCount} · A {ev.acceptedCount} · W {ev.waitlistedCount}
+                          {ev.declinedCount > 0 ? ` · D ${ev.declinedCount}` : ''}
+                        </div>
+                        {ev.inviteSummaries.length > 0 ? (
+                          <div className="mt-0.5 truncate text-[8px] text-white/55" title="">
+                            {ev.inviteSummaries.map((s) => `${s.label} (${s.status})`).join(', ')}
+                          </div>
+                        ) : null}
                         <button
                           type="button"
-                          onClick={() => setEditingScheduled(ev)}
-                          className="shrink-0 rounded border border-teal-400/40 px-1 py-0.5 text-[8px] font-medium text-teal-100/95 hover:bg-teal-500/20"
+                          onPointerDown={(e) => e.stopPropagation()}
+                          disabled={startLiveBusyKey === `occ:${ev.occurrenceId}`}
+                          onClick={() => void onScheduledOccurrenceLiveCta(ev)}
+                          className="mt-1 w-full rounded border border-teal-400/50 bg-teal-500/15 px-1.5 py-1 text-[8px] font-medium text-teal-100/95 hover:bg-teal-500/25 disabled:opacity-40"
                         >
-                          Edit
+                          {startLiveBusyKey === `occ:${ev.occurrenceId}`
+                            ? '…'
+                            : ev.liveSessionId
+                              ? 'Open live'
+                              : 'Start session'}
                         </button>
                       </div>
-                      {ev.recurrenceSummary ? (
-                        <div className="text-[8px] text-teal-200/80">{ev.recurrenceSummary}</div>
-                      ) : null}
-                      <div className="text-white/65">
-                        {formatTimeInZone(ev.scheduledStartAt, viewerLabel)}
-                        {ev.scheduledEndAt !== ev.scheduledStartAt ? (
-                          <span className="text-white/45">
-                            {' '}
-                            – {formatTimeInZone(ev.scheduledEndAt, viewerLabel)}
-                          </span>
-                        ) : null}
-                      </div>
-                      <div className="mt-0.5 text-[8px] text-white/50">
-                        P {ev.pendingCount} · A {ev.acceptedCount} · W {ev.waitlistedCount}
-                        {ev.declinedCount > 0 ? ` · D ${ev.declinedCount}` : ''}
-                      </div>
-                      {ev.inviteSummaries.length > 0 ? (
-                        <div className="mt-0.5 truncate text-[8px] text-white/55" title="">
-                          {ev.inviteSummaries.map((s) => `${s.label} (${s.status})`).join(', ')}
-                        </div>
-                      ) : null}
-                      <button
-                        type="button"
-                        disabled={startLiveBusyKey === `occ:${ev.occurrenceId}`}
-                        onClick={() => void onScheduledOccurrenceLiveCta(ev)}
-                        className="mt-1 w-full rounded border border-teal-400/50 bg-teal-500/15 px-1.5 py-1 text-[8px] font-medium text-teal-100/95 hover:bg-teal-500/25 disabled:opacity-40"
-                      >
-                        {startLiveBusyKey === `occ:${ev.occurrenceId}`
-                          ? '…'
-                          : ev.liveSessionId
-                            ? 'Open live'
-                            : 'Start session'}
-                      </button>
-                    </div>
+                    </UnifiedCalendarDraggableCard>
                   ) : ev.kind === 'live_session' ? (
                     <div
                       key={`live-${ev.sessionId}`}
@@ -914,67 +1094,75 @@ const TrainerUnifiedCalendarView: React.FC = () => {
                         Open lab
                       </Link>
                     </div>
-                  ) : (
-                    <div
-                      key={
-                        ev.kind === 'coach_instance'
-                          ? `c-${ev.instanceId}`
-                          : `p-${ev.clientUserId}-${ev.date}-${ev.programId}-${ev.workoutIndex}`
-                      }
-                      className={
-                        ev.kind === 'coach_instance'
-                          ? 'rounded border border-orange-light/40 bg-orange-light/10 px-1.5 py-1 font-mono text-[9px] text-orange-light'
-                          : 'rounded border border-white/15 bg-white/5 px-1.5 py-1 font-mono text-[9px] text-white/70'
-                      }
+                  ) : ev.kind === 'coach_instance' ? (
+                    <UnifiedCalendarDraggableCard
+                      key={`c-${ev.instanceId}`}
+                      id={`unified-dnd-coach-${ev.instanceId}`}
+                      data={{
+                        kind: 'coach_instance',
+                        clientUserId: ev.clientUserId,
+                        instanceId: ev.instanceId,
+                        assignmentId: ev.assignmentId,
+                        scheduledAt: ev.scheduledAt,
+                        trainerLiveSessionId: ev.trainerLiveSessionId,
+                      }}
                     >
-                      <div className="flex items-start justify-between gap-1">
-                        <div className="truncate font-medium text-white/90">{ev.clientLabel}</div>
-                        {ev.kind === 'coach_instance' ? (
+                      <div className="rounded border border-orange-light/40 bg-orange-light/10 px-1.5 py-1 font-mono text-[9px] text-orange-light">
+                        <div className="flex items-start justify-between gap-1">
+                          <div className="truncate font-medium text-white/90">{ev.clientLabel}</div>
                           <button
                             type="button"
+                            onPointerDown={(e) => e.stopPropagation()}
                             onClick={() => setEditingCoach(ev)}
                             className="shrink-0 rounded border border-orange-light/45 px-1 py-0.5 text-[8px] font-medium text-orange-light hover:bg-orange-light/20"
                           >
                             Edit
                           </button>
-                        ) : null}
+                        </div>
+                        <div className="truncate">
+                          <span className="text-white/40">Coach · </span>
+                          {ev.title}
+                        </div>
+                        <div className="text-white/60">
+                          {formatTimeInZone(ev.scheduledAt, viewerLabel)}
+                        </div>
+                        <button
+                          type="button"
+                          onPointerDown={(e) => e.stopPropagation()}
+                          disabled={
+                            startLiveBusyKey === `coach:${ev.clientUserId}:${ev.instanceId}`
+                          }
+                          onClick={() => void onCoachInstanceLiveCta(ev)}
+                          className="mt-1 w-full rounded border border-orange-light/50 bg-orange-light/15 px-1.5 py-1 text-[8px] font-medium text-orange-light hover:bg-orange-light/25 disabled:opacity-40"
+                        >
+                          {startLiveBusyKey === `coach:${ev.clientUserId}:${ev.instanceId}`
+                            ? '…'
+                            : ev.trainerLiveSessionId
+                              ? 'Open live'
+                              : 'Start session'}
+                        </button>
+                        <Link
+                          to={`/roster/${encodeURIComponent(ev.clientUserId)}/lab`}
+                          onPointerDown={(e) => e.stopPropagation()}
+                          className="mt-1 inline-block text-[8px] text-orange-light/90 underline decoration-orange-light/40 hover:decoration-orange-light"
+                        >
+                          Open lab
+                        </Link>
+                      </div>
+                    </UnifiedCalendarDraggableCard>
+                  ) : (
+                    <div
+                      key={`p-${ev.clientUserId}-${ev.date}-${ev.programId}-${ev.workoutIndex}`}
+                      className="rounded border border-white/15 bg-white/5 px-1.5 py-1 font-mono text-[9px] text-white/70"
+                    >
+                      <div className="flex items-start justify-between gap-1">
+                        <div className="truncate font-medium text-white/90">{ev.clientLabel}</div>
                       </div>
                       <div className="truncate">
-                        {ev.kind === 'program' ? (
-                          <>
-                            <span className="text-white/40">Program · </span>
-                            {ev.workoutTitle}
-                          </>
-                        ) : (
-                          <>
-                            <span className="text-white/40">Coach · </span>
-                            {ev.title}
-                          </>
-                        )}
+                        <span className="text-white/40">Program · </span>
+                        {ev.workoutTitle}
                       </div>
-                      {ev.kind === 'coach_instance' ? (
-                        <>
-                          <div className="text-white/60">
-                            {formatTimeInZone(ev.scheduledAt, viewerLabel)}
-                          </div>
-                          <button
-                            type="button"
-                            disabled={
-                              startLiveBusyKey === `coach:${ev.clientUserId}:${ev.instanceId}`
-                            }
-                            onClick={() => void onCoachInstanceLiveCta(ev)}
-                            className="mt-1 w-full rounded border border-orange-light/50 bg-orange-light/15 px-1.5 py-1 text-[8px] font-medium text-orange-light hover:bg-orange-light/25 disabled:opacity-40"
-                          >
-                            {startLiveBusyKey === `coach:${ev.clientUserId}:${ev.instanceId}`
-                              ? '…'
-                              : ev.trainerLiveSessionId
-                                ? 'Open live'
-                                : 'Start session'}
-                          </button>
-                        </>
-                      ) : (
-                        <div className="text-white/45">All day</div>
-                      )}
+                      <div className="text-white/45">All day</div>
                       <Link
                         to={`/roster/${encodeURIComponent(ev.clientUserId)}/lab`}
                         className="mt-1 inline-block text-[8px] text-orange-light/90 underline decoration-orange-light/40 hover:decoration-orange-light"
@@ -984,10 +1172,44 @@ const TrainerUnifiedCalendarView: React.FC = () => {
                     </div>
                   )
                 )}
+              </UnifiedCalendarDayColumn>
+            ))}
+          </div>
+          <DragOverlay dropAnimation={null}>
+            {dragOverlaySource?.kind === 'scheduled_live_occurrence' ? (
+              <div className="pointer-events-none w-[7.5rem] rounded border border-teal-400/45 bg-teal-500/10 px-1.5 py-1 font-mono text-[9px] text-teal-100/95 opacity-90 shadow-lg">
+                <div className="truncate font-medium text-white/90">
+                  {scheduledLiveCardTitle(dragOverlaySource)}
+                </div>
+                {dragOverlaySource.recurrenceSummary ? (
+                  <div className="text-[8px] text-teal-200/80">
+                    {dragOverlaySource.recurrenceSummary}
+                  </div>
+                ) : null}
+                <div className="text-white/65">
+                  {formatTimeInZone(dragOverlaySource.scheduledStartAt, viewerLabel)}
+                  {dragOverlaySource.scheduledEndAt !== dragOverlaySource.scheduledStartAt ? (
+                    <span className="text-white/45">
+                      {' '}
+                      – {formatTimeInZone(dragOverlaySource.scheduledEndAt, viewerLabel)}
+                    </span>
+                  ) : null}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ) : dragOverlaySource?.kind === 'coach_instance' ? (
+              <div className="pointer-events-none w-[7.5rem] rounded border border-orange-light/40 bg-orange-light/10 px-1.5 py-1 font-mono text-[9px] text-orange-light opacity-90 shadow-lg">
+                <div className="truncate font-medium text-white/90">{dragOverlaySource.clientLabel}</div>
+                <div className="truncate">
+                  <span className="text-white/40">Coach · </span>
+                  {dragOverlaySource.title}
+                </div>
+                <div className="text-white/60">
+                  {formatTimeInZone(dragOverlaySource.scheduledAt, viewerLabel)}
+                </div>
+              </div>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
       )}
     </div>
   );
