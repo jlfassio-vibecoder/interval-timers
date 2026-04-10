@@ -55,6 +55,18 @@ export const PATCH: APIRoute = async ({ request, cookies, params }) => {
       typeof body.scheduledStartAt === 'string' ? body.scheduledStartAt.trim() : '';
     const re = typeof body.scheduledEndAt === 'string' ? body.scheduledEndAt.trim() : '';
 
+    const fullReschedule = Boolean(anchor && rs && re);
+    const hasSeriesMetaPatch = body.status !== undefined || body.untilAt !== undefined;
+    if (fullReschedule && hasSeriesMetaPatch) {
+      return new Response(
+        JSON.stringify({
+          error:
+            'Cannot combine series reschedule (anchor + scheduledStartAt + scheduledEndAt) with status or untilAt in one request; send separate PATCH calls.',
+        }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
     if (anchor && rs && re) {
       const r = await rescheduleLiveScheduleSeriesFutureFromAnchor(
         viewerId,

@@ -41,9 +41,8 @@ export const PATCH: APIRoute = async ({ request, cookies, params }) => {
     const result = await cancelLiveScheduleInvite(viewerId, inviteId);
     if (!result.ok) {
       const nf = result.error.includes('not found');
-      const bad = result.error.includes('Only pending');
       return new Response(JSON.stringify({ error: result.error }), {
-        status: nf ? 404 : bad ? 400 : 400,
+        status: nf ? 404 : 400,
         headers: { 'Content-Type': 'application/json' },
       });
     }

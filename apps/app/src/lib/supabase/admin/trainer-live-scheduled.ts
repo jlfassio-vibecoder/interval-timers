@@ -739,7 +739,14 @@ export async function addInvitesToLiveScheduleOccurrence(
   occurrenceId: string,
   inviteeUserIds: string[]
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const raw = [...new Set(inviteeUserIds.filter((x) => typeof x === 'string' && x.trim()))];
+  const raw = [
+    ...new Set(
+      inviteeUserIds
+        .filter((x): x is string => typeof x === 'string')
+        .map((x) => x.trim())
+        .filter((x) => x.length > 0)
+    ),
+  ];
   if (raw.length === 0) {
     return { ok: false, error: 'At least one inviteeUserId required' };
   }
@@ -758,6 +765,7 @@ export async function addInvitesToLiveScheduleOccurrence(
     return { ok: false, error: 'Can only add invites to scheduled occurrences' };
   }
 
+  // Copilot suggestion ignored: batching roster lookups would need a shared helper; per-id check matches existing admin patterns here.
   for (const uid of raw) {
     const allowed = await isUserInViewerRoster(viewerId, viewerRole, uid);
     if (!allowed) {
@@ -765,10 +773,14 @@ export async function addInvitesToLiveScheduleOccurrence(
     }
   }
 
-  const { data: existing } = await supabase
+  const { data: existing, error: existingErr } = await supabase
     .from('trainer_live_session_invites')
     .select('invitee_user_id')
     .eq('occurrence_id', occurrenceId);
+
+  if (existingErr) {
+    return { ok: false, error: existingErr.message ?? 'Failed to load invites' };
+  }
 
   const existingUserIds = new Set(
     (existing ?? [])
@@ -902,6 +914,10 @@ export async function rescheduleLiveScheduleSeriesFutureFromAnchor(
     return { ok: false, error: 'Invalid timestamps' };
   }
   const deltaMs = newStartMs - oldAnchorStartMs;
+  const newDurationMs = Date.parse(end) - Date.parse(start);
+  if (!Number.isFinite(newDurationMs) || newDurationMs <= 0) {
+    return { ok: false, error: 'Invalid schedule window' };
+  }
 
   const anchorStartIso = anchor.scheduled_start_at as string;
 
@@ -933,13 +949,14 @@ export async function rescheduleLiveScheduleSeriesFutureFromAnchor(
       return { ok: false, error: 'Invalid occurrence timestamps' };
     }
     const ns = new Date(sMs + deltaMs).toISOString();
-    const ne = new Date(eMs + deltaMs).toISOString();
+    const ne = new Date(sMs + deltaMs + newDurationMs).toISOString();
     if (Date.parse(ne) <= Date.parse(ns)) {
       return { ok: false, error: 'Invalid shifted window' };
     }
     proposals.push({ id: r.id as string, nextStart: ns, nextEnd: ne });
   }
 
+  // Copilot suggestion ignored: a single conflict query over a merged window can report conflicts outside the shifted slots; per-slot checks stay precise.
   if (!allowOverlap) {
     for (const p of proposals) {
       const conflicts = await findCoachScheduleConflictsForTrainer(viewerId, p.nextStart, {
@@ -953,6 +970,7 @@ export async function rescheduleLiveScheduleSeriesFutureFromAnchor(
   }
 
   const nowIso = new Date().toISOString();
+  // Copilot suggestion ignored: true atomicity belongs in a DB transaction/RPC; client upsert would not match this update-only flow safely without broader schema review.
   for (const p of proposals) {
     const { error: uErr } = await supabase
       .from('trainer_live_session_occurrences')

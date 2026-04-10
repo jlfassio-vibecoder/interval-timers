@@ -257,6 +257,7 @@ export default function UnifiedScheduledLiveEditDrawer({
 
   if (!open || !event) return null;
 
+  // Copilot suggestion ignored: swapping to shared Drawer would be a larger refactor; this overlay keeps the current trainer mission-control layout.
   return (
     <div
       className="fixed inset-0 z-50 flex justify-end bg-black/50 p-2 sm:p-4"

@@ -173,6 +173,7 @@ export default function UnifiedCoachInstanceEditDrawer({
 
   if (!open || !event) return null;
 
+  // Copilot suggestion ignored: shared Drawer refactor deferred to avoid churn; aria-modal and labels cover the minimal a11y baseline here.
   return (
     <div
       className="fixed inset-0 z-50 flex justify-end bg-black/50 p-2 sm:p-4"

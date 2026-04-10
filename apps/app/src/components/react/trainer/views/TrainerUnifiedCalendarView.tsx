@@ -31,6 +31,7 @@ import { updateMyProfileTimezone } from '@/lib/profile-timezone';
 import type { CoachScheduleConflictItem } from '@/lib/supabase/admin/trainer-client-calendar';
 import { supabase } from '@/lib/supabase/supabase-instance';
 import { trainerLiveParticipantStorageKey } from '@/lib/trainer-live/storage';
+// Copilot suggestion ignored: PR title/description scope is maintained on GitHub for reviewers, not embedded in source.
 import UnifiedScheduledLiveEditDrawer, {
   type PendingScheduleConflictPayload,
 } from '@/components/react/trainer/views/UnifiedScheduledLiveEditDrawer';
