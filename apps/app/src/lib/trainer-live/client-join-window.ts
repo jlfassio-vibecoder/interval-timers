@@ -1,6 +1,6 @@
 /**
  * Whether "Join live" should be shown for a scheduled wall-time window.
- * Default: from 15 minutes before start through 4 hours after scheduled start (or end if sooner).
+ * Default: from 15 minutes before start until the later of (scheduled end, if any) or four hours after start.
  */
 export function isWithinTrainerLiveJoinWindow(
   startIso: string,

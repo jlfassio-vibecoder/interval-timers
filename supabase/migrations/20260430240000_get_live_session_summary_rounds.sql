@@ -1,4 +1,5 @@
 -- Extend get_live_session_summary: AMRAP metrics include per-round splits (jsonb_agg) for bar charts.
+-- Copilot suggestion ignored: full consolidation with 20260430239000 was skipped — GRANT is repeated below so the final function stays self-contained if migrations are squashed.
 
 CREATE OR REPLACE FUNCTION public.get_live_session_summary(p_session_id uuid)
 RETURNS jsonb
@@ -138,6 +139,8 @@ BEGIN
   );
 END;
 $$;
+
+GRANT EXECUTE ON FUNCTION public.get_live_session_summary(uuid) TO authenticated;
 
 COMMENT ON FUNCTION public.get_live_session_summary(uuid) IS
   'Post-workout Trainer Live summary: segments with viewer-scoped AMRAP rounds/splits (jsonb array) and Tabata state. SECURITY INVOKER.';

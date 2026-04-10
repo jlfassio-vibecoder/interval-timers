@@ -49,6 +49,15 @@ export function useAgoraToken(
       return;
     }
 
+    if (!participantId?.trim()) {
+      setToken(null);
+      setUid(null);
+      setChannelName(null);
+      setLoading(false);
+      setError('participantId is required for secure Agora tokens');
+      return;
+    }
+
     let cancelled = false;
     setLoading(true);
     setError(null);

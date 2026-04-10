@@ -35,11 +35,12 @@ function isValidUuid(s: string): boolean {
 }
 
 function readAgoraAppId(): string {
+  // Copilot suggestion ignored: VITE_AGORA_APP_ID fallback stays — App ID is public; only the certificate is stripped of VITE_* below.
   return (process.env.AGORA_APP_ID || process.env.VITE_AGORA_APP_ID || '').trim();
 }
 
 function readAgoraCertificate(): string {
-  return (process.env.AGORA_APP_CERTIFICATE || process.env.VITE_AGORA_APP_CERTIFICATE || '').trim();
+  return (process.env.AGORA_APP_CERTIFICATE || '').trim();
 }
 
 async function authorizeTrainerLiveToken(

@@ -71,6 +71,8 @@ const LiveScheduledInviteDrawer: React.FC<LiveScheduledInviteDrawerProps> = ({
   /** Trainer may link `live_session_id` after the calendar row was built — poll occurrence row. */
   React.useEffect(() => {
     if (!occurrenceId || st !== 'accepted') return;
+    if (resolvedLiveSessionId) return;
+
     let cancelled = false;
 
     const pull = async () => {
@@ -92,7 +94,7 @@ const LiveScheduledInviteDrawer: React.FC<LiveScheduledInviteDrawerProps> = ({
       cancelled = true;
       window.clearInterval(id);
     };
-  }, [occurrenceId, st]);
+  }, [occurrenceId, st, resolvedLiveSessionId]);
 
   const effectiveLiveSessionId = resolvedLiveSessionId;
   const canJoin =

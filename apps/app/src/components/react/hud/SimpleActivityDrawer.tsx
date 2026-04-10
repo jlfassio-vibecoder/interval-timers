@@ -91,6 +91,8 @@ const SimpleActivityDrawer: React.FC<SimpleActivityDrawerProps> = ({
     if (event.type !== 'coach_live') return;
     const iid = event.metadata?.coachScheduleInstanceId;
     if (!iid) return;
+    if (coachResolvedLiveId) return;
+
     let cancelled = false;
 
     const pull = async () => {
@@ -112,7 +114,7 @@ const SimpleActivityDrawer: React.FC<SimpleActivityDrawerProps> = ({
       cancelled = true;
       window.clearInterval(id);
     };
-  }, [event.type, event.metadata?.coachScheduleInstanceId]);
+  }, [event.type, event.metadata?.coachScheduleInstanceId, coachResolvedLiveId]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

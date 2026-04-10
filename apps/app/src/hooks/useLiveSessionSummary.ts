@@ -44,8 +44,14 @@ export function useLiveSessionSummary(
         setError(rpcErr.message);
         setData(null);
       } else {
-        setData(parseLiveSessionSummary(raw));
-        setError(null);
+        const parsed = parseLiveSessionSummary(raw);
+        if (parsed == null) {
+          setData(null);
+          setError('Unexpected response from summary');
+        } else {
+          setData(parsed);
+          setError(null);
+        }
       }
       setLoading(false);
     })();

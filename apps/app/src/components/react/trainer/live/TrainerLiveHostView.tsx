@@ -79,7 +79,6 @@ export default function TrainerLiveHostView() {
     })();
     return () => {
       cancelled = true;
-      setHostParticipantHydrating(false);
     };
   }, [sessionId, user?.uid, participantId]);
 

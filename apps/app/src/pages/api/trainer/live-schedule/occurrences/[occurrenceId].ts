@@ -36,6 +36,13 @@ export const PATCH: APIRoute = async ({ request, cookies, params }) => {
       });
     }
 
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+      return new Response(JSON.stringify({ error: 'Body must be a JSON object' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
     const hasLiveKey = 'liveSessionId' in body;
     const liveSessionId =
       hasLiveKey && body.liveSessionId === null
