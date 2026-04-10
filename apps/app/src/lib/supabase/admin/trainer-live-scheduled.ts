@@ -29,6 +29,8 @@ export type UnifiedScheduledLiveOccurrenceItem = {
   occurrenceId: string;
   seriesId: string | null;
   recurrenceSummary: string | null;
+  /** Nullable override for calendar card title; default label see `scheduled-live-card-title.ts`. */
+  displayName: string | null;
   scheduledStartAt: string;
   scheduledEndAt: string;
   status: string;
@@ -98,6 +100,7 @@ export async function fetchScheduledLiveOccurrencesForTrainer(
     .select(
       `
       id,
+      display_name,
       scheduled_start_at,
       scheduled_end_at,
       status,
@@ -245,6 +248,12 @@ export async function fetchScheduledLiveOccurrencesForTrainer(
       occurrenceId: oid,
       seriesId,
       recurrenceSummary,
+      displayName: (() => {
+        const v = (o as { display_name?: string | null }).display_name;
+        if (v == null || typeof v !== 'string') return null;
+        const t = v.trim();
+        return t.length > 0 ? t : null;
+      })(),
       scheduledStartAt: o.scheduled_start_at as string,
       scheduledEndAt: o.scheduled_end_at as string,
       status: o.status as string,
@@ -631,6 +640,8 @@ export async function patchLiveScheduleOccurrence(
     allowOverlap?: boolean;
     /** Link / unlink native `trainer_live_sessions` row (viewer must own the session). */
     liveSessionId?: string | null;
+    /** Optional calendar title override; `null` clears to default label. */
+    displayName?: string | null;
     /** Batch series reschedule: extra occurrence ids to ignore in overlap scan (in addition to this row). */
     conflictExcludeScheduledOccurrenceIds?: string[];
   }
@@ -671,9 +682,19 @@ export async function patchLiveScheduleOccurrence(
     scheduled_end_at?: string;
     status?: 'scheduled' | 'cancelled' | 'completed';
     live_session_id?: string | null;
+    display_name?: string | null;
   } = { updated_at: new Date().toISOString() };
   if (patch.status) {
     updates.status = patch.status;
+  }
+  if ('displayName' in patch) {
+    const dn = patch.displayName;
+    if (dn == null) {
+      updates.display_name = null;
+    } else {
+      const t = String(dn).trim();
+      updates.display_name = t.length > 0 ? t : null;
+    }
   }
   if (patch.scheduledStartAt?.trim()) {
     updates.scheduled_start_at = patch.scheduledStartAt.trim();

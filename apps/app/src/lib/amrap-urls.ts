@@ -1,12 +1,9 @@
 /**
  * AMRAP session URLs for HUD and app links.
- * When PUBLIC_AMRAP_BASE_URL is set (e.g. custom domain amrapwithfriends.com), links point there
- * with path /with-friends/session/{id}. Otherwise same-origin /amrap/with-friends/session/{id}.
+ * Uses {@link getAmrapAppBase} so app-only deploys can target a merged-landing origin via env.
  */
 
-const AMRAP_BASE =
-  (typeof import.meta !== 'undefined' && (import.meta.env?.PUBLIC_AMRAP_BASE_URL ?? '').trim()) ||
-  '';
+import { getAmrapAppBase } from '@/lib/amrap-app-base';
 
 export interface GetAmrapCreateUrlParams {
   /** Prefill date (YYYY-MM-DD) or datetime (YYYY-MM-DDTHH:mm). Default time 09:00 when date-only. */
@@ -34,8 +31,8 @@ export function getAmrapCreateUrl(params: GetAmrapCreateUrlParams = {}): string 
   if (fromCalendar) search.set('from', 'calendar');
   const query = search.toString();
   const path = `/with-friends${query ? `?${query}` : ''}`;
-  if (AMRAP_BASE) {
-    const base = AMRAP_BASE.replace(/\/+$/, '');
+  const base = getAmrapAppBase();
+  if (base) {
     return `${base}${path}`;
   }
   if (typeof window !== 'undefined') {
@@ -49,8 +46,8 @@ export function getAmrapCreateUrl(params: GetAmrapCreateUrlParams = {}): string 
  * Use for href, window.location.href, or copy-to-clipboard.
  */
 export function getAmrapSessionUrl(sessionId: string): string {
-  if (AMRAP_BASE) {
-    const base = AMRAP_BASE.replace(/\/+$/, '');
+  const base = getAmrapAppBase();
+  if (base) {
     return `${base}/with-friends/session/${sessionId}`;
   }
   if (typeof window !== 'undefined') {

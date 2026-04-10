@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { DateTime } from 'luxon';
 import type { UnifiedScheduledLiveOccurrenceItem } from '@/lib/supabase/admin/trainer-unified-calendar';
+import { SCHEDULED_LIVE_DEFAULT_CARD_TITLE } from '@/lib/scheduled-live-card-title';
 import { safeIanaZone } from '@/lib/performance-lab/trainer-calendar-time';
 import { missionControlApiAuthHeaders } from '@/lib/mission-control-api-auth';
 import type { CoachScheduleConflictItem } from '@/lib/supabase/admin/trainer-client-calendar';
@@ -17,7 +18,13 @@ export type PendingScheduleConflictPayload = {
   url: string;
   method: 'POST' | 'PATCH';
   basePayload: Record<string, unknown>;
-  mode: 'create' | 'patch_occurrence' | 'patch_series' | 'patch_coach';
+  mode:
+    | 'create'
+    | 'patch_occurrence'
+    | 'patch_series'
+    | 'patch_coach'
+    | 'patch_occurrence_dnd'
+    | 'patch_coach_dnd';
 };
 
 type Props = {
@@ -57,6 +64,7 @@ export default function UnifiedScheduledLiveEditDrawer({
   const [endLocal, setEndLocal] = useState('');
   const [status, setStatus] = useState<'scheduled' | 'cancelled' | 'completed'>('scheduled');
   const [liveSessionId, setLiveSessionId] = useState('');
+  const [displayNameLocal, setDisplayNameLocal] = useState('');
   const [seriesScope, setSeriesScope] = useState<'this' | 'future'>('this');
   const [addInviteeIds, setAddInviteeIds] = useState<Set<string>>(() => new Set());
   const [busy, setBusy] = useState(false);
@@ -72,6 +80,7 @@ export default function UnifiedScheduledLiveEditDrawer({
         : 'scheduled'
     );
     setLiveSessionId(event.liveSessionId ?? '');
+    setDisplayNameLocal(event.displayName ?? '');
     setSeriesScope('this');
     setAddInviteeIds(new Set());
     setErr(null);
@@ -142,6 +151,7 @@ export default function UnifiedScheduledLiveEditDrawer({
             scheduledStartAt: startIso,
             scheduledEndAt: endIso,
             status,
+            displayName: displayNameLocal.trim() || null,
           };
           const trimmedLive = liveSessionId.trim();
           if (trimmedLive) {
@@ -214,6 +224,7 @@ export default function UnifiedScheduledLiveEditDrawer({
       endLocal,
       status,
       liveSessionId,
+      displayNameLocal,
       seriesScope,
       viewerTimezone,
       addInviteeIds,
@@ -315,6 +326,27 @@ export default function UnifiedScheduledLiveEditDrawer({
               </label>
             </fieldset>
           ) : null}
+
+          {seriesScope === 'this' ? (
+            <div>
+              <label className="mb-1 block text-xs text-white/50" htmlFor="sched-edit-display-name">
+                Custom title (optional)
+              </label>
+              <input
+                id="sched-edit-display-name"
+                type="text"
+                value={displayNameLocal}
+                onChange={(e) => setDisplayNameLocal(e.target.value)}
+                disabled={busy}
+                placeholder={`Defaults to ${SCHEDULED_LIVE_DEFAULT_CARD_TITLE}`}
+                className="w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
+              />
+            </div>
+          ) : (
+            <p className="text-xs text-white/45">
+              Custom title can be set when &quot;This occurrence only&quot; is selected.
+            </p>
+          )}
 
           <div>
             <label className="mb-1 block text-xs text-white/50" htmlFor="sched-edit-start">
