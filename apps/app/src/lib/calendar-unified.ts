@@ -18,6 +18,7 @@ import {
   getReadinessEventsForRange,
 } from '@/lib/supabase/client/calendar-unified';
 import { getLiveScheduledCalendarEventsForRange } from '@/lib/supabase/client/live-scheduled-calendar';
+import { getClientCoachScheduleLiveEventsForRange } from '@/lib/supabase/client/coach-schedule-live';
 
 export type { CalendarEvent };
 
@@ -40,10 +41,16 @@ export async function getUnifiedCalendarEvents(
 ): Promise<CalendarEvent[]> {
   const { programs, loggedMap, displayTimeZone } = options;
 
-  const liveScheduledPromise =
+  const tz =
     typeof displayTimeZone === 'string' && displayTimeZone.trim().length > 0
-      ? getLiveScheduledCalendarEventsForRange(userId, rangeStart, rangeEnd, displayTimeZone.trim())
-      : Promise.resolve([] as CalendarEvent[]);
+      ? displayTimeZone.trim()
+      : null;
+  const liveScheduledPromise = tz
+    ? getLiveScheduledCalendarEventsForRange(userId, rangeStart, rangeEnd, tz)
+    : Promise.resolve([] as CalendarEvent[]);
+  const coachLivePromise = tz
+    ? getClientCoachScheduleLiveEventsForRange(userId, rangeStart, rangeEnd, tz)
+    : Promise.resolve([] as CalendarEvent[]);
 
   const [
     programEvents,
@@ -53,6 +60,7 @@ export async function getUnifiedCalendarEvents(
     timerEvents,
     readinessEvents,
     liveScheduledEvents,
+    coachLiveEvents,
   ] = await Promise.all([
     Promise.resolve(getCalendarEventsForRange(rangeStart, rangeEnd, programs, loggedMap)),
     getAmrapCompletedEventsForRange(userId, rangeStart, rangeEnd),
@@ -61,6 +69,7 @@ export async function getUnifiedCalendarEvents(
     getTimerLogEventsForRange(userId, rangeStart, rangeEnd),
     getReadinessEventsForRange(userId, rangeStart, rangeEnd),
     liveScheduledPromise,
+    coachLivePromise,
   ]);
 
   const merged: CalendarEvent[] = [
@@ -71,6 +80,7 @@ export async function getUnifiedCalendarEvents(
     ...timerEvents,
     ...readinessEvents,
     ...liveScheduledEvents,
+    ...coachLiveEvents,
   ];
 
   return merged.sort((a, b) => a.date.localeCompare(b.date));

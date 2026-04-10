@@ -24,7 +24,7 @@ export default function TrainerLiveSessionEndedOverlay({
     window.location.assign(path);
   };
 
-  const resultsHref = `/training-log?liveSession=${encodeURIComponent(sessionId)}`;
+  const resultsHref = `/trainer/live/${encodeURIComponent(sessionId)}/summary`;
 
   return (
     <div
@@ -56,7 +56,7 @@ export default function TrainerLiveSessionEndedOverlay({
             onClick={() => go(resultsHref)}
             className="w-full rounded-xl bg-orange-light py-3.5 text-center text-sm font-bold uppercase tracking-wide text-black transition-colors hover:bg-white"
           >
-            View my results
+            View Post-Workout Summary
           </button>
           <button
             type="button"

@@ -7,6 +7,7 @@ import {
   Outlet,
   useLocation,
   Navigate,
+  useParams,
 } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -41,6 +42,7 @@ import { adminPaths } from '@/lib/admin/config';
 import TrainerLiveClientJoinPage from './live/TrainerLiveClientJoinPage';
 import TrainerLiveLobbyView from './live/TrainerLiveLobbyView';
 import TrainerLiveHostView from './live/TrainerLiveHostView';
+import LiveSessionSummaryView from './live/LiveSessionSummaryView';
 import TrainerWorkoutFactoryView from './views/TrainerWorkoutFactoryView';
 import TrainerClientWorkoutsView from './views/TrainerClientWorkoutsView';
 import TrainerWorkoutSeriesView from './views/TrainerWorkoutSeriesView';
@@ -413,6 +415,13 @@ function TrainerLiveHostRoute() {
   return isTrainer ? <TrainerLiveHostView /> : <Navigate to="/" replace />;
 }
 
+/** Post-workout summary: RPC authorizes trainer or participant; route is outside trainer-only layout gate (same as join). */
+function TrainerLiveSessionSummaryRoute() {
+  const { sessionId } = useParams<{ sessionId: string }>();
+  if (!sessionId?.trim()) return <Navigate to="/live" replace />;
+  return <LiveSessionSummaryView sessionId={sessionId.trim()} />;
+}
+
 function TrainerRosterRoute() {
   const { isTrainer } = useAppContext();
   return isTrainer ? <RosterView /> : <Navigate to="/" replace />;
@@ -468,6 +477,7 @@ const TrainerBrowser: React.FC = () => {
     <BrowserRouter basename="/trainer">
       <Routes>
         <Route path="live/join/:sessionId" element={<TrainerLiveClientJoinPage />} />
+        <Route path="live/:sessionId/summary" element={<TrainerLiveSessionSummaryRoute />} />
         <Route element={<TrainerAccessGate />}>
           <Route path="/" element={<TrainerLayout />}>
             <Route index element={<TrainerDashboard />} />

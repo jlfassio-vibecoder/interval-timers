@@ -15,6 +15,7 @@ export const DEFAULT_EVENT_TYPE_ORDER: CalendarEventType[] = [
   'timer',
   'timer_scheduled',
   'live_scheduled',
+  'coach_live',
   'readiness',
 ];
 

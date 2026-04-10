@@ -295,7 +295,11 @@ export default function TrainerLiveClientJoinPage() {
             ) : (
               <TrainerLiveAmrapSessionDrawerProvider>
                 <TrainerLiveAmrapChatDrawerProvider>
-                  <TrainerLiveAgoraProvider sessionId={sessionId} participantId={participantId}>
+                  <TrainerLiveAgoraProvider
+                    sessionId={sessionId}
+                    participantId={participantId}
+                    authUserId={authUserId}
+                  >
                     <TrainerLiveTimerBackgroundProvider sessionId={sessionId}>
                       <TrainerLiveSessionRoom
                         shell={roomShell}

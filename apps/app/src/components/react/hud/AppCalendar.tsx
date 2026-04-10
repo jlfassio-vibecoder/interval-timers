@@ -41,7 +41,14 @@ function isDraggable(ev: CalendarEvent): ev is CalendarEvent & { type: Draggable
 }
 
 function dragId(ev: CalendarEvent): string {
-  return `${ev.type}:${ev.sessionId}`;
+  if (ev.sessionId) return `${ev.type}:${ev.sessionId}`;
+  if (ev.type === 'live_scheduled' && ev.metadata?.liveInviteId) {
+    return `${ev.type}:${ev.metadata.liveInviteId}`;
+  }
+  if (ev.type === 'coach_live' && ev.metadata?.coachScheduleInstanceId) {
+    return `${ev.type}:${ev.metadata.coachScheduleInstanceId}`;
+  }
+  return `${ev.type}:${ev.date}:${ev.workoutTitle}`;
 }
 
 export interface AppCalendarProps {
@@ -120,6 +127,11 @@ const TYPE_STYLES: Record<CalendarEvent['type'], { border: string; bg: string; t
   },
   readiness: { border: 'border-violet-400', bg: 'bg-violet-400/10', text: 'text-violet-400' },
   live_scheduled: {
+    border: 'border-cyan-400',
+    bg: 'bg-cyan-500/10',
+    text: 'text-cyan-200',
+  },
+  coach_live: {
     border: 'border-cyan-400',
     bg: 'bg-cyan-500/10',
     text: 'text-cyan-200',

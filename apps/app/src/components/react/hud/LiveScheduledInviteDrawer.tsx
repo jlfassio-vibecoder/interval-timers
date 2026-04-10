@@ -2,7 +2,7 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  *
- * Client HUD: accept / decline scheduled live session invite (P0).
+ * Client HUD: accept / decline scheduled live session invite (P0) + join when room is linked.
  */
 
 import React, { useState } from 'react';
@@ -11,12 +11,19 @@ import type { CalendarEvent } from '@/lib/calendar-events';
 import { formatTimeInZone } from '@/lib/performance-lab/trainer-calendar-time';
 import { getProfileTimezone } from '@/lib/profile-timezone';
 import { useAppContext } from '@/contexts/AppContext';
+import { supabase } from '@/lib/supabase/supabase-instance';
+import {
+  isWithinTrainerLiveJoinWindow,
+  trainerLiveClientJoinPath,
+} from '@/lib/trainer-live/client-join-window';
 
 export interface LiveScheduledInviteDrawerProps {
   event: CalendarEvent;
   onClose: () => void;
   onUpdated?: () => void;
 }
+
+const POLL_MS = 30_000;
 
 const LiveScheduledInviteDrawer: React.FC<LiveScheduledInviteDrawerProps> = ({
   event,
@@ -28,11 +35,23 @@ const LiveScheduledInviteDrawer: React.FC<LiveScheduledInviteDrawerProps> = ({
   const [err, setErr] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const inviteId = event.metadata?.liveInviteId;
+  const occurrenceId = event.metadata?.occurrenceId;
   const startIso = event.metadata?.scheduledAt ?? '';
   const endIso = event.metadata?.scheduledEndAt ?? '';
   const st = event.metadata?.inviteStatus ?? '';
   const waitlistPos = event.metadata?.waitlistPosition;
   const [tz, setTz] = useState('UTC');
+  const [resolvedLiveSessionId, setResolvedLiveSessionId] = useState<string | null>(() => {
+    const m = event.metadata?.liveSessionId;
+    return m != null && String(m).trim() !== '' ? String(m).trim() : null;
+  });
+
+  React.useEffect(() => {
+    const m = event.metadata?.liveSessionId;
+    if (m != null && String(m).trim() !== '') {
+      setResolvedLiveSessionId(String(m).trim());
+    }
+  }, [event.metadata?.liveSessionId]);
 
   React.useEffect(() => {
     if (!user?.uid) return;
@@ -49,6 +68,41 @@ const LiveScheduledInviteDrawer: React.FC<LiveScheduledInviteDrawerProps> = ({
     };
   }, [user?.uid]);
 
+  /** Trainer may link `live_session_id` after the calendar row was built — poll occurrence row. */
+  React.useEffect(() => {
+    if (!occurrenceId || st !== 'accepted') return;
+    if (resolvedLiveSessionId) return;
+
+    let cancelled = false;
+
+    const pull = async () => {
+      const { data, error } = await supabase
+        .from('trainer_live_session_occurrences')
+        .select('live_session_id')
+        .eq('id', occurrenceId)
+        .maybeSingle();
+      if (cancelled || error) return;
+      const raw = data?.live_session_id;
+      if (raw != null && String(raw).trim() !== '') {
+        setResolvedLiveSessionId(String(raw).trim());
+      }
+    };
+
+    void pull();
+    const id = window.setInterval(() => void pull(), POLL_MS);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [occurrenceId, st, resolvedLiveSessionId]);
+
+  const effectiveLiveSessionId = resolvedLiveSessionId;
+  const canJoin =
+    st === 'accepted' &&
+    effectiveLiveSessionId != null &&
+    startIso.length > 0 &&
+    isWithinTrainerLiveJoinWindow(startIso, endIso);
+
   const canRespond = st === 'pending' || st === 'waitlisted';
 
   const post = async (path: 'accept' | 'decline') => {
@@ -57,11 +111,14 @@ const LiveScheduledInviteDrawer: React.FC<LiveScheduledInviteDrawerProps> = ({
     setErr(null);
     setInfo(null);
     try {
-      const res = await fetch(`/api/client/live-schedule/invites/${encodeURIComponent(inviteId)}/${path}`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-      });
+      const res = await fetch(
+        `/api/client/live-schedule/invites/${encodeURIComponent(inviteId)}/${path}`,
+        {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
       const body = (await res.json().catch(() => ({}))) as {
         error?: string;
         ok?: boolean;
@@ -85,6 +142,9 @@ const LiveScheduledInviteDrawer: React.FC<LiveScheduledInviteDrawerProps> = ({
       setBusy(false);
     }
   };
+
+  const joinHref =
+    effectiveLiveSessionId != null ? trainerLiveClientJoinPath(effectiveLiveSessionId) : '#';
 
   return (
     <div
@@ -138,11 +198,31 @@ const LiveScheduledInviteDrawer: React.FC<LiveScheduledInviteDrawerProps> = ({
             Your trainer invited you to this scheduled live session. Accept to reserve your spot if capacity allows.
           </p>
         ) : null}
+        {st === 'accepted' && !effectiveLiveSessionId ? (
+          <p className="mt-2 text-sm text-white/55">
+            Your trainer will open the live room before class. This screen checks every 30 seconds — or refresh your calendar.
+          </p>
+        ) : null}
+        {st === 'accepted' && effectiveLiveSessionId && !canJoin ? (
+          <p className="mt-2 text-sm text-white/55">
+            Join opens 15 minutes before the scheduled start (and stays available for a few hours after).
+          </p>
+        ) : null}
         <p className="mt-2 font-mono text-[10px] uppercase tracking-wider text-white/45">
           Status: {st || 'unknown'}
         </p>
         {err ? <p className="mt-2 text-sm text-red-300">{err}</p> : null}
         {info ? <p className="mt-2 text-sm text-cyan-200/90">{info}</p> : null}
+        {canJoin ? (
+          <div className="mt-4">
+            <a
+              href={joinHref}
+              className="flex w-full items-center justify-center rounded-lg bg-orange-light/25 px-4 py-3 text-sm font-semibold text-orange-light hover:bg-orange-light/35"
+            >
+              Join live class
+            </a>
+          </div>
+        ) : null}
         {info ? (
           <div className="mt-4">
             <button

@@ -9,14 +9,8 @@ import { supabase } from '../supabase-instance';
 import { DEFAULT_EVENT_TYPE_ORDER } from '@/lib/calendar-event-order';
 import type { CalendarEventType } from '@/lib/calendar-events';
 
-const VALID_TYPES: CalendarEventType[] = [
-  'program',
-  'amrap',
-  'amrap_scheduled',
-  'timer',
-  'timer_scheduled',
-  'readiness',
-];
+/** All types that may appear in saved order (kept in sync with `DEFAULT_EVENT_TYPE_ORDER`). */
+const VALID_TYPES: CalendarEventType[] = [...DEFAULT_EVENT_TYPE_ORDER];
 
 function parseTypeOrder(raw: unknown): CalendarEventType[] {
   if (!Array.isArray(raw)) return DEFAULT_EVENT_TYPE_ORDER;
