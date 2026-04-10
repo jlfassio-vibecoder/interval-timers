@@ -193,17 +193,20 @@ export default function TrainerLiveSessionRoom({
     })();
 
     return (
-      <div className={`flex min-h-0 flex-1 flex-row items-stretch ${className ?? ''}`}>
+      <div
+        className={`flex min-h-0 w-full flex-1 flex-row items-stretch ${className ?? ''}`}
+      >
         {activityRail}
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto">
+        <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-y-auto">
           {role === 'trainer' ? (
             <div
               id={TRAINER_LIVE_TRAINER_MAIN_SLOT_ID}
-              className="min-h-0 w-full max-h-[min(50vh,28rem)] shrink-0 px-2 pt-2 md:px-4"
+              className="flex h-full min-h-0 min-w-0 w-full flex-1 flex-col px-2 pt-2 md:px-4"
               data-testid="trainer-live-trainer-main-slot"
             />
           ) : null}
-          <div className="min-h-0 flex-1 px-2 pb-2 pt-2 md:px-4 md:pb-4">{intervalSidebar}</div>
+          {/* shrink-0: interval height is content-driven; SESSION slot above fills remaining column height. */}
+          <div className="shrink-0 px-2 pb-1 pt-2 md:px-4 md:pb-2">{intervalSidebar}</div>
         </div>
         <TrainerLiveVideoFeedDrawer
           sessionId={sessionId}
@@ -217,7 +220,9 @@ export default function TrainerLiveSessionRoom({
   }
 
   return (
-    <div className={`flex min-h-0 flex-1 flex-row items-stretch ${className ?? ''}`}>
+    <div
+      className={`flex min-h-0 w-full flex-1 flex-row items-stretch ${className ?? ''}`}
+    >
       {activityRail}
       <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">{video}</div>
       {chatRail}

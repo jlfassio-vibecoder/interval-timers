@@ -10,7 +10,8 @@
  * without `participantId` has been removed — all RTC tokens use the trainer live
  * session namespace.
  *
- * Secrets: AGORA_APP_ID + AGORA_APP_CERTIFICATE on the server only (never PUBLIC_*).
+ * Secrets: production uses AGORA_APP_ID + AGORA_APP_CERTIFICATE only.
+ * In dev, certificate may fall back to VITE_AGORA_APP_CERTIFICATE if the server-prefixed copy is unset (local .env often uses VITE_* only).
  */
 
 import type { APIRoute } from 'astro';
@@ -35,12 +36,16 @@ function isValidUuid(s: string): boolean {
 }
 
 function readAgoraAppId(): string {
-  // Copilot suggestion ignored: VITE_AGORA_APP_ID fallback stays — App ID is public; only the certificate is stripped of VITE_* below.
   return (process.env.AGORA_APP_ID || process.env.VITE_AGORA_APP_ID || '').trim();
 }
 
 function readAgoraCertificate(): string {
-  return (process.env.AGORA_APP_CERTIFICATE || '').trim();
+  const fromServer = (process.env.AGORA_APP_CERTIFICATE || '').trim();
+  if (fromServer) return fromServer;
+  if (import.meta.env.DEV) {
+    return (process.env.VITE_AGORA_APP_CERTIFICATE || '').trim();
+  }
+  return '';
 }
 
 async function authorizeTrainerLiveToken(
