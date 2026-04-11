@@ -58,9 +58,7 @@ function supabaseUrlHost(): string {
 }
 
 function maybeLogSupabaseClientMode(usingServiceRole: boolean): void {
-  const explicit = process.env.LOG_SUPABASE_CLIENT_MODE === '1';
-  if (!explicit && !isProdLike) return;
-  if (!explicit && import.meta.env.DEV) return;
+  if (process.env.LOG_SUPABASE_CLIENT_MODE !== '1') return;
   if (loggedSupabaseClientMode) return;
   loggedSupabaseClientMode = true;
   console.warn('[supabase/server] client_mode', {
@@ -100,7 +98,7 @@ export function getSupabaseAnonClient(): SupabaseClient | null {
  * Client with service role key when available (bypasses RLS). Otherwise anon (RLS applies).
  * Admin APIs (e.g. users list) need service role to read all profiles; with anon key RLS often returns empty.
  *
- * Set `LOG_SUPABASE_CLIENT_MODE=1` (Vercel env) to log once per cold start: `using_service_role`, host, `key_kind`.
+ * Opt-in: set `LOG_SUPABASE_CLIENT_MODE=1` to log once per server cold start: `using_service_role`, host, `key_kind`.
  */
 export function getSupabaseServer(options?: GetSupabaseServerOptions): SupabaseClient {
   if (!supabaseUrl)

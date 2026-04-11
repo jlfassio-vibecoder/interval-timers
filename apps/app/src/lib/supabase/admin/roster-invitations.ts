@@ -652,8 +652,11 @@ async function ensureInviteeProfileRow(
   userClient?: SupabaseClient<Database>
 ): Promise<AcceptRosterInviteResult | null> {
   const canUseServiceRole = hasServiceRoleKey();
-  const supabase = getSupabaseMissionControl() as unknown as SupabaseClient<Database>;
-  const profileClient = (canUseServiceRole ? supabase : userClient) as
+  // Avoid getSupabaseMissionControl() when no service role — it throws in prod and would block userClient fallback.
+  const supabaseMc = canUseServiceRole
+    ? (getSupabaseMissionControl() as unknown as SupabaseClient<Database>)
+    : undefined;
+  const profileClient = (canUseServiceRole ? supabaseMc : userClient) as
     | SupabaseClient<Database>
     | undefined;
   if (!profileClient) {
@@ -680,8 +683,8 @@ async function ensureInviteeProfileRow(
   if (existing) return null;
 
   let fullName: string | null = null;
-  if (canUseServiceRole) {
-    const { data: adminData, error: adminErr } = await supabase.auth.admin.getUserById(userId);
+  if (canUseServiceRole && supabaseMc) {
+    const { data: adminData, error: adminErr } = await supabaseMc.auth.admin.getUserById(userId);
     if (
       adminErr &&
       (import.meta.env.DEV || import.meta.env.PUBLIC_ENABLE_ERROR_LOGGING === 'true')
