@@ -21,6 +21,12 @@ export interface TrainerLiveTimerBackgroundValue {
   setMode: (m: TrainerLiveTimerBackgroundMode) => void;
   leaderTrainerLiveParticipantId: string | null;
   setLeaderTrainerLiveParticipantId: (id: string | null) => void;
+  /**
+   * Timer background spotlight (`trainer_live_participants.id`). `null` = trainer’s own camera.
+   * Used by Tabata (pick any client to review form); AMRAP ignores this.
+   */
+  timerBackgroundSpotlightParticipantId: string | null;
+  setTimerBackgroundSpotlightParticipantId: (id: string | null) => void;
 }
 
 const TrainerLiveTimerBackgroundContext = createContext<TrainerLiveTimerBackgroundValue | null>(
@@ -40,6 +46,8 @@ export function TrainerLiveTimerBackgroundProvider({
   const [leaderTrainerLiveParticipantId, setLeaderTrainerLiveParticipantId] = useState<
     string | null
   >(null);
+  const [timerBackgroundSpotlightParticipantId, setTimerBackgroundSpotlightParticipantId] =
+    useState<string | null>(null);
 
   const setMode = useCallback(
     (m: TrainerLiveTimerBackgroundMode) => {
@@ -57,8 +65,10 @@ export function TrainerLiveTimerBackgroundProvider({
       setMode,
       leaderTrainerLiveParticipantId,
       setLeaderTrainerLiveParticipantId,
+      timerBackgroundSpotlightParticipantId,
+      setTimerBackgroundSpotlightParticipantId,
     }),
-    [mode, setMode, leaderTrainerLiveParticipantId]
+    [mode, setMode, leaderTrainerLiveParticipantId, timerBackgroundSpotlightParticipantId]
   );
 
   return (

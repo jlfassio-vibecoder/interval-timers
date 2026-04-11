@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   from: vi.fn(),
   channel: vi.fn(),
   removeChannel: vi.fn(),
+  rpc: vi.fn(),
 }));
 
 vi.mock('@/lib/supabase', () => ({
@@ -12,6 +13,7 @@ vi.mock('@/lib/supabase', () => ({
     from: mocks.from,
     channel: mocks.channel,
     removeChannel: mocks.removeChannel,
+    rpc: mocks.rpc,
   },
 }));
 
@@ -50,6 +52,7 @@ describe('computeTabataRemainingSec', () => {
 describe('useTabataEmbedded', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.rpc.mockResolvedValue({ error: null });
     mocks.from.mockReturnValue({
       select: () => ({
         eq: () => ({
@@ -99,5 +102,29 @@ describe('useTabataEmbedded', () => {
 
     expect(mocks.from).toHaveBeenCalledWith('tabata_sessions');
     expect(mocks.channel).toHaveBeenCalled();
+  });
+
+  it('exposes onSaveWorkoutList for trainer when session is editable', async () => {
+    const { result } = renderHook(() =>
+      useTabataEmbedded({
+        tabataSessionId: '550e8400-e29b-41d4-a716-446655440000',
+        embedVideo: 'trainer_live',
+        isTrainer: true,
+      })
+    );
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(result.current.hostCanEditWorkoutList).toBe(true);
+    expect(result.current.onSaveWorkoutList).toBeDefined();
+
+    const save = await result.current.onSaveWorkoutList!(['Burpees', 'Squats']);
+    expect(save.ok).toBe(true);
+    expect(mocks.rpc).toHaveBeenCalledWith('tabata_session_set_workout_list', {
+      p_tabata_session_id: '550e8400-e29b-41d4-a716-446655440000',
+      p_workout_list: ['Burpees', 'Squats'],
+    });
   });
 });

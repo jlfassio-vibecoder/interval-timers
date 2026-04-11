@@ -182,7 +182,8 @@ const TrainerUnifiedCalendarView: React.FC = () => {
 
   const runCreateTrainerLiveSession = useCallback(async (invitedClientUserId: string | null) => {
     const { data, error } = await supabase.rpc('trainer_live_create_session', {
-      p_shell: 'video_only',
+      /** Same as lobby "Video + Intervals": interval-capable layout from first open (no extra shell step). */
+      p_shell: 'countdown_timer',
       p_invited_client_user_id: invitedClientUserId,
     });
     if (error) return { ok: false as const, error: error.message };

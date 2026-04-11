@@ -6,6 +6,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SETUP_DURATION_SECONDS } from '@interval-timers/timer-core';
 import { supabase } from '@/lib/supabase';
+import { playTabataRestStartSound, playTabataWorkStartSound } from '@/lib/tabataSounds';
 import type {
   TabataEngine,
   TabataPhase,
@@ -116,6 +117,13 @@ export function useTabataEmbedded(options: UseTabataEmbeddedOptions): TabataEngi
   const [error, setError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
   const advancingRef = useRef(false);
+  const tabataSoundHydratedRef = useRef(false);
+  const prevPhaseForSoundRef = useRef<TabataPhase | null>(null);
+
+  useEffect(() => {
+    tabataSoundHydratedRef.current = false;
+    prevPhaseForSoundRef.current = null;
+  }, [tabataSessionId]);
 
   const loadRow = useCallback(async () => {
     const { data, error: e } = await supabase
@@ -180,6 +188,30 @@ export function useTabataEmbedded(options: UseTabataEmbeddedOptions): TabataEngi
     const id = window.setInterval(() => setTick((t) => t + 1), 1000);
     return () => window.clearInterval(id);
   }, []);
+
+  /** Deep bell on work/rest interval starts (Realtime sync for trainer + clients). Skips initial hydrate and resume-from-pause. */
+  useEffect(() => {
+    if (!row) {
+      tabataSoundHydratedRef.current = false;
+      prevPhaseForSoundRef.current = null;
+      return;
+    }
+    const phase = parseTabataState(row.state).phase;
+    if (!tabataSoundHydratedRef.current) {
+      tabataSoundHydratedRef.current = true;
+      prevPhaseForSoundRef.current = phase;
+      return;
+    }
+    const prev = prevPhaseForSoundRef.current;
+    if (phase !== prev) {
+      const toWork =
+        (prev === 'setup' || prev === 'rest' || prev === 'idle') && phase === 'work';
+      const toRest = prev === 'work' && phase === 'rest';
+      if (toWork) playTabataWorkStartSound();
+      else if (toRest) playTabataRestStartSound();
+    }
+    prevPhaseForSoundRef.current = phase;
+  }, [row]);
 
   const sessionState = row ? parseTabataState(row.state) : parseTabataState(null);
 
@@ -365,16 +397,41 @@ export function useTabataEmbedded(options: UseTabataEmbeddedOptions): TabataEngi
     return { label: '', title: 'Tabata', sub: '', value: '--:--' };
   }, [row, tick]);
 
+  const phase = sessionState.phase;
+  const hostCanEditWorkoutList: boolean =
+    !!isTrainer &&
+    !!row &&
+    (phase === 'idle' ||
+      phase === 'setup' ||
+      phase === 'work' ||
+      phase === 'rest' ||
+      phase === 'paused');
+
+  const saveWorkoutList = useCallback(
+    async (workoutList: string[]) => {
+      if (!isTrainer) return { ok: false as const, error: 'Not trainer' };
+      const { error: e } = await supabase.rpc('tabata_session_set_workout_list', {
+        p_tabata_session_id: tabataSessionId,
+        p_workout_list: workoutList,
+      });
+      if (e) return { ok: false as const, error: e.message };
+      await loadRow();
+      return { ok: true as const };
+    },
+    [isTrainer, tabataSessionId, loadRow]
+  );
+
   return {
     loading,
     error,
-    phase: sessionState.phase,
+    phase,
     displayValue: displayParts.value,
     displayLabel: displayParts.label,
     displayTitle: displayParts.title,
     displaySub: displayParts.sub,
     roundCount: row?.round_count ?? 8,
     currentIntervalIndex: sessionState.current_interval ?? 0,
+    pausedFromPhase: sessionState.paused_from_phase ?? null,
     workSeconds: row?.work_seconds ?? 20,
     restSeconds: row?.rest_seconds ?? 10,
     workoutList: row ? parseWorkoutList(row.workout_list) : [],
@@ -384,5 +441,7 @@ export function useTabataEmbedded(options: UseTabataEmbeddedOptions): TabataEngi
     onPause: isTrainer ? onPause : undefined,
     onResume: isTrainer ? onResume : undefined,
     onFinish: isTrainer ? onFinish : undefined,
+    hostCanEditWorkoutList,
+    onSaveWorkoutList: hostCanEditWorkoutList ? saveWorkoutList : undefined,
   };
 }

@@ -51,7 +51,7 @@ const ClientMissionControlLayout: React.FC = () => {
     setLiveBusy(true);
     try {
       const { data, error } = await supabase.rpc('trainer_live_create_session', {
-        p_shell: 'video_only',
+        p_shell: 'countdown_timer',
         p_invited_client_user_id: userId,
       });
       if (error) {

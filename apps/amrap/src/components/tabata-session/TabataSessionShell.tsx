@@ -1,7 +1,8 @@
 /**
- * Tabata session UI: timer + exercise list. `trainerLiveEmbed` matches Trainer Live sidebar width
- * (timer first, no leaderboard — see AmrapSessionShell embed layout).
+ * Tabata session UI: timer + exercise list. `trainerLiveEmbed` matches Trainer Live sidebar width.
+ * With `embedSuppressExercises`, the host renders exercises on the video plane (see Trainer Live Tabata wrapper).
  */
+import type { ReactNode } from 'react';
 import type { TabataEngine, TabataPhase } from '@/types/tabata-session';
 import AmrapTimerDisplay from '@/components/amrap-session/AmrapTimerDisplay';
 import type { AmrapTimerPhase } from '@/components/amrap-session/AmrapTimerDisplay';
@@ -11,6 +12,41 @@ export type TabataSessionShellLayout = 'default' | 'trainerLiveEmbed';
 export interface TabataSessionShellProps {
   engine: TabataEngine;
   shellLayout?: TabataSessionShellLayout;
+  /**
+   * When true with `trainerLiveEmbed`, omit the inline exercise list — host renders
+   * `TabataEmbedExerciseSection` on the timer video background.
+   */
+  embedSuppressExercises?: boolean;
+  /** Trainer Live: accessory before timer subtitle (e.g. Me/Leader toggle). */
+  embedTitleBarAccessoryBeforeSub?: ReactNode;
+}
+
+/** Red / green main clock + WORK·REST label when Tabata is in work or rest (incl. paused). */
+function tabataOverlayWorkRestClockTone(
+  phase: TabataPhase,
+  pausedFrom: 'work' | 'rest' | null
+): { labelClass: string; valueClass: string } | null {
+  const tone: 'work' | 'rest' | null =
+    phase === 'work'
+      ? 'work'
+      : phase === 'rest'
+        ? 'rest'
+        : phase === 'paused' && pausedFrom
+          ? pausedFrom
+          : null;
+  if (tone === 'work') {
+    return {
+      labelClass: 'mb-2 text-[15px] font-bold uppercase tracking-widest text-red-400',
+      valueClass: 'font-mono text-red-500',
+    };
+  }
+  if (tone === 'rest') {
+    return {
+      labelClass: 'mb-2 text-[15px] font-bold uppercase tracking-widest text-green-400',
+      valueClass: 'font-mono text-green-400',
+    };
+  }
+  return null;
 }
 
 function tabataPhaseToAmrapDisplay(phase: TabataPhase): AmrapTimerPhase {
@@ -32,9 +68,45 @@ function tabataPhaseToAmrapDisplay(phase: TabataPhase): AmrapTimerPhase {
   }
 }
 
+function TabataMetricsAside({
+  phase,
+  displayTitle,
+  displaySub,
+}: {
+  phase: TabataPhase;
+  displayTitle: string;
+  displaySub?: string;
+}) {
+  if (phase === 'idle') {
+    return displaySub ? (
+      <p className="max-w-[12rem] text-balance text-center text-sm font-medium leading-snug text-white/90">
+        {displaySub}
+      </p>
+    ) : null;
+  }
+  if (phase === 'finished') {
+    return (
+      <div className="flex flex-col items-center gap-1 text-center">
+        <p className="text-xs font-bold uppercase tracking-wide text-white/70">Done</p>
+        <p className="text-sm font-semibold text-white">{displayTitle}</p>
+        {displaySub ? <p className="text-xs text-white/75">{displaySub}</p> : null}
+      </div>
+    );
+  }
+  return (
+    <div className="flex min-w-0 flex-col items-center justify-center gap-1 px-1 text-center">
+      <p className="text-xs font-bold uppercase tracking-wide text-white/75">Tabata</p>
+      <p className="text-sm font-semibold leading-tight text-white">{displayTitle}</p>
+      {displaySub ? <p className="text-xs leading-snug text-white/85">{displaySub}</p> : null}
+    </div>
+  );
+}
+
 export default function TabataSessionShell({
   engine,
   shellLayout = 'default',
+  embedSuppressExercises = false,
+  embedTitleBarAccessoryBeforeSub,
 }: TabataSessionShellProps) {
   const {
     loading,
@@ -51,9 +123,11 @@ export default function TabataSessionShell({
     onPause,
     onResume,
     onFinish,
+    pausedFromPhase,
   } = engine;
 
   const embed = shellLayout === 'trainerLiveEmbed';
+  const overlayEmbed = embed && embedSuppressExercises;
   const amrapPhase = tabataPhaseToAmrapDisplay(phase);
 
   const showStart = phase === 'idle' && isTrainer && !!onStart;
@@ -65,7 +139,7 @@ export default function TabataSessionShell({
 
   const hostEmbedded =
     embed && showHostControls ? (
-      <div className="flex w-full flex-col gap-2">
+      <div className="flex w-full flex-col gap-4">
         {(phase === 'work' || phase === 'rest') && onPause ? (
           <button
             type="button"
@@ -164,7 +238,7 @@ export default function TabataSessionShell({
   }
 
   const exerciseBlock =
-    workoutList.length > 0 ? (
+    !embedSuppressExercises && workoutList.length > 0 ? (
       <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
         <h3 className="mb-3 text-lg font-bold text-white">This round</h3>
         <ol className="list-decimal space-y-2 pl-5 text-sm text-white/90">
@@ -173,25 +247,58 @@ export default function TabataSessionShell({
           ))}
         </ol>
       </div>
-    ) : (
+    ) : !embedSuppressExercises ? (
       <div className="rounded-2xl border border-white/10 bg-black/30 p-4 text-sm text-white/70">
         No exercise list for this block. Follow your trainer.
       </div>
-    );
+    ) : null;
+
+  const metricsNode = overlayEmbed ? (
+    <TabataMetricsAside phase={phase} displayTitle={displayTitle} displaySub={displaySub} />
+  ) : undefined;
+
+  const overlayTitleForSplit =
+    overlayEmbed && (phase === 'setup' || phase === 'work' || phase === 'rest' || phase === 'paused')
+      ? 'Tabata'
+      : displayTitle;
+  const overlaySubForSplit =
+    overlayEmbed && (phase === 'setup' || phase === 'work' || phase === 'rest' || phase === 'paused')
+      ? undefined
+      : displaySub;
+
+  const tabataWorkRestClockTone =
+    overlayEmbed ? tabataOverlayWorkRestClockTone(phase, pausedFromPhase ?? null) : null;
 
   const timerColumn = (
     <div className={embed ? 'min-w-0 w-full' : 'min-w-0 flex-1'}>
       <AmrapTimerDisplay
         phase={amrapPhase}
         displayLabel={displayLabel}
-        displayTitle={displayTitle}
-        displaySub={displaySub}
+        displayTitle={overlayTitleForSplit}
+        displaySub={overlaySubForSplit}
         displayValue={displayValue}
         showStartButton={showStart}
         onStart={onStart}
-        stackStartWithClockAside={embed && showStart}
+        stackStartWithClockAside={overlayEmbed ? showStart : embed && showStart}
+        titleBarAccessoryBeforeSub={embed ? embedTitleBarAccessoryBeforeSub : undefined}
+        containerClassName={overlayEmbed ? 'bg-transparent' : undefined}
+        embedHostAndTimerInLeftColumn={
+          overlayEmbed &&
+          (phase === 'setup' || phase === 'work' || phase === 'rest' || phase === 'paused')
+        }
+        embedMetricsVariant="participantTwoColumn"
+        beforeMainClock={
+          overlayEmbed &&
+          (phase === 'setup' || phase === 'work' || phase === 'rest' || phase === 'paused') &&
+          hostEmbedded ? (
+            <div className="mb-5 flex w-full flex-col text-left">{hostEmbedded}</div>
+          ) : undefined
+        }
+        embedMainClockLabelClassName={tabataWorkRestClockTone?.labelClass}
+        embedMainClockValueClassName={tabataWorkRestClockTone?.valueClass}
+        clockAsideRight={overlayEmbed ? metricsNode : undefined}
         clockAsideLeft={
-          embed && (phase === 'work' || phase === 'rest' || phase === 'paused' || phase === 'setup')
+          !overlayEmbed && embed && (phase === 'work' || phase === 'rest' || phase === 'paused' || phase === 'setup')
             ? hostEmbedded
             : undefined
         }

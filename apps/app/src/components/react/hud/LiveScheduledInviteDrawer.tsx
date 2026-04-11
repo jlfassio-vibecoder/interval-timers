@@ -23,7 +23,8 @@ export interface LiveScheduledInviteDrawerProps {
   onUpdated?: () => void;
 }
 
-const POLL_MS = 30_000;
+/** Trainer may link `live_session_id` any time before class; poll often so Join appears quickly. */
+const POLL_MS = 10_000;
 
 const LiveScheduledInviteDrawer: React.FC<LiveScheduledInviteDrawerProps> = ({
   event,
@@ -200,7 +201,7 @@ const LiveScheduledInviteDrawer: React.FC<LiveScheduledInviteDrawerProps> = ({
         ) : null}
         {st === 'accepted' && !effectiveLiveSessionId ? (
           <p className="mt-2 text-sm text-white/55">
-            Your trainer will open the live room before class. This screen checks every 30 seconds — or refresh your calendar.
+            Your trainer will open the live room before class. This screen checks every few seconds — or refresh your calendar.
           </p>
         ) : null}
         {st === 'accepted' && effectiveLiveSessionId && !canJoin ? (

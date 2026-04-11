@@ -63,7 +63,7 @@ function getAmrapExerciseList(workoutList: unknown): string[] {
   return asStrings.filter((s) => !/^\d+\s*min$/i.test(s) && !/^\d+$/.test(s));
 }
 
-const COACH_LIVE_POLL_MS = 30_000;
+const COACH_LIVE_POLL_MS = 10_000;
 
 const SimpleActivityDrawer: React.FC<SimpleActivityDrawerProps> = ({
   event,
