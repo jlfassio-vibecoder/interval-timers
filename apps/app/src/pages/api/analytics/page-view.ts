@@ -3,10 +3,16 @@
  * SPDX-License-Identifier: Apache-2.0
  *
  * Public API for recording page views (acquisition). No auth required.
+ *
+ * On merged domains (e.g. hiitworkouttimer.com), root `vercel.json` may rewrite `/api/*`
+ * to the Mission Control deployment — set Supabase env on that project.
  */
 
 import type { APIRoute } from 'astro';
 import { getSupabaseServer } from '@/lib/supabase/server';
+
+/** Server-only route (must not be prerendered to static / missing on the edge). */
+export const prerender = false;
 
 interface PageViewBody {
   path?: string;
@@ -19,8 +25,8 @@ interface PageViewBody {
   app_id?: string;
 }
 
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+/** Postgres uuid — accept any 8-4-4-4-12 hex (Supabase auth ids are UUIDs; version nibble varies). */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** Only pass through auth.users-shaped UUIDs; empty/invalid avoids PG uuid cast errors (22P02). */
 function parseOptionalUserId(value: unknown): string | null {
@@ -38,6 +44,16 @@ function capStr(value: unknown, max: number): string | null {
   if (!t) return null;
   return t.length > max ? t.slice(0, max) : t;
 }
+
+/** Browsers hitting the URL directly use GET — avoid a misleading 404. */
+export const GET: APIRoute = () =>
+  new Response(JSON.stringify({ error: 'Method Not Allowed', allow: 'POST' }), {
+    status: 405,
+    headers: {
+      'Content-Type': 'application/json',
+      Allow: 'POST',
+    },
+  });
 
 export const POST: APIRoute = async ({ request }) => {
   try {
@@ -88,12 +104,13 @@ export const POST: APIRoute = async ({ request }) => {
         message: error.message,
         details: error.details,
       });
-      return new Response(null, { status: 500 });
+      // Best-effort analytics: do not surface 500 to the client (pollutes DevTools; ops use Vercel logs).
+      return new Response(null, { status: 204 });
     }
 
     return new Response(null, { status: 204 });
   } catch (err) {
     console.error('[api/analytics/page-view] Error:', err);
-    return new Response(null, { status: 500 });
+    return new Response(null, { status: 204 });
   }
 };
