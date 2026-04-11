@@ -4,7 +4,7 @@
  */
 
 import { createHash, randomBytes } from 'node:crypto';
-import { getSupabaseServer, hasServiceRoleKey } from '@/lib/supabase/server';
+import { getSupabaseMissionControl, hasServiceRoleKey } from '@/lib/supabase/server';
 import { fetchTrainerRoster, isHostBuddy } from '@/lib/supabase/admin/trainer-roster';
 import {
   mergeWelcomeContentLayers,
@@ -198,7 +198,7 @@ export function buildRosterInviteAcceptUrl(
 
 /** Resolve studio vanity slug for invite URLs (trainer profiles only). */
 export async function getStudioSlugForInviter(inviterId: string): Promise<string | null> {
-  const supabase = getSupabaseServer();
+  const supabase = getSupabaseMissionControl();
   const { data: prof, error: pErr } = await supabase
     .from('profiles')
     .select('studio_id')
@@ -227,7 +227,7 @@ export function normalizeInvitePhoneE164(phone: string): string | null {
 }
 
 async function countHostBuddySlotsReserved(hostId: string): Promise<number> {
-  const supabase = getSupabaseServer();
+  const supabase = getSupabaseMissionControl();
   const [{ count: buddyCount }, { count: pendingCount }] = await Promise.all([
     supabase
       .from('host_friend_connections')
@@ -244,7 +244,7 @@ async function countHostBuddySlotsReserved(hostId: string): Promise<number> {
 }
 
 async function findUserIdByEmail(email: string): Promise<string | null> {
-  const supabase = getSupabaseServer();
+  const supabase = getSupabaseMissionControl();
   const { data, error } = await supabase.rpc('find_auth_user_id_by_email', {
     p_email: normalizeInviteEmail(email),
   });
@@ -256,7 +256,7 @@ async function findUserIdByEmail(email: string): Promise<string | null> {
 }
 
 async function findUserIdByPhone(phoneE164: string): Promise<string | null> {
-  const supabase = getSupabaseServer();
+  const supabase = getSupabaseMissionControl();
   const { data, error } = await supabase.rpc('find_auth_user_id_by_phone', {
     p_phone: phoneE164,
   });
@@ -347,7 +347,7 @@ export async function createRosterInvite(
         message: 'Select at least one program for client invites',
       };
     }
-    const supabase = getSupabaseServer();
+    const supabase = getSupabaseMissionControl();
     const { data: programs, error: progErr } = await supabase
       .from('programs')
       .select('id')
@@ -428,7 +428,7 @@ export async function createRosterInvite(
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + ROSTER_INVITE_EXPIRY_DAYS);
 
-  const supabase = getSupabaseServer();
+  const supabase = getSupabaseMissionControl();
   const { data: inserted, error: insErr } = await supabase
     .from('roster_invitations')
     .insert({
@@ -469,7 +469,7 @@ export async function createRosterInvite(
 }
 
 export async function listPendingInvitations(inviterId: string): Promise<PendingInvitationDto[]> {
-  const supabase = getSupabaseServer();
+  const supabase = getSupabaseMissionControl();
   const { data, error } = await supabase
     .from('roster_invitations')
     .select(
@@ -507,7 +507,7 @@ export async function revokeRosterInvitation(
   inviterId: string,
   invitationId: string
 ): Promise<RevokeRosterInvitationResult> {
-  const supabase = getSupabaseServer();
+  const supabase = getSupabaseMissionControl();
   const { data: row, error: selErr } = await supabase
     .from('roster_invitations')
     .select('id, inviter_id, status')
@@ -562,7 +562,7 @@ export async function resendRosterInvitation(
   invitationId: string,
   publicAppBaseHint?: string | null
 ): Promise<ResendRosterInvitationResult> {
-  const supabase = getSupabaseServer();
+  const supabase = getSupabaseMissionControl();
   const { data: row, error: selErr } = await supabase
     .from('roster_invitations')
     .select('id, inviter_id, status, invitee_email')
@@ -644,15 +644,15 @@ function sessionMatchesInviteeContact(
  * `roster_invitations.accepted_user_id` and `host_friend_connections` reference `public.profiles`.
  * If signup did not create a profile (missing auth trigger), finalize PATCH returns PostgREST 409 (FK violation).
  *
- * Requires service role: anon `getSupabaseServer()` has no JWT, so RLS on `profiles` blocks SELECT/INSERT
- * for the invitee and would falsely fail acceptance (or no-op select + failed insert).
+ * Uses `getSupabaseMissionControl()` when service role is available so RLS does not block profile reads/inserts
+ * for the invitee; otherwise falls back to `userClient` (user JWT).
  */
 async function ensureInviteeProfileRow(
   userId: string,
   userClient?: SupabaseClient<Database>
 ): Promise<AcceptRosterInviteResult | null> {
   const canUseServiceRole = hasServiceRoleKey();
-  const supabase = getSupabaseServer() as unknown as SupabaseClient<Database>;
+  const supabase = getSupabaseMissionControl() as unknown as SupabaseClient<Database>;
   const profileClient = (canUseServiceRole ? supabase : userClient) as
     | SupabaseClient<Database>
     | undefined;
@@ -732,7 +732,7 @@ async function finalizeRosterInvitationAfterInviteeVerified(
   const pre = await ensureInviteeProfileRow(sessionUserId, userClient);
   if (pre) return pre;
 
-  const supabase = getSupabaseServer();
+  const supabase = getSupabaseMissionControl();
 
   if (inv.kind === 'friend') {
     const { error: insErr } = await supabase.from('host_friend_connections').upsert(
@@ -826,7 +826,7 @@ export async function acceptPendingRosterInvitesForSession(
   sessionPhone: string | null | undefined,
   userClient?: SupabaseClient<Database>
 ): Promise<{ acceptedCount: number; assignedProgramIds: string[] }> {
-  const supabase = getSupabaseServer();
+  const supabase = getSupabaseMissionControl();
   const nowIso = new Date().toISOString();
   const normEmails = [
     ...new Set(sessionEmails.map((e) => normalizeInviteEmail(e)).filter((e) => e.length > 0)),
@@ -919,7 +919,7 @@ export async function acceptRosterInvite(
   userClient?: SupabaseClient<Database>
 ): Promise<AcceptRosterInviteResult> {
   const tokenHash = hashToken(rawToken.trim());
-  const supabase = getSupabaseServer();
+  const supabase = getSupabaseMissionControl();
 
   const { data: inv, error: selErr } = await supabase
     .from('roster_invitations')
@@ -1108,7 +1108,7 @@ export async function getRosterInvitePreview(
   if (!looksLikeRosterInviteToken(trimmed)) return null;
 
   const tokenHash = hashToken(trimmed);
-  const supabase = getSupabaseServer();
+  const supabase = getSupabaseMissionControl();
 
   const { data: rpcData, error: rpcError } = await supabase.rpc('get_roster_invite_preview_core', {
     p_token_hash: tokenHash,
