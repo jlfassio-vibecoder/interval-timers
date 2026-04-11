@@ -11,7 +11,7 @@ import {
   getFactoryMetabolicModeFromAiChainMetadata,
   type FactoryMetabolicMode,
 } from '@/lib/trainer-live/workout-factory-metabolic-mode';
-import { getSupabaseServer } from '@/lib/supabase/server';
+import { getSupabaseMissionControl } from '@/lib/supabase/server';
 import { isUserInViewerRoster } from '@/lib/supabase/admin/trainer-roster';
 import { supabaseWorkoutRowToArtist } from '@/lib/coach-assignment-map';
 import {
@@ -22,7 +22,7 @@ import { getGeneratedExerciseBySlug } from '@/lib/supabase/public/generated-exer
 import { grantChallengeAccess } from '@/lib/supabase/server/entitlements';
 
 async function assertTrainerOwnsProgramDb(
-  supabase: ReturnType<typeof getSupabaseServer>,
+  supabase: ReturnType<typeof getSupabaseMissionControl>,
   trainerId: string,
   programId: string
 ): Promise<boolean> {
@@ -91,7 +91,7 @@ export async function fetchClientCoachAssignmentsForTrainer(
   const allowed = await isUserInViewerRoster(viewerId, viewerRole, clientUserId);
   if (!allowed) return null;
 
-  const supabase = getSupabaseServer();
+  const supabase = getSupabaseMissionControl();
   const { data, error } = await supabase
     .from('client_coach_assignments')
     .select(
@@ -142,7 +142,7 @@ async function fetchTitleAndValidateResource(
   type: CoachAssignmentType,
   resourceId: string
 ): Promise<{ ok: true; title: string } | { ok: false; error: string }> {
-  const supabase = getSupabaseServer();
+  const supabase = getSupabaseMissionControl();
 
   if (type === 'program') {
     const owns = await assertTrainerOwnsProgramDb(supabase, viewerId, resourceId);
@@ -276,7 +276,7 @@ export async function createClientCoachAssignment(
     if (!validated.ok) return validated;
   }
 
-  const supabase = getSupabaseServer();
+  const supabase = getSupabaseMissionControl();
 
   if (type === 'program') {
     const { error: upErr } = await supabase.from('user_programs').upsert(
@@ -353,7 +353,7 @@ export async function revokeClientCoachAssignment(
   const allowed = await isUserInViewerRoster(viewerId, viewerRole, clientUserId);
   if (!allowed) return { ok: false, error: 'Client not found or not in your roster' };
 
-  const supabase = getSupabaseServer();
+  const supabase = getSupabaseMissionControl();
   const { data: row, error: fetchErr } = await supabase
     .from('client_coach_assignments')
     .select('id, trainer_user_id, client_user_id, revoked_at')
@@ -386,7 +386,7 @@ export async function revokeClientCoachAssignment(
 export async function listOpenCoachAssignmentsForClient(
   clientUserId: string
 ): Promise<ClientCoachAssignmentApiRow[]> {
-  const supabase = getSupabaseServer();
+  const supabase = getSupabaseMissionControl();
   const { data, error } = await supabase
     .from('client_coach_assignments')
     .select(
@@ -463,7 +463,7 @@ export async function dismissCoachAssignmentForClient(
   clientUserId: string,
   assignmentId: string
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const supabase = getSupabaseServer();
+  const supabase = getSupabaseMissionControl();
   const { data: row, error: fetchErr } = await supabase
     .from('client_coach_assignments')
     .select('id, client_user_id, revoked_at, dismissed_at')
@@ -552,7 +552,7 @@ export async function getCoachAssignmentPayloadForClient(
   clientUserId: string,
   assignmentId: string
 ): Promise<CoachAssignmentPayloadResult> {
-  const supabase = getSupabaseServer();
+  const supabase = getSupabaseMissionControl();
   const { data: row, error } = await supabase
     .from('client_coach_assignments')
     .select(
@@ -762,7 +762,7 @@ export async function fetchTrainerWorkoutClientOverview(
     return { workouts: [], assignmentsByWorkoutId: {} };
   }
 
-  const supabase = getSupabaseServer();
+  const supabase = getSupabaseMissionControl();
 
   const selectFull =
     'id, title, source, visibility, duration_minutes, created_at, lineage_id, version_index, workout_series_id, session_index, ai_chain_metadata';

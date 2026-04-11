@@ -1,6 +1,9 @@
 /**
  * Server-side Supabase client (optional service role for bypassing RLS).
  * Use for API routes that need to read/write without user context (e.g. warmup-config GET).
+ *
+ * Mission Control (`/api/trainer/*`, roster, programs): use {@link getSupabaseMissionControl} so
+ * production fails fast when `SUPABASE_SERVICE_ROLE_KEY` is missing (anon-only clients get RLS 401/empty).
  */
 
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
@@ -40,6 +43,39 @@ const anonKey =
   normalizeEnvVar(import.meta.env.PUBLIC_SUPABASE_ANON_KEY as string | undefined) ||
   normalizeEnvVar(import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined);
 
+const isProdLike =
+  process.env.NODE_ENV === 'production' || process.env.CI === 'true' || process.env.VERCEL === '1';
+
+/** One line per server isolate (Vercel function cold start) when logging is enabled. */
+let loggedSupabaseClientMode = false;
+
+function supabaseUrlHost(): string {
+  try {
+    return new URL(supabaseUrl).host;
+  } catch {
+    return 'invalid_url';
+  }
+}
+
+function maybeLogSupabaseClientMode(usingServiceRole: boolean): void {
+  if (process.env.LOG_SUPABASE_CLIENT_MODE !== '1') return;
+  if (loggedSupabaseClientMode) return;
+  loggedSupabaseClientMode = true;
+  console.warn('[supabase/server] client_mode', {
+    using_service_role: usingServiceRole,
+    supabase_host: supabaseUrlHost(),
+    key_kind: serviceRoleKey ? 'service_role' : anonKey ? 'anon' : 'none',
+  });
+}
+
+export type GetSupabaseServerOptions = {
+  /**
+   * When true, production refuses anon fallback — required for Mission Control DB paths that
+   * expect RLS-bypassing reads (programs, roster, invitations, trainer assignments).
+   */
+  requireServiceRole?: boolean;
+};
+
 /**
  * Whether the server has the Supabase service role key (bypasses RLS). Used to hint when admin list is empty.
  */
@@ -61,19 +97,45 @@ export function getSupabaseAnonClient(): SupabaseClient | null {
 /**
  * Client with service role key when available (bypasses RLS). Otherwise anon (RLS applies).
  * Admin APIs (e.g. users list) need service role to read all profiles; with anon key RLS often returns empty.
+ *
+ * Opt-in: set `LOG_SUPABASE_CLIENT_MODE=1` to log once per server cold start: `using_service_role`, host, `key_kind`.
  */
-export function getSupabaseServer() {
+export function getSupabaseServer(options?: GetSupabaseServerOptions): SupabaseClient {
   if (!supabaseUrl)
     throw new Error('SUPABASE_URL or PUBLIC_SUPABASE_URL or VITE_SUPABASE_URL required');
+
+  if (options?.requireServiceRole && !serviceRoleKey) {
+    if (isProdLike) {
+      throw new Error(
+        'SUPABASE_SERVICE_ROLE_KEY is required for Mission Control API routes in production. Set it in the Vercel project for this app (same Supabase project as your data). Redeploy after saving.'
+      );
+    }
+    console.warn(
+      '[supabase/server] requireServiceRole: no service role in development — using anon; Mission Control queries may be empty or fail under RLS.'
+    );
+  }
+
   const key = serviceRoleKey || anonKey;
   if (!key)
     throw new Error(
       'SUPABASE_SERVICE_ROLE_KEY or SUPABASE_ANON_KEY or PUBLIC_SUPABASE_ANON_KEY or VITE_SUPABASE_ANON_KEY required'
     );
-  if (!serviceRoleKey && process.env.NODE_ENV === 'production') {
+
+  const usingServiceRole = !!serviceRoleKey && key === serviceRoleKey;
+  maybeLogSupabaseClientMode(usingServiceRole);
+
+  if (!serviceRoleKey && isProdLike && !options?.requireServiceRole) {
     console.warn(
-      '[supabase/server] SUPABASE_SERVICE_ROLE_KEY is not set. Admin users list may be empty (RLS). Set the service_role secret from Supabase Dashboard → API in Vercel env.'
+      '[supabase/server] SUPABASE_SERVICE_ROLE_KEY is not set. Admin routes that rely on anon may see RLS empty results or 401. Set the service_role secret from Supabase Dashboard → API in Vercel env.'
     );
   }
   return createClient(supabaseUrl, key);
+}
+
+/**
+ * Supabase client for Mission Control trainer APIs (roster, programs, invitations, assignments).
+ * In production, throws if `SUPABASE_SERVICE_ROLE_KEY` is missing (no silent anon fallback).
+ */
+export function getSupabaseMissionControl(): SupabaseClient {
+  return getSupabaseServer({ requireServiceRole: true });
 }

@@ -5,7 +5,7 @@
 
 import type { APIRoute } from 'astro';
 import { verifyRosterAccessRequest } from '@/lib/supabase/admin/auth';
-import { getSupabaseServer } from '@/lib/supabase/server';
+import { getSupabaseMissionControl } from '@/lib/supabase/server';
 
 export const GET: APIRoute = async ({ request, cookies }) => {
   try {
@@ -17,7 +17,7 @@ export const GET: APIRoute = async ({ request, cookies }) => {
       });
     }
 
-    const supabase = getSupabaseServer();
+    const supabase = getSupabaseMissionControl();
     const { data, error } = await supabase
       .from('programs')
       .select('id, title, status')

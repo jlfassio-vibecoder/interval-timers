@@ -6,7 +6,7 @@
  * and workout stats. Uses server Supabase client to bypass RLS.
  */
 
-import { getSupabaseServer } from '@/lib/supabase/server';
+import { getSupabaseMissionControl } from '@/lib/supabase/server';
 import { averageAlignmentComposite } from '@/lib/fitness-goal-alignment';
 import type { WorkoutLog } from '@/types';
 
@@ -27,7 +27,7 @@ export interface RosterItem {
  */
 export async function fetchTrainerRoster(trainerId: string): Promise<RosterItem[]> {
   try {
-    const supabase = getSupabaseServer();
+    const supabase = getSupabaseMissionControl();
 
     const { data: programs, error: programsError } = await supabase
       .from('programs')
@@ -95,7 +95,7 @@ export async function fetchTrainerRoster(trainerId: string): Promise<RosterItem[
  */
 export async function fetchHostRoster(hostId: string): Promise<RosterItem[]> {
   try {
-    const supabase = getSupabaseServer();
+    const supabase = getSupabaseMissionControl();
     const { data: rows, error } = await supabase
       .from('host_friend_connections')
       .select('buddy_user_id, created_at')
@@ -152,7 +152,7 @@ export async function fetchRosterForMissionControlUser(
 
 /** True if host has an accepted buddy link to the target user. */
 export async function isHostBuddy(hostId: string, buddyUserId: string): Promise<boolean> {
-  const supabase = getSupabaseServer();
+  const supabase = getSupabaseMissionControl();
   const { data, error } = await supabase
     .from('host_friend_connections')
     .select('host_id')
@@ -227,7 +227,7 @@ export async function fetchMissionControlRosterStats(
     return { totalClients: 0, totalWorkoutsLogged: 0, recentActivity: [] };
   }
 
-  const supabase = getSupabaseServer();
+  const supabase = getSupabaseMissionControl();
   const userIds = roster.map((r) => r.id);
   const profileByUserId = new Map(roster.map((r) => [r.id, r]));
 
@@ -299,7 +299,7 @@ export async function fetchClientStats(
   const allowed = await isUserInViewerRoster(viewerId, viewerRole, userId);
   if (!allowed) return null;
 
-  const supabase = getSupabaseServer();
+  const supabase = getSupabaseMissionControl();
   const { data: profileRow } = await supabase
     .from('profiles')
     .select('id, email, full_name')
