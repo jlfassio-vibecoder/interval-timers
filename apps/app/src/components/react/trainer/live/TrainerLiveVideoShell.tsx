@@ -192,7 +192,14 @@ export default function TrainerLiveVideoShell({
         </div>
       ) : null}
       {joined || banner ? (
-        excludeLocal ? null : (
+        excludeLocal ? (
+          <div className="w-full shrink-0">
+            <TrainerLiveVideoPlaceholderTile
+              label={localLabel}
+              hint="Video on timer background"
+            />
+          </div>
+        ) : (
           <div className="w-full shrink-0">
             <TrainerLiveLocalTile videoTrack={localVideoTrack} label={localLabel} />
           </div>
@@ -330,7 +337,12 @@ export default function TrainerLiveVideoShell({
               : 'grid flex-1 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3'
           }
         >
-          {excludeLocal ? null : (
+          {excludeLocal ? (
+            <TrainerLiveVideoPlaceholderTile
+              label={localLabel}
+              hint="Video on timer background"
+            />
+          ) : (
             <TrainerLiveLocalTile videoTrack={localVideoTrack} label={localLabel} />
           )}
           {trainerRemoteTiles}

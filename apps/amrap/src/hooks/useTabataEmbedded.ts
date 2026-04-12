@@ -190,6 +190,7 @@ export function useTabataEmbedded(options: UseTabataEmbeddedOptions): TabataEngi
   }, []);
 
   /** Deep bell on work/rest interval starts (Realtime sync for trainer + clients). Skips initial hydrate and resume-from-pause. */
+  // Copilot suggestion ignored: work/rest transition sounds are not unit-tested here because they require driving Realtime `row` updates; initial-hydrate no-sound is covered in useTabataEmbedded.test.ts.
   useEffect(() => {
     if (!row) {
       tabataSoundHydratedRef.current = false;

@@ -89,9 +89,9 @@ export default function TrainerLiveSessionRoom({
             ? participantId
             : (timerBg.leaderTrainerLiveParticipantId ?? participantId)
           : clientTrainerParticipantId
-        : intervalWrapperKind === 'tabata'
+        : intervalWrapperKind === 'tabata' && timerBg
           ? role === 'trainer'
-            ? (timerBg?.timerBackgroundSpotlightParticipantId ?? participantId)
+            ? (timerBg.timerBackgroundSpotlightParticipantId ?? participantId)
             : clientTrainerParticipantId
           : null
       : null;

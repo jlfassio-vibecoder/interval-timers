@@ -8,6 +8,11 @@ const mocks = vi.hoisted(() => ({
   rpc: vi.fn(),
 }));
 
+const soundMocks = vi.hoisted(() => ({
+  playTabataWorkStartSound: vi.fn(),
+  playTabataRestStartSound: vi.fn(),
+}));
+
 vi.mock('@/lib/supabase', () => ({
   supabase: {
     from: mocks.from,
@@ -15,6 +20,11 @@ vi.mock('@/lib/supabase', () => ({
     removeChannel: mocks.removeChannel,
     rpc: mocks.rpc,
   },
+}));
+
+vi.mock('@/lib/tabataSounds', () => ({
+  playTabataWorkStartSound: soundMocks.playTabataWorkStartSound,
+  playTabataRestStartSound: soundMocks.playTabataRestStartSound,
 }));
 
 import { computeTabataRemainingSec, useTabataEmbedded } from './useTabataEmbedded';
@@ -102,6 +112,23 @@ describe('useTabataEmbedded', () => {
 
     expect(mocks.from).toHaveBeenCalledWith('tabata_sessions');
     expect(mocks.channel).toHaveBeenCalled();
+  });
+
+  it('does not play interval transition sounds on initial session load', async () => {
+    const { result } = renderHook(() =>
+      useTabataEmbedded({
+        tabataSessionId: '550e8400-e29b-41d4-a716-446655440000',
+        embedVideo: 'trainer_live',
+        isTrainer: false,
+      })
+    );
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(soundMocks.playTabataWorkStartSound).not.toHaveBeenCalled();
+    expect(soundMocks.playTabataRestStartSound).not.toHaveBeenCalled();
   });
 
   it('exposes onSaveWorkoutList for trainer when session is editable', async () => {
