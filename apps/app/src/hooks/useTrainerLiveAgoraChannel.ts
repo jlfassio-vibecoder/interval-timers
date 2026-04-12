@@ -306,9 +306,12 @@ export function useTrainerLiveAgoraChannel(
         }
         tracksRef.current = null;
       }
-      client.removeAllListeners();
-      previousLeavePromiseRef.current = client.leave();
-      clientRef.current = null;
+      // If `rejoin()` already ran `leave()`, clientRef is null — avoid a second `client.leave()` on the same SDK client.
+      if (clientRef.current === client) {
+        client.removeAllListeners();
+        previousLeavePromiseRef.current = client.leave();
+        clientRef.current = null;
+      }
       setLocalVideoTrack(null);
       setLocalAudioTrack(null);
       setRemoteUsers([]);

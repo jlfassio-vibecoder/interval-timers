@@ -5,6 +5,7 @@ import {
   trainerLiveParticipantStorageKey,
   setTrainerLiveLastSessionId,
   readTrainerLiveLastSessionId,
+  clearTrainerLiveLastSessionId,
 } from '@/lib/trainer-live/storage';
 import type { TrainerLiveShell } from '@/lib/trainer-live/shells';
 
@@ -28,10 +29,14 @@ export default function TrainerLiveLobbyView() {
         p_session_id: lastId,
       });
       if (cancelled) return;
-      if (!error && data && typeof data === 'object') {
+      if (error || !data || typeof data !== 'object') {
+        clearTrainerLiveLastSessionId();
+      } else {
         const row = data as { active?: boolean };
         if (row.active === true) {
           setResumeSessionId(lastId);
+        } else {
+          clearTrainerLiveLastSessionId();
         }
       }
       setResumeCheckDone(true);

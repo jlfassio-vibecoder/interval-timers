@@ -1,6 +1,6 @@
 # Technical Design: Trainer Live — Rejoin (AV recovery without losing session)
 
-**Status:** Design for review — implement after approval.  
+**Status:** Implemented — in review.  
 **Related code:** [`TrainerLiveVideoShell`](../apps/app/src/components/react/trainer/live/TrainerLiveVideoShell.tsx), [`useTrainerLiveAgoraChannel`](../apps/app/src/hooks/useTrainerLiveAgoraChannel.ts), [`TrainerLiveAgoraProvider`](../apps/app/src/contexts/TrainerLiveAgoraContext.tsx), [`TrainerLiveHostView`](../apps/app/src/components/react/trainer/live/TrainerLiveHostView.tsx), [`TrainerLiveClientJoinPage`](../apps/app/src/components/react/trainer/live/TrainerLiveClientJoinPage.tsx).
 
 ---
@@ -19,7 +19,8 @@ Today, **Leave room** tears down Agora, clears `sessionStorage` for the live par
 
 - Replacing **Leave room** or **End session for everyone** (trainer).
 - Guaranteed fix for hardware/OS permission issues (rejoin may still surface the same permission error; copy should set expectations).
-- Changing participant caps, RLS, or DB schema **unless** review finds a hard requirement (default: **no migration**).
+- Changing participant caps or RLS as part of rejoin.
+- Broad DB schema redesign; this work adds a **targeted** Supabase migration to `trainer_live_join_session` (idempotent client join for signed-in users), not a general schema change.
 
 ---
 

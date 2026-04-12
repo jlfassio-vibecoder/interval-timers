@@ -1,4 +1,13 @@
-import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import { useAgoraToken } from '@/hooks/useAgoraToken';
 import {
   useTrainerLiveAgoraChannel,
@@ -9,32 +18,52 @@ import {
 /**
  * After `refetch()`, waits until the token hook finishes loading so reconnect uses a fresh JWT.
  * Handles very fast fetches (may not observe `loading === true`) via a short time gate.
+ * Pass an `AbortSignal` (e.g. from an `AbortController` aborted on provider unmount) so the
+ * polling `setInterval` is cleared immediately on abort — not only on the next 32ms tick.
  */
 function waitForAgoraSecureTokenAfterRefetch(
   refetch: () => void,
-  getSnapshot: () => { loading: boolean; error: string | null; token: string | null }
+  getSnapshot: () => { loading: boolean; error: string | null; token: string | null },
+  signal: AbortSignal
 ): Promise<void> {
+  if (signal.aborted) {
+    return Promise.reject(new DOMException('Aborted', 'AbortError'));
+  }
   refetch();
   const started = Date.now();
   let sawLoading = false;
   return new Promise((resolve, reject) => {
-    const id = setInterval(() => {
+    let settled = false;
+    let id: ReturnType<typeof setInterval> | undefined;
+    const finish = (fn: () => void) => {
+      if (settled) return;
+      settled = true;
+      if (id !== undefined) clearInterval(id);
+      signal.removeEventListener('abort', onAbort);
+      fn();
+    };
+    const onAbort = () => {
+      finish(() => reject(new DOMException('Aborted', 'AbortError')));
+    };
+    signal.addEventListener('abort', onAbort);
+    id = setInterval(() => {
+      if (signal.aborted) {
+        finish(() => reject(new DOMException('Aborted', 'AbortError')));
+        return;
+      }
       const { loading, error, token } = getSnapshot();
       const elapsed = Date.now() - started;
       if (loading) sawLoading = true;
       if (error && !loading) {
-        clearInterval(id);
-        reject(new Error(error));
+        finish(() => reject(new Error(error)));
         return;
       }
       if (!loading && token && (sawLoading || elapsed >= 80)) {
-        clearInterval(id);
-        resolve();
+        finish(() => resolve());
         return;
       }
       if (elapsed > 20000) {
-        clearInterval(id);
-        reject(new Error('Timed out waiting for Agora token refresh'));
+        finish(() => reject(new Error('Timed out waiting for Agora token refresh')));
       }
     }, 32);
   });
@@ -87,21 +116,44 @@ export function TrainerLiveAgoraProvider({
   const [isRejoining, setIsRejoining] = useState(false);
   const agoraTokRef = useRef(agoraTok);
   agoraTokRef.current = agoraTok;
+  const providerMountedRef = useRef(true);
+  /** Aborted on provider unmount or when a new rejoin supersedes the previous wait — stops token polling immediately. */
+  const reconnectWaitAbortRef = useRef<AbortController | null>(null);
+  useEffect(() => {
+    providerMountedRef.current = true;
+    return () => {
+      providerMountedRef.current = false;
+      reconnectWaitAbortRef.current?.abort();
+    };
+  }, []);
 
   const handleRejoin = useCallback(async () => {
+    reconnectWaitAbortRef.current?.abort();
+    const waitAc = new AbortController();
+    reconnectWaitAbortRef.current = waitAc;
     setIsRejoining(true);
     try {
       // Sequence: fresh JWT (secure path) → hook leave + reconnectNonce → effect join.
       if (useSecure) {
-        await waitForAgoraSecureTokenAfterRefetch(agoraTok.refetch, () => ({
-          loading: agoraTokRef.current.loading,
-          error: agoraTokRef.current.error,
-          token: agoraTokRef.current.token,
-        }));
+        await waitForAgoraSecureTokenAfterRefetch(
+          agoraTok.refetch,
+          () => ({
+            loading: agoraTokRef.current.loading,
+            error: agoraTokRef.current.error,
+            token: agoraTokRef.current.token,
+          }),
+          waitAc.signal
+        );
+        if (reconnectWaitAbortRef.current === waitAc) {
+          reconnectWaitAbortRef.current = null;
+        }
       }
       await channel.rejoin();
     } finally {
-      setIsRejoining(false);
+      if (reconnectWaitAbortRef.current === waitAc) {
+        reconnectWaitAbortRef.current = null;
+      }
+      if (providerMountedRef.current) setIsRejoining(false);
     }
   }, [useSecure, agoraTok.refetch, channel.rejoin]);
 
