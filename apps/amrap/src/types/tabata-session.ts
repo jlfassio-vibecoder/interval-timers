@@ -52,6 +52,8 @@ export interface TabataEngine {
   roundCount: number;
   /** 0-based current work interval index */
   currentIntervalIndex: number;
+  /** When `phase === 'paused'`, which interval type was frozen (for UI tone). */
+  pausedFromPhase: 'work' | 'rest' | null;
   workSeconds: number;
   restSeconds: number;
   workoutList: string[];
@@ -64,4 +66,10 @@ export interface TabataEngine {
   onPause?: () => void;
   onResume?: () => void;
   onFinish?: () => void;
+
+  /** Trainer Live embed: host can edit/reorder exercises (idle / setup / work / rest / paused). */
+  hostCanEditWorkoutList: boolean;
+  onSaveWorkoutList?: (
+    workoutList: string[]
+  ) => Promise<{ ok: boolean; error?: string }>;
 }

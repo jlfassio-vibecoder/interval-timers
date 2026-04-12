@@ -13,8 +13,10 @@ import TrainerLiveVideoFeedDrawer from './TrainerLiveVideoFeedDrawer';
 import TrainerLiveVideoShell, { type TrainerLiveRole } from './TrainerLiveVideoShell';
 import TrainerLiveCountdownPanel from './shells/TrainerLiveCountdownPanel';
 
-/** DOM mount for `TrainerLiveVideoShell` portal (trainer primary video + controls in SESSION column). */
+/** DOM mount for `TrainerLiveVideoShell` portal (trainer local camera + controls in SESSION column). */
 export const TRAINER_LIVE_TRAINER_MAIN_SLOT_ID = 'trainer-live-trainer-main-slot';
+/** DOM mount for client portal: trainer’s feed featured in SESSION column; self + peers stay in the video rail. */
+export const TRAINER_LIVE_CLIENT_MAIN_SLOT_ID = 'trainer-live-client-main-slot';
 
 export default function TrainerLiveSessionRoom({
   shell,
@@ -58,7 +60,7 @@ export default function TrainerLiveSessionRoom({
     if (
       role !== 'client' ||
       shell !== 'countdown_timer' ||
-      intervalWrapperKind !== 'amrap' ||
+      (intervalWrapperKind !== 'amrap' && intervalWrapperKind !== 'tabata') ||
       !hasTimerBackground
     ) {
       setClientTrainerParticipantId(null);
@@ -80,16 +82,33 @@ export default function TrainerLiveSessionRoom({
   }, [role, shell, intervalWrapperKind, sessionId, hasTimerBackground]);
 
   const excludeUidForTiles =
-    shell === 'countdown_timer' && intervalWrapperKind === 'amrap' && timerBg
-      ? role === 'trainer'
-        ? timerBg.mode === 'self'
-          ? participantId
-          : (timerBg.leaderTrainerLiveParticipantId ?? participantId)
-        : clientTrainerParticipantId
+    shell === 'countdown_timer'
+      ? intervalWrapperKind === 'amrap' && timerBg
+        ? role === 'trainer'
+          ? timerBg.mode === 'self'
+            ? participantId
+            : (timerBg.leaderTrainerLiveParticipantId ?? participantId)
+          : clientTrainerParticipantId
+        : intervalWrapperKind === 'tabata' && timerBg
+          ? role === 'trainer'
+            ? (timerBg.timerBackgroundSpotlightParticipantId ?? participantId)
+            : clientTrainerParticipantId
+          : null
       : null;
 
+  /** AMRAP / Tabata: keep video + room controls in the VIDEO drawer only; timer panel fills the center column. */
+  const sessionColumnVideoPortal =
+    shell === 'countdown_timer' &&
+    intervalWrapperKind !== 'amrap' &&
+    intervalWrapperKind !== 'tabata';
   const trainerMainPortalRootId =
-    shell === 'countdown_timer' && role === 'trainer' ? TRAINER_LIVE_TRAINER_MAIN_SLOT_ID : undefined;
+    sessionColumnVideoPortal && role === 'trainer'
+      ? TRAINER_LIVE_TRAINER_MAIN_SLOT_ID
+      : undefined;
+  const clientMainPortalRootId =
+    sessionColumnVideoPortal && role === 'client'
+      ? TRAINER_LIVE_CLIENT_MAIN_SLOT_ID
+      : undefined;
 
   const video = (
     <TrainerLiveVideoShell
@@ -101,6 +120,7 @@ export default function TrainerLiveSessionRoom({
       compact={shell === 'countdown_timer'}
       excludeUidForTiles={excludeUidForTiles}
       trainerMainPortalRootId={trainerMainPortalRootId}
+      clientMainPortalRootId={clientMainPortalRootId}
     />
   );
 
@@ -198,12 +218,20 @@ export default function TrainerLiveSessionRoom({
       >
         {activityRail}
         <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-y-auto">
-          {role === 'trainer' ? (
-            <div
-              id={TRAINER_LIVE_TRAINER_MAIN_SLOT_ID}
-              className="flex h-full min-h-0 min-w-0 w-full flex-1 flex-col px-2 pt-2 md:px-4"
-              data-testid="trainer-live-trainer-main-slot"
-            />
+          {sessionColumnVideoPortal ? (
+            role === 'trainer' ? (
+              <div
+                id={TRAINER_LIVE_TRAINER_MAIN_SLOT_ID}
+                className="flex h-full min-h-0 min-w-0 w-full flex-1 flex-col px-2 pt-2 md:px-4"
+                data-testid="trainer-live-trainer-main-slot"
+              />
+            ) : (
+              <div
+                id={TRAINER_LIVE_CLIENT_MAIN_SLOT_ID}
+                className="flex h-full min-h-0 min-w-0 w-full flex-1 flex-col px-2 pt-2 md:px-4"
+                data-testid="trainer-live-client-main-slot"
+              />
+            )
           ) : null}
           {/* shrink-0: interval height is content-driven; SESSION slot above fills remaining column height. */}
           <div className="shrink-0 px-2 pb-1 pt-2 md:px-4 md:pb-2">{intervalSidebar}</div>

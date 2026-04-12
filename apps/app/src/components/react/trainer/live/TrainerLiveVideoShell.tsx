@@ -33,6 +33,8 @@ export default function TrainerLiveVideoShell({
   excludeUidForTiles,
   /** When set with trainer + compact, primary feed + controls port into this DOM id (SESSION column). */
   trainerMainPortalRootId,
+  /** When set with client + compact, trainer feed + controls port into SESSION; self + peers stay in the drawer. */
+  clientMainPortalRootId,
 }: {
   sessionId: string;
   participantId: string;
@@ -43,6 +45,7 @@ export default function TrainerLiveVideoShell({
   compact?: boolean;
   excludeUidForTiles?: string | null;
   trainerMainPortalRootId?: string;
+  clientMainPortalRootId?: string;
 }) {
   const [participantMap, setParticipantMap] = useState<Map<string, ParticipantMeta>>(new Map());
   const [loadErr, setLoadErr] = useState<string | null>(null);
@@ -108,9 +111,20 @@ export default function TrainerLiveVideoShell({
     typeof trainerMainPortalRootId === 'string' &&
     trainerMainPortalRootId.length > 0;
 
+  const shouldSplitClientMain =
+    role === 'client' &&
+    compact &&
+    typeof clientMainPortalRootId === 'string' &&
+    clientMainPortalRootId.length > 0;
+
   const portalMount =
     typeof document !== 'undefined' && shouldSplitTrainerMain
       ? document.getElementById(trainerMainPortalRootId)
+      : null;
+
+  const clientPortalMount =
+    typeof document !== 'undefined' && shouldSplitClientMain
+      ? document.getElementById(clientMainPortalRootId)
       : null;
 
   const controlBar = (
@@ -178,13 +192,18 @@ export default function TrainerLiveVideoShell({
         </div>
       ) : null}
       {joined || banner ? (
-        <div className="w-full shrink-0">
-          {excludeLocal ? (
-            <TrainerLiveVideoPlaceholderTile label={localLabel} hint="Video on timer background" />
-          ) : (
+        excludeLocal ? (
+          <div className="w-full shrink-0">
+            <TrainerLiveVideoPlaceholderTile
+              label={localLabel}
+              hint="Video on timer background"
+            />
+          </div>
+        ) : (
+          <div className="w-full shrink-0">
             <TrainerLiveLocalTile videoTrack={localVideoTrack} label={localLabel} />
-          )}
-        </div>
+          </div>
+        )
       ) : null}
       <div className="shrink-0">{controlBar}</div>
     </div>
@@ -206,6 +225,72 @@ export default function TrainerLiveVideoShell({
     )
   );
 
+  /** Client split drawer: self + non-trainer peers (trainer is portaled to SESSION column). */
+  const clientPeersDrawerGrid = (
+    <div className="grid flex-1 grid-cols-1 gap-2">
+      {excludeLocal ? (
+        <TrainerLiveVideoPlaceholderTile
+          label={localLabel}
+          hint="Video on timer background"
+        />
+      ) : (
+        <TrainerLiveLocalTile videoTrack={localVideoTrack} label={localLabel} />
+      )}
+      {otherRemotes.map((u) =>
+        exclude != null && String(u.uid) === exclude ? (
+          <TrainerLiveVideoPlaceholderTile
+            key={String(u.uid)}
+            label={labelForUid(u.uid, participantMap)}
+            hint="Video on timer background"
+          />
+        ) : (
+          <TrainerLiveRemoteTile
+            key={String(u.uid)}
+            user={u}
+            label={labelForUid(u.uid, participantMap)}
+          />
+        )
+      )}
+    </div>
+  );
+
+  const clientPortalColumn = (
+    <div className="flex h-full min-h-0 w-full flex-col gap-2 overflow-y-auto text-white">
+      {banner ? (
+        <div className="shrink-0 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs text-amber-100 sm:text-sm">
+          {banner}
+        </div>
+      ) : null}
+      {!joined && !banner ? (
+        <div className="flex min-h-[6rem] shrink-0 items-center justify-center text-xs text-white/60 sm:text-sm">
+          Connecting to room…
+        </div>
+      ) : null}
+      {joined || banner ? (
+        trainerRemoteExcluded && trainerRemote ? (
+          <div className="min-h-0 shrink-0">
+            <TrainerLiveVideoPlaceholderTile
+              label={labelForUid(trainerRemote.uid, participantMap)}
+              hint="Video on timer background"
+            />
+          </div>
+        ) : trainerRemote ? (
+          <div className="min-h-0 w-full shrink-0">
+            <TrainerLiveRemoteTile
+              user={trainerRemote}
+              label={labelForUid(trainerRemote.uid, participantMap)}
+            />
+          </div>
+        ) : (
+          <div className="flex min-h-[6rem] shrink-0 items-center justify-center rounded-xl border border-white/10 bg-zinc-900/50 text-sm text-white/50">
+            Waiting for trainer…
+          </div>
+        )
+      ) : null}
+      <div className="shrink-0">{controlBar}</div>
+    </div>
+  );
+
   if (role === 'trainer' && shouldSplitTrainerMain && portalMount) {
     return (
       <>
@@ -217,6 +302,15 @@ export default function TrainerLiveVideoShell({
             <div className="grid flex-1 grid-cols-1 gap-2">{trainerRemoteTiles}</div>
           )}
         </div>
+      </>
+    );
+  }
+
+  if (role === 'client' && shouldSplitClientMain && clientPortalMount) {
+    return (
+      <>
+        {createPortal(clientPortalColumn, clientPortalMount)}
+        <div className={root}>{clientPeersDrawerGrid}</div>
       </>
     );
   }

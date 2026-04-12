@@ -80,7 +80,12 @@ export {
 export type { UseTabataEmbeddedOptions } from '../hooks/useTabataEmbedded';
 
 export { default as TabataSessionShell } from '../components/tabata-session/TabataSessionShell';
-export type { TabataSessionShellLayout } from '../components/tabata-session/TabataSessionShell';
+export type {
+  TabataSessionShellLayout,
+  TabataSessionShellProps,
+} from '../components/tabata-session/TabataSessionShell';
+
+export { default as TabataEmbedExerciseSection } from '../components/tabata-session/TabataEmbedExerciseSection';
 
 export type {
   TabataEngine,

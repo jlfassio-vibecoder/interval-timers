@@ -1,17 +1,31 @@
 import { useEffect } from 'react';
-import { TabataSessionShell, useTabataEmbedded } from 'amrap/embed';
+import {
+  TabataEmbedExerciseSection,
+  TabataSessionShell,
+  useTabataEmbedded,
+} from 'amrap/embed';
+import { useTrainerLiveTimerBackground } from '@/contexts/TrainerLiveTimerBackgroundContext';
+import TrainerLiveTabataTimerBackground from '@/components/react/trainer/live/TrainerLiveTabataTimerBackground';
+import TrainerLiveTabataVideoSpotlightPicker from '@/components/react/trainer/live/TrainerLiveTabataVideoSpotlightPicker';
 import type { TrainerLiveWrapperBaseProps } from '../types';
 import { parseTabataSessionIdFromWrapperConfig } from '../parseWrapperConfig';
 
 function TabataEmbedBody({
   tabataSessionId,
+  trainerLiveSessionId,
+  participantId,
+  role,
   isTrainer,
   onWrapperError,
 }: {
   tabataSessionId: string;
+  trainerLiveSessionId: string;
+  participantId: string;
+  role: 'trainer' | 'client';
   isTrainer: boolean;
   onWrapperError?: (message: string) => void;
 }) {
+  const { setTimerBackgroundSpotlightParticipantId } = useTrainerLiveTimerBackground();
   const engine = useTabataEmbedded({
     tabataSessionId,
     embedVideo: 'trainer_live',
@@ -22,18 +36,51 @@ function TabataEmbedBody({
     if (engine.error) onWrapperError?.(engine.error);
   }, [engine.error, onWrapperError]);
 
+  useEffect(() => {
+    if (!isTrainer) return;
+    return () => {
+      setTimerBackgroundSpotlightParticipantId(null);
+    };
+  }, [isTrainer, setTimerBackgroundSpotlightParticipantId]);
+
   return (
     <div
-      className="trainer-live-tabata-embed w-full min-w-0 text-white [&_.min-h-screen]:min-h-0"
+      className="trainer-live-tabata-embed relative w-full min-w-0 text-white [&_.min-h-screen]:min-h-0"
       data-testid="trainer-live-tabata-shell"
     >
-      <TabataSessionShell engine={engine} shellLayout="trainerLiveEmbed" />
+      <TrainerLiveTabataTimerBackground
+        trainerLiveSessionId={trainerLiveSessionId}
+        participantId={participantId}
+        role={role}
+        videoBottomOverlay={
+          <TabataEmbedExerciseSection
+            engine={engine}
+            maxTwoColumns
+            className="flex w-full flex-col gap-2 sm:gap-3"
+          />
+        }
+      />
+      <div className="relative z-10">
+        <TabataSessionShell
+          engine={engine}
+          shellLayout="trainerLiveEmbed"
+          embedSuppressExercises
+          embedTitleBarAccessoryBeforeSub={
+            isTrainer ? (
+              <TrainerLiveTabataVideoSpotlightPicker
+                sessionId={trainerLiveSessionId}
+                trainerParticipantId={participantId}
+              />
+            ) : undefined
+          }
+        />
+      </div>
     </div>
   );
 }
 
 export default function TrainerLiveTabataWrapper(props: TrainerLiveWrapperBaseProps) {
-  const { wrapperConfig, onWrapperError, role } = props;
+  const { wrapperConfig, onWrapperError, role, trainerLiveSessionId, participantId } = props;
   const tabataSessionId = parseTabataSessionIdFromWrapperConfig(wrapperConfig);
 
   if (!tabataSessionId) {
@@ -47,6 +94,9 @@ export default function TrainerLiveTabataWrapper(props: TrainerLiveWrapperBasePr
   return (
     <TabataEmbedBody
       tabataSessionId={tabataSessionId}
+      trainerLiveSessionId={trainerLiveSessionId}
+      participantId={participantId}
+      role={role}
       isTrainer={role === 'trainer'}
       onWrapperError={onWrapperError}
     />

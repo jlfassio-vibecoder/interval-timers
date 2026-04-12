@@ -48,6 +48,12 @@ export interface AmrapTimerDisplayProps {
    * Stacks above the subtitle on narrow viewports; sits to its left in a row when wider.
    */
   titleBarAccessoryBeforeSub?: ReactNode;
+  /**
+   * Embed left column: override label (e.g. WORK / REST) and main time color (Tabata work=red, rest=green).
+   * When unset, uses default AMRAP phase colors.
+   */
+  embedMainClockLabelClassName?: string;
+  embedMainClockValueClassName?: string;
 }
 
 /** Matches exercise list cards (`AmrapExerciseListEditor` / `AmrapExerciseList`). */
@@ -85,6 +91,8 @@ export default function AmrapTimerDisplay({
   embedHostAndTimerInLeftColumn = false,
   embedMetricsVariant = 'hostFourColumn',
   titleBarAccessoryBeforeSub,
+  embedMainClockLabelClassName,
+  embedMainClockValueClassName,
 }: AmrapTimerDisplayProps) {
   const bg = containerClassName ?? getTimerBg(phase);
   const isTimeValue = /^\d{1,2}:\d{2}$/.test(displayValue);
@@ -107,15 +115,25 @@ export default function AmrapTimerDisplay({
 
   const labelAndClockEmbed = (
     <div className="flex w-full flex-col items-center text-center">
-      <div className="mb-2 text-[15px] font-bold uppercase tracking-widest opacity-80">
+      <div
+        className={
+          embedMainClockLabelClassName && embedMainClockLabelClassName.length > 0
+            ? embedMainClockLabelClassName
+            : 'mb-2 text-[15px] font-bold uppercase tracking-widest opacity-80'
+        }
+      >
         {displayLabel}
       </div>
       <div
-        className={`flex w-full min-w-0 justify-center overflow-hidden text-center font-bold tabular-nums ${
+        className={
           beforeCountdownWindow
-            ? 'text-[2.25rem] text-white/90 md:text-[2.8125rem]'
-            : `font-mono ${phase === 'work' ? 'text-orange-500' : 'text-white/90'}`
-        }`}
+            ? 'flex w-full min-w-0 justify-center overflow-hidden text-center font-bold tabular-nums text-[2.25rem] text-white/90 md:text-[2.8125rem]'
+            : embedMainClockValueClassName && embedMainClockValueClassName.length > 0
+              ? `flex w-full min-w-0 justify-center overflow-hidden text-center font-bold tabular-nums ${embedMainClockValueClassName}`
+              : `flex w-full min-w-0 justify-center overflow-hidden text-center font-bold tabular-nums font-mono ${
+                  phase === 'work' ? 'text-orange-500' : 'text-white/90'
+                }`
+        }
         style={!beforeCountdownWindow ? { containerType: 'inline-size' } : undefined}
       >
         {beforeCountdownWindow ? (
