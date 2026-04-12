@@ -49,8 +49,9 @@ export default function TrainerLiveVideoShell({
 }) {
   const [participantMap, setParticipantMap] = useState<Map<string, ParticipantMeta>>(new Map());
   const [loadErr, setLoadErr] = useState<string | null>(null);
+  const [rejoinError, setRejoinError] = useState<string | null>(null);
 
-  const { joined, localVideoTrack, remoteUsers, leave, muteVideo, muteAudio, error } =
+  const { joined, localVideoTrack, remoteUsers, leave, rejoin, isRejoining, muteVideo, muteAudio, error } =
     useTrainerLiveAgora();
 
   useEffect(() => {
@@ -87,6 +88,15 @@ export default function TrainerLiveVideoShell({
     onLeaveRoom();
   }, [leave, onLeaveRoom]);
 
+  const onRejoinClick = useCallback(async () => {
+    setRejoinError(null);
+    try {
+      await rejoin();
+    } catch {
+      setRejoinError('Failed to reconnect. Please try again.');
+    }
+  }, [rejoin]);
+
   const trainerRemote = remoteUsers.find(
     (u) => participantMap.get(String(u.uid))?.role === 'trainer'
   );
@@ -100,6 +110,28 @@ export default function TrainerLiveVideoShell({
     trainerRemote != null && exclude != null && String(trainerRemote.uid) === exclude;
 
   const banner = error || loadErr;
+
+  const rejoinBannerEl =
+    rejoinError !== null ? (
+      <div
+        className={
+          compact
+            ? 'flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs text-amber-100 sm:text-sm'
+            : 'flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-2 text-sm text-amber-100'
+        }
+        role="status"
+      >
+        <span className="min-w-0 flex-1">{rejoinError}</span>
+        <button
+          type="button"
+          disabled={isRejoining}
+          onClick={() => void onRejoinClick()}
+          className="shrink-0 rounded-md border border-amber-400/50 bg-amber-500/20 px-2.5 py-1 text-xs font-medium text-amber-50 hover:bg-amber-500/30 disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm"
+        >
+          Retry
+        </button>
+      </div>
+    ) : null;
 
   const root = compact
     ? 'flex h-full min-h-0 flex-col gap-3 text-white'
@@ -163,11 +195,27 @@ export default function TrainerLiveVideoShell({
       </button>
       <button
         type="button"
+        title="Leave and re-enter the call without leaving the workout"
+        aria-busy={isRejoining}
+        aria-label="Reconnect — leave and re-enter the call without leaving the workout"
+        disabled={isRejoining}
+        onClick={() => void onRejoinClick()}
+        className={
+          compact
+            ? 'rounded-lg border border-white/20 px-2 py-1.5 text-xs hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50'
+            : 'rounded-lg border border-white/20 px-4 py-2 text-sm hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50'
+        }
+      >
+        {isRejoining ? 'Reconnecting…' : 'Reconnect'}
+      </button>
+      <button
+        type="button"
+        disabled={isRejoining}
         onClick={() => void handleLeave()}
         className={
           compact
-            ? 'rounded-lg bg-red-600/80 px-2 py-1.5 text-xs font-medium hover:bg-red-600'
-            : 'rounded-lg bg-red-600/80 px-4 py-2 text-sm font-medium hover:bg-red-600'
+            ? 'rounded-lg bg-red-600/80 px-2 py-1.5 text-xs font-medium hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-50'
+            : 'rounded-lg bg-red-600/80 px-4 py-2 text-sm font-medium hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-50'
         }
       >
         Leave room
@@ -186,6 +234,7 @@ export default function TrainerLiveVideoShell({
           {banner}
         </div>
       ) : null}
+      {rejoinBannerEl}
       {!joined && !banner ? (
         <div className="flex min-h-[6rem] shrink-0 items-center justify-center text-xs text-white/60 sm:text-sm">
           Connecting to room…
@@ -261,6 +310,7 @@ export default function TrainerLiveVideoShell({
           {banner}
         </div>
       ) : null}
+      {rejoinBannerEl}
       {!joined && !banner ? (
         <div className="flex min-h-[6rem] shrink-0 items-center justify-center text-xs text-white/60 sm:text-sm">
           Connecting to room…
@@ -322,6 +372,7 @@ export default function TrainerLiveVideoShell({
           {banner}
         </div>
       ) : null}
+      {rejoinBannerEl}
 
       {!joined && !banner ? (
         <div className="flex flex-1 items-center justify-center text-white/60">

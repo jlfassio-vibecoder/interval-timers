@@ -33,6 +33,8 @@ export interface UseTrainerLiveAgoraChannelResult {
   localAudioTrack: IMicrophoneAudioTrack | null;
   remoteUsers: TrainerLiveRemoteUser[];
   leave: () => Promise<void>;
+  /** Full Agora teardown then join again (same channel identity). Used for AV recovery. */
+  rejoin: () => Promise<void>;
   muteVideo: (muted: boolean) => void;
   muteAudio: (muted: boolean) => void;
   error: string | null;
@@ -48,9 +50,14 @@ export function useTrainerLiveAgoraChannel(
   const [localAudioTrack, setLocalAudioTrack] = useState<IMicrophoneAudioTrack | null>(null);
   const [remoteUsers, setRemoteUsers] = useState<TrainerLiveRemoteUser[]>([]);
   const [error, setError] = useState<string | null>(null);
+  /** Bumping this re-runs the connection effect after an explicit `rejoin()` without depending on token string changes (avoids double-connect when the provider refetches JWT first). */
+  const [reconnectNonce, setReconnectNonce] = useState(0);
   const clientRef = useRef<IAgoraRTCClient | null>(null);
   const tracksRef = useRef<{ video: ICameraVideoTrack; audio: IMicrophoneAudioTrack } | null>(null);
   const previousLeavePromiseRef = useRef<Promise<void> | null>(null);
+  /** Latest secure gate for join credentials (always current when `run()` executes after await points). */
+  const secureTokenRef = useRef<TrainerLiveSecureAgoraToken | null>(null);
+  secureTokenRef.current = secureToken;
 
   const addRemoteUser = useCallback(
     (uid: string | number, video?: IRemoteVideoTrack, audio?: IRemoteAudioTrack) => {
@@ -128,6 +135,15 @@ export function useTrainerLiveAgoraChannel(
     setJoined(false);
   }, []);
 
+  const rejoin = useCallback(async () => {
+    await leave();
+    if (previousLeavePromiseRef.current) {
+      await previousLeavePromiseRef.current;
+      previousLeavePromiseRef.current = null;
+    }
+    setReconnectNonce((n) => n + 1);
+  }, [leave]);
+
   const muteVideo = useCallback((muted: boolean) => {
     tracksRef.current?.video.setEnabled(!muted);
   }, []);
@@ -141,15 +157,16 @@ export function useTrainerLiveAgoraChannel(
       return () => {};
     }
 
-    if (secureToken) {
-      if (secureToken.loading) {
+    const stGate = secureTokenRef.current;
+    if (stGate) {
+      if (stGate.loading) {
         return () => {};
       }
-      if (secureToken.error) {
-        setError(secureToken.error);
+      if (stGate.error) {
+        setError(stGate.error);
         return () => {};
       }
-      if (!secureToken.token || !secureToken.joinUid || !secureToken.channelName) {
+      if (!stGate.token || !stGate.joinUid || !stGate.channelName) {
         return () => {};
       }
     }
@@ -198,10 +215,11 @@ export function useTrainerLiveAgoraChannel(
         let joinToken: string;
         let joinChannel: string;
         let joinAccount: string;
-        if (secureToken?.token && secureToken.joinUid && secureToken.channelName) {
-          joinToken = secureToken.token;
-          joinChannel = secureToken.channelName;
-          joinAccount = secureToken.joinUid;
+        const st = secureTokenRef.current;
+        if (st?.token && st.joinUid && st.channelName) {
+          joinToken = st.token;
+          joinChannel = st.channelName;
+          joinAccount = st.joinUid;
         } else {
           const result = await getTrainerLiveToken(channelName, participantId);
           if (cancelled) return;
@@ -299,11 +317,9 @@ export function useTrainerLiveAgoraChannel(
   }, [
     channelName,
     participantId,
+    reconnectNonce,
     secureToken?.loading,
     secureToken?.error,
-    secureToken?.token,
-    secureToken?.joinUid,
-    secureToken?.channelName,
     addRemoteUser,
     removeRemoteUser,
     clearRemoteUserTrack,
@@ -315,6 +331,7 @@ export function useTrainerLiveAgoraChannel(
     localAudioTrack,
     remoteUsers,
     leave,
+    rejoin,
     muteVideo,
     muteAudio,
     error,

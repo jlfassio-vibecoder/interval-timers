@@ -8,6 +8,8 @@ import { supabase } from '@/lib/supabase/supabase-instance';
 import {
   trainerLiveParticipantStorageKey,
   readTrainerLiveParticipantIdFromStorage,
+  setTrainerLiveLastSessionId,
+  clearTrainerLiveLastSessionId,
 } from '@/lib/trainer-live/storage';
 import { parseTrainerLiveShell, type TrainerLiveShell } from '@/lib/trainer-live/shells';
 import type { TrainerLiveIntervalWrapperKind } from '@/lib/trainer-live/wrappers/types';
@@ -81,6 +83,11 @@ export default function TrainerLiveHostView() {
       cancelled = true;
     };
   }, [sessionId, user?.uid, participantId]);
+
+  useEffect(() => {
+    if (!sessionId?.trim() || !participantId) return;
+    setTrainerLiveLastSessionId(sessionId.trim());
+  }, [sessionId, participantId]);
 
   useEffect(() => {
     if (!sessionId || !participantId) return;
@@ -223,6 +230,7 @@ export default function TrainerLiveHostView() {
         return;
       }
       sessionStorage.removeItem(trainerLiveParticipantStorageKey(sessionId));
+      clearTrainerLiveLastSessionId();
       navigate(`/live/${encodeURIComponent(sessionId)}/summary`, { replace: true });
     } finally {
       setEndBusy(false);

@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useAgoraToken } from '@/hooks/useAgoraToken';
 import {
   useTrainerLiveAgoraChannel,
@@ -6,7 +6,45 @@ import {
   type UseTrainerLiveAgoraChannelResult,
 } from '@/hooks/useTrainerLiveAgoraChannel';
 
-const TrainerLiveAgoraContext = createContext<UseTrainerLiveAgoraChannelResult | null>(null);
+/**
+ * After `refetch()`, waits until the token hook finishes loading so reconnect uses a fresh JWT.
+ * Handles very fast fetches (may not observe `loading === true`) via a short time gate.
+ */
+function waitForAgoraSecureTokenAfterRefetch(
+  refetch: () => void,
+  getSnapshot: () => { loading: boolean; error: string | null; token: string | null }
+): Promise<void> {
+  refetch();
+  const started = Date.now();
+  let sawLoading = false;
+  return new Promise((resolve, reject) => {
+    const id = setInterval(() => {
+      const { loading, error, token } = getSnapshot();
+      const elapsed = Date.now() - started;
+      if (loading) sawLoading = true;
+      if (error && !loading) {
+        clearInterval(id);
+        reject(new Error(error));
+        return;
+      }
+      if (!loading && token && (sawLoading || elapsed >= 80)) {
+        clearInterval(id);
+        resolve();
+        return;
+      }
+      if (elapsed > 20000) {
+        clearInterval(id);
+        reject(new Error('Timed out waiting for Agora token refresh'));
+      }
+    }, 32);
+  });
+}
+
+export type TrainerLiveAgoraContextValue = UseTrainerLiveAgoraChannelResult & {
+  isRejoining: boolean;
+};
+
+const TrainerLiveAgoraContext = createContext<TrainerLiveAgoraContextValue | null>(null);
 
 export function TrainerLiveAgoraProvider({
   sessionId,
@@ -46,8 +84,35 @@ export function TrainerLiveAgoraProvider({
 
   const channel = useTrainerLiveAgoraChannel(sessionId, participantId, secureGate);
 
+  const [isRejoining, setIsRejoining] = useState(false);
+  const agoraTokRef = useRef(agoraTok);
+  agoraTokRef.current = agoraTok;
+
+  const handleRejoin = useCallback(async () => {
+    setIsRejoining(true);
+    try {
+      // Sequence: fresh JWT (secure path) → hook leave + reconnectNonce → effect join.
+      if (useSecure) {
+        await waitForAgoraSecureTokenAfterRefetch(agoraTok.refetch, () => ({
+          loading: agoraTokRef.current.loading,
+          error: agoraTokRef.current.error,
+          token: agoraTokRef.current.token,
+        }));
+      }
+      await channel.rejoin();
+    } finally {
+      setIsRejoining(false);
+    }
+  }, [useSecure, agoraTok.refetch, channel.rejoin]);
+
+  const contextValue: TrainerLiveAgoraContextValue = {
+    ...channel,
+    rejoin: handleRejoin,
+    isRejoining,
+  };
+
   return (
-    <TrainerLiveAgoraContext.Provider value={channel}>
+    <TrainerLiveAgoraContext.Provider value={contextValue}>
       <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
         {useSecure && agoraTok.loading ? (
           <div
@@ -85,7 +150,7 @@ export function TrainerLiveAgoraProvider({
   );
 }
 
-export function useTrainerLiveAgora(): UseTrainerLiveAgoraChannelResult {
+export function useTrainerLiveAgora(): TrainerLiveAgoraContextValue {
   const ctx = useContext(TrainerLiveAgoraContext);
   if (!ctx) {
     throw new Error('useTrainerLiveAgora must be used within TrainerLiveAgoraProvider');
