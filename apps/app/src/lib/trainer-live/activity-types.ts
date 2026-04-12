@@ -58,8 +58,7 @@ export function parseTrainerLiveActivityState(data: unknown): TrainerLiveActivit
         const tid = base.tabata_session_id;
         return {
           ...(seg as unknown as TrainerLiveActivitySegmentRow),
-          tabata_session_id:
-            tid == null ? null : typeof tid === 'string' ? tid : null,
+          tabata_session_id: tid == null ? null : typeof tid === 'string' ? tid : null,
         };
       })
     : [];

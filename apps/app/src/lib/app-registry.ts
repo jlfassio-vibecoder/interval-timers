@@ -68,9 +68,7 @@ export function getAppById(id: string): AppEntry | undefined {
 /** Resolves the launch URL for an app. AMRAP uses {@link getAmrapAppBase} when set (see amrap-app-base.ts). */
 export function getAppLaunchUrl(app: AppEntry, params: Record<string, string>): string {
   const amrapBase = app.id === 'amrap' ? getAmrapAppBase() : '';
-  const base =
-    (app.baseUrl && app.baseUrl.trim()) ||
-    (amrapBase ? `${amrapBase}/` : '');
+  const base = (app.baseUrl && app.baseUrl.trim()) || (amrapBase ? `${amrapBase}/` : '');
   if (base) return appendQuery(base, params);
   return appendQuery(app.path, params);
 }

@@ -51,8 +51,17 @@ export default function TrainerLiveVideoShell({
   const [loadErr, setLoadErr] = useState<string | null>(null);
   const [rejoinError, setRejoinError] = useState<string | null>(null);
 
-  const { joined, localVideoTrack, remoteUsers, leave, rejoin, isRejoining, muteVideo, muteAudio, error } =
-    useTrainerLiveAgora();
+  const {
+    joined,
+    localVideoTrack,
+    remoteUsers,
+    leave,
+    rejoin,
+    isRejoining,
+    muteVideo,
+    muteAudio,
+    error,
+  } = useTrainerLiveAgora();
 
   useEffect(() => {
     let cancelled = false;
@@ -160,9 +169,7 @@ export default function TrainerLiveVideoShell({
       : null;
 
   const controlBar = (
-    <div
-      className={`flex flex-wrap items-center ${compact ? 'gap-2 pt-2' : 'gap-3 pt-4'}`}
-    >
+    <div className={`flex flex-wrap items-center ${compact ? 'gap-2 pt-2' : 'gap-3 pt-4'}`}>
       <button
         type="button"
         onClick={() => {
@@ -243,10 +250,7 @@ export default function TrainerLiveVideoShell({
       {joined || banner ? (
         excludeLocal ? (
           <div className="w-full shrink-0">
-            <TrainerLiveVideoPlaceholderTile
-              label={localLabel}
-              hint="Video on timer background"
-            />
+            <TrainerLiveVideoPlaceholderTile label={localLabel} hint="Video on timer background" />
           </div>
         ) : (
           <div className="w-full shrink-0">
@@ -278,10 +282,7 @@ export default function TrainerLiveVideoShell({
   const clientPeersDrawerGrid = (
     <div className="grid flex-1 grid-cols-1 gap-2">
       {excludeLocal ? (
-        <TrainerLiveVideoPlaceholderTile
-          label={localLabel}
-          hint="Video on timer background"
-        />
+        <TrainerLiveVideoPlaceholderTile label={localLabel} hint="Video on timer background" />
       ) : (
         <TrainerLiveLocalTile videoTrack={localVideoTrack} label={localLabel} />
       )}
@@ -389,10 +390,7 @@ export default function TrainerLiveVideoShell({
           }
         >
           {excludeLocal ? (
-            <TrainerLiveVideoPlaceholderTile
-              label={localLabel}
-              hint="Video on timer background"
-            />
+            <TrainerLiveVideoPlaceholderTile label={localLabel} hint="Video on timer background" />
           ) : (
             <TrainerLiveLocalTile videoTrack={localVideoTrack} label={localLabel} />
           )}

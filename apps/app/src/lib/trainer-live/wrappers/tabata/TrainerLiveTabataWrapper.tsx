@@ -1,9 +1,5 @@
 import { useEffect } from 'react';
-import {
-  TabataEmbedExerciseSection,
-  TabataSessionShell,
-  useTabataEmbedded,
-} from 'amrap/embed';
+import { TabataEmbedExerciseSection, TabataSessionShell, useTabataEmbedded } from 'amrap/embed';
 import { useTrainerLiveTimerBackground } from '@/contexts/TrainerLiveTimerBackgroundContext';
 import TrainerLiveTabataTimerBackground from '@/components/react/trainer/live/TrainerLiveTabataTimerBackground';
 import TrainerLiveTabataVideoSpotlightPicker from '@/components/react/trainer/live/TrainerLiveTabataVideoSpotlightPicker';
@@ -17,6 +13,7 @@ function TabataEmbedBody({
   role,
   isTrainer,
   onWrapperError,
+  videoTileExcludeUid,
 }: {
   tabataSessionId: string;
   trainerLiveSessionId: string;
@@ -24,6 +21,7 @@ function TabataEmbedBody({
   role: 'trainer' | 'client';
   isTrainer: boolean;
   onWrapperError?: (message: string) => void;
+  videoTileExcludeUid?: string | null;
 }) {
   const { setTimerBackgroundSpotlightParticipantId } = useTrainerLiveTimerBackground();
   const engine = useTabataEmbedded({
@@ -52,19 +50,23 @@ function TabataEmbedBody({
         trainerLiveSessionId={trainerLiveSessionId}
         participantId={participantId}
         role={role}
+        videoTileExcludeUid={videoTileExcludeUid}
         videoBottomOverlay={
-          <TabataEmbedExerciseSection
-            engine={engine}
-            maxTwoColumns
-            className="flex w-full flex-col gap-2 sm:gap-3"
-          />
+          isTrainer ? (
+            <TabataEmbedExerciseSection
+              engine={engine}
+              maxTwoColumns
+              className="flex w-full flex-col gap-2 sm:gap-3"
+            />
+          ) : undefined
         }
       />
       <div className="relative z-10">
         <TabataSessionShell
           engine={engine}
           shellLayout="trainerLiveEmbed"
-          embedSuppressExercises
+          embedSuppressExercises={isTrainer}
+          embedClientLiveLayout={!isTrainer}
           embedTitleBarAccessoryBeforeSub={
             isTrainer ? (
               <TrainerLiveTabataVideoSpotlightPicker
@@ -80,7 +82,14 @@ function TabataEmbedBody({
 }
 
 export default function TrainerLiveTabataWrapper(props: TrainerLiveWrapperBaseProps) {
-  const { wrapperConfig, onWrapperError, role, trainerLiveSessionId, participantId } = props;
+  const {
+    wrapperConfig,
+    onWrapperError,
+    role,
+    trainerLiveSessionId,
+    participantId,
+    videoTileExcludeUid,
+  } = props;
   const tabataSessionId = parseTabataSessionIdFromWrapperConfig(wrapperConfig);
 
   if (!tabataSessionId) {
@@ -99,6 +108,7 @@ export default function TrainerLiveTabataWrapper(props: TrainerLiveWrapperBasePr
       role={role}
       isTrainer={role === 'trainer'}
       onWrapperError={onWrapperError}
+      videoTileExcludeUid={videoTileExcludeUid}
     />
   );
 }

@@ -1,9 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase/supabase-instance';
-import {
-  parseLiveSessionSummary,
-  type LiveSessionSummary,
-} from '@/types/live-session-summary';
+import { parseLiveSessionSummary, type LiveSessionSummary } from '@/types/live-session-summary';
 
 export type UseLiveSessionSummaryResult = {
   data: LiveSessionSummary | null;
@@ -12,9 +9,7 @@ export type UseLiveSessionSummaryResult = {
   refetch: () => void;
 };
 
-export function useLiveSessionSummary(
-  sessionId: string | undefined
-): UseLiveSessionSummaryResult {
+export function useLiveSessionSummary(sessionId: string | undefined): UseLiveSessionSummaryResult {
   const [data, setData] = useState<LiveSessionSummary | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

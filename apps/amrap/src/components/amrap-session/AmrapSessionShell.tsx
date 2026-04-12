@@ -31,6 +31,11 @@ export interface AmrapSessionShellProps {
    * on the timer video background (e.g. `TrainerLiveAmrapTimerBackground`).
    */
   embedSuppressExercises?: boolean;
+  /**
+   * Trainer Live **client** embed: clock styling + exercises stay in the shell below the 16:9 video
+   * region (host keeps overlay exercises on video).
+   */
+  embedClientLiveLayout?: boolean;
 }
 
 export default function AmrapSessionShell({
@@ -38,6 +43,7 @@ export default function AmrapSessionShell({
   shellLayout = 'default',
   embedTitleBarAccessoryBeforeSub,
   embedSuppressExercises = false,
+  embedClientLiveLayout = false,
 }: AmrapSessionShellProps) {
   const {
     timerPhase,
@@ -149,11 +155,8 @@ export default function AmrapSessionShell({
     </div>
   );
 
-  const timerColumn = (
-    <div
-      className={embed ? 'min-w-0 w-full' : 'min-w-0 flex-1 lg:max-w-2xl'}
-      data-tl-embed-timer={embed ? true : undefined}
-    >
+  const timerColumnInner = (
+    <>
       <AmrapTimerDisplay
         phase={timerPhase}
         displayLabel={displayLabel}
@@ -194,6 +197,8 @@ export default function AmrapSessionShell({
             />
           ) : undefined
         }
+        liveEmbedOverVideo={embed}
+        liveEmbedClientSquareClock={embed && embedClientLiveLayout}
       >
         {workPhaseInTimerChildren && !embed && (
           <AmrapWorkPhaseControls
@@ -253,6 +258,23 @@ export default function AmrapSessionShell({
         )}
 
       {slots?.afterTimer}
+    </>
+  );
+
+  const timerColumn = (
+    <div
+      className={embed ? 'min-w-0 w-full' : 'min-w-0 flex-1 lg:max-w-2xl'}
+      data-tl-embed-timer={embed ? true : undefined}
+    >
+      {embed && embedClientLiveLayout ? (
+        <div className="relative w-full shrink-0 aspect-[16/9]">
+          <div className="absolute inset-0 z-10 flex min-h-0 flex-col overflow-y-auto overflow-x-hidden px-1 sm:px-0">
+            {timerColumnInner}
+          </div>
+        </div>
+      ) : (
+        timerColumnInner
+      )}
     </div>
   );
 

@@ -17,8 +17,7 @@ export function featuredRowToSavedWorkoutItem(
 ): AmrapSavedWorkoutItem | null {
   const w = embedWorkoutFromRow(row);
   if (!w) return null;
-  const title =
-    typeof w.title === 'string' && w.title.trim() ? w.title.trim() : 'Workout';
+  const title = typeof w.title === 'string' && w.title.trim() ? w.title.trim() : 'Workout';
   return {
     id: w.id,
     title,

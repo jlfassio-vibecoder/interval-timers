@@ -69,8 +69,7 @@ export default function UnifiedLiveSessionEditDrawer({ open, event, onClose, onS
 
   const onSaveShell = useCallback(() => {
     if (!event || event.status !== 'active') return;
-    const current =
-      event.shell === 'countdown_timer' ? 'countdown_timer' : 'video_only';
+    const current = event.shell === 'countdown_timer' ? 'countdown_timer' : 'video_only';
     if (shell === current) {
       onClose();
       return;
@@ -136,9 +135,7 @@ export default function UnifiedLiveSessionEditDrawer({ open, event, onClose, onS
                 <select
                   id="live-edit-shell"
                   value={shell}
-                  onChange={(e) =>
-                    setShell(e.target.value as 'video_only' | 'countdown_timer')
-                  }
+                  onChange={(e) => setShell(e.target.value as 'video_only' | 'countdown_timer')}
                   disabled={busy}
                   className="w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
                 >

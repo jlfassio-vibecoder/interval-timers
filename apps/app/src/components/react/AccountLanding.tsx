@@ -16,15 +16,17 @@ import {
   HANDOFF_MAX_AGE_MS,
   type StoredHandoff,
 } from '@interval-timers/handoff';
+import { Video } from 'lucide-react';
 import { trackEvent } from '@interval-timers/analytics';
 import { getAccountCopy } from '@/lib/account-copy';
 import { APP_REGISTRY, getAppById, getAppLaunchUrl } from '@/lib/app-registry';
+import { trainerLiveClientHubPath } from '@/lib/trainer-live/client-join-window';
 import { supabase } from '@/lib/supabase/supabase-instance';
 import { logHandoffSession } from '@/lib/supabase/client/log-handoff';
 import TrialBanner from './TrialBanner';
 
 const AccountLanding: React.FC = () => {
-  const { user, session, loading, isInTrial } = useAppContext();
+  const { user, session, loading, isInTrial, isTrainer } = useAppContext();
   const [fromAppId, setFromAppId] = useState<string | null>(null);
   const [handoff, setHandoff] = useState<StoredHandoff | null>(null);
   const [prefillResult, setPrefillResult] = useState<{ success: boolean; source?: string } | null>(
@@ -402,6 +404,15 @@ const AccountLanding: React.FC = () => {
             >
               Your Workouts
             </a>
+            {user && !isTrainer ? (
+              <a
+                href={trainerLiveClientHubPath()}
+                className="border-orange-light/40 bg-orange-light/10 hover:bg-orange-light/20 inline-flex items-center gap-1.5 rounded-xl border-2 px-4 py-2 font-mono text-[10px] font-bold uppercase tracking-wider text-orange-light transition-colors"
+              >
+                <Video className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                Live with Trainer
+              </a>
+            ) : null}
             <a
               href="/account/profile"
               className="hover:border-orange-500/50 hover:bg-orange-500/10 rounded-xl border-2 border-white/20 px-4 py-2 font-bold text-white transition-colors"

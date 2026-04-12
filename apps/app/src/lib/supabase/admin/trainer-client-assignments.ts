@@ -768,7 +768,8 @@ export async function fetchTrainerWorkoutClientOverview(
     'id, title, source, visibility, duration_minutes, created_at, lineage_id, version_index, workout_series_id, session_index, ai_chain_metadata';
   const selectLineageNoSeries =
     'id, title, source, visibility, duration_minutes, created_at, lineage_id, version_index, ai_chain_metadata';
-  const selectLegacy = 'id, title, source, visibility, duration_minutes, created_at, ai_chain_metadata';
+  const selectLegacy =
+    'id, title, source, visibility, duration_minutes, created_at, ai_chain_metadata';
 
   let wData: unknown[] = [];
 

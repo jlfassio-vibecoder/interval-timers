@@ -442,13 +442,7 @@ export interface Database {
           id: string;
           occurrence_id: string;
           invitee_user_id: string | null;
-          status:
-            | 'pending'
-            | 'accepted'
-            | 'declined'
-            | 'waitlisted'
-            | 'expired'
-            | 'cancelled';
+          status: 'pending' | 'accepted' | 'declined' | 'waitlisted' | 'expired' | 'cancelled';
           roster_invitation_id: string | null;
           responded_at: string | null;
           created_at: string;

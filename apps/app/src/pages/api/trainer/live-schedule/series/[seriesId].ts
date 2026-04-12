@@ -51,8 +51,7 @@ export const PATCH: APIRoute = async ({ request, cookies, params }) => {
       typeof body.rescheduleAnchorOccurrenceId === 'string'
         ? body.rescheduleAnchorOccurrenceId.trim()
         : '';
-    const rs =
-      typeof body.scheduledStartAt === 'string' ? body.scheduledStartAt.trim() : '';
+    const rs = typeof body.scheduledStartAt === 'string' ? body.scheduledStartAt.trim() : '';
     const re = typeof body.scheduledEndAt === 'string' ? body.scheduledEndAt.trim() : '';
 
     const fullReschedule = Boolean(anchor && rs && re);

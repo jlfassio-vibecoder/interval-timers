@@ -3,15 +3,7 @@
  */
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import FluidBackground from '@/components/react/FluidBackground';
 import { useLiveSessionSummary } from '@/hooks/useLiveSessionSummary';
 import type { LiveSessionSummarySegment } from '@/types/live-session-summary';
@@ -31,7 +23,10 @@ function AmrapRoundBarChart({ segment }: { segment: LiveSessionSummarySegment })
   if (data.length === 0) {
     return (
       <p className="text-sm text-white/50">
-        No logged rounds for your account in this block{metrics?.viewer_amrap_participant_id ? '.' : ' (join the AMRAP as a signed-in participant to record rounds).'}
+        No logged rounds for your account in this block
+        {metrics?.viewer_amrap_participant_id
+          ? '.'
+          : ' (join the AMRAP as a signed-in participant to record rounds).'}
       </p>
     );
   }
@@ -44,7 +39,12 @@ function AmrapRoundBarChart({ segment }: { segment: LiveSessionSummarySegment })
           <XAxis
             dataKey="roundLabel"
             tick={{ fill: 'rgba(255,255,255,0.65)', fontSize: 11 }}
-            label={{ value: 'Round', position: 'insideBottom', offset: -2, fill: 'rgba(255,255,255,0.5)' }}
+            label={{
+              value: 'Round',
+              position: 'insideBottom',
+              offset: -2,
+              fill: 'rgba(255,255,255,0.5)',
+            }}
           />
           <YAxis
             tick={{ fill: 'rgba(255,255,255,0.65)', fontSize: 11 }}
@@ -78,9 +78,11 @@ function TabataSummaryBlock({ segment }: { segment: LiveSessionSummarySegment })
   const t = segment.tabata_metrics;
   if (!t) return null;
   const phase =
-    typeof t.state?.phase === 'string' ? t.state.phase : typeof t.state?.phase === 'number'
-      ? String(t.state.phase)
-      : null;
+    typeof t.state?.phase === 'string'
+      ? t.state.phase
+      : typeof t.state?.phase === 'number'
+        ? String(t.state.phase)
+        : null;
   return (
     <div className="rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-4 py-3 text-sm text-cyan-50">
       <p className="font-semibold text-cyan-100">Tabata</p>
@@ -139,7 +141,9 @@ export default function LiveSessionSummaryView({ sessionId }: { sessionId: strin
               >
                 <h2 className="text-lg font-semibold text-white">
                   {seg.label || seg.segment_type}
-                  <span className="ml-2 font-mono text-xs font-normal text-white/40">#{seg.ordinal}</span>
+                  <span className="ml-2 font-mono text-xs font-normal text-white/40">
+                    #{seg.ordinal}
+                  </span>
                 </h2>
                 <p className="mt-1 font-mono text-[10px] uppercase tracking-wider text-white/35">
                   {seg.segment_type}

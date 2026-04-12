@@ -659,7 +659,7 @@ const AmrapInterval: React.FC<AmrapIntervalProps> = ({ onNavigate }) => {
                   <button
                     type="button"
                     onClick={logRound}
-                    className="box-border w-full min-w-0 max-w-[min(14rem,100%)] rounded-2xl bg-orange-600 px-3 py-4 text-center text-sm font-bold leading-tight text-white shadow-[0_0_40px_rgba(234,88,12,0.4)] transition-all hover:bg-orange-500 active:scale-95 sm:px-8 sm:py-6 sm:text-base md:text-xl"
+                    className="bg-orange-600 hover:bg-orange-500 box-border w-full min-w-0 max-w-[min(14rem,100%)] rounded-2xl px-3 py-4 text-center text-sm font-bold leading-tight text-white shadow-[0_0_40px_rgba(234,88,12,0.4)] transition-all active:scale-95 sm:px-8 sm:py-6 sm:text-base md:text-xl"
                   >
                     LOG ROUND
                   </button>

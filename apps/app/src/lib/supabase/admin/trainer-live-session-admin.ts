@@ -62,7 +62,10 @@ export async function patchTrainerLiveSessionForOwner(
     if (!ALLOWED_SHELLS.has(sh)) {
       return { ok: false, error: 'Invalid shell' };
     }
-    const { error: upErr } = await supabase.from('trainer_live_sessions').update({ shell: sh }).eq('id', sessionId);
+    const { error: upErr } = await supabase
+      .from('trainer_live_sessions')
+      .update({ shell: sh })
+      .eq('id', sessionId);
     if (upErr) {
       return { ok: false, error: upErr.message ?? 'Failed to update shell' };
     }

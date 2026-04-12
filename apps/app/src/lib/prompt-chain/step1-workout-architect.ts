@@ -45,12 +45,14 @@ function buildTabataBalancedArchitectSection(
   opts: TabataBalancedOptions
 ): string {
   const patternLabel: Record<TabataBalancedOptions['pairingPattern'], string> = {
-    single: 'Single exercise (all work intervals on one movement — hardest; scale load or regression as needed)',
+    single:
+      'Single exercise (all work intervals on one movement — hardest; scale load or regression as needed)',
     antagonist_pair:
       'Antagonist pair (push/pull): alternate two movements across work intervals for balance and recovery',
     agonist_pair:
       'Same-muscle pair (two different exercises for the same pattern): alternate for local endurance',
-    four_station: 'Four exercises: rotate through all four in order, repeating until rounds complete',
+    four_station:
+      'Four exercises: rotate through all four in order, repeating until rounds complete',
     eight_station: 'Eight exercises: one distinct exercise per work interval (full rotation)',
   };
   return `

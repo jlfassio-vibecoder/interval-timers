@@ -52,7 +52,9 @@ export type RunScheduledLiveRemindersResult = {
  * For each scheduled occurrence whose start is in the ~24h or ~1h window and reminder flag is null,
  * email accepted invitees (Resend) and set the flag when all recipients with profile email succeed.
  */
-export async function runScheduledLiveReminders(nowMs: number = Date.now()): Promise<RunScheduledLiveRemindersResult> {
+export async function runScheduledLiveReminders(
+  nowMs: number = Date.now()
+): Promise<RunScheduledLiveRemindersResult> {
   const supabase = getSupabaseServer();
   const hasResend = !!(envStr('RESEND_API_KEY') && envStr('RESEND_FROM'));
 

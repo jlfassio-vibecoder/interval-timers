@@ -52,9 +52,7 @@ export default function TrainerLiveSessionRoom({
   const timerBg = useTrainerLiveTimerBackgroundOptional();
   // Depend on presence only: timerBg object identity changes on leader/mode toggles; trainer id is stable.
   const hasTimerBackground = timerBg != null;
-  const [clientTrainerParticipantId, setClientTrainerParticipantId] = useState<string | null>(
-    null
-  );
+  const [clientTrainerParticipantId, setClientTrainerParticipantId] = useState<string | null>(null);
 
   useEffect(() => {
     if (
@@ -102,13 +100,9 @@ export default function TrainerLiveSessionRoom({
     intervalWrapperKind !== 'amrap' &&
     intervalWrapperKind !== 'tabata';
   const trainerMainPortalRootId =
-    sessionColumnVideoPortal && role === 'trainer'
-      ? TRAINER_LIVE_TRAINER_MAIN_SLOT_ID
-      : undefined;
+    sessionColumnVideoPortal && role === 'trainer' ? TRAINER_LIVE_TRAINER_MAIN_SLOT_ID : undefined;
   const clientMainPortalRootId =
-    sessionColumnVideoPortal && role === 'client'
-      ? TRAINER_LIVE_CLIENT_MAIN_SLOT_ID
-      : undefined;
+    sessionColumnVideoPortal && role === 'client' ? TRAINER_LIVE_CLIENT_MAIN_SLOT_ID : undefined;
 
   const video = (
     <TrainerLiveVideoShell
@@ -181,6 +175,7 @@ export default function TrainerLiveSessionRoom({
       authUserId,
       wrapperConfig: intervalWrapperConfig,
       onWrapperError,
+      videoTileExcludeUid: excludeUidForTiles,
     };
 
     const intervalSidebar = (() => {
@@ -213,22 +208,20 @@ export default function TrainerLiveSessionRoom({
     })();
 
     return (
-      <div
-        className={`flex min-h-0 w-full flex-1 flex-row items-stretch ${className ?? ''}`}
-      >
+      <div className={`flex min-h-0 w-full flex-1 flex-row items-stretch ${className ?? ''}`}>
         {activityRail}
         <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-y-auto">
           {sessionColumnVideoPortal ? (
             role === 'trainer' ? (
               <div
                 id={TRAINER_LIVE_TRAINER_MAIN_SLOT_ID}
-                className="flex h-full min-h-0 min-w-0 w-full flex-1 flex-col px-2 pt-2 md:px-4"
+                className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col px-2 pt-2 md:px-4"
                 data-testid="trainer-live-trainer-main-slot"
               />
             ) : (
               <div
                 id={TRAINER_LIVE_CLIENT_MAIN_SLOT_ID}
-                className="flex h-full min-h-0 min-w-0 w-full flex-1 flex-col px-2 pt-2 md:px-4"
+                className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col px-2 pt-2 md:px-4"
                 data-testid="trainer-live-client-main-slot"
               />
             )
@@ -248,9 +241,7 @@ export default function TrainerLiveSessionRoom({
   }
 
   return (
-    <div
-      className={`flex min-h-0 w-full flex-1 flex-row items-stretch ${className ?? ''}`}
-    >
+    <div className={`flex min-h-0 w-full flex-1 flex-row items-stretch ${className ?? ''}`}>
       {activityRail}
       <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">{video}</div>
       {chatRail}

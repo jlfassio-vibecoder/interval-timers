@@ -34,7 +34,7 @@ export default function UnifiedCalendarDayColumn({
         ref={setNodeRef}
         className={
           isOver
-            ? 'min-h-0 flex-1 space-y-1.5 overflow-y-auto rounded-md bg-orange-light/5 ring-1 ring-orange-light/25 ring-inset'
+            ? 'bg-orange-light/5 ring-orange-light/25 min-h-0 flex-1 space-y-1.5 overflow-y-auto rounded-md ring-1 ring-inset'
             : 'min-h-0 flex-1 space-y-1.5 overflow-y-auto'
         }
       >

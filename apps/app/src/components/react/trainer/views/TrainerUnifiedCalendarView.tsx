@@ -5,14 +5,7 @@
  * Phase A: read-only unified trainer calendar (all roster clients, one week).
  */
 
-import React, {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { UnifiedCalendarItem } from '@/lib/supabase/admin/trainer-unified-calendar';
@@ -244,10 +237,7 @@ const TrainerUnifiedCalendarView: React.FC = () => {
       setStartLiveBusyKey(`coach:${ev.clientUserId}:${ev.instanceId}`);
       try {
         let created = await runCreateTrainerLiveSession(ev.clientUserId);
-        if (
-          !created.ok &&
-          /not on your roster|Client is not/i.test(created.error)
-        ) {
+        if (!created.ok && /not on your roster|Client is not/i.test(created.error)) {
           created = await runCreateTrainerLiveSession(null);
         }
         if (!created.ok) {
@@ -480,10 +470,7 @@ const TrainerUnifiedCalendarView: React.FC = () => {
         setHorizonWeeks(12);
       } else if (pending.mode === 'patch_coach') {
         setEditingCoach(null);
-      } else if (
-        pending.mode === 'patch_occurrence_dnd' ||
-        pending.mode === 'patch_coach_dnd'
-      ) {
+      } else if (pending.mode === 'patch_occurrence_dnd' || pending.mode === 'patch_coach_dnd') {
         // Drag reschedule only; keep any open edit drawers.
       } else {
         setEditingScheduled(null);
@@ -684,9 +671,7 @@ const TrainerUnifiedCalendarView: React.FC = () => {
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() =>
-              setWeekStart((w) => addCalendarDaysInZone(w, -7, viewerTimezone))
-            }
+            onClick={() => setWeekStart((w) => addCalendarDaysInZone(w, -7, viewerTimezone))}
             className="rounded-lg border border-white/15 p-2 text-white/80 hover:bg-white/10"
             aria-label="Previous week"
           >
@@ -697,9 +682,7 @@ const TrainerUnifiedCalendarView: React.FC = () => {
           </span>
           <button
             type="button"
-            onClick={() =>
-              setWeekStart((w) => addCalendarDaysInZone(w, 7, viewerTimezone))
-            }
+            onClick={() => setWeekStart((w) => addCalendarDaysInZone(w, 7, viewerTimezone))}
             className="rounded-lg border border-white/15 p-2 text-white/80 hover:bg-white/10"
             aria-label="Next week"
           >
@@ -721,7 +704,7 @@ const TrainerUnifiedCalendarView: React.FC = () => {
               setCreateErr(null);
               setScheduleLiveOpen(true);
             }}
-            className="shrink-0 rounded-lg border border-orange-light/40 bg-orange-light/15 px-3 py-2 font-mono text-[10px] uppercase tracking-wider text-orange-light hover:bg-orange-light/25"
+            className="border-orange-light/40 bg-orange-light/15 hover:bg-orange-light/25 shrink-0 rounded-lg border px-3 py-2 font-mono text-[10px] uppercase tracking-wider text-orange-light"
           >
             Schedule live
           </button>
@@ -745,8 +728,8 @@ const TrainerUnifiedCalendarView: React.FC = () => {
               Schedule live session
             </h2>
             <p className="mt-1 text-xs text-white/50">
-              Roster clients and weekly series use your calendar timezone below. Prospects: use the API
-              with prospect emails + program ids. Capacity 6 + waitlist on accept.
+              Roster clients and weekly series use your calendar timezone below. Prospects: use the
+              API with prospect emails + program ids. Capacity 6 + waitlist on accept.
             </p>
             <div className="mt-4 space-y-3">
               <label className="flex cursor-pointer items-center gap-2 text-sm text-white/80">
@@ -826,7 +809,7 @@ const TrainerUnifiedCalendarView: React.FC = () => {
                 type="button"
                 disabled={createBusy}
                 onClick={() => void submitScheduleLive()}
-                className="rounded-lg bg-orange-light/25 px-4 py-2 text-sm font-medium text-orange-light hover:bg-orange-light/35 disabled:opacity-40"
+                className="bg-orange-light/25 hover:bg-orange-light/35 rounded-lg px-4 py-2 text-sm font-medium text-orange-light disabled:opacity-40"
               >
                 {createBusy ? 'Saving…' : 'Create & invite'}
               </button>
@@ -874,9 +857,10 @@ const TrainerUnifiedCalendarView: React.FC = () => {
                   key={`${c.source}-${c.sourceId}`}
                   className="rounded border border-white/10 bg-black/30 px-2 py-2"
                 >
-                  <div className="font-medium text-orange-100/95">{c.summary}</div>
+                  <div className="text-orange-100/95 font-medium">{c.summary}</div>
                   <div className="mt-1 text-white/55">
-                    {formatTimeInZone(c.startAt, viewerLabel)}–{formatTimeInZone(c.endAt, viewerLabel)}{' '}
+                    {formatTimeInZone(c.startAt, viewerLabel)}–
+                    {formatTimeInZone(c.endAt, viewerLabel)}{' '}
                     <span className="text-white/40">({viewerLabel})</span>
                   </div>
                   {c.source === 'coach_instance' ? (
@@ -1108,14 +1092,14 @@ const TrainerUnifiedCalendarView: React.FC = () => {
                         trainerLiveSessionId: ev.trainerLiveSessionId,
                       }}
                     >
-                      <div className="rounded border border-orange-light/40 bg-orange-light/10 px-1.5 py-1 font-mono text-[9px] text-orange-light">
+                      <div className="border-orange-light/40 bg-orange-light/10 rounded border px-1.5 py-1 font-mono text-[9px] text-orange-light">
                         <div className="flex items-start justify-between gap-1">
                           <div className="truncate font-medium text-white/90">{ev.clientLabel}</div>
                           <button
                             type="button"
                             onPointerDown={(e) => e.stopPropagation()}
                             onClick={() => setEditingCoach(ev)}
-                            className="shrink-0 rounded border border-orange-light/45 px-1 py-0.5 text-[8px] font-medium text-orange-light hover:bg-orange-light/20"
+                            className="border-orange-light/45 hover:bg-orange-light/20 shrink-0 rounded border px-1 py-0.5 text-[8px] font-medium text-orange-light"
                           >
                             Edit
                           </button>
@@ -1134,7 +1118,7 @@ const TrainerUnifiedCalendarView: React.FC = () => {
                             startLiveBusyKey === `coach:${ev.clientUserId}:${ev.instanceId}`
                           }
                           onClick={() => void onCoachInstanceLiveCta(ev)}
-                          className="mt-1 w-full rounded border border-orange-light/50 bg-orange-light/15 px-1.5 py-1 text-[8px] font-medium text-orange-light hover:bg-orange-light/25 disabled:opacity-40"
+                          className="border-orange-light/50 bg-orange-light/15 hover:bg-orange-light/25 mt-1 w-full rounded border px-1.5 py-1 text-[8px] font-medium text-orange-light disabled:opacity-40"
                         >
                           {startLiveBusyKey === `coach:${ev.clientUserId}:${ev.instanceId}`
                             ? '…'
@@ -1145,7 +1129,7 @@ const TrainerUnifiedCalendarView: React.FC = () => {
                         <Link
                           to={`/roster/${encodeURIComponent(ev.clientUserId)}/lab`}
                           onPointerDown={(e) => e.stopPropagation()}
-                          className="mt-1 inline-block text-[8px] text-orange-light/90 underline decoration-orange-light/40 hover:decoration-orange-light"
+                          className="text-orange-light/90 decoration-orange-light/40 mt-1 inline-block text-[8px] underline hover:decoration-orange-light"
                         >
                           Open lab
                         </Link>
@@ -1166,7 +1150,7 @@ const TrainerUnifiedCalendarView: React.FC = () => {
                       <div className="text-white/45">All day</div>
                       <Link
                         to={`/roster/${encodeURIComponent(ev.clientUserId)}/lab`}
-                        className="mt-1 inline-block text-[8px] text-orange-light/90 underline decoration-orange-light/40 hover:decoration-orange-light"
+                        className="text-orange-light/90 decoration-orange-light/40 mt-1 inline-block text-[8px] underline hover:decoration-orange-light"
                       >
                         Open lab
                       </Link>
@@ -1198,8 +1182,10 @@ const TrainerUnifiedCalendarView: React.FC = () => {
                 </div>
               </div>
             ) : dragOverlaySource?.kind === 'coach_instance' ? (
-              <div className="pointer-events-none w-[7.5rem] rounded border border-orange-light/40 bg-orange-light/10 px-1.5 py-1 font-mono text-[9px] text-orange-light opacity-90 shadow-lg">
-                <div className="truncate font-medium text-white/90">{dragOverlaySource.clientLabel}</div>
+              <div className="border-orange-light/40 bg-orange-light/10 pointer-events-none w-[7.5rem] rounded border px-1.5 py-1 font-mono text-[9px] text-orange-light opacity-90 shadow-lg">
+                <div className="truncate font-medium text-white/90">
+                  {dragOverlaySource.clientLabel}
+                </div>
                 <div className="truncate">
                   <span className="text-white/40">Coach · </span>
                   {dragOverlaySource.title}

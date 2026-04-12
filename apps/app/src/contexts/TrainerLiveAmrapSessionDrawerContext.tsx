@@ -1,11 +1,4 @@
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useMemo,
-  useState,
-  type ReactNode,
-} from 'react';
+import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
 
 type TrainerLiveAmrapSessionDrawerValue = {
   sessionDrawerNode: ReactNode | null;
@@ -15,14 +8,8 @@ type TrainerLiveAmrapSessionDrawerValue = {
 const TrainerLiveAmrapSessionDrawerContext =
   createContext<TrainerLiveAmrapSessionDrawerValue | null>(null);
 
-export function TrainerLiveAmrapSessionDrawerProvider({
-  children,
-}: {
-  children: ReactNode;
-}) {
-  const [sessionDrawerNode, setSessionDrawerNodeState] = useState<ReactNode | null>(
-    null
-  );
+export function TrainerLiveAmrapSessionDrawerProvider({ children }: { children: ReactNode }) {
+  const [sessionDrawerNode, setSessionDrawerNodeState] = useState<ReactNode | null>(null);
   const setSessionDrawerNode = useCallback((node: ReactNode | null) => {
     setSessionDrawerNodeState(node);
   }, []);
@@ -53,7 +40,10 @@ export function TrainerLiveSessionDrawerSlot() {
   const { sessionDrawerNode } = useTrainerLiveAmrapSessionDrawer();
   if (!sessionDrawerNode) return null;
   return (
-    <div className="mb-3 border-b border-white/10 pb-3" data-testid="trainer-live-session-drawer-slot">
+    <div
+      className="mb-3 border-b border-white/10 pb-3"
+      data-testid="trainer-live-session-drawer-slot"
+    >
       {sessionDrawerNode}
     </div>
   );

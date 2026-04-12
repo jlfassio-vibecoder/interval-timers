@@ -71,13 +71,7 @@ export function TrainerLiveRemoteTile({
 }
 
 /** Shown when the live tile is pinned as the AMRAP timer background (single Agora play target). */
-export function TrainerLiveVideoPlaceholderTile({
-  label,
-  hint,
-}: {
-  label: string;
-  hint?: string;
-}) {
+export function TrainerLiveVideoPlaceholderTile({ label, hint }: { label: string; hint?: string }) {
   return (
     <div className="relative aspect-video w-full overflow-hidden rounded-xl border border-dashed border-white/25 bg-zinc-900/80">
       <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 px-2 text-center">

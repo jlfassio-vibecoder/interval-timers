@@ -32,7 +32,8 @@ export default function TrainerLiveHostView() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
   const { user } = useAppContext();
-  const [copyOk, setCopyOk] = useState(false);
+  const [copyLinkOk, setCopyLinkOk] = useState(false);
+  const [copySessionIdOk, setCopySessionIdOk] = useState(false);
   const [endBusy, setEndBusy] = useState(false);
   const [endErr, setEndErr] = useState<string | null>(null);
   const [shell, setShell] = useState<TrainerLiveShell | null>(null);
@@ -212,8 +213,19 @@ export default function TrainerLiveHostView() {
     if (!shareUrl) return;
     try {
       await navigator.clipboard.writeText(shareUrl);
-      setCopyOk(true);
-      setTimeout(() => setCopyOk(false), 2000);
+      setCopyLinkOk(true);
+      setTimeout(() => setCopyLinkOk(false), 2000);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const copyJoinSessionId = async () => {
+    if (!sessionId?.trim()) return;
+    try {
+      await navigator.clipboard.writeText(sessionId.trim());
+      setCopySessionIdOk(true);
+      setTimeout(() => setCopySessionIdOk(false), 2000);
     } catch {
       /* ignore */
     }
@@ -412,7 +424,14 @@ export default function TrainerLiveHostView() {
             onClick={() => void copyLink()}
             className="rounded-lg border border-white/20 px-3 py-1.5 text-xs hover:bg-white/10 md:text-sm"
           >
-            {copyOk ? 'Copied' : 'Copy join link'}
+            {copyLinkOk ? 'Copied' : 'Copy join link'}
+          </button>
+          <button
+            type="button"
+            onClick={() => void copyJoinSessionId()}
+            className="rounded-lg border border-white/20 px-3 py-1.5 text-xs hover:bg-white/10 md:text-sm"
+          >
+            {copySessionIdOk ? 'Copied' : 'Copy join session ID'}
           </button>
           <button
             type="button"
@@ -423,7 +442,7 @@ export default function TrainerLiveHostView() {
             {endBusy ? 'Ending…' : 'End for everyone'}
           </button>
         </TrainerLiveHostNavHeaderBar>
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-4 pt-3 pb-0 md:px-6 md:pt-4 md:pb-0">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-4 pb-0 pt-3 md:px-6 md:pb-0 md:pt-4">
           {shell === null ? (
             <div className="flex h-48 items-center justify-center text-white/60">
               <div className="h-8 w-8 animate-spin rounded-full border-4 border-orange-light border-t-transparent" />

@@ -6,8 +6,9 @@
  */
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Activity, Bell, LogOut, Settings, UserCircle, X } from 'lucide-react';
+import { Activity, Bell, LogOut, Settings, UserCircle, Video, X } from 'lucide-react';
 import { useAppContext } from '@/contexts/AppContext';
+import { trainerLiveClientHubPath } from '@/lib/trainer-live/client-join-window';
 
 export interface HUDHeaderProps {
   /** When overlay mode; renders Close button. */
@@ -29,7 +30,7 @@ function getInitials(displayName?: string | null, email?: string | null): string
 }
 
 const HUDHeader: React.FC<HUDHeaderProps> = ({ onClose, notificationCount = 0, onBellClick }) => {
-  const { user, trainerProfile, handleLogout } = useAppContext();
+  const { user, trainerProfile, handleLogout, isTrainer } = useAppContext();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -85,6 +86,15 @@ const HUDHeader: React.FC<HUDHeaderProps> = ({ onClose, notificationCount = 0, o
             No active program
           </span>
         )}
+        {user && !isTrainer ? (
+          <a
+            href={trainerLiveClientHubPath()}
+            className="border-orange-light/40 bg-orange-light/10 hover:bg-orange-light/20 ml-1 inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 font-mono text-[10px] font-bold uppercase tracking-wider text-orange-light transition-colors md:ml-2"
+          >
+            <Video className="h-3.5 w-3.5" aria-hidden />
+            Live with Trainer
+          </a>
+        ) : null}
       </div>
 
       {/* Center: App wordmark (hidden on mobile) */}

@@ -99,9 +99,7 @@ async function fetchUnifiedLiveSessionItems(
     .eq('role', 'client')
     .not('user_id', 'is', null);
 
-  const clientIds = [
-    ...new Set((parts ?? []).map((p) => p.user_id as string).filter(Boolean)),
-  ];
+  const clientIds = [...new Set((parts ?? []).map((p) => p.user_id as string).filter(Boolean))];
   let labelById = new Map<string, string>();
   if (clientIds.length > 0) {
     const { data: profs } = await supabase
@@ -138,9 +136,7 @@ async function fetchUnifiedLiveSessionItems(
     sessionIdSet.add(id);
     const created = s.created_at as string;
     const startMs = Date.parse(created);
-    const endMs = s.ended_at
-      ? Date.parse(s.ended_at as string)
-      : startMs + slotMs;
+    const endMs = s.ended_at ? Date.parse(s.ended_at as string) : startMs + slotMs;
     const startAt = new Date(startMs).toISOString();
     const endAt = new Date(endMs).toISOString();
     const uids = uidsBySession.get(id) ?? [];
@@ -169,11 +165,7 @@ export async function buildTrainerUnifiedCalendarPayload(
   to: string
 ): Promise<{ from: string; to: string; viewerTimezone: string; items: UnifiedCalendarItem[] }> {
   const viewerTimezone = await fetchClientTimezone(viewerId);
-  const { items: liveItems, sessionIdSet } = await fetchUnifiedLiveSessionItems(
-    viewerId,
-    from,
-    to
-  );
+  const { items: liveItems, sessionIdSet } = await fetchUnifiedLiveSessionItems(viewerId, from, to);
   const scheduledRaw = await fetchScheduledLiveOccurrencesForTrainer(viewerId, from, to);
   const scheduledItems = scheduledRaw.filter(
     (s) => !s.liveSessionId || !sessionIdSet.has(s.liveSessionId)
@@ -217,9 +209,7 @@ export async function buildTrainerUnifiedCalendarPayload(
     }
   }
 
-  items.sort((a, b) =>
-    unifiedCalendarItemSortKey(a).localeCompare(unifiedCalendarItemSortKey(b))
-  );
+  items.sort((a, b) => unifiedCalendarItemSortKey(a).localeCompare(unifiedCalendarItemSortKey(b)));
 
   return { from, to, viewerTimezone: vt, items };
 }

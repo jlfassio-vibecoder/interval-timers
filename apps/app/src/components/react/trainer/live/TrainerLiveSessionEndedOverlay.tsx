@@ -46,7 +46,10 @@ export default function TrainerLiveSessionEndedOverlay({
         >
           Session complete
         </h1>
-        <p id="trainer-live-ended-desc" className="mb-8 text-center text-sm leading-relaxed text-white/70">
+        <p
+          id="trainer-live-ended-desc"
+          className="mb-8 text-center text-sm leading-relaxed text-white/70"
+        >
           Your trainer has ended the session. Great work today!
         </p>
         <div className="flex flex-col gap-3">

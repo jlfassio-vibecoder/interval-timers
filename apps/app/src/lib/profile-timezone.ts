@@ -43,9 +43,8 @@ export function getResolvedBrowserTimeZone(): string {
 
 export function getSupportedIanaTimeZones(): string[] {
   try {
-    const supportedValuesOf = (
-      Intl as unknown as { supportedValuesOf?: (key: string) => string[] }
-    ).supportedValuesOf;
+    const supportedValuesOf = (Intl as unknown as { supportedValuesOf?: (key: string) => string[] })
+      .supportedValuesOf;
     if (typeof supportedValuesOf === 'function') {
       const list = [...supportedValuesOf('timeZone')];
       if (!list.includes('UTC')) list.push('UTC');

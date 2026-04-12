@@ -317,8 +317,7 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
   const buildPersona = useCallback((): WorkoutPersona => {
     const tabataOn = !!workoutConfig.tabataBalancedMode;
     const amrapOn = !!workoutConfig.amrapDensityMode && !tabataOn;
-    const hiitOn =
-      !!workoutConfig.hiitMode && !amrapOn && !tabataOn;
+    const hiitOn = !!workoutConfig.hiitMode && !amrapOn && !tabataOn;
     return {
       title: workoutConfig.workoutInfo.title.trim(),
       description: workoutConfig.workoutInfo.description.trim(),
@@ -364,8 +363,7 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
       blockOptions: useMetabolicBlocks
         ? undefined
         : (workoutConfig.blockOptions ?? defaultBlockOptions),
-      hiitMode:
-        !!workoutConfig.hiitMode && !workoutConfig.amrapDensityMode && !tabataOn,
+      hiitMode: !!workoutConfig.hiitMode && !workoutConfig.amrapDensityMode && !tabataOn,
       hiitOptions:
         workoutConfig.hiitMode && !workoutConfig.amrapDensityMode && !tabataOn
           ? (workoutConfig.hiitOptions ?? defaultHiitOptions)
@@ -1072,101 +1070,108 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
                   {!workoutConfig.hiitMode &&
                     !workoutConfig.amrapDensityMode &&
                     !workoutConfig.tabataBalancedMode && (
-                    <div className="space-y-4">
-                      <h3 className="font-heading text-lg font-bold text-white">Block selectors</h3>
-                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                        <label className="flex cursor-pointer items-center gap-3">
-                          <input
-                            type="checkbox"
-                            checked={
-                              (workoutConfig.blockOptions ?? defaultBlockOptions).includeWarmup
-                            }
-                            onChange={(e) =>
-                              setWorkoutConfig((prev) => ({
-                                ...prev,
-                                blockOptions: {
-                                  ...(prev.blockOptions ?? defaultBlockOptions),
-                                  includeWarmup: e.target.checked,
-                                },
-                              }))
-                            }
-                            className="focus:ring-orange-light/50 h-4 w-4 rounded border-white/20 bg-black/20 text-orange-light focus:ring-2"
-                          />
-                          <span className="text-sm font-medium text-white/80">
-                            Include warmup block
-                          </span>
-                        </label>
-                        <div>
-                          <label className="mb-2 block text-sm font-medium text-white/80">
-                            Main workout blocks
+                      <div className="space-y-4">
+                        <h3 className="font-heading text-lg font-bold text-white">
+                          Block selectors
+                        </h3>
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                          <label className="flex cursor-pointer items-center gap-3">
+                            <input
+                              type="checkbox"
+                              checked={
+                                (workoutConfig.blockOptions ?? defaultBlockOptions).includeWarmup
+                              }
+                              onChange={(e) =>
+                                setWorkoutConfig((prev) => ({
+                                  ...prev,
+                                  blockOptions: {
+                                    ...(prev.blockOptions ?? defaultBlockOptions),
+                                    includeWarmup: e.target.checked,
+                                  },
+                                }))
+                              }
+                              className="focus:ring-orange-light/50 h-4 w-4 rounded border-white/20 bg-black/20 text-orange-light focus:ring-2"
+                            />
+                            <span className="text-sm font-medium text-white/80">
+                              Include warmup block
+                            </span>
                           </label>
-                          <select
-                            value={
-                              (workoutConfig.blockOptions ?? defaultBlockOptions).mainBlockCount
-                            }
-                            onChange={(e) =>
-                              setWorkoutConfig((prev) => ({
-                                ...prev,
-                                blockOptions: {
-                                  ...(prev.blockOptions ?? defaultBlockOptions),
-                                  mainBlockCount: parseInt(e.target.value, 10) as 1 | 2 | 3 | 4 | 5,
-                                },
-                              }))
-                            }
-                            className="focus:border-orange-light/50 focus:ring-orange-light/20 w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-white focus:outline-none focus:ring-2"
-                          >
-                            {([1, 2, 3, 4, 5] as const).map((n) => (
-                              <option key={n} value={n}>
-                                {n}
-                              </option>
-                            ))}
-                          </select>
+                          <div>
+                            <label className="mb-2 block text-sm font-medium text-white/80">
+                              Main workout blocks
+                            </label>
+                            <select
+                              value={
+                                (workoutConfig.blockOptions ?? defaultBlockOptions).mainBlockCount
+                              }
+                              onChange={(e) =>
+                                setWorkoutConfig((prev) => ({
+                                  ...prev,
+                                  blockOptions: {
+                                    ...(prev.blockOptions ?? defaultBlockOptions),
+                                    mainBlockCount: parseInt(e.target.value, 10) as
+                                      | 1
+                                      | 2
+                                      | 3
+                                      | 4
+                                      | 5,
+                                  },
+                                }))
+                              }
+                              className="focus:border-orange-light/50 focus:ring-orange-light/20 w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-white focus:outline-none focus:ring-2"
+                            >
+                              {([1, 2, 3, 4, 5] as const).map((n) => (
+                                <option key={n} value={n}>
+                                  {n}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <label className="flex cursor-pointer items-center gap-3">
+                            <input
+                              type="checkbox"
+                              checked={
+                                (workoutConfig.blockOptions ?? defaultBlockOptions).includeFinisher
+                              }
+                              onChange={(e) =>
+                                setWorkoutConfig((prev) => ({
+                                  ...prev,
+                                  blockOptions: {
+                                    ...(prev.blockOptions ?? defaultBlockOptions),
+                                    includeFinisher: e.target.checked,
+                                  },
+                                }))
+                              }
+                              className="focus:ring-orange-light/50 h-4 w-4 rounded border-white/20 bg-black/20 text-orange-light focus:ring-2"
+                            />
+                            <span className="text-sm font-medium text-white/80">
+                              Include finisher block
+                            </span>
+                          </label>
+                          <label className="flex cursor-pointer items-center gap-3">
+                            <input
+                              type="checkbox"
+                              checked={
+                                (workoutConfig.blockOptions ?? defaultBlockOptions).includeCooldown
+                              }
+                              onChange={(e) =>
+                                setWorkoutConfig((prev) => ({
+                                  ...prev,
+                                  blockOptions: {
+                                    ...(prev.blockOptions ?? defaultBlockOptions),
+                                    includeCooldown: e.target.checked,
+                                  },
+                                }))
+                              }
+                              className="focus:ring-orange-light/50 h-4 w-4 rounded border-white/20 bg-black/20 text-orange-light focus:ring-2"
+                            />
+                            <span className="text-sm font-medium text-white/80">
+                              Include cool down block
+                            </span>
+                          </label>
                         </div>
-                        <label className="flex cursor-pointer items-center gap-3">
-                          <input
-                            type="checkbox"
-                            checked={
-                              (workoutConfig.blockOptions ?? defaultBlockOptions).includeFinisher
-                            }
-                            onChange={(e) =>
-                              setWorkoutConfig((prev) => ({
-                                ...prev,
-                                blockOptions: {
-                                  ...(prev.blockOptions ?? defaultBlockOptions),
-                                  includeFinisher: e.target.checked,
-                                },
-                              }))
-                            }
-                            className="focus:ring-orange-light/50 h-4 w-4 rounded border-white/20 bg-black/20 text-orange-light focus:ring-2"
-                          />
-                          <span className="text-sm font-medium text-white/80">
-                            Include finisher block
-                          </span>
-                        </label>
-                        <label className="flex cursor-pointer items-center gap-3">
-                          <input
-                            type="checkbox"
-                            checked={
-                              (workoutConfig.blockOptions ?? defaultBlockOptions).includeCooldown
-                            }
-                            onChange={(e) =>
-                              setWorkoutConfig((prev) => ({
-                                ...prev,
-                                blockOptions: {
-                                  ...(prev.blockOptions ?? defaultBlockOptions),
-                                  includeCooldown: e.target.checked,
-                                },
-                              }))
-                            }
-                            className="focus:ring-orange-light/50 h-4 w-4 rounded border-white/20 bg-black/20 text-orange-light focus:ring-2"
-                          />
-                          <span className="text-sm font-medium text-white/80">
-                            Include cool down block
-                          </span>
-                        </label>
                       </div>
-                    </div>
-                  )}
+                    )}
 
                   {workoutConfig.amrapDensityMode && (
                     <AmrapDensityArchitecture
@@ -1226,7 +1231,10 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
                       onRoundCountChange={(roundCount) => {
                         setWorkoutConfig((prev) => {
                           const base = prev.tabataBalancedOptions ?? defaultTabataBalancedOptions;
-                          const snapped = snapTabataRoundCountToPattern(base.pairingPattern, roundCount);
+                          const snapped = snapTabataRoundCountToPattern(
+                            base.pairingPattern,
+                            roundCount
+                          );
                           const minutes = tabataBalancedSessionMinutes(snapped);
                           return {
                             ...prev,
@@ -1244,138 +1252,142 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
                   {workoutConfig.hiitMode &&
                     !workoutConfig.amrapDensityMode &&
                     !workoutConfig.tabataBalancedMode && (
-                    <div className="space-y-4">
-                      <h3 className="font-heading text-lg font-bold text-white">
-                        Metabolic Architecture
-                      </h3>
-                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                        <div>
-                          <label className="mb-2 block text-sm font-medium text-white/80">
-                            Protocol Format
-                          </label>
-                          <select
-                            value={(workoutConfig.hiitOptions ?? defaultHiitOptions).protocolFormat}
-                            onChange={(e) => {
-                              const nextFormat = e.target.value as HiitProtocolFormat;
-                              setWorkoutConfig((prev) => {
-                                const baseOpts = { ...(prev.hiitOptions ?? defaultHiitOptions) };
-                                baseOpts.protocolFormat = nextFormat;
-                                const tier = baseOpts.sessionDurationTier;
-                                return {
-                                  ...prev,
-                                  hiitOptions: baseOpts,
-                                  requirements: {
-                                    ...prev.requirements,
-                                    sessionDurationMinutes: hiitTierSessionMinutes(tier),
-                                  },
-                                };
-                              });
-                            }}
-                            className="focus:border-orange-light/50 focus:ring-orange-light/20 w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-white focus:outline-none focus:ring-2"
-                          >
-                            {HIIT_PROTOCOL_OPTIONS.map((o) => (
-                              <option key={o.value} value={o.value}>
-                                {o.label}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        {(workoutConfig.hiitOptions ?? defaultHiitOptions).protocolFormat ===
-                          'standard_ratio' && (
+                      <div className="space-y-4">
+                        <h3 className="font-heading text-lg font-bold text-white">
+                          Metabolic Architecture
+                        </h3>
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                           <div>
                             <label className="mb-2 block text-sm font-medium text-white/80">
-                              Work:Rest Ratio
+                              Protocol Format
                             </label>
                             <select
                               value={
-                                (workoutConfig.hiitOptions ?? defaultHiitOptions).workRestRatio ??
-                                '1:1'
+                                (workoutConfig.hiitOptions ?? defaultHiitOptions).protocolFormat
                               }
-                              onChange={(e) =>
-                                setWorkoutConfig((prev) => ({
-                                  ...prev,
-                                  hiitOptions: {
-                                    ...(prev.hiitOptions ?? defaultHiitOptions),
-                                    workRestRatio: e.target.value as HiitWorkRestRatio,
-                                  },
-                                }))
-                              }
+                              onChange={(e) => {
+                                const nextFormat = e.target.value as HiitProtocolFormat;
+                                setWorkoutConfig((prev) => {
+                                  const baseOpts = { ...(prev.hiitOptions ?? defaultHiitOptions) };
+                                  baseOpts.protocolFormat = nextFormat;
+                                  const tier = baseOpts.sessionDurationTier;
+                                  return {
+                                    ...prev,
+                                    hiitOptions: baseOpts,
+                                    requirements: {
+                                      ...prev.requirements,
+                                      sessionDurationMinutes: hiitTierSessionMinutes(tier),
+                                    },
+                                  };
+                                });
+                              }}
                               className="focus:border-orange-light/50 focus:ring-orange-light/20 w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-white focus:outline-none focus:ring-2"
                             >
-                              {HIIT_WORK_REST_OPTIONS.map((o) => (
+                              {HIIT_PROTOCOL_OPTIONS.map((o) => (
                                 <option key={o.value} value={o.value}>
                                   {o.label}
                                 </option>
                               ))}
                             </select>
                           </div>
-                        )}
-                      </div>
-                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                        <span className="text-sm font-medium text-white/80">Circuit Structure</span>
-                        <div className="flex flex-wrap gap-4">
-                          {[
-                            {
-                              key: 'includeWarmup' as const,
-                              label: 'Include Warmup (Ramp Up)',
-                            },
-                            { key: 'circuit1' as const, label: 'Circuit 1 (The Driver)' },
-                            { key: 'circuit2' as const, label: 'Circuit 2 (The Sustainer)' },
-                            { key: 'circuit3' as const, label: 'Circuit 3 (The Burnout)' },
-                            {
-                              key: 'includeCooldown' as const,
-                              label: 'Include Cool Down (Parasympathetic Reset)',
-                            },
-                          ].map(({ key, label }) => (
-                            <label key={key} className="flex cursor-pointer items-center gap-2">
-                              <input
-                                type="checkbox"
-                                checked={
-                                  (workoutConfig.hiitOptions ?? defaultHiitOptions)
-                                    .circuitStructure[key]
+                          {(workoutConfig.hiitOptions ?? defaultHiitOptions).protocolFormat ===
+                            'standard_ratio' && (
+                            <div>
+                              <label className="mb-2 block text-sm font-medium text-white/80">
+                                Work:Rest Ratio
+                              </label>
+                              <select
+                                value={
+                                  (workoutConfig.hiitOptions ?? defaultHiitOptions).workRestRatio ??
+                                  '1:1'
                                 }
                                 onChange={(e) =>
-                                  setWorkoutConfig((prev) => {
-                                    const cs = (prev.hiitOptions ?? defaultHiitOptions)
-                                      .circuitStructure;
-                                    const circuitKeys = [
-                                      'circuit1',
-                                      'circuit2',
-                                      'circuit3',
-                                    ] as const;
-                                    const isCircuit = circuitKeys.includes(
-                                      key as (typeof circuitKeys)[number]
-                                    );
-                                    const newChecked = e.target.checked;
-                                    let value = newChecked;
-                                    if (isCircuit && !newChecked) {
-                                      const count = circuitKeys.filter((k) => cs[k]).length;
-                                      const isLast =
-                                        count === 1 && cs[key as (typeof circuitKeys)[number]];
-                                      if (isLast) value = true;
-                                    }
-                                    return {
-                                      ...prev,
-                                      hiitOptions: {
-                                        ...(prev.hiitOptions ?? defaultHiitOptions),
-                                        circuitStructure: {
-                                          ...(prev.hiitOptions ?? defaultHiitOptions)
-                                            .circuitStructure,
-                                          [key]: value,
-                                        },
-                                      },
-                                    };
-                                  })
+                                  setWorkoutConfig((prev) => ({
+                                    ...prev,
+                                    hiitOptions: {
+                                      ...(prev.hiitOptions ?? defaultHiitOptions),
+                                      workRestRatio: e.target.value as HiitWorkRestRatio,
+                                    },
+                                  }))
                                 }
-                                className="focus:ring-orange-light/50 h-4 w-4 rounded border-white/20 bg-black/20 text-orange-light focus:ring-2"
-                              />
-                              <span className="text-sm text-white/70">{label}</span>
-                            </label>
-                          ))}
+                                className="focus:border-orange-light/50 focus:ring-orange-light/20 w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-white focus:outline-none focus:ring-2"
+                              >
+                                {HIIT_WORK_REST_OPTIONS.map((o) => (
+                                  <option key={o.value} value={o.value}>
+                                    {o.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                          <span className="text-sm font-medium text-white/80">
+                            Circuit Structure
+                          </span>
+                          <div className="flex flex-wrap gap-4">
+                            {[
+                              {
+                                key: 'includeWarmup' as const,
+                                label: 'Include Warmup (Ramp Up)',
+                              },
+                              { key: 'circuit1' as const, label: 'Circuit 1 (The Driver)' },
+                              { key: 'circuit2' as const, label: 'Circuit 2 (The Sustainer)' },
+                              { key: 'circuit3' as const, label: 'Circuit 3 (The Burnout)' },
+                              {
+                                key: 'includeCooldown' as const,
+                                label: 'Include Cool Down (Parasympathetic Reset)',
+                              },
+                            ].map(({ key, label }) => (
+                              <label key={key} className="flex cursor-pointer items-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  checked={
+                                    (workoutConfig.hiitOptions ?? defaultHiitOptions)
+                                      .circuitStructure[key]
+                                  }
+                                  onChange={(e) =>
+                                    setWorkoutConfig((prev) => {
+                                      const cs = (prev.hiitOptions ?? defaultHiitOptions)
+                                        .circuitStructure;
+                                      const circuitKeys = [
+                                        'circuit1',
+                                        'circuit2',
+                                        'circuit3',
+                                      ] as const;
+                                      const isCircuit = circuitKeys.includes(
+                                        key as (typeof circuitKeys)[number]
+                                      );
+                                      const newChecked = e.target.checked;
+                                      let value = newChecked;
+                                      if (isCircuit && !newChecked) {
+                                        const count = circuitKeys.filter((k) => cs[k]).length;
+                                        const isLast =
+                                          count === 1 && cs[key as (typeof circuitKeys)[number]];
+                                        if (isLast) value = true;
+                                      }
+                                      return {
+                                        ...prev,
+                                        hiitOptions: {
+                                          ...(prev.hiitOptions ?? defaultHiitOptions),
+                                          circuitStructure: {
+                                            ...(prev.hiitOptions ?? defaultHiitOptions)
+                                              .circuitStructure,
+                                            [key]: value,
+                                          },
+                                        },
+                                      };
+                                    })
+                                  }
+                                  className="focus:ring-orange-light/50 h-4 w-4 rounded border-white/20 bg-black/20 text-orange-light focus:ring-2"
+                                />
+                                <span className="text-sm text-white/70">{label}</span>
+                              </label>
+                            ))}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
                   <div className="space-y-4">
                     <h3 className="font-heading text-lg font-bold text-white">Time & Sessions</h3>
@@ -1824,11 +1836,11 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
                     {workoutConfig.hiitMode &&
                       !workoutConfig.amrapDensityMode &&
                       !workoutConfig.tabataBalancedMode && (
-                      <p className="text-xs text-white/50">
-                        For HIIT, the AI deprioritizes heavy barbell setups and favors Dumbbells,
-                        Kettlebells, and Bodyweight for safety under fatigue.
-                      </p>
-                    )}
+                        <p className="text-xs text-white/50">
+                          For HIIT, the AI deprioritizes heavy barbell setups and favors Dumbbells,
+                          Kettlebells, and Bodyweight for safety under fatigue.
+                        </p>
+                      )}
                     {workoutConfig.amrapDensityMode && (
                       <p className="text-xs text-white/50">
                         For Density-Based AMRAP, the AI favors practical, repeatable movements

@@ -94,8 +94,10 @@ export default function TrainerLiveLobbyView() {
           <button
             type="button"
             disabled={busy}
-            onClick={() => navigate(`/live/${encodeURIComponent(resumeSessionId)}`, { replace: false })}
-            className="rounded-lg border border-orange-light/60 bg-orange-light/15 px-4 py-2 text-sm font-semibold text-orange-light hover:bg-orange-light/25 disabled:opacity-50"
+            onClick={() =>
+              navigate(`/live/${encodeURIComponent(resumeSessionId)}`, { replace: false })
+            }
+            className="border-orange-light/60 bg-orange-light/15 hover:bg-orange-light/25 rounded-lg border px-4 py-2 text-sm font-semibold text-orange-light disabled:opacity-50"
           >
             Re-enter last session
           </button>

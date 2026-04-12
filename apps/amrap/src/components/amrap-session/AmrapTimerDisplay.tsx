@@ -49,6 +49,16 @@ export interface AmrapTimerDisplayProps {
    */
   titleBarAccessoryBeforeSub?: ReactNode;
   /**
+   * Trainer Live embed: keep the timer chrome over the live video backdrop (no full opaque card on the
+   * outer wrapper). Inner blocks use semi-transparent surfaces (`EMBED_METRIC_CARD_SURFACE`) instead.
+   */
+  liveEmbedOverVideo?: boolean;
+  /**
+   * Trainer Live **client** embed: main duration card is left-aligned, square, with label/time centered
+   * inside (used when the simple centered `max-w-lg` clock row would apply).
+   */
+  liveEmbedClientSquareClock?: boolean;
+  /**
    * Embed left column: override label (e.g. WORK / REST) and main time color (Tabata work=red, rest=green).
    * When unset, uses default AMRAP phase colors.
    */
@@ -93,6 +103,8 @@ export default function AmrapTimerDisplay({
   titleBarAccessoryBeforeSub,
   embedMainClockLabelClassName,
   embedMainClockValueClassName,
+  liveEmbedOverVideo = false,
+  liveEmbedClientSquareClock = false,
 }: AmrapTimerDisplayProps) {
   const bg = containerClassName ?? getTimerBg(phase);
   const isTimeValue = /^\d{1,2}:\d{2}$/.test(displayValue);
@@ -202,6 +214,7 @@ export default function AmrapTimerDisplay({
   );
 
   const embedSplitLayout = embedHostAndTimerInLeftColumn && useClockAsideRow;
+  const transparentOuter = embedSplitLayout || liveEmbedOverVideo;
 
   const subTextClass = `text-sm font-medium opacity-90 ${
     embedSplitLayout ? 'drop-shadow-[0_2px_8px_rgba(0,0,0,0.85)]' : ''
@@ -252,20 +265,42 @@ export default function AmrapTimerDisplay({
     </div>
   );
 
+  const titleShadow = liveEmbedOverVideo ? 'drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)]' : '';
+  const titleShadowOrEmbed = liveEmbedOverVideo
+    ? titleShadow
+    : 'drop-shadow-[0_2px_8px_rgba(0,0,0,0.85)]';
+
+  /** Matches `participantTwoColumn` metric row widths so titles sit centered over each card. */
+  const embedParticipantMetricTitleRow =
+    embedMetricsVariant === 'participantTwoColumn' && titleBarAccessoryBeforeSub == null ? (
+      <div className="mb-4 flex w-full flex-row items-start gap-3 sm:gap-4 px-0.5">
+        <div className="flex w-[min(46%,12.5rem)] shrink-0 justify-center sm:w-[13rem]">
+          <h2 className={`min-w-0 w-full text-center font-display text-2xl font-bold ${titleShadowOrEmbed}`}>
+            {displayTitle}
+          </h2>
+        </div>
+        <div className="flex min-w-0 flex-1 flex-col items-end justify-start">
+          {displaySub ? (
+            <p className={`max-w-[13rem] w-full text-center ${subTextClass}`}>{displaySub}</p>
+          ) : null}
+        </div>
+      </div>
+    ) : null;
+
   return (
     <div
       className={
-        embedSplitLayout
+        transparentOuter
           ? 'w-full bg-transparent p-0'
           : `rounded-2xl border border-white/10 ${bg} p-6 transition-colors duration-300`
       }
     >
       {embedSplitLayout ? (
-        embedTitleGrid
+        embedParticipantMetricTitleRow ?? embedTitleGrid
       ) : (
         <div className={titleRowClassName}>
           <h2
-            className={`min-w-0 font-display text-2xl font-bold ${
+            className={`min-w-0 font-display text-2xl font-bold ${titleShadow} ${
               titleBarAccessoryBeforeSub != null ? 'sm:max-w-[min(100%,28rem)] sm:pr-2' : ''
             }`}
           >
@@ -287,7 +322,7 @@ export default function AmrapTimerDisplay({
               {clockAsideRight != null ? (
                 <div className="flex min-w-0 flex-1 flex-col items-end justify-start">
                   <div
-                    className={`${EMBED_METRIC_CARD_SURFACE} flex w-full max-w-[13rem] flex-col items-center justify-center gap-3 py-4`}
+                    className={`${EMBED_METRIC_CARD_SURFACE} flex aspect-square w-full max-w-[13rem] flex-col items-center justify-center gap-2 overflow-hidden p-3 sm:p-4`}
                   >
                     {clockAsideRight}
                   </div>
@@ -354,8 +389,20 @@ export default function AmrapTimerDisplay({
           </div>
         )
       ) : (
-        <div className="mt-8 text-center">
-          {mainClockArea}
+        <div className={liveEmbedClientSquareClock ? 'mt-8' : 'mt-8 text-center'}>
+          {liveEmbedOverVideo ? (
+            <div
+              className={`${EMBED_METRIC_CARD_SURFACE} flex flex-col justify-center ${
+                liveEmbedClientSquareClock
+                  ? 'ml-0 aspect-square w-[min(100%,13rem)] max-w-[13rem] shrink-0 sm:w-[13rem]'
+                  : 'mx-auto max-w-lg'
+              }`}
+            >
+              {mainClockArea}
+            </div>
+          ) : (
+            mainClockArea
+          )}
         </div>
       )}
     </div>

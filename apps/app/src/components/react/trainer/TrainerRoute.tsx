@@ -40,6 +40,7 @@ import FluidBackground from '../FluidBackground';
 import PageViewTracker from '@/components/react/PageViewTracker';
 import { adminPaths } from '@/lib/admin/config';
 import TrainerLiveClientJoinPage from './live/TrainerLiveClientJoinPage';
+import LiveWithTrainerHubPage from './live/LiveWithTrainerHubPage';
 import TrainerLiveLobbyView from './live/TrainerLiveLobbyView';
 import TrainerLiveHostView from './live/TrainerLiveHostView';
 import LiveSessionSummaryView from './live/LiveSessionSummaryView';
@@ -99,7 +100,9 @@ const WORKOUT_FACTORY_SUBLINKS = [
 
 function navLinkClass(active: boolean) {
   return `flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors ${
-    active ? 'bg-orange-light/20 text-orange-light' : 'text-white/70 hover:bg-white/5 hover:text-white'
+    active
+      ? 'bg-orange-light/20 text-orange-light'
+      : 'text-white/70 hover:bg-white/5 hover:text-white'
   }`;
 }
 
@@ -476,6 +479,7 @@ const TrainerBrowser: React.FC = () => {
   return (
     <BrowserRouter basename="/trainer">
       <Routes>
+        <Route path="live/join" element={<LiveWithTrainerHubPage />} />
         <Route path="live/join/:sessionId" element={<TrainerLiveClientJoinPage />} />
         <Route path="live/:sessionId/summary" element={<TrainerLiveSessionSummaryRoute />} />
         <Route element={<TrainerAccessGate />}>

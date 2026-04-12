@@ -80,13 +80,10 @@ export const POST: APIRoute = async ({ request, cookies, params }) => {
     );
     if (!result.ok) {
       if (result.error === 'Scheduling conflict' && 'conflicts' in result) {
-        return new Response(
-          JSON.stringify({ error: result.error, conflicts: result.conflicts }),
-          {
-            status: 409,
-            headers: { 'Content-Type': 'application/json' },
-          }
-        );
+        return new Response(JSON.stringify({ error: result.error, conflicts: result.conflicts }), {
+          status: 409,
+          headers: { 'Content-Type': 'application/json' },
+        });
       }
       const notFound =
         result.error === 'Client not found or not in your roster' ||

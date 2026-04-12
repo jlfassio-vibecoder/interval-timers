@@ -266,7 +266,7 @@ export default function UnifiedCoachInstanceEditDrawer({
               type="button"
               disabled={busy}
               onClick={() => void save()}
-              className="rounded-lg bg-orange-light/25 px-4 py-2 text-sm font-medium text-orange-light hover:bg-orange-light/35 disabled:opacity-40"
+              className="bg-orange-light/25 hover:bg-orange-light/35 rounded-lg px-4 py-2 text-sm font-medium text-orange-light disabled:opacity-40"
             >
               {busy ? 'Saving…' : 'Save'}
             </button>
