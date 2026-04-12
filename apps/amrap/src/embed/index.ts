@@ -30,6 +30,9 @@ export { default as AmrapSessionShell } from '../components/amrap-session/AmrapS
 export type { AmrapSessionShellLayout } from '../components/amrap-session/AmrapSessionShell';
 export { default as AmrapEmbedExerciseSection } from '../components/amrap-session/AmrapEmbedExerciseSection';
 
+/** Trainer Live embed mounts this next to `AmrapSessionShell` (full-page AMRAP uses `AmrapSessionPage`). */
+export { default as ViewResultsModal } from '../components/ViewResultsModal';
+
 /** Persist AMRAP host credentials after `trainer_live_attach_amrap_session` (same keys as standalone AMRAP). */
 export {
   setStoredHostToken,

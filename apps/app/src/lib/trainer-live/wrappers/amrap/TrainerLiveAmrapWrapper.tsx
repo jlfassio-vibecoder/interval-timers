@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   AmrapAuthProvider,
   AmrapEmbedExerciseSection,
   AmrapSessionShell,
   useSocialAmrapEmbedded,
-  type AmrapSessionEngine,
+  ViewResultsModal,
 } from 'amrap/embed';
 import { useTrainerLiveAmrapSessionDrawer } from '@/contexts/TrainerLiveAmrapSessionDrawerContext';
 import { useTrainerLiveAmrapChatDrawer } from '@/contexts/TrainerLiveAmrapChatDrawerContext';
@@ -13,10 +14,6 @@ import TrainerLiveAmrapTimerBackground from '@/components/react/trainer/live/Tra
 import TrainerLiveTimerBackgroundMeLeaderToggle from '@/components/react/trainer/live/TrainerLiveTimerBackgroundMeLeaderToggle';
 import type { TrainerLiveWrapperBaseProps } from '../types';
 import { parseAmrapSessionIdFromWrapperConfig } from '../parseWrapperConfig';
-
-type EmbeddedSocialAmrap = AmrapSessionEngine & {
-  pageState?: { agoraError?: string | null };
-};
 
 function AmrapEmbedBody({
   amrapSessionId,
@@ -42,7 +39,7 @@ function AmrapEmbedBody({
     recapDismissed,
     trainerLiveJoinNickname:
       role === 'client' ? (displayName.trim() || 'Guest') : undefined,
-  }) as EmbeddedSocialAmrap;
+  });
 
   const { setSessionDrawerNode } = useTrainerLiveAmrapSessionDrawer();
   const { setChatDrawerLeaderboard } = useTrainerLiveAmrapChatDrawer();
@@ -73,12 +70,30 @@ function AmrapEmbedBody({
   }, [result.error, result.pageState?.agoraError, onWrapperError]);
 
   const isTrainer = role === 'trainer';
+  const ps = result.pageState;
+
+  const viewResultsPortal =
+    typeof document !== 'undefined' && ps ? (
+      createPortal(
+        <ViewResultsModal
+          isOpen={Boolean(ps.showViewResultsModal)}
+          onClose={() => ps.handleCloseViewResults?.()}
+          isHost={ps.isHost}
+          resultsText={ps.viewResultsText ?? ''}
+          onCopy={() => void ps.copyResults?.()}
+          copyToast={ps.copyResultsToast ?? null}
+          roundDurations={ps.roundDurations ?? []}
+        />,
+        document.body
+      )
+    ) : null;
 
   return (
     <div
       className="trainer-live-amrap-embed relative w-full min-w-0 text-white [&_.min-h-screen]:min-h-0"
       data-testid="trainer-live-amrap-shell"
     >
+      {viewResultsPortal}
       <TrainerLiveAmrapTimerBackground
         engine={result}
         trainerLiveSessionId={trainerLiveSessionId}

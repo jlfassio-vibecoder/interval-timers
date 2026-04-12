@@ -1,7 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase/supabase-instance';
-import { trainerLiveParticipantStorageKey } from '@/lib/trainer-live/storage';
+import {
+  trainerLiveParticipantStorageKey,
+  setTrainerLiveLastSessionId,
+  readTrainerLiveLastSessionId,
+  clearTrainerLiveLastSessionId,
+} from '@/lib/trainer-live/storage';
 import type { TrainerLiveShell } from '@/lib/trainer-live/shells';
 
 export default function TrainerLiveLobbyView() {
@@ -9,6 +14,37 @@ export default function TrainerLiveLobbyView() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [shellChoice, setShellChoice] = useState<TrainerLiveShell>('video_only');
+  const [resumeSessionId, setResumeSessionId] = useState<string | null>(null);
+  const [resumeCheckDone, setResumeCheckDone] = useState(false);
+
+  useEffect(() => {
+    const lastId = readTrainerLiveLastSessionId();
+    if (!lastId) {
+      setResumeCheckDone(true);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const { data, error } = await supabase.rpc('trainer_live_session_join_hints', {
+        p_session_id: lastId,
+      });
+      if (cancelled) return;
+      if (error || !data || typeof data !== 'object') {
+        clearTrainerLiveLastSessionId();
+      } else {
+        const row = data as { active?: boolean };
+        if (row.active === true) {
+          setResumeSessionId(lastId);
+        } else {
+          clearTrainerLiveLastSessionId();
+        }
+      }
+      setResumeCheckDone(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const start = async () => {
     setErr(null);
@@ -29,6 +65,7 @@ export default function TrainerLiveLobbyView() {
         return;
       }
       sessionStorage.setItem(trainerLiveParticipantStorageKey(sid), pid);
+      setTrainerLiveLastSessionId(sid);
       navigate(`/live/${sid}`, { replace: false });
     } finally {
       setBusy(false);
@@ -49,6 +86,19 @@ export default function TrainerLiveLobbyView() {
       {err ? (
         <div className="mb-4 max-w-xl rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-2 text-sm text-red-200">
           {err}
+        </div>
+      ) : null}
+      {resumeCheckDone && resumeSessionId ? (
+        <div className="mb-6 max-w-xl rounded-lg border border-white/15 bg-white/5 px-4 py-3">
+          <p className="mb-2 text-sm text-white/85">You have an active live session.</p>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => navigate(`/live/${encodeURIComponent(resumeSessionId)}`, { replace: false })}
+            className="rounded-lg border border-orange-light/60 bg-orange-light/15 px-4 py-2 text-sm font-semibold text-orange-light hover:bg-orange-light/25 disabled:opacity-50"
+          >
+            Re-enter last session
+          </button>
         </div>
       ) : null}
       <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-white/45">Room type</p>

@@ -406,6 +406,9 @@ export default function TrainerLiveClientJoinPage() {
             ? 'You are signed in. Your display name in the room will match your profile (or username).'
             : 'Enter your name so the trainer knows who joined.'}
         </p>
+        <p className="mb-4 text-xs text-white/45">
+          Left the room? Join again below—signed-in clients resume the same participant when rejoining.
+        </p>
         {err ? (
           <div className="mb-4 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-200">
             {err}
