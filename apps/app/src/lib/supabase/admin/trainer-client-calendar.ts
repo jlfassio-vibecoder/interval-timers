@@ -591,7 +591,8 @@ async function fetchScheduledLiveOccurrencesForConflictOverlap(
     .lte('scheduled_start_at', hi);
 
   if (error) {
-    if (import.meta.env.DEV) console.warn('[trainer-client-calendar] scheduled live conflict scan', error);
+    if (import.meta.env.DEV)
+      console.warn('[trainer-client-calendar] scheduled live conflict scan', error);
     return [];
   }
   return (data ?? []) as Array<{
@@ -605,7 +606,9 @@ async function fetchTrainerLiveSessionsForConflictOverlap(
   trainerUserId: string,
   proposedStartMs: number,
   proposedEndMs: number
-): Promise<Array<{ id: string; created_at: string; ended_at: string | null; shell: string | null }>> {
+): Promise<
+  Array<{ id: string; created_at: string; ended_at: string | null; shell: string | null }>
+> {
   const pad = coachSlotMs();
   const lo = new Date(proposedStartMs - pad).toISOString();
   const hi = new Date(proposedEndMs + pad).toISOString();
@@ -793,7 +796,9 @@ export async function findCoachScheduleConflictsForTrainer(
     });
   }
 
-  conflicts.sort((x, y) => x.startAt.localeCompare(y.startAt) || x.sourceId.localeCompare(y.sourceId));
+  conflicts.sort(
+    (x, y) => x.startAt.localeCompare(y.startAt) || x.sourceId.localeCompare(y.sourceId)
+  );
   return conflicts;
 }
 
@@ -818,10 +823,8 @@ export async function patchCoachScheduleInstance(
   patch: PatchCoachScheduleInstanceInput,
   options?: CoachScheduleMutationOptions
 ): Promise<PatchCoachScheduleInstanceResult> {
-  const scheduledRaw =
-    typeof patch.scheduledAt === 'string' ? patch.scheduledAt.trim() : '';
-  const assignmentRaw =
-    typeof patch.assignmentId === 'string' ? patch.assignmentId.trim() : '';
+  const scheduledRaw = typeof patch.scheduledAt === 'string' ? patch.scheduledAt.trim() : '';
+  const assignmentRaw = typeof patch.assignmentId === 'string' ? patch.assignmentId.trim() : '';
   const hasLivePatch = 'trainerLiveSessionId' in patch;
   const preflight = options?.preflight === true;
   const allowOverlap = options?.allowOverlap === true;

@@ -64,7 +64,9 @@ describe('trainerCalendarApiEventKindRank', () => {
         durationMinutes: 12,
       })
     ).toBe(1);
-    expect(trainerCalendarApiEventKindRank(coach('2026-04-01', '2026-04-01T12:00:00.000Z'))).toBe(2);
+    expect(trainerCalendarApiEventKindRank(coach('2026-04-01', '2026-04-01T12:00:00.000Z'))).toBe(
+      2
+    );
   });
 });
 

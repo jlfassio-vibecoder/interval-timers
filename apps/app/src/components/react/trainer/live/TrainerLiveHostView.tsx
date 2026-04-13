@@ -27,12 +27,15 @@ import TrainerLiveTabataWorkoutPickerModal from './TrainerLiveTabataWorkoutPicke
 import TrainerLiveSessionRoom from './TrainerLiveSessionRoom';
 import { TrainerLiveAmrapHostNavProvider } from '@/contexts/TrainerLiveAmrapHostNavContext';
 import TrainerLiveHostNavHeaderBar from './TrainerLiveHostNavHeaderBar';
+import TrainerLiveHostShareMenu from './TrainerLiveHostShareMenu';
+import TrainerLiveInviteClientsModal from './TrainerLiveInviteClientsModal';
 
 export default function TrainerLiveHostView() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
   const { user } = useAppContext();
-  const [copyOk, setCopyOk] = useState(false);
+  const [copyLinkOk, setCopyLinkOk] = useState(false);
+  const [copySessionIdOk, setCopySessionIdOk] = useState(false);
   const [endBusy, setEndBusy] = useState(false);
   const [endErr, setEndErr] = useState<string | null>(null);
   const [shell, setShell] = useState<TrainerLiveShell | null>(null);
@@ -48,6 +51,9 @@ export default function TrainerLiveHostView() {
   const [amrapPickerKey, setAmrapPickerKey] = useState(0);
   const [tabataPickerOpen, setTabataPickerOpen] = useState(false);
   const [tabataPickerKey, setTabataPickerKey] = useState(0);
+  const [inviteClientsOpen, setInviteClientsOpen] = useState(false);
+  /** Reserved 1:1 session (`invited_client_user_id` set) — roster invites not allowed. */
+  const [reservedForSingleClient, setReservedForSingleClient] = useState(false);
 
   const [participantId, setParticipantId] = useState<string | null>(() =>
     readTrainerLiveParticipantIdFromStorage(sessionId)
@@ -106,11 +112,13 @@ export default function TrainerLiveHostView() {
       if (!hintsErr && hintsData && typeof hintsData === 'object') {
         const row = hintsData as Record<string, unknown>;
         if (row.active === false) {
+          setReservedForSingleClient(false);
           setShell('video_only');
           setIntervalWrapperKind('none');
           setIntervalWrapperConfig(null);
           return;
         }
+        setReservedForSingleClient(Boolean(row.requires_invited_account));
         setShell(parseTrainerLiveShell(typeof row.shell === 'string' ? row.shell : null));
         setIntervalWrapperKind(
           parseIntervalWrapperKind(
@@ -129,11 +137,13 @@ export default function TrainerLiveHostView() {
         .maybeSingle();
       if (cancelled) return;
       if (slim.error || !slim.data) {
+        setReservedForSingleClient(false);
         setShell('video_only');
         setIntervalWrapperKind('none');
         setIntervalWrapperConfig(null);
         return;
       }
+      setReservedForSingleClient(false);
       setShell(parseTrainerLiveShell(slim.data.shell as string | null));
       setIntervalWrapperKind('none');
       setIntervalWrapperConfig(null);
@@ -212,8 +222,19 @@ export default function TrainerLiveHostView() {
     if (!shareUrl) return;
     try {
       await navigator.clipboard.writeText(shareUrl);
-      setCopyOk(true);
-      setTimeout(() => setCopyOk(false), 2000);
+      setCopyLinkOk(true);
+      setTimeout(() => setCopyLinkOk(false), 2000);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const copyJoinSessionId = async () => {
+    if (!sessionId?.trim()) return;
+    try {
+      await navigator.clipboard.writeText(sessionId.trim());
+      setCopySessionIdOk(true);
+      setTimeout(() => setCopySessionIdOk(false), 2000);
     } catch {
       /* ignore */
     }
@@ -407,13 +428,15 @@ export default function TrainerLiveHostView() {
           {shell === 'countdown_timer' && intervalWrapperKind === 'tabata' ? (
             <span className="text-xs text-white/50 md:text-sm">Tabata active</span>
           ) : null}
-          <button
-            type="button"
-            onClick={() => void copyLink()}
-            className="rounded-lg border border-white/20 px-3 py-1.5 text-xs hover:bg-white/10 md:text-sm"
-          >
-            {copyOk ? 'Copied' : 'Copy join link'}
-          </button>
+          <TrainerLiveHostShareMenu
+            copyLink={() => void copyLink()}
+            copyJoinSessionId={() => void copyJoinSessionId()}
+            copyLinkOk={copyLinkOk}
+            copySessionIdOk={copySessionIdOk}
+            onOpenInvite={() => setInviteClientsOpen(true)}
+            inviteDisabled={reservedForSingleClient}
+            inviteDisabledReason="This session is reserved for one client. In-app roster invites are not available."
+          />
           <button
             type="button"
             disabled={endBusy}
@@ -423,7 +446,7 @@ export default function TrainerLiveHostView() {
             {endBusy ? 'Ending…' : 'End for everyone'}
           </button>
         </TrainerLiveHostNavHeaderBar>
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-4 pt-3 pb-0 md:px-6 md:pt-4 md:pb-0">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-4 pb-0 pt-3 md:px-6 md:pb-0 md:pt-4">
           {shell === null ? (
             <div className="flex h-48 items-center justify-center text-white/60">
               <div className="h-8 w-8 animate-spin rounded-full border-4 border-orange-light border-t-transparent" />
@@ -491,6 +514,13 @@ export default function TrainerLiveHostView() {
           disabled={attachBusy}
           onWorkoutChosen={(workoutList, roundCount) => attachTabata(workoutList, roundCount)}
         />
+        {sessionId ? (
+          <TrainerLiveInviteClientsModal
+            open={inviteClientsOpen}
+            onOpenChange={setInviteClientsOpen}
+            sessionId={sessionId}
+          />
+        ) : null}
       </div>
     </TrainerLiveAmrapHostNavProvider>
   );

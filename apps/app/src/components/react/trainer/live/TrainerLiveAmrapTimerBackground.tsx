@@ -14,12 +14,15 @@ export default function TrainerLiveAmrapTimerBackground({
   trainerLiveSessionId,
   participantId,
   role,
+  videoTileExcludeUid,
   videoBottomOverlay,
 }: {
   engine: AmrapSessionEngine;
   trainerLiveSessionId: string;
   participantId: string;
   role: 'trainer' | 'client';
+  /** Mirrors `TrainerLiveVideoShell` tile exclusion — include so we re-`play()` after tile `track.stop()`. */
+  videoTileExcludeUid?: string | null;
   /** e.g. `AmrapEmbedExerciseSection` — pinned to the bottom of the 16:9 video area. */
   videoBottomOverlay?: ReactNode;
 }) {
@@ -96,12 +99,7 @@ export default function TrainerLiveAmrapTimerBackground({
     return () => {
       cancelled = true;
     };
-  }, [
-    role,
-    participantsLeaderKey,
-    trainerLiveSessionId,
-    setLeaderTrainerLiveParticipantId,
-  ]);
+  }, [role, participantsLeaderKey, trainerLiveSessionId, setLeaderTrainerLiveParticipantId]);
 
   const effectiveLeaderUid = leaderTrainerLiveParticipantId;
   const leaderIsSelf =
@@ -117,14 +115,20 @@ export default function TrainerLiveAmrapTimerBackground({
       ? remoteUsers.find((u) => String(u.uid) === String(trainerParticipantId))
       : undefined;
 
+  /** While trainer row id is still loading, or if uid matching fails, prefer any remote that isn’t self (usually the coach). */
+  const clientTrainerBackgroundRemote =
+    role === 'client' && trainerRemoteForClient == null
+      ? remoteUsers.find((u) => String(u.uid) !== String(participantId))
+      : undefined;
+
   const activeTrack: ICameraVideoTrack | IRemoteVideoTrack | null =
     role === 'client'
-      ? trainerRemoteForClient?.videoTrack ?? null
+      ? ((trainerRemoteForClient ?? clientTrainerBackgroundRemote)?.videoTrack ?? null)
       : mode === 'self'
         ? localVideoTrack
         : leaderIsSelf
           ? localVideoTrack
-          : leaderRemoteTrack ?? null;
+          : (leaderRemoteTrack ?? null);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -132,7 +136,8 @@ export default function TrainerLiveAmrapTimerBackground({
     activeTrack.play(el, { fit: 'cover' });
     // Do not call track.stop() on cleanup — same track is used in drawer tiles when not excluded;
     // switching Me/Leader only moves play() target (see VideoSourcePlayer in amrap).
-  }, [activeTrack]);
+    // `videoTileExcludeUid` is a dep so when tiles swap to placeholder and call `track.stop()`, we attach again.
+  }, [activeTrack, videoTileExcludeUid]);
 
   return (
     <>

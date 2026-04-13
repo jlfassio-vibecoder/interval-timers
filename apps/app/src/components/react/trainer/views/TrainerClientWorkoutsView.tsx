@@ -81,12 +81,10 @@ const TrainerClientWorkoutsView: React.FC = () => {
     await Promise.all([featuredAmrap.refetch(), featuredTabata.refetch()]);
   }, [featuredAmrap.refetch, featuredTabata.refetch]);
 
-  const {
-    mutateAsync: mutateFeaturedWorkouts,
-    pending: featuredUpdatePending,
-  } = useUpdateFeaturedWorkoutsMutation({
-    onSuccess: refetchFeaturedWorkouts,
-  });
+  const { mutateAsync: mutateFeaturedWorkouts, pending: featuredUpdatePending } =
+    useUpdateFeaturedWorkoutsMutation({
+      onSuccess: refetchFeaturedWorkouts,
+    });
 
   const featuredAmrapIds = useMemo(
     () => new Set(featuredAmrap.rows.map((r) => r.workout_id)),
@@ -312,7 +310,9 @@ const TrainerClientWorkoutsView: React.FC = () => {
             <select
               id="client-workouts-metabolic-filter"
               value={workoutMetabolicFilter}
-              onChange={(e) => setWorkoutMetabolicFilter(e.target.value as ClientWorkoutMetabolicFilter)}
+              onChange={(e) =>
+                setWorkoutMetabolicFilter(e.target.value as ClientWorkoutMetabolicFilter)
+              }
               className="rounded-lg border border-white/20 bg-black/50 px-3 py-2 text-sm text-white"
             >
               <option value="all">All workouts</option>

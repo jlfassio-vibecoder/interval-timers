@@ -21,8 +21,8 @@ describe('AmrapTimerDisplay trainerLiveEmbed metrics', () => {
       />
     );
     expect(container.querySelector('.grid-cols-4')).toBeNull();
-    expect(container.querySelector('.sm\\:grid-cols-2')).toBeTruthy();
-    expect(container.querySelectorAll('.aspect-square').length).toBe(1);
+    expect(container.querySelector('.mb-4.flex.w-full.flex-row.items-start')).toBeTruthy();
+    expect(container.querySelectorAll('.aspect-square').length).toBe(2);
     expect(container.querySelector('[data-testid="rounds-slot"]')).toBeTruthy();
   });
 

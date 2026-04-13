@@ -205,8 +205,8 @@ export default function TrainerLiveAmrapWorkoutPickerModal({
           Choose AMRAP workout
         </h2>
         <p className="mb-4 text-xs text-white/55">
-          Only workouts generated in Workout Factory as <span className="text-white/80">Density AMRAP</span>{' '}
-          appear here.
+          Only workouts generated in Workout Factory as{' '}
+          <span className="text-white/80">Density AMRAP</span> appear here.
         </p>
         <AmrapWorkoutPicker
           key={pickerKey}

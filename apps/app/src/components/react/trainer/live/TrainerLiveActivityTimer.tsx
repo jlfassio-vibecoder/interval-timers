@@ -88,213 +88,213 @@ export default function TrainerLiveActivityTimer({
 
   return (
     <>
-    <div
-      className={`rounded-xl border border-white/10 bg-black/50 ${compact ? 'px-3 py-2' : 'px-4 py-3'}`}
-      data-testid="trainer-live-activity-timer"
-    >
-      <div className={drawerLayout ? 'flex flex-col gap-3' : 'flex flex-wrap items-center gap-3'}>
-        <div>
-          <div className="text-[10px] font-semibold uppercase tracking-wider text-white/50">
-            Session activity
+      <div
+        className={`rounded-xl border border-white/10 bg-black/50 ${compact ? 'px-3 py-2' : 'px-4 py-3'}`}
+        data-testid="trainer-live-activity-timer"
+      >
+        <div className={drawerLayout ? 'flex flex-col gap-3' : 'flex flex-wrap items-center gap-3'}>
+          <div>
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-white/50">
+              Session activity
+            </div>
+            <div className="font-mono text-lg tabular-nums text-white">
+              {formatElapsed(displayElapsedSec)}
+            </div>
           </div>
-          <div className="font-mono text-lg tabular-nums text-white">
-            {formatElapsed(displayElapsedSec)}
+          <div className={drawerLayout ? 'w-full min-w-0' : 'min-w-0 flex-1'}>
+            <div className="text-[10px] uppercase tracking-wider text-white/40">Current block</div>
+            <div className="text-orange-200/90 truncate text-sm">
+              {currentSegmentLabel(state.segments)}
+            </div>
+            {state.status === 'finalized' ? (
+              <div className="text-xs text-white/50">Logged to training history</div>
+            ) : null}
           </div>
         </div>
-        <div className={drawerLayout ? 'w-full min-w-0' : 'min-w-0 flex-1'}>
-          <div className="text-[10px] uppercase tracking-wider text-white/40">Current block</div>
-          <div className="text-orange-200/90 truncate text-sm">
-            {currentSegmentLabel(state.segments)}
+
+        {err ? (
+          <p className="mt-2 text-xs text-amber-200" role="alert">
+            {err}
+          </p>
+        ) : null}
+
+        {isTrainer ? (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {!state.has_activity ? (
+              <button
+                type="button"
+                disabled={!!busy}
+                data-testid="trainer-live-activity-start"
+                onClick={() =>
+                  void run('start', async () =>
+                    supabase.rpc('trainer_live_activity_start', {
+                      p_trainer_live_session_id: sessionId,
+                      p_planned_duration_sec: null,
+                    })
+                  )
+                }
+                className="border-orange-light/40 bg-orange-light/10 hover:bg-orange-light/20 rounded-lg border px-2 py-1 text-xs text-orange-light disabled:opacity-40"
+              >
+                {busy === 'start' ? 'Starting…' : 'Start timer'}
+              </button>
+            ) : null}
+
+            {state.has_activity && state.status === 'active' ? (
+              <button
+                type="button"
+                disabled={!!busy}
+                onClick={() =>
+                  void run('pause', async () =>
+                    supabase.rpc('trainer_live_activity_pause', {
+                      p_trainer_live_session_id: sessionId,
+                    })
+                  )
+                }
+                className="rounded-lg border border-white/20 px-2 py-1 text-xs hover:bg-white/10"
+              >
+                {busy === 'pause' ? 'Pausing…' : 'Pause'}
+              </button>
+            ) : null}
+
+            {state.has_activity && state.status === 'paused' ? (
+              <button
+                type="button"
+                disabled={!!busy}
+                onClick={() =>
+                  void run('resume', async () =>
+                    supabase.rpc('trainer_live_activity_resume', {
+                      p_trainer_live_session_id: sessionId,
+                    })
+                  )
+                }
+                className="rounded-lg border border-white/20 px-2 py-1 text-xs hover:bg-white/10"
+              >
+                {busy === 'resume' ? 'Resuming…' : 'Resume'}
+              </button>
+            ) : null}
+
+            {state.has_activity && state.status !== 'finalized' ? (
+              <>
+                <button
+                  type="button"
+                  disabled={!!busy}
+                  onClick={() =>
+                    void run('warmup', async () =>
+                      supabase.rpc('trainer_live_activity_begin_segment', {
+                        p_trainer_live_session_id: sessionId,
+                        p_segment_type: 'warmup',
+                        p_label: 'Warm-up',
+                      })
+                    )
+                  }
+                  className="rounded-lg border border-white/15 px-2 py-1 text-xs hover:bg-white/10"
+                >
+                  {busy === 'warmup' ? '…' : 'Warm-up'}
+                </button>
+                <button
+                  type="button"
+                  disabled={!!busy || !canIntervalSegments}
+                  title={
+                    !canIntervalSegments
+                      ? 'Switch room to Video + Intervals for AMRAP blocks'
+                      : undefined
+                  }
+                  onClick={() =>
+                    void run('amrap', async () => {
+                      const res = await supabase.rpc('trainer_live_activity_begin_amrap_segment', {
+                        p_trainer_live_session_id: sessionId,
+                        p_label: 'AMRAP',
+                      });
+                      if (!res.error && res.data && typeof res.data === 'object') {
+                        const d = res.data as Record<string, unknown>;
+                        const aid = d.amrap_session_id as string | undefined;
+                        const ht = d.host_token as string | undefined;
+                        const apid = d.amrap_participant_id as string | undefined;
+                        if (aid && ht) setStoredHostToken(aid, ht);
+                        if (aid && apid) setStoredParticipantId(aid, apid);
+                      }
+                      return { error: res.error };
+                    })
+                  }
+                  className="border-orange-light/30 text-orange-light/90 hover:bg-orange-light/10 rounded-lg border px-2 py-1 text-xs disabled:opacity-40"
+                >
+                  {busy === 'amrap' ? '…' : 'AMRAP block'}
+                </button>
+                <button
+                  type="button"
+                  disabled={!!busy || !canIntervalSegments}
+                  data-testid="trainer-live-activity-tabata-block"
+                  title={
+                    !canIntervalSegments
+                      ? 'Switch room to Video + Intervals for Tabata blocks'
+                      : undefined
+                  }
+                  onClick={() => {
+                    setTabataPickerKey((k) => k + 1);
+                    setTabataPickerOpen(true);
+                  }}
+                  className="border-orange-light/30 text-orange-light/90 hover:bg-orange-light/10 rounded-lg border px-2 py-1 text-xs disabled:opacity-40"
+                >
+                  Tabata block
+                </button>
+                <button
+                  type="button"
+                  disabled={!!busy}
+                  onClick={() =>
+                    void run('cooldown', () =>
+                      supabase.rpc('trainer_live_activity_begin_segment', {
+                        p_trainer_live_session_id: sessionId,
+                        p_segment_type: 'cooldown',
+                        p_label: 'Cooldown',
+                      })
+                    )
+                  }
+                  className="rounded-lg border border-white/15 px-2 py-1 text-xs hover:bg-white/10"
+                >
+                  {busy === 'cooldown' ? '…' : 'Cooldown'}
+                </button>
+                <button
+                  type="button"
+                  disabled={!!busy}
+                  data-testid="trainer-live-activity-finalize"
+                  onClick={() =>
+                    void run('finalize', async () =>
+                      supabase.rpc('trainer_live_activity_finalize', {
+                        p_trainer_live_session_id: sessionId,
+                      })
+                    )
+                  }
+                  className="rounded-lg border border-emerald-500/40 bg-emerald-600/15 px-2 py-1 text-xs text-emerald-200 hover:bg-emerald-600/25"
+                >
+                  {busy === 'finalize' ? 'Saving…' : 'Log session & stop timer'}
+                </button>
+              </>
+            ) : null}
           </div>
-          {state.status === 'finalized' ? (
-            <div className="text-xs text-white/50">Logged to training history</div>
-          ) : null}
-        </div>
+        ) : null}
       </div>
-
-      {err ? (
-        <p className="mt-2 text-xs text-amber-200" role="alert">
-          {err}
-        </p>
-      ) : null}
-
-      {isTrainer ? (
-        <div className="mt-3 flex flex-wrap gap-2">
-          {!state.has_activity ? (
-            <button
-              type="button"
-              disabled={!!busy}
-              data-testid="trainer-live-activity-start"
-              onClick={() =>
-                void run('start', async () =>
-                  supabase.rpc('trainer_live_activity_start', {
-                    p_trainer_live_session_id: sessionId,
-                    p_planned_duration_sec: null,
-                  })
-                )
-              }
-              className="border-orange-light/40 bg-orange-light/10 hover:bg-orange-light/20 rounded-lg border px-2 py-1 text-xs text-orange-light disabled:opacity-40"
-            >
-              {busy === 'start' ? 'Starting…' : 'Start timer'}
-            </button>
-          ) : null}
-
-          {state.has_activity && state.status === 'active' ? (
-            <button
-              type="button"
-              disabled={!!busy}
-              onClick={() =>
-                void run('pause', async () =>
-                  supabase.rpc('trainer_live_activity_pause', {
-                    p_trainer_live_session_id: sessionId,
-                  })
-                )
-              }
-              className="rounded-lg border border-white/20 px-2 py-1 text-xs hover:bg-white/10"
-            >
-              {busy === 'pause' ? 'Pausing…' : 'Pause'}
-            </button>
-          ) : null}
-
-          {state.has_activity && state.status === 'paused' ? (
-            <button
-              type="button"
-              disabled={!!busy}
-              onClick={() =>
-                void run('resume', async () =>
-                  supabase.rpc('trainer_live_activity_resume', {
-                    p_trainer_live_session_id: sessionId,
-                  })
-                )
-              }
-              className="rounded-lg border border-white/20 px-2 py-1 text-xs hover:bg-white/10"
-            >
-              {busy === 'resume' ? 'Resuming…' : 'Resume'}
-            </button>
-          ) : null}
-
-          {state.has_activity && state.status !== 'finalized' ? (
-            <>
-              <button
-                type="button"
-                disabled={!!busy}
-                onClick={() =>
-                  void run('warmup', async () =>
-                    supabase.rpc('trainer_live_activity_begin_segment', {
-                      p_trainer_live_session_id: sessionId,
-                      p_segment_type: 'warmup',
-                      p_label: 'Warm-up',
-                    })
-                  )
-                }
-                className="rounded-lg border border-white/15 px-2 py-1 text-xs hover:bg-white/10"
-              >
-                {busy === 'warmup' ? '…' : 'Warm-up'}
-              </button>
-              <button
-                type="button"
-                disabled={!!busy || !canIntervalSegments}
-                title={
-                  !canIntervalSegments
-                    ? 'Switch room to Video + Intervals for AMRAP blocks'
-                    : undefined
-                }
-                onClick={() =>
-                  void run('amrap', async () => {
-                    const res = await supabase.rpc('trainer_live_activity_begin_amrap_segment', {
-                      p_trainer_live_session_id: sessionId,
-                      p_label: 'AMRAP',
-                    });
-                    if (!res.error && res.data && typeof res.data === 'object') {
-                      const d = res.data as Record<string, unknown>;
-                      const aid = d.amrap_session_id as string | undefined;
-                      const ht = d.host_token as string | undefined;
-                      const apid = d.amrap_participant_id as string | undefined;
-                      if (aid && ht) setStoredHostToken(aid, ht);
-                      if (aid && apid) setStoredParticipantId(aid, apid);
-                    }
-                    return { error: res.error };
-                  })
-                }
-                className="border-orange-light/30 text-orange-light/90 hover:bg-orange-light/10 rounded-lg border px-2 py-1 text-xs disabled:opacity-40"
-              >
-                {busy === 'amrap' ? '…' : 'AMRAP block'}
-              </button>
-              <button
-                type="button"
-                disabled={!!busy || !canIntervalSegments}
-                data-testid="trainer-live-activity-tabata-block"
-                title={
-                  !canIntervalSegments
-                    ? 'Switch room to Video + Intervals for Tabata blocks'
-                    : undefined
-                }
-                onClick={() => {
-                  setTabataPickerKey((k) => k + 1);
-                  setTabataPickerOpen(true);
-                }}
-                className="border-orange-light/30 text-orange-light/90 hover:bg-orange-light/10 rounded-lg border px-2 py-1 text-xs disabled:opacity-40"
-              >
-                Tabata block
-              </button>
-              <button
-                type="button"
-                disabled={!!busy}
-                onClick={() =>
-                  void run('cooldown', () =>
-                    supabase.rpc('trainer_live_activity_begin_segment', {
-                      p_trainer_live_session_id: sessionId,
-                      p_segment_type: 'cooldown',
-                      p_label: 'Cooldown',
-                    })
-                  )
-                }
-                className="rounded-lg border border-white/15 px-2 py-1 text-xs hover:bg-white/10"
-              >
-                {busy === 'cooldown' ? '…' : 'Cooldown'}
-              </button>
-              <button
-                type="button"
-                disabled={!!busy}
-                data-testid="trainer-live-activity-finalize"
-                onClick={() =>
-                  void run('finalize', async () =>
-                    supabase.rpc('trainer_live_activity_finalize', {
-                      p_trainer_live_session_id: sessionId,
-                    })
-                  )
-                }
-                className="rounded-lg border border-emerald-500/40 bg-emerald-600/15 px-2 py-1 text-xs text-emerald-200 hover:bg-emerald-600/25"
-              >
-                {busy === 'finalize' ? 'Saving…' : 'Log session & stop timer'}
-              </button>
-            </>
-          ) : null}
-        </div>
-      ) : null}
-    </div>
-    <TrainerLiveTabataWorkoutPickerModal
-      open={tabataPickerOpen}
-      pickerKey={tabataPickerKey}
-      onOpenChange={setTabataPickerOpen}
-      disabled={!!busy}
-      onWorkoutChosen={async (workoutList, roundCount) => {
-        if (!isValidTabataAttachInput(roundCount, workoutList)) {
-          setLocalErr('Choose 1–32 rounds and at least one exercise.');
-          return;
-        }
-        await run('tabata', async () => {
-          const res = await supabase.rpc('trainer_live_activity_begin_tabata_segment', {
-            p_trainer_live_session_id: sessionId,
-            p_label: 'Tabata',
-            p_round_count: roundCount,
-            p_workout_list: workoutList,
+      <TrainerLiveTabataWorkoutPickerModal
+        open={tabataPickerOpen}
+        pickerKey={tabataPickerKey}
+        onOpenChange={setTabataPickerOpen}
+        disabled={!!busy}
+        onWorkoutChosen={async (workoutList, roundCount) => {
+          if (!isValidTabataAttachInput(roundCount, workoutList)) {
+            setLocalErr('Choose 1–32 rounds and at least one exercise.');
+            return;
+          }
+          await run('tabata', async () => {
+            const res = await supabase.rpc('trainer_live_activity_begin_tabata_segment', {
+              p_trainer_live_session_id: sessionId,
+              p_label: 'Tabata',
+              p_round_count: roundCount,
+              p_workout_list: workoutList,
+            });
+            if (!res.error) setTabataPickerOpen(false);
+            return { error: res.error };
           });
-          if (!res.error) setTabataPickerOpen(false);
-          return { error: res.error };
-        });
-      }}
-    />
+        }}
+      />
     </>
   );
 }

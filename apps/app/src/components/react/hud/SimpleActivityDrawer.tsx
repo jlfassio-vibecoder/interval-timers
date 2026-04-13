@@ -127,7 +127,7 @@ const SimpleActivityDrawer: React.FC<SimpleActivityDrawerProps> = ({
   const dateLabel = formatDate(event.date);
   const meta = event.metadata;
   const coachLiveSessionId =
-    event.type === 'coach_live' ? coachResolvedLiveId ?? meta?.trainerLiveSessionId : null;
+    event.type === 'coach_live' ? (coachResolvedLiveId ?? meta?.trainerLiveSessionId) : null;
   const coachScheduledAt =
     event.type === 'coach_live' && typeof meta?.scheduledAt === 'string' ? meta.scheduledAt : '';
   const coachCanJoin =
@@ -278,7 +278,8 @@ const SimpleActivityDrawer: React.FC<SimpleActivityDrawerProps> = ({
             ) : null}
             {event.type === 'coach_live' && !coachLiveSessionId ? (
               <p className="font-mono text-[10px] text-white/50">
-                Your coach will open the live room before this session. Checking every 30 seconds — or refresh your calendar.
+                Your coach will open the live room before this session. Checking every 30 seconds —
+                or refresh your calendar.
               </p>
             ) : null}
             {event.type === 'coach_live' && coachLiveSessionId && !coachCanJoin ? (

@@ -89,7 +89,9 @@ export default function UnifiedScheduledLiveEditDrawer({
   const invitedUserIds = useMemo(() => {
     if (!event) return new Set<string>();
     return new Set(
-      event.inviteSummaries.map((s) => s.userId).filter((id) => typeof id === 'string' && id.length > 0)
+      event.inviteSummaries
+        .map((s) => s.userId)
+        .filter((id) => typeof id === 'string' && id.length > 0)
     );
   }, [event]);
 
@@ -204,7 +206,9 @@ export default function UnifiedScheduledLiveEditDrawer({
           );
           const invJ = (await invRes.json().catch(() => ({}))) as { error?: string };
           if (!invRes.ok) {
-            setErr(typeof invJ.error === 'string' ? invJ.error : 'Saved time but failed to add invites');
+            setErr(
+              typeof invJ.error === 'string' ? invJ.error : 'Saved time but failed to add invites'
+            );
             onSaved();
             return;
           }
@@ -283,7 +287,10 @@ export default function UnifiedScheduledLiveEditDrawer({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex shrink-0 items-center justify-between border-b border-white/10 px-4 py-3">
-          <h2 id="unified-sched-live-edit-title" className="font-heading text-lg font-bold text-white">
+          <h2
+            id="unified-sched-live-edit-title"
+            className="font-heading text-lg font-bold text-white"
+          >
             Edit scheduled live
           </h2>
           <button
@@ -428,10 +435,10 @@ export default function UnifiedScheduledLiveEditDrawer({
                     className="flex items-center justify-between gap-2 text-white/80"
                   >
                     <span className="min-w-0 truncate">
-                      {s.label}{' '}
-                      <span className="text-white/45">({s.status})</span>
+                      {s.label} <span className="text-white/45">({s.status})</span>
                     </span>
-                    {(s.status === 'pending' || s.status === 'waitlisted') && seriesScope === 'this' ? (
+                    {(s.status === 'pending' || s.status === 'waitlisted') &&
+                    seriesScope === 'this' ? (
                       <button
                         type="button"
                         disabled={busy}

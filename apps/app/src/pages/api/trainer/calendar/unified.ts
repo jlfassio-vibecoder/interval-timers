@@ -7,9 +7,7 @@
 
 import type { APIRoute } from 'astro';
 import { verifyRosterAccessRequest } from '@/lib/supabase/admin/auth';
-import {
-  validateCalendarRange,
-} from '@/lib/supabase/admin/trainer-client-calendar';
+import { validateCalendarRange } from '@/lib/supabase/admin/trainer-client-calendar';
 import { buildTrainerUnifiedCalendarPayload } from '@/lib/supabase/admin/trainer-unified-calendar';
 
 export const GET: APIRoute = async ({ request, cookies, url }) => {

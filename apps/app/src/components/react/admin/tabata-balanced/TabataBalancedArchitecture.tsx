@@ -24,7 +24,8 @@ const PAIRING_OPTIONS: {
   {
     value: 'antagonist_pair',
     label: 'Push / pull (antagonist)',
-    detail: 'Alternate two patterns (e.g. press + row) for balance and active recovery between efforts.',
+    detail:
+      'Alternate two patterns (e.g. press + row) for balance and active recovery between efforts.',
   },
   {
     value: 'agonist_pair',
@@ -65,10 +66,10 @@ const TabataBalancedArchitecture: React.FC<TabataBalancedArchitectureProps> = ({
       <h3 className="font-heading text-lg font-bold text-white">Tabata architecture</h3>
       <p className="text-sm text-white/65">
         Classic Tabata uses <span className="text-white/85">20 seconds work / 10 seconds rest</span>{' '}
-        per interval. The widely used default is{' '}
-        <span className="text-white/85">8 rounds</span> (about four minutes of main work); you can
-        adjust rounds for fit clients or regressions. This mode is separate from generic HIIT →
-        &quot;Tabata Style&quot; — it applies guided strength/cardio pairing presets.
+        per interval. The widely used default is <span className="text-white/85">8 rounds</span>{' '}
+        (about four minutes of main work); you can adjust rounds for fit clients or regressions.
+        This mode is separate from generic HIIT → &quot;Tabata Style&quot; — it applies guided
+        strength/cardio pairing presets.
       </p>
       <div>
         <label className="mb-2 block text-sm font-medium text-white/80">Pairing pattern</label>
@@ -83,7 +84,9 @@ const TabataBalancedArchitecture: React.FC<TabataBalancedArchitectureProps> = ({
             </option>
           ))}
         </select>
-        <p className="mt-2 text-xs text-white/55">{PAIRING_OPTIONS.find((t) => t.value === pairingPattern)?.detail}</p>
+        <p className="mt-2 text-xs text-white/55">
+          {PAIRING_OPTIONS.find((t) => t.value === pairingPattern)?.detail}
+        </p>
       </div>
       <div>
         <label className="mb-2 block text-sm font-medium text-white/80">
@@ -98,7 +101,9 @@ const TabataBalancedArchitecture: React.FC<TabataBalancedArchitectureProps> = ({
           onChange={(e) => {
             const v = parseInt(e.target.value, 10);
             if (!Number.isFinite(v)) return;
-            onRoundCountChange(Math.min(TABATA_BALANCED_MAX_ROUNDS, Math.max(TABATA_BALANCED_MIN_ROUNDS, v)));
+            onRoundCountChange(
+              Math.min(TABATA_BALANCED_MAX_ROUNDS, Math.max(TABATA_BALANCED_MIN_ROUNDS, v))
+            );
           }}
           className="focus:border-orange-light/50 focus:ring-orange-light/20 w-full max-w-[120px] rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-white focus:outline-none focus:ring-2"
         />

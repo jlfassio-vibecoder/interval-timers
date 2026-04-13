@@ -13,10 +13,7 @@ import {
   safeIanaZone,
   shortZoneName,
 } from '@/lib/performance-lab/trainer-calendar-time';
-import {
-  getResolvedBrowserTimeZone,
-  getSupportedIanaTimeZones,
-} from '@/lib/profile-timezone';
+import { getResolvedBrowserTimeZone, getSupportedIanaTimeZones } from '@/lib/profile-timezone';
 
 export interface CalendarTimezoneControlProps {
   value: string;
@@ -80,7 +77,7 @@ export const CalendarTimezoneControl: React.FC<CalendarTimezoneControlProps> = (
         value={effective}
         onChange={(e) => void runCommit(e.target.value)}
         disabled={disabled || combinedBusy}
-        className={`max-w-[min(100%,14rem)] truncate rounded-lg border border-white/15 bg-black/40 px-2 py-1.5 ${textSize} text-white focus:outline-none focus:ring-1 focus:ring-orange-light/50 disabled:opacity-50`}
+        className={`max-w-[min(100%,14rem)] truncate rounded-lg border border-white/15 bg-black/40 px-2 py-1.5 ${textSize} focus:ring-orange-light/50 text-white focus:outline-none focus:ring-1 disabled:opacity-50`}
         title={effective}
       >
         {!zones.includes(effective) ? (

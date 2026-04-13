@@ -1,27 +1,16 @@
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useMemo,
-  useState,
-  type ReactNode,
-} from 'react';
+import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
 
 type TrainerLiveAmrapChatDrawerValue = {
   chatDrawerLeaderboard: ReactNode | null;
   setChatDrawerLeaderboard: (node: ReactNode | null) => void;
 };
 
-const TrainerLiveAmrapChatDrawerContext =
-  createContext<TrainerLiveAmrapChatDrawerValue | null>(null);
+const TrainerLiveAmrapChatDrawerContext = createContext<TrainerLiveAmrapChatDrawerValue | null>(
+  null
+);
 
-export function TrainerLiveAmrapChatDrawerProvider({
-  children,
-}: {
-  children: ReactNode;
-}) {
-  const [chatDrawerLeaderboard, setChatDrawerLeaderboardState] =
-    useState<ReactNode | null>(null);
+export function TrainerLiveAmrapChatDrawerProvider({ children }: { children: ReactNode }) {
+  const [chatDrawerLeaderboard, setChatDrawerLeaderboardState] = useState<ReactNode | null>(null);
   const setChatDrawerLeaderboard = useCallback((node: ReactNode | null) => {
     setChatDrawerLeaderboardState(node);
   }, []);

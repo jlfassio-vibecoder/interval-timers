@@ -233,14 +233,15 @@ export default function TrainerLiveTabataWorkoutPickerModal({
           <div className="space-y-3">
             <p className="text-sm text-white/70">
               Only workouts generated in Workout Factory as{' '}
-              <span className="text-white/90">Balanced Tabata</span> appear here. Pick a saved workout; you
-              will set the number of Tabata rounds (20s work / 10s rest) on the next step.
+              <span className="text-white/90">Balanced Tabata</span> appear here. Pick a saved
+              workout; you will set the number of Tabata rounds (20s work / 10s rest) on the next
+              step.
             </p>
             {open && featuredQuery.loading ? (
               <div className="py-4 text-center text-sm text-white/50">Loading featured…</div>
             ) : featuredPickerItems.length > 0 ? (
               <div className="space-y-2">
-                <p className="text-[10px] font-mono uppercase tracking-wide text-orange-400/95">
+                <p className="text-orange-400/95 font-mono text-[10px] uppercase tracking-wide">
                   Featured for Live
                 </p>
                 <ul className="max-h-[22vh] space-y-2 overflow-y-auto">
@@ -253,7 +254,7 @@ export default function TrainerLiveTabataWorkoutPickerModal({
                           setSelected(item);
                           setPhase('confirm');
                         }}
-                        className="w-full rounded-xl border border-orange-500/30 bg-orange-600/10 px-4 py-3 text-left text-sm text-white hover:bg-orange-600/15 disabled:opacity-40"
+                        className="border-orange-500/30 bg-orange-600/10 hover:bg-orange-600/15 w-full rounded-xl border px-4 py-3 text-left text-sm text-white disabled:opacity-40"
                       >
                         <span className="font-medium">{item.title}</span>
                       </button>
@@ -275,7 +276,7 @@ export default function TrainerLiveTabataWorkoutPickerModal({
             ) : (
               <>
                 {featuredPickerItems.length > 0 ? (
-                  <p className="mb-2 text-[10px] font-mono uppercase tracking-wider text-white/45">
+                  <p className="mb-2 font-mono text-[10px] uppercase tracking-wider text-white/45">
                     All saved workouts
                   </p>
                 ) : null}
@@ -315,7 +316,10 @@ export default function TrainerLiveTabataWorkoutPickerModal({
               <span className="font-medium text-white">{selected?.title ?? 'Workout'}</span>
             </p>
             <div>
-              <label htmlFor="trainer-live-tabata-rounds" className="mb-1 block text-xs text-white/60">
+              <label
+                htmlFor="trainer-live-tabata-rounds"
+                className="mb-1 block text-xs text-white/60"
+              >
                 Rounds (1–32)
               </label>
               <input

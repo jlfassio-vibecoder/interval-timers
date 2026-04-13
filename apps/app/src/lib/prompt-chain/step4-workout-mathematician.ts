@@ -69,28 +69,28 @@ export function buildWorkoutMathematicianPrompt(
           includeCooldown: false,
         }
       : hiitMode && hiitOptions
-      ? isAmrapProtocol(hiitOptions)
-        ? {
-            includeWarmup: false,
-            mainBlockCount: 1,
-            includeFinisher: false,
-            includeCooldown: false,
-          }
-        : (() => {
-            const circuitCount = [
-              hiitOptions.circuitStructure.circuit1,
-              hiitOptions.circuitStructure.circuit2,
-              hiitOptions.circuitStructure.circuit3,
-            ].filter(Boolean).length;
-            const mainBlockCount = circuitCount >= 1 ? circuitCount : 1;
-            return {
-              includeWarmup: hiitOptions.circuitStructure.includeWarmup,
-              mainBlockCount: mainBlockCount as 1 | 2 | 3, // Clamped above; HIIT has at most 3 circuits. BlockOptions accepts 1|2|3|4|5.
+        ? isAmrapProtocol(hiitOptions)
+          ? {
+              includeWarmup: false,
+              mainBlockCount: 1,
               includeFinisher: false,
-              includeCooldown: hiitOptions.circuitStructure.includeCooldown,
-            };
-          })()
-      : blockOptions;
+              includeCooldown: false,
+            }
+          : (() => {
+              const circuitCount = [
+                hiitOptions.circuitStructure.circuit1,
+                hiitOptions.circuitStructure.circuit2,
+                hiitOptions.circuitStructure.circuit3,
+              ].filter(Boolean).length;
+              const mainBlockCount = circuitCount >= 1 ? circuitCount : 1;
+              return {
+                includeWarmup: hiitOptions.circuitStructure.includeWarmup,
+                mainBlockCount: mainBlockCount as 1 | 2 | 3, // Clamped above; HIIT has at most 3 circuits. BlockOptions accepts 1|2|3|4|5.
+                includeFinisher: false,
+                includeCooldown: hiitOptions.circuitStructure.includeCooldown,
+              };
+            })()
+        : blockOptions;
 
   const { includeWarmup, mainBlockCount, includeFinisher, includeCooldown } = effectiveBlockOptions;
 
@@ -111,11 +111,11 @@ export function buildWorkoutMathematicianPrompt(
     ? `4. exerciseBlocks: exactly 1 block (Density-Based AMRAP circuit). Each exercise: order, exerciseName, exerciseQuery, sets (always 1 per station per lap), reps (fixed count, e.g. "10"), restSeconds (0 — continuous transition to next station), rpe (optional), coachNotes. FORBID workSeconds and any timed-station prescription. FORBID non-zero restSeconds between stations. The athlete repeats the full exercise list for the session clock, completing as many laps as possible. Primary tracking metric: Total Laps Completed.`
     : tabataBalancedMode && tabataBalancedOptions
       ? `4. exerciseBlocks: exactly 1 block (Balanced Tabata). Each exercise: order, exerciseName, exerciseQuery, workSeconds (${TABATA_BALANCED_WORK_SECONDS} only), restSeconds (${TABATA_BALANCED_REST_SECONDS} only), rounds (each exercise: exactly ${tabataRoundsPerEx} — equal share of ${tabataBalancedOptions.roundCount} total work intervals), coachNotes. TIMER SCHEMA only. FORBID sets/reps. The athlete performs ${tabataBalancedOptions.roundCount} work intervals of ${TABATA_BALANCED_WORK_SECONDS}s; pairing pattern ${tabataBalancedOptions.pairingPattern} determines how many distinct exercises rotate.`
-    : hiitMode && hiitOptions && isAmrapProtocol(hiitOptions)
-      ? `4. exerciseBlocks: exactly 1 block (the AMRAP circuit). Each exercise: order, exerciseName, exerciseQuery, workSeconds, restSeconds, rounds, coachNotes. TIMER SCHEMA only — set rounds to 1 for every exercise (one work interval at that station per lap). The athlete repeats the full circuit for the session duration, completing as many laps as possible — do not prescribe fixed multi-round work at a single station (e.g. never use rounds > 1 to mean "three times through this exercise before moving on").`
-      : hiitMode
-        ? `4. exerciseBlocks: exactly ${mainBlockCount} block(s); each block has order, name, and exercises with order, exerciseName, exerciseQuery, workSeconds, restSeconds, rounds, coachNotes (TIMER SCHEMA — no sets/reps; use work/rest time and rounds)`
-        : `4. exerciseBlocks: exactly ${mainBlockCount} block(s); each block has order, name, and exercises with order, exerciseName, exerciseQuery (searchable), sets, reps, rpe, restSeconds, coachNotes`;
+      : hiitMode && hiitOptions && isAmrapProtocol(hiitOptions)
+        ? `4. exerciseBlocks: exactly 1 block (the AMRAP circuit). Each exercise: order, exerciseName, exerciseQuery, workSeconds, restSeconds, rounds, coachNotes. TIMER SCHEMA only — set rounds to 1 for every exercise (one work interval at that station per lap). The athlete repeats the full circuit for the session duration, completing as many laps as possible — do not prescribe fixed multi-round work at a single station (e.g. never use rounds > 1 to mean "three times through this exercise before moving on").`
+        : hiitMode
+          ? `4. exerciseBlocks: exactly ${mainBlockCount} block(s); each block has order, name, and exercises with order, exerciseName, exerciseQuery, workSeconds, restSeconds, rounds, coachNotes (TIMER SCHEMA — no sets/reps; use work/rest time and rounds)`
+          : `4. exerciseBlocks: exactly ${mainBlockCount} block(s); each block has order, name, and exercises with order, exerciseName, exerciseQuery (searchable), sets, reps, rpe, restSeconds, coachNotes`;
   const finisherTask = includeFinisher
     ? '5. finisherBlocks: 1–3 finisher exercises (same shape as warmupBlocks: order, exerciseName, instructions)'
     : '';
@@ -184,9 +184,9 @@ export function buildWorkoutMathematicianPrompt(
             }
           ]
         }`
-    : hiitMode
-      ? hiitOptions && isAmrapProtocol(hiitOptions)
-        ? `        {
+      : hiitMode
+        ? hiitOptions && isAmrapProtocol(hiitOptions)
+          ? `        {
           "order": 1,
           "name": "Upper Body AMRAP",
           "exercises": [
@@ -210,16 +210,16 @@ export function buildWorkoutMathematicianPrompt(
             }
           ]
         }`
-        : Array.from({ length: mainBlockCount }, (_, i) => {
-            const name =
-              mainBlockCount === 1
-                ? 'Main'
-                : i === 0
-                  ? 'Circuit 1 (Driver)'
-                  : i === 1
-                    ? 'Circuit 2 (Sustainer)'
-                    : 'Circuit 3 (Burnout)';
-            return `        {
+          : Array.from({ length: mainBlockCount }, (_, i) => {
+              const name =
+                mainBlockCount === 1
+                  ? 'Main'
+                  : i === 0
+                    ? 'Circuit 1 (Driver)'
+                    : i === 1
+                      ? 'Circuit 2 (Sustainer)'
+                      : 'Circuit 3 (Burnout)';
+              return `        {
           "order": ${i + 1},
           "name": "${name}",
           "exercises": [
@@ -234,10 +234,10 @@ export function buildWorkoutMathematicianPrompt(
             }
           ]
         }`;
-          }).join(',\n')
-      : Array.from({ length: mainBlockCount }, (_, i) => {
-          const name = mainBlockCount === 1 ? 'Main' : `Block ${i + 1}`;
-          return `        {
+            }).join(',\n')
+        : Array.from({ length: mainBlockCount }, (_, i) => {
+            const name = mainBlockCount === 1 ? 'Main' : `Block ${i + 1}`;
+            return `        {
           "order": ${i + 1},
           "name": "${name}",
           "exercises": [
@@ -253,7 +253,7 @@ export function buildWorkoutMathematicianPrompt(
             }
           ]
         }`;
-        }).join(',\n');
+          }).join(',\n');
 
   const finisherExample = includeFinisher
     ? `,
@@ -316,11 +316,11 @@ Prescribe each main-block exercise with workSeconds, restSeconds, and rounds. Do
     ? `Use the Coach's exercise list in order as one repeating Density-Based AMRAP circuit. For each exercise use sets: 1, fixed reps, restSeconds: 0. State Total Laps Completed as the primary metric in workout description. FORBID workSeconds.`
     : tabataBalancedMode && tabataBalancedOptions
       ? `Use the Coach's exercise list. Build exactly one Tabata block with ${tabataBalancedExerciseCount(tabataBalancedOptions.pairingPattern)} exercises, each with workSeconds ${TABATA_BALANCED_WORK_SECONDS}, restSeconds ${TABATA_BALANCED_REST_SECONDS}, rounds ${tabataRoundsPerEx}. Describe rotation in workout description. FORBID sets/reps in main block.`
-    : hiitMode && hiitOptions && isAmrapProtocol(hiitOptions)
-      ? `Use the Coach's exercise list in order as one repeating AMRAP circuit. Prescribe workSeconds, restSeconds, and rounds=1 for each exercise.`
-      : hiitMode
-        ? `Use the Coach's exercise list. Prescribe workSeconds, restSeconds, and rounds per exercise to fit the session duration and protocol. Distribute exercises across exactly ${mainBlockCount} circuit block(s).`
-        : `Use the Coach's exercise list for that session. Prescribe sets, reps, RPE, and rest appropriate to the progression protocol and session duration. Distribute exercises across exactly ${mainBlockCount} main block(s).`;
+      : hiitMode && hiitOptions && isAmrapProtocol(hiitOptions)
+        ? `Use the Coach's exercise list in order as one repeating AMRAP circuit. Prescribe workSeconds, restSeconds, and rounds=1 for each exercise.`
+        : hiitMode
+          ? `Use the Coach's exercise list. Prescribe workSeconds, restSeconds, and rounds per exercise to fit the session duration and protocol. Distribute exercises across exactly ${mainBlockCount} circuit block(s).`
+          : `Use the Coach's exercise list for that session. Prescribe sets, reps, RPE, and rest appropriate to the progression protocol and session duration. Distribute exercises across exactly ${mainBlockCount} main block(s).`;
 
   return `Role: You are the Workout Mathematician.
 Task: Generate ONE set of ${sessionCount} workouts (no weeks). Each workout is a complete session. Include blocks as specified below.

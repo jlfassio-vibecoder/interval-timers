@@ -1,11 +1,13 @@
 /**
  * Tabata session UI: timer + exercise list. `trainerLiveEmbed` matches Trainer Live sidebar width.
  * With `embedSuppressExercises`, the host renders exercises on the video plane (see Trainer Live Tabata wrapper).
+ * With `embedClientLiveLayout`, the client gets the AMRAP-style 16:9 timer band + exercises below the video.
  */
 import type { ReactNode } from 'react';
 import type { TabataEngine, TabataPhase } from '@/types/tabata-session';
 import AmrapTimerDisplay from '@/components/amrap-session/AmrapTimerDisplay';
 import type { AmrapTimerPhase } from '@/components/amrap-session/AmrapTimerDisplay';
+import TabataEmbedExerciseSection from '@/components/tabata-session/TabataEmbedExerciseSection';
 
 export type TabataSessionShellLayout = 'default' | 'trainerLiveEmbed';
 
@@ -17,6 +19,11 @@ export interface TabataSessionShellProps {
    * `TabataEmbedExerciseSection` on the timer video background.
    */
   embedSuppressExercises?: boolean;
+  /**
+   * Trainer Live **client** embed: timer + round metrics in square cards over the 16:9 video; exercises
+   * below (host keeps overlay exercises on video).
+   */
+  embedClientLiveLayout?: boolean;
   /** Trainer Live: accessory before timer subtitle (e.g. Me/Leader toggle). */
   embedTitleBarAccessoryBeforeSub?: ReactNode;
 }
@@ -68,15 +75,58 @@ function tabataPhaseToAmrapDisplay(phase: TabataPhase): AmrapTimerPhase {
   }
 }
 
+/** Matches `AmrapTimerDisplay` default phase label (e.g. READY). */
+const EMBED_CLOCK_LABEL_CLASS = 'mb-2 text-[15px] font-bold uppercase tracking-widest opacity-80';
+
+function TabataEmbedBigNumber({ children, className }: { children: React.ReactNode; className?: string }) {
+  return (
+    <div
+      className={`flex w-full min-w-0 justify-center overflow-hidden text-center font-bold tabular-nums ${className ?? ''}`}
+      style={{ containerType: 'inline-size' }}
+    >
+      <span style={{ fontSize: 'clamp(2rem, min(15cqw, 15cqh), 9rem)' }}>{children}</span>
+    </div>
+  );
+}
+
 function TabataMetricsAside({
   phase,
   displayTitle,
   displaySub,
+  clientLiveLayout,
+  roundCount,
+  currentRoundOneBased,
+  pausedFromPhase,
 }: {
   phase: TabataPhase;
   displayTitle: string;
   displaySub?: string;
+  /** Client Trainer Live: right column mirrors left clock — READY-style label + timer-sized digit(s). */
+  clientLiveLayout: boolean;
+  roundCount: number;
+  currentRoundOneBased: number;
+  pausedFromPhase: 'work' | 'rest' | null;
 }) {
+  const workRestTone = tabataOverlayWorkRestClockTone(
+    phase,
+    phase === 'paused' ? pausedFromPhase : null
+  );
+  const bigValueClass =
+    phase === 'work' || phase === 'rest' || (phase === 'paused' && pausedFromPhase)
+      ? workRestTone?.valueClass ?? 'font-mono text-white/90'
+      : 'font-mono text-white/90';
+
+  if (clientLiveLayout) {
+    if (phase === 'setup' || phase === 'work' || phase === 'rest' || phase === 'paused') {
+      return (
+        <div className="flex min-w-0 flex-col items-center justify-center px-0.5 text-center">
+          <div className={EMBED_CLOCK_LABEL_CLASS}>{roundCount} ROUNDS</div>
+          <TabataEmbedBigNumber className={bigValueClass}>{currentRoundOneBased}</TabataEmbedBigNumber>
+        </div>
+      );
+    }
+  }
+
   if (phase === 'idle') {
     return displaySub ? (
       <p className="max-w-[12rem] text-balance text-center text-sm font-medium leading-snug text-white/90">
@@ -106,6 +156,7 @@ export default function TabataSessionShell({
   engine,
   shellLayout = 'default',
   embedSuppressExercises = false,
+  embedClientLiveLayout = false,
   embedTitleBarAccessoryBeforeSub,
 }: TabataSessionShellProps) {
   const {
@@ -117,6 +168,8 @@ export default function TabataSessionShell({
     displaySub,
     displayValue,
     workoutList,
+    roundCount,
+    currentIntervalIndex,
     isTrainer,
     onStart,
     onSkipSetup,
@@ -128,7 +181,18 @@ export default function TabataSessionShell({
 
   const embed = shellLayout === 'trainerLiveEmbed';
   const overlayEmbed = embed && embedSuppressExercises;
+  const clientLiveLayout = embed && embedClientLiveLayout;
   const amrapPhase = tabataPhaseToAmrapDisplay(phase);
+
+  const activeSplitPhase =
+    phase === 'setup' || phase === 'work' || phase === 'rest' || phase === 'paused';
+  /**
+   * Two square cards (timer | metrics): only during active phases. If true during **idle**, the host
+   * loses the Start button (it only renders in `AmrapTimerDisplay`’s non-split embed branch).
+   */
+  const useEmbedSplitSquareLayout = (overlayEmbed || clientLiveLayout) && activeSplitPhase;
+  /** Right-column metrics: host overlay always (incl. idle); client only when split layout applies. */
+  const showEmbedMetricsAside = overlayEmbed || (clientLiveLayout && activeSplitPhase);
 
   const showStart = phase === 'idle' && isTrainer && !!onStart;
   const showHostControls =
@@ -238,7 +302,18 @@ export default function TabataSessionShell({
   }
 
   const exerciseBlock =
-    !embedSuppressExercises && workoutList.length > 0 ? (
+    embed && !embedSuppressExercises ? (
+      <>
+        <TabataEmbedExerciseSection
+          engine={engine}
+          maxTwoColumns
+          className="flex w-full flex-col gap-6"
+        />
+        {workoutList.length === 0 ? (
+          <p className="text-sm text-white/70">No exercise list for this block. Follow your trainer.</p>
+        ) : null}
+      </>
+    ) : !embedSuppressExercises && workoutList.length > 0 ? (
       <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
         <h3 className="mb-3 text-lg font-bold text-white">This round</h3>
         <ol className="list-decimal space-y-2 pl-5 text-sm text-white/90">
@@ -253,58 +328,77 @@ export default function TabataSessionShell({
       </div>
     ) : null;
 
-  const metricsNode = overlayEmbed ? (
-    <TabataMetricsAside phase={phase} displayTitle={displayTitle} displaySub={displaySub} />
+  const currentRoundOneBased = phase === 'setup' ? 1 : (currentIntervalIndex ?? 0) + 1;
+
+  const metricsNode = showEmbedMetricsAside ? (
+    <TabataMetricsAside
+      phase={phase}
+      displayTitle={displayTitle}
+      displaySub={displaySub}
+      clientLiveLayout={!!clientLiveLayout}
+      roundCount={roundCount}
+      currentRoundOneBased={currentRoundOneBased}
+      pausedFromPhase={pausedFromPhase ?? null}
+    />
   ) : undefined;
 
-  const overlayTitleForSplit =
-    overlayEmbed && (phase === 'setup' || phase === 'work' || phase === 'rest' || phase === 'paused')
-      ? 'Tabata'
-      : displayTitle;
-  const overlaySubForSplit =
-    overlayEmbed && (phase === 'setup' || phase === 'work' || phase === 'rest' || phase === 'paused')
-      ? undefined
-      : displaySub;
+  const overlayTitleForSplit = useEmbedSplitSquareLayout ? 'Tabata' : displayTitle;
+  const overlaySubForSplit = useEmbedSplitSquareLayout ? undefined : displaySub;
 
-  const tabataWorkRestClockTone =
-    overlayEmbed ? tabataOverlayWorkRestClockTone(phase, pausedFromPhase ?? null) : null;
+  const tabataWorkRestClockTone = useEmbedSplitSquareLayout
+    ? tabataOverlayWorkRestClockTone(phase, pausedFromPhase ?? null)
+    : null;
+
+  const timerColumnInner = (
+    <AmrapTimerDisplay
+      phase={amrapPhase}
+      displayLabel={displayLabel}
+      displayTitle={overlayTitleForSplit}
+      displaySub={overlaySubForSplit}
+      displayValue={displayValue}
+      showStartButton={showStart}
+      onStart={onStart}
+      stackStartWithClockAside={
+        (overlayEmbed ? showStart : embed && showStart) && useEmbedSplitSquareLayout
+      }
+      titleBarAccessoryBeforeSub={embed ? embedTitleBarAccessoryBeforeSub : undefined}
+      containerClassName={overlayEmbed || clientLiveLayout ? 'bg-transparent' : undefined}
+      embedHostAndTimerInLeftColumn={useEmbedSplitSquareLayout}
+      embedMetricsVariant="participantTwoColumn"
+      liveEmbedOverVideo={embed}
+      liveEmbedClientSquareClock={clientLiveLayout}
+      beforeMainClock={
+        overlayEmbed && activeSplitPhase && hostEmbedded ? (
+          <div className="mb-5 flex w-full flex-col text-left">{hostEmbedded}</div>
+        ) : undefined
+      }
+      embedMainClockLabelClassName={tabataWorkRestClockTone?.labelClass}
+      embedMainClockValueClassName={tabataWorkRestClockTone?.valueClass}
+      clockAsideRight={showEmbedMetricsAside ? metricsNode : undefined}
+      clockAsideLeft={
+        !overlayEmbed && embed && (phase === 'work' || phase === 'rest' || phase === 'paused' || phase === 'setup')
+          ? hostEmbedded
+          : undefined
+      }
+    >
+      {hostDefaultRow}
+    </AmrapTimerDisplay>
+  );
 
   const timerColumn = (
-    <div className={embed ? 'min-w-0 w-full' : 'min-w-0 flex-1'}>
-      <AmrapTimerDisplay
-        phase={amrapPhase}
-        displayLabel={displayLabel}
-        displayTitle={overlayTitleForSplit}
-        displaySub={overlaySubForSplit}
-        displayValue={displayValue}
-        showStartButton={showStart}
-        onStart={onStart}
-        stackStartWithClockAside={overlayEmbed ? showStart : embed && showStart}
-        titleBarAccessoryBeforeSub={embed ? embedTitleBarAccessoryBeforeSub : undefined}
-        containerClassName={overlayEmbed ? 'bg-transparent' : undefined}
-        embedHostAndTimerInLeftColumn={
-          overlayEmbed &&
-          (phase === 'setup' || phase === 'work' || phase === 'rest' || phase === 'paused')
-        }
-        embedMetricsVariant="participantTwoColumn"
-        beforeMainClock={
-          overlayEmbed &&
-          (phase === 'setup' || phase === 'work' || phase === 'rest' || phase === 'paused') &&
-          hostEmbedded ? (
-            <div className="mb-5 flex w-full flex-col text-left">{hostEmbedded}</div>
-          ) : undefined
-        }
-        embedMainClockLabelClassName={tabataWorkRestClockTone?.labelClass}
-        embedMainClockValueClassName={tabataWorkRestClockTone?.valueClass}
-        clockAsideRight={overlayEmbed ? metricsNode : undefined}
-        clockAsideLeft={
-          !overlayEmbed && embed && (phase === 'work' || phase === 'rest' || phase === 'paused' || phase === 'setup')
-            ? hostEmbedded
-            : undefined
-        }
-      >
-        {hostDefaultRow}
-      </AmrapTimerDisplay>
+    <div
+      className={embed ? 'min-w-0 w-full' : 'min-w-0 flex-1'}
+      data-tl-embed-timer={embed ? true : undefined}
+    >
+      {embed && clientLiveLayout ? (
+        <div className="relative w-full shrink-0 aspect-[16/9]">
+          <div className="absolute inset-0 z-10 flex min-h-0 flex-col overflow-y-auto overflow-x-hidden px-1 sm:px-0">
+            {timerColumnInner}
+          </div>
+        </div>
+      ) : (
+        timerColumnInner
+      )}
     </div>
   );
 

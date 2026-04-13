@@ -22,6 +22,7 @@ function AmrapEmbedBody({
   role,
   displayName,
   onWrapperError,
+  videoTileExcludeUid,
 }: {
   amrapSessionId: string;
   trainerLiveSessionId: string;
@@ -29,6 +30,7 @@ function AmrapEmbedBody({
   role: 'trainer' | 'client';
   displayName: string;
   onWrapperError?: (message: string) => void;
+  videoTileExcludeUid?: string | null;
 }) {
   const [recapDismissed, setRecapDismissed] = useState(false);
 
@@ -37,8 +39,7 @@ function AmrapEmbedBody({
     embedVideo: 'trainer_live',
     onDismissFinishedRecap: () => setRecapDismissed(true),
     recapDismissed,
-    trainerLiveJoinNickname:
-      role === 'client' ? (displayName.trim() || 'Guest') : undefined,
+    trainerLiveJoinNickname: role === 'client' ? displayName.trim() || 'Guest' : undefined,
   });
 
   const { setSessionDrawerNode } = useTrainerLiveAmrapSessionDrawer();
@@ -73,20 +74,20 @@ function AmrapEmbedBody({
   const ps = result.pageState;
 
   const viewResultsPortal =
-    typeof document !== 'undefined' && ps ? (
-      createPortal(
-        <ViewResultsModal
-          isOpen={Boolean(ps.showViewResultsModal)}
-          onClose={() => ps.handleCloseViewResults?.()}
-          isHost={ps.isHost}
-          resultsText={ps.viewResultsText ?? ''}
-          onCopy={() => void ps.copyResults?.()}
-          copyToast={ps.copyResultsToast ?? null}
-          roundDurations={ps.roundDurations ?? []}
-        />,
-        document.body
-      )
-    ) : null;
+    typeof document !== 'undefined' && ps
+      ? createPortal(
+          <ViewResultsModal
+            isOpen={Boolean(ps.showViewResultsModal)}
+            onClose={() => ps.handleCloseViewResults?.()}
+            isHost={ps.isHost}
+            resultsText={ps.viewResultsText ?? ''}
+            onCopy={() => void ps.copyResults?.()}
+            copyToast={ps.copyResultsToast ?? null}
+            roundDurations={ps.roundDurations ?? []}
+          />,
+          document.body
+        )
+      : null;
 
   return (
     <div
@@ -99,19 +100,23 @@ function AmrapEmbedBody({
         trainerLiveSessionId={trainerLiveSessionId}
         participantId={participantId}
         role={role}
+        videoTileExcludeUid={videoTileExcludeUid}
         videoBottomOverlay={
-          <AmrapEmbedExerciseSection
-            engine={result}
-            maxTwoColumns
-            className="flex w-full flex-col gap-2 sm:gap-3"
-          />
+          isTrainer ? (
+            <AmrapEmbedExerciseSection
+              engine={result}
+              maxTwoColumns
+              className="flex w-full flex-col gap-2 sm:gap-3"
+            />
+          ) : undefined
         }
       />
       <div className="relative z-10">
         <AmrapSessionShell
           engine={result}
           shellLayout="trainerLiveEmbed"
-          embedSuppressExercises
+          embedSuppressExercises={isTrainer}
+          embedClientLiveLayout={!isTrainer}
           embedTitleBarAccessoryBeforeSub={
             isTrainer ? <TrainerLiveTimerBackgroundMeLeaderToggle /> : undefined
           }
@@ -122,8 +127,15 @@ function AmrapEmbedBody({
 }
 
 export default function TrainerLiveAmrapWrapper(props: TrainerLiveWrapperBaseProps) {
-  const { wrapperConfig, onWrapperError, trainerLiveSessionId, participantId, role, displayName } =
-    props;
+  const {
+    wrapperConfig,
+    onWrapperError,
+    trainerLiveSessionId,
+    participantId,
+    role,
+    displayName,
+    videoTileExcludeUid,
+  } = props;
   const amrapSessionId = parseAmrapSessionIdFromWrapperConfig(wrapperConfig);
 
   if (!amrapSessionId) {
@@ -143,6 +155,7 @@ export default function TrainerLiveAmrapWrapper(props: TrainerLiveWrapperBasePro
         role={role}
         displayName={displayName}
         onWrapperError={onWrapperError}
+        videoTileExcludeUid={videoTileExcludeUid}
       />
     </AmrapAuthProvider>
   );

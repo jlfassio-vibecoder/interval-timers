@@ -45,7 +45,8 @@ export async function getLiveScheduledCalendarEventsForRange(
     .in('status', ['pending', 'accepted', 'waitlisted']);
 
   if (invErr) {
-    if (import.meta.env.DEV) console.error('[getLiveScheduledCalendarEventsForRange] invites', invErr);
+    if (import.meta.env.DEV)
+      console.error('[getLiveScheduledCalendarEventsForRange] invites', invErr);
     return [];
   }
 

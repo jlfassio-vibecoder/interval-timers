@@ -36,11 +36,14 @@ describe('live-schedule-series-expand', () => {
       3
     );
     expect(slots).toHaveLength(3);
-    const d0 = new Date(slots[0]!.scheduledEndAt).getTime() - new Date(slots[0]!.scheduledStartAt).getTime();
-    const d1 = new Date(slots[1]!.scheduledEndAt).getTime() - new Date(slots[1]!.scheduledStartAt).getTime();
+    const d0 =
+      new Date(slots[0]!.scheduledEndAt).getTime() - new Date(slots[0]!.scheduledStartAt).getTime();
+    const d1 =
+      new Date(slots[1]!.scheduledEndAt).getTime() - new Date(slots[1]!.scheduledStartAt).getTime();
     expect(d0).toBe(d1);
-    expect(new Date(slots[1]!.scheduledStartAt).getTime() - new Date(slots[0]!.scheduledStartAt).getTime()).toBe(
-      7 * 24 * 60 * 60 * 1000
-    );
+    expect(
+      new Date(slots[1]!.scheduledStartAt).getTime() -
+        new Date(slots[0]!.scheduledStartAt).getTime()
+    ).toBe(7 * 24 * 60 * 60 * 1000);
   });
 });

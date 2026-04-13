@@ -153,8 +153,7 @@ export async function prepareWorkoutChainRequest(
       ok: false,
       response: new Response(
         JSON.stringify({
-          error:
-            'At most one of hiitMode, amrapDensityMode, and tabataBalancedMode can be enabled',
+          error: 'At most one of hiitMode, amrapDensityMode, and tabataBalancedMode can be enabled',
         }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       ),

@@ -92,9 +92,7 @@ const TrainerLibraryWorkoutEditView: React.FC = () => {
       }
       const nb = normalizeBlocks(row.blocks);
       setBlocks(
-        withStableBlockAndExerciseIds(
-          nb.length > 0 ? nb : workoutInSetToBlocks(undefined)
-        )
+        withStableBlockAndExerciseIds(nb.length > 0 ? nb : workoutInSetToBlocks(undefined))
       );
 
       const wid =
@@ -420,9 +418,7 @@ const TrainerLibraryWorkoutEditView: React.FC = () => {
                 value={block.name}
                 onChange={(e) => {
                   const v = e.target.value;
-                  setBlocks(
-                    blocks.map((b, bi) => (bi !== blockIndex ? b : { ...b, name: v }))
-                  );
+                  setBlocks(blocks.map((b, bi) => (bi !== blockIndex ? b : { ...b, name: v })));
                 }}
                 className="focus:border-orange-light/50 border-b border-transparent bg-transparent font-bold text-white focus:outline-none"
               />

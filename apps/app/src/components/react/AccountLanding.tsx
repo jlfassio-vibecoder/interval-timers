@@ -7,7 +7,7 @@
  * showAuthModal/showAuthModalWithSignup for AppIslands' AuthModal.
  */
 
-import React, { useState, useEffect, useRef, startTransition } from 'react';
+import React, { useState, useEffect, useRef, useCallback, startTransition } from 'react';
 import { useAppContext } from '@/contexts/AppContext';
 import {
   parseHandoffFromUrl,
@@ -16,15 +16,20 @@ import {
   HANDOFF_MAX_AGE_MS,
   type StoredHandoff,
 } from '@interval-timers/handoff';
+import { Video } from 'lucide-react';
 import { trackEvent } from '@interval-timers/analytics';
 import { getAccountCopy } from '@/lib/account-copy';
 import { APP_REGISTRY, getAppById, getAppLaunchUrl } from '@/lib/app-registry';
+import {
+  trainerLiveClientHubPath,
+  trainerLiveClientJoinPath,
+} from '@/lib/trainer-live/client-join-window';
 import { supabase } from '@/lib/supabase/supabase-instance';
 import { logHandoffSession } from '@/lib/supabase/client/log-handoff';
 import TrialBanner from './TrialBanner';
 
 const AccountLanding: React.FC = () => {
-  const { user, session, loading, isInTrial } = useAppContext();
+  const { user, session, loading, isInTrial, isTrainer } = useAppContext();
   const [fromAppId, setFromAppId] = useState<string | null>(null);
   const [handoff, setHandoff] = useState<StoredHandoff | null>(null);
   const [prefillResult, setPrefillResult] = useState<{ success: boolean; source?: string } | null>(
@@ -34,6 +39,10 @@ const AccountLanding: React.FC = () => {
   const oauthEventEmittedRef = useRef(false);
   const guestClaimAttemptedRef = useRef(false);
   const [loadingTimedOut, setLoadingTimedOut] = useState(false);
+  type LiveInviteRow = { session_id: string; trainer_display_name: string };
+  const [liveInvites, setLiveInvites] = useState<LiveInviteRow[]>([]);
+  const [liveInvitesLoading, setLiveInvitesLoading] = useState(false);
+  const [liveInvitesErr, setLiveInvitesErr] = useState<string | null>(null);
 
   // Escape hatch: if AppContext loading never resolves (e.g. Supabase/proxy stall in prod),
   // stop blocking the page after 4s so users see sign-in instead of infinite Loading.
@@ -45,6 +54,102 @@ const AccountLanding: React.FC = () => {
     const t = setTimeout(() => setLoadingTimedOut(true), 4000);
     return () => clearTimeout(t);
   }, [loading]);
+
+  const applyLiveInvitesRpcResult = useCallback((data: unknown, error: { message: string } | null) => {
+    if (error) {
+      setLiveInvites([]);
+      setLiveInvitesErr(error.message);
+      return;
+    }
+    setLiveInvitesErr(null);
+    const rows = Array.isArray(data) ? data : [];
+    setLiveInvites(
+      rows
+        .map((r: unknown) => {
+          const o = r as Record<string, unknown>;
+          const sid = typeof o.session_id === 'string' ? o.session_id : '';
+          const name =
+            typeof o.trainer_display_name === 'string' ? o.trainer_display_name : 'Trainer';
+          return sid ? { session_id: sid, trainer_display_name: name } : null;
+        })
+        .filter((x): x is LiveInviteRow => x != null)
+    );
+  }, []);
+
+  const fetchLiveInvites = useCallback(
+    async (opts?: { silent?: boolean; isCurrent?: () => boolean }) => {
+      const silent = opts?.silent === true;
+      const isCurrent = opts?.isCurrent ?? (() => true);
+      if (!silent) {
+        setLiveInvitesLoading(true);
+        setLiveInvitesErr(null);
+      }
+      const { data, error } = await supabase.rpc('trainer_live_client_pending_invites');
+      if (isCurrent()) {
+        applyLiveInvitesRpcResult(data, error);
+      }
+      if (!silent) {
+        setLiveInvitesLoading(false);
+      }
+    },
+    [applyLiveInvitesRpcResult]
+  );
+
+  useEffect(() => {
+    if (!user || isTrainer) {
+      setLiveInvites([]);
+      setLiveInvitesErr(null);
+      setLiveInvitesLoading(false);
+      return;
+    }
+    const authId = user.uid ?? session?.user?.id;
+    if (!authId) {
+      return;
+    }
+
+    let cancelled = false;
+    const isCurrent = () => !cancelled;
+    const run = (silent: boolean) => {
+      if (cancelled) return;
+      void fetchLiveInvites({ silent, isCurrent });
+    };
+
+    run(false);
+
+    const channel = supabase
+      .channel(`trainer-live-room-invites:${authId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'trainer_live_room_invites',
+          filter: `invitee_user_id=eq.${authId}`,
+        },
+        () => {
+          if (!cancelled) run(true);
+        }
+      )
+      .subscribe();
+
+    const pollMs = 30_000;
+    const interval = setInterval(() => {
+      if (cancelled || document.visibilityState !== 'visible') return;
+      run(true);
+    }, pollMs);
+
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible' && !cancelled) run(true);
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+
+    return () => {
+      cancelled = true;
+      void supabase.removeChannel(channel);
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [user, session?.user?.id, isTrainer, fetchLiveInvites]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -402,6 +507,15 @@ const AccountLanding: React.FC = () => {
             >
               Your Workouts
             </a>
+            {user && !isTrainer ? (
+              <a
+                href={trainerLiveClientHubPath()}
+                className="border-orange-light/40 bg-orange-light/10 hover:bg-orange-light/20 inline-flex items-center gap-1.5 rounded-xl border-2 px-4 py-2 font-mono text-[10px] font-bold uppercase tracking-wider text-orange-light transition-colors"
+              >
+                <Video className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                Live with Trainer
+              </a>
+            ) : null}
             <a
               href="/account/profile"
               className="hover:border-orange-500/50 hover:bg-orange-500/10 rounded-xl border-2 border-white/20 px-4 py-2 font-bold text-white transition-colors"
@@ -409,6 +523,48 @@ const AccountLanding: React.FC = () => {
               Profile
             </a>
           </div>
+          {user && !isTrainer ? (
+            <div className="border-white/10 mt-6 rounded-xl border border-dashed border-white/15 bg-black/25 p-4">
+              <div className="mb-2 flex flex-wrap items-center gap-2">
+                <h4 className="font-heading text-base font-bold text-white">Live invitations</h4>
+                {liveInvites.length > 0 ? (
+                  <span
+                    className="inline-flex min-h-[1.25rem] min-w-[1.25rem] items-center justify-center rounded-full bg-red-600 px-1.5 font-mono text-[10px] font-bold text-white"
+                    aria-label={`${liveInvites.length} pending live invitations`}
+                  >
+                    {liveInvites.length > 99 ? '99+' : liveInvites.length}
+                  </span>
+                ) : null}
+              </div>
+              {liveInvitesLoading ? (
+                <p className="text-sm text-white/50">Loading invitations…</p>
+              ) : liveInvitesErr ? (
+                <p className="text-sm text-amber-200/90">{liveInvitesErr}</p>
+              ) : liveInvites.length === 0 ? (
+                <p className="text-sm text-white/55">No pending invites. When your trainer invites you to a live session, it will show here.</p>
+              ) : (
+                <ul className="space-y-2">
+                  {liveInvites.map((inv) => (
+                    <li
+                      key={inv.session_id}
+                      className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-white/10 bg-black/30 px-3 py-2"
+                    >
+                      <span className="text-sm text-white/90">
+                        <span className="text-white/60">From </span>
+                        {inv.trainer_display_name}
+                      </span>
+                      <a
+                        href={trainerLiveClientJoinPath(inv.session_id)}
+                        className="border-orange-light/50 bg-orange-light/15 hover:bg-orange-light/25 shrink-0 rounded-lg border px-3 py-1.5 text-xs font-semibold text-orange-light"
+                      >
+                        Join session
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          ) : null}
         </div>
       </section>
 

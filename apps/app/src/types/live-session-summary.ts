@@ -83,8 +83,7 @@ function parseAmrapMetrics(raw: unknown): AmrapSummaryMetrics | null {
   return {
     viewer_amrap_participant_id: asString(o.viewer_amrap_participant_id),
     total_rounds: total != null ? Math.max(0, Math.floor(total)) : 0,
-    fastest_split_sec:
-      o.fastest_split_sec == null ? null : asNumber(o.fastest_split_sec),
+    fastest_split_sec: o.fastest_split_sec == null ? null : asNumber(o.fastest_split_sec),
     rounds: parseRoundSplits(o.rounds),
   };
 }
@@ -103,7 +102,10 @@ function parseTabataMetrics(raw: unknown): TabataSummaryMetrics | null {
     work_seconds: ws ?? 0,
     rest_seconds: rs ?? 0,
     round_count: rc != null ? Math.max(0, Math.floor(rc)) : 0,
-    state: state != null && typeof state === 'object' && !Array.isArray(state) ? (state as Record<string, unknown>) : {},
+    state:
+      state != null && typeof state === 'object' && !Array.isArray(state)
+        ? (state as Record<string, unknown>)
+        : {},
     workout_list: o.workout_list ?? null,
   };
 }

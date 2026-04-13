@@ -40,6 +40,8 @@ export function workoutRowToTabataAttachParams(
   }
   const rc = input.roundCount;
   const roundCount =
-    typeof rc === 'number' && Number.isFinite(rc) && rc >= 1 && rc <= 32 ? Math.round(rc) : DEFAULT_ROUND_COUNT;
+    typeof rc === 'number' && Number.isFinite(rc) && rc >= 1 && rc <= 32
+      ? Math.round(rc)
+      : DEFAULT_ROUND_COUNT;
   return { workoutList, roundCount };
 }

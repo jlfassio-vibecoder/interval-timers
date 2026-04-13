@@ -284,7 +284,8 @@ export async function forkTrainerLibraryWorkout(
       difficulty_level: editorState.difficultyLevel ?? source.difficultyLevel ?? 'intermediate',
       blocks: editorState.blocks,
       status: 'active',
-      source: source.source === 'ai_factory' || source.source === 'manual' ? source.source : 'manual',
+      source:
+        source.source === 'ai_factory' || source.source === 'manual' ? source.source : 'manual',
       ai_chain_metadata: source.aiChainMetadata,
       visibility: source.visibility as 'draft' | 'ready' | 'assigned',
       lineage_id: source.lineageId,

@@ -177,12 +177,7 @@ const LiveScheduledInviteDrawer: React.FC<LiveScheduledInviteDrawerProps> = ({
           {startIso ? (
             <>
               {formatTimeInZone(startIso, tz)}
-              {endIso && endIso !== startIso ? (
-                <>
-                  {' '}
-                  – {formatTimeInZone(endIso, tz)}
-                </>
-              ) : null}
+              {endIso && endIso !== startIso ? <> – {formatTimeInZone(endIso, tz)}</> : null}
             </>
           ) : (
             'Scheduled time unavailable'
@@ -196,17 +191,20 @@ const LiveScheduledInviteDrawer: React.FC<LiveScheduledInviteDrawerProps> = ({
           </p>
         ) : st === 'pending' ? (
           <p className="mt-2 text-sm text-white/65">
-            Your trainer invited you to this scheduled live session. Accept to reserve your spot if capacity allows.
+            Your trainer invited you to this scheduled live session. Accept to reserve your spot if
+            capacity allows.
           </p>
         ) : null}
         {st === 'accepted' && !effectiveLiveSessionId ? (
           <p className="mt-2 text-sm text-white/55">
-            Your trainer will open the live room before class. This screen checks every few seconds — or refresh your calendar.
+            Your trainer will open the live room before class. This screen checks every few seconds
+            — or refresh your calendar.
           </p>
         ) : null}
         {st === 'accepted' && effectiveLiveSessionId && !canJoin ? (
           <p className="mt-2 text-sm text-white/55">
-            Join opens 15 minutes before the scheduled start (and stays available for a few hours after).
+            Join opens 15 minutes before the scheduled start (and stays available for a few hours
+            after).
           </p>
         ) : null}
         <p className="mt-2 font-mono text-[10px] uppercase tracking-wider text-white/45">
@@ -218,7 +216,7 @@ const LiveScheduledInviteDrawer: React.FC<LiveScheduledInviteDrawerProps> = ({
           <div className="mt-4">
             <a
               href={joinHref}
-              className="flex w-full items-center justify-center rounded-lg bg-orange-light/25 px-4 py-3 text-sm font-semibold text-orange-light hover:bg-orange-light/35"
+              className="bg-orange-light/25 hover:bg-orange-light/35 flex w-full items-center justify-center rounded-lg px-4 py-3 text-sm font-semibold text-orange-light"
             >
               Join live class
             </a>
@@ -241,7 +239,7 @@ const LiveScheduledInviteDrawer: React.FC<LiveScheduledInviteDrawerProps> = ({
               type="button"
               disabled={busy}
               onClick={() => void post('accept')}
-              className="rounded-lg bg-orange-light/25 px-4 py-2 text-sm font-medium text-orange-light hover:bg-orange-light/35 disabled:opacity-40"
+              className="bg-orange-light/25 hover:bg-orange-light/35 rounded-lg px-4 py-2 text-sm font-medium text-orange-light disabled:opacity-40"
             >
               {busy ? '…' : st === 'waitlisted' ? 'Stay on waitlist' : 'Accept'}
             </button>

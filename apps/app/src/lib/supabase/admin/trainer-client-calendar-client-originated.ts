@@ -55,7 +55,8 @@ export async function fetchScheduledWorkoutsForClientRangeAdmin(
     .order('scheduled_at', { ascending: true });
 
   if (error) {
-    if (import.meta.env.DEV) console.warn('[trainer-client-calendar-client-originated] scheduled_workouts', error);
+    if (import.meta.env.DEV)
+      console.warn('[trainer-client-calendar-client-originated] scheduled_workouts', error);
     return [];
   }
 
@@ -140,7 +141,6 @@ export async function fetchAmrapScheduledSessionsForClientRangeAdmin(
   }
 
   return Array.from(byId.values()).sort(
-    (a, b) =>
-      new Date(a.scheduled_start_at).getTime() - new Date(b.scheduled_start_at).getTime()
+    (a, b) => new Date(a.scheduled_start_at).getTime() - new Date(b.scheduled_start_at).getTime()
   );
 }

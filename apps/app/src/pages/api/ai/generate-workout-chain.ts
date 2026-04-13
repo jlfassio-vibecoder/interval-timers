@@ -242,11 +242,11 @@ export const POST: APIRoute = async ({ request, cookies }) => {
         ? 'You are the Workout Mathematician. For Density-Based AMRAP: output ONLY one main circuit in exerciseBlocks using fixed repetition counts per station (sets/reps schema). FORBID workSeconds and timed-station prescriptions. restSeconds must be 0 between movements (continuous lap). Primary metric: Total Laps Completed. Do not include warmupBlocks, finisherBlocks, or cooldownBlocks (use empty arrays). Output ONLY valid JSON.'
         : tabataBalancedMode
           ? 'You are the Workout Mathematician. For Balanced Tabata: output exactly ONE block in exerciseBlocks. Each exercise MUST use workSeconds 20, restSeconds 10, and rounds as specified in the user prompt. FORBID sets and reps in the main block. Do not include warmupBlocks, finisherBlocks, or cooldownBlocks (use empty arrays). Output ONLY valid JSON.'
-        : hiitMode
-          ? hiitOptions?.protocolFormat === 'amrap'
-            ? 'You are the Workout Mathematician. For AMRAP: output ONLY the main interval circuit in exerciseBlocks (timer fields: workSeconds, restSeconds, rounds=1 per exercise). Do not include warmupBlocks, finisherBlocks, or cooldownBlocks (use empty arrays). Warm-up and cool-down are not part of this output. Output ONLY valid JSON.'
-            : 'You are the Workout Mathematician. Generate one set of HIIT workouts with workSeconds, restSeconds, rounds per exercise. Output ONLY valid JSON.'
-          : 'You are the Workout Mathematician. Generate one set of workouts with sets, reps, RPE, rest. Output ONLY valid JSON.',
+          : hiitMode
+            ? hiitOptions?.protocolFormat === 'amrap'
+              ? 'You are the Workout Mathematician. For AMRAP: output ONLY the main interval circuit in exerciseBlocks (timer fields: workSeconds, restSeconds, rounds=1 per exercise). Do not include warmupBlocks, finisherBlocks, or cooldownBlocks (use empty arrays). Warm-up and cool-down are not part of this output. Output ONLY valid JSON.'
+              : 'You are the Workout Mathematician. Generate one set of HIIT workouts with workSeconds, restSeconds, rounds per exercise. Output ONLY valid JSON.'
+            : 'You are the Workout Mathematician. Generate one set of workouts with sets, reps, RPE, rest. Output ONLY valid JSON.',
       userPrompt: step4Prompt,
       accessToken,
       projectId,

@@ -12,11 +12,13 @@ export default function TrainerLiveTabataTimerBackground({
   trainerLiveSessionId,
   participantId,
   role,
+  videoTileExcludeUid,
   videoBottomOverlay,
 }: {
   trainerLiveSessionId: string;
   participantId: string;
   role: 'trainer' | 'client';
+  videoTileExcludeUid?: string | null;
   videoBottomOverlay?: ReactNode;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -50,6 +52,11 @@ export default function TrainerLiveTabataTimerBackground({
       ? remoteUsers.find((u) => String(u.uid) === String(trainerParticipantId))
       : undefined;
 
+  const clientTrainerBackgroundRemote =
+    role === 'client' && trainerRemoteForClient == null
+      ? remoteUsers.find((u) => String(u.uid) !== String(participantId))
+      : undefined;
+
   const spotlightId = timerBackgroundSpotlightParticipantId;
   const trainerActiveTrack: ICameraVideoTrack | IRemoteVideoTrack | null = (() => {
     if (spotlightId == null || spotlightId === participantId) {
@@ -60,13 +67,15 @@ export default function TrainerLiveTabataTimerBackground({
   })();
 
   const activeTrack: ICameraVideoTrack | IRemoteVideoTrack | null =
-    role === 'client' ? trainerRemoteForClient?.videoTrack ?? null : trainerActiveTrack;
+    role === 'client'
+      ? ((trainerRemoteForClient ?? clientTrainerBackgroundRemote)?.videoTrack ?? null)
+      : trainerActiveTrack;
 
   useEffect(() => {
     const el = containerRef.current;
     if (!activeTrack || !el) return;
     activeTrack.play(el, { fit: 'cover' });
-  }, [activeTrack]);
+  }, [activeTrack, videoTileExcludeUid]);
 
   return (
     <>

@@ -42,8 +42,7 @@ function extractSupabaseErrorMessage(err: unknown): string {
 
 function normalizeWorkoutJoin(raw: unknown): TrainerFeaturedWorkoutPayload | null {
   if (raw == null) return null;
-  if (Array.isArray(raw))
-    return (raw[0] as TrainerFeaturedWorkoutPayload | undefined) ?? null;
+  if (Array.isArray(raw)) return (raw[0] as TrainerFeaturedWorkoutPayload | undefined) ?? null;
   return raw as TrainerFeaturedWorkoutPayload;
 }
 
@@ -101,9 +100,7 @@ export function useFeaturedWorkoutsQuery(
 
     // Embed often comes back null (PostgREST relationship / RLS on nested select). Hydrate by id.
     const missingIds = [
-      ...new Set(
-        baseRows.filter((row) => row.workouts == null).map((row) => row.workout_id)
-      ),
+      ...new Set(baseRows.filter((row) => row.workouts == null).map((row) => row.workout_id)),
     ];
     let workoutById = new Map<string, TrainerFeaturedWorkoutPayload>();
     if (missingIds.length > 0) {

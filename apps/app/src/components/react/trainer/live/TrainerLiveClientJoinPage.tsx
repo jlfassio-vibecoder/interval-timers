@@ -287,7 +287,7 @@ export default function TrainerLiveClientJoinPage() {
               ) : null}
             </div>
           </div>
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-4 pt-3 pb-0 md:px-6 md:pt-4 md:pb-0">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-4 pb-0 pt-3 md:px-6 md:pb-0 md:pt-4">
             {!roomShellReady ? (
               <div className="flex h-48 items-center justify-center text-white/60">
                 <div className="h-8 w-8 animate-spin rounded-full border-4 border-orange-light border-t-transparent" />
@@ -309,30 +309,30 @@ export default function TrainerLiveClientJoinPage() {
                           className="h-full min-h-0 min-w-0 flex-1"
                           role="client"
                           localLabel={displayName}
-                        onLeaveRoom={() => {
-                          sessionStorage.removeItem(trainerLiveParticipantStorageKey(sessionId));
-                          navigate('/live/join/' + sessionId, { replace: true });
-                          setParticipantId(null);
-                        }}
-                        intervalWrapperKind={intervalWrapperKind}
-                        intervalWrapperConfig={intervalWrapperConfig}
-                        displayName={displayName}
-                        authUserId={authUserId}
-                        onWrapperError={setWrapperErr}
-                        activityTimer={
-                          <>
-                            <TrainerLiveSessionDrawerSlot />
-                            <TrainerLiveActivityTimer
-                              sessionId={sessionId}
-                              participantId={participantId}
-                              authUserId={authUserId}
-                              role="client"
-                              shell={roomShell}
-                              compact
-                              drawerLayout
-                            />
-                          </>
-                        }
+                          onLeaveRoom={() => {
+                            sessionStorage.removeItem(trainerLiveParticipantStorageKey(sessionId));
+                            navigate('/live/join/' + sessionId, { replace: true });
+                            setParticipantId(null);
+                          }}
+                          intervalWrapperKind={intervalWrapperKind}
+                          intervalWrapperConfig={intervalWrapperConfig}
+                          displayName={displayName}
+                          authUserId={authUserId}
+                          onWrapperError={setWrapperErr}
+                          activityTimer={
+                            <>
+                              <TrainerLiveSessionDrawerSlot />
+                              <TrainerLiveActivityTimer
+                                sessionId={sessionId}
+                                participantId={participantId}
+                                authUserId={authUserId}
+                                role="client"
+                                shell={roomShell}
+                                compact
+                                drawerLayout
+                              />
+                            </>
+                          }
                         />
                       </TrainerLiveTimerBackgroundProvider>
                     </TrainerLiveAgoraProvider>
@@ -358,11 +358,17 @@ export default function TrainerLiveClientJoinPage() {
     return (
       <div className="relative flex min-h-screen flex-col items-center justify-center bg-black p-6 text-white">
         <FluidBackground />
-        <div className="relative z-10 text-center">
+        <div className="relative z-10 flex w-full max-w-md flex-col items-center text-center">
           <h1 className="mb-2 font-heading text-xl font-bold uppercase text-orange-light">
             Session unavailable
           </h1>
-          <p className="text-white/60">This live session has ended or does not exist.</p>
+          <p className="mb-6 text-white/60">This live session has ended or does not exist.</p>
+          <a
+            href="/account"
+            className="inline-flex w-full max-w-xs items-center justify-center rounded-xl border-2 border-white/20 px-4 py-3 text-sm font-semibold text-white/90 transition-colors hover:border-white/35 hover:bg-white/5"
+          >
+            Back to Account
+          </a>
         </div>
       </div>
     );
@@ -407,7 +413,8 @@ export default function TrainerLiveClientJoinPage() {
             : 'Enter your name so the trainer knows who joined.'}
         </p>
         <p className="mb-4 text-xs text-white/45">
-          Left the room? Join again below—signed-in clients resume the same participant when rejoining.
+          Left the room? Join again below—signed-in clients resume the same participant when
+          rejoining.
         </p>
         {err ? (
           <div className="mb-4 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-200">
@@ -435,6 +442,12 @@ export default function TrainerLiveClientJoinPage() {
         >
           {busy ? 'Joining…' : 'Join video'}
         </button>
+        <a
+          href="/account"
+          className="mt-4 inline-flex w-full items-center justify-center rounded-xl border-2 border-white/20 py-3 text-sm font-semibold text-white/90 transition-colors hover:border-white/35 hover:bg-white/5"
+        >
+          Back to Account
+        </a>
       </div>
     </div>
   );

@@ -110,8 +110,7 @@ export default function TrainerLiveSessionMessageBoard({
       const seg = getActiveMentionSegment(input, cursorPos);
       if (!seg) return;
       const insert = `@${p.display_name} `;
-      const next =
-        input.slice(0, seg.start) + insert + input.slice(seg.end);
+      const next = input.slice(0, seg.start) + insert + input.slice(seg.end);
       const capped = next.slice(0, 500);
       setInput(capped);
       setPendingTarget({ id: p.id, displayName: p.display_name });
@@ -178,9 +177,7 @@ export default function TrainerLiveSessionMessageBoard({
         }
         if (e.key === 'ArrowUp') {
           e.preventDefault();
-          setMentionActiveIndex((i) =>
-            i <= 0 ? mentionFiltered.length - 1 : i - 1
-          );
+          setMentionActiveIndex((i) => (i <= 0 ? mentionFiltered.length - 1 : i - 1));
           return;
         }
         if (e.key === 'Enter') {
@@ -282,7 +279,7 @@ export default function TrainerLiveSessionMessageBoard({
               <button
                 type="button"
                 onClick={clearPendingTarget}
-                className="text-white/50 hover:text-white/90 rounded p-0.5"
+                className="rounded p-0.5 text-white/50 hover:text-white/90"
                 aria-label="Clear mention target"
               >
                 <X className="h-3.5 w-3.5" />
@@ -296,10 +293,10 @@ export default function TrainerLiveSessionMessageBoard({
                   id="trainer-live-mention-listbox"
                   role="listbox"
                   aria-label="Mention participant"
-                  className="border-white/15 absolute bottom-full left-0 right-0 z-[60] mb-1 max-h-[min(12rem,40vh)] overflow-y-auto rounded-lg border bg-zinc-950/98 py-1 shadow-xl backdrop-blur-sm"
+                  className="bg-zinc-950/98 absolute bottom-full left-0 right-0 z-[60] mb-1 max-h-[min(12rem,40vh)] overflow-y-auto rounded-lg border border-white/15 py-1 shadow-xl backdrop-blur-sm"
                 >
                   {mentionFiltered.length === 0 ? (
-                    <p className="text-white/45 px-3 py-2 text-sm">No matching participants</p>
+                    <p className="px-3 py-2 text-sm text-white/45">No matching participants</p>
                   ) : (
                     mentionFiltered.map((p, idx) => (
                       <button
@@ -314,7 +311,7 @@ export default function TrainerLiveSessionMessageBoard({
                         onClick={() => applyMentionPick(p)}
                       >
                         <span className="font-medium">{p.display_name}</span>
-                        <span className="text-white/40 ml-2 text-xs">{p.role}</span>
+                        <span className="ml-2 text-xs text-white/40">{p.role}</span>
                       </button>
                     ))
                   )}
@@ -323,81 +320,81 @@ export default function TrainerLiveSessionMessageBoard({
               <div
                 className={`focus-within:border-orange-500/80 focus-within:ring-orange-500 flex min-h-[2.75rem] w-full min-w-0 rounded-lg border border-white/20 bg-black/30 focus-within:ring-1 ${participantId ? '' : 'opacity-50'}`}
               >
-              {participantId ? (
-                <div className="relative shrink-0 self-stretch border-r border-white/10">
-                  <button
-                    type="button"
-                    id="trainer-live-reactions-trigger"
-                    aria-haspopup="listbox"
-                    aria-expanded={reactionMenuOpen}
-                    aria-controls="trainer-live-reactions-listbox"
-                    className="hover:bg-white/5 flex h-full items-center gap-0.5 rounded-l-lg px-2 text-white/80 transition-colors hover:text-white"
-                    onClick={() => setReactionMenuOpen((o) => !o)}
-                  >
-                    <span className="text-[10px] font-semibold uppercase tracking-wide text-white/50">
-                      React
-                    </span>
-                    <ChevronDown
-                      className={`h-4 w-4 shrink-0 transition-transform ${reactionMenuOpen ? 'rotate-180' : ''}`}
-                      aria-hidden
-                    />
-                  </button>
-                  {reactionMenuOpen ? (
-                    <div
-                      id="trainer-live-reactions-listbox"
-                      role="listbox"
-                      aria-labelledby="trainer-live-reactions-trigger"
-                      className="border-white/15 absolute bottom-full left-0 z-50 mb-1 max-h-[min(18rem,50vh)] w-[min(calc(100vw-2rem),18rem)] overflow-y-auto rounded-lg border bg-zinc-950/98 py-2 shadow-xl backdrop-blur-sm"
+                {participantId ? (
+                  <div className="relative shrink-0 self-stretch border-r border-white/10">
+                    <button
+                      type="button"
+                      id="trainer-live-reactions-trigger"
+                      aria-haspopup="listbox"
+                      aria-expanded={reactionMenuOpen}
+                      aria-controls="trainer-live-reactions-listbox"
+                      className="flex h-full items-center gap-0.5 rounded-l-lg px-2 text-white/80 transition-colors hover:bg-white/5 hover:text-white"
+                      onClick={() => setReactionMenuOpen((o) => !o)}
                     >
-                      {reactionGroups.map(({ category, label, items }) => (
-                        <div key={category} className="px-2 pb-2 last:pb-0">
-                          <p className="text-[10px] font-semibold uppercase tracking-wide text-white/40">
-                            {label}
-                          </p>
-                          <ul className="mt-1 space-y-0.5">
-                            {items.map((preset) => {
-                              const RIcon = preset.icon;
-                              return (
-                                <li key={preset.reactionKey} role="option">
-                                  <button
-                                    type="button"
-                                    className="hover:bg-white/8 flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-white/95"
-                                    aria-label={`Send reaction: ${preset.label}`}
-                                    onClick={() => void sendReactionPreset(preset)}
-                                  >
-                                    <RIcon
-                                      className={`h-4 w-4 shrink-0 ${preset.iconClassName}`}
-                                      aria-hidden
-                                    />
-                                    <span className="min-w-0">{preset.label}</span>
-                                  </button>
-                                </li>
-                              );
-                            })}
-                          </ul>
-                        </div>
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
-              <input
-                ref={inputRef}
-                type="text"
-                value={input}
-                onChange={onInputChange}
-                onClick={syncCursor}
-                onKeyUp={syncCursor}
-                onSelect={syncCursor}
-                onKeyDown={onInputKeyDown}
-                placeholder={participantId ? 'Say hi… (use @ to mention)' : 'Join to message'}
-                disabled={!participantId}
-                className="min-w-0 flex-1 bg-transparent px-3 py-2 text-sm text-white placeholder:text-white/50 focus:outline-none disabled:opacity-50"
-                aria-label="Message"
-                aria-autocomplete="list"
-                aria-controls={mentionOpen ? 'trainer-live-mention-listbox' : undefined}
-                aria-expanded={mentionOpen}
-              />
+                      <span className="text-[10px] font-semibold uppercase tracking-wide text-white/50">
+                        React
+                      </span>
+                      <ChevronDown
+                        className={`h-4 w-4 shrink-0 transition-transform ${reactionMenuOpen ? 'rotate-180' : ''}`}
+                        aria-hidden
+                      />
+                    </button>
+                    {reactionMenuOpen ? (
+                      <div
+                        id="trainer-live-reactions-listbox"
+                        role="listbox"
+                        aria-labelledby="trainer-live-reactions-trigger"
+                        className="bg-zinc-950/98 absolute bottom-full left-0 z-50 mb-1 max-h-[min(18rem,50vh)] w-[min(calc(100vw-2rem),18rem)] overflow-y-auto rounded-lg border border-white/15 py-2 shadow-xl backdrop-blur-sm"
+                      >
+                        {reactionGroups.map(({ category, label, items }) => (
+                          <div key={category} className="px-2 pb-2 last:pb-0">
+                            <p className="text-[10px] font-semibold uppercase tracking-wide text-white/40">
+                              {label}
+                            </p>
+                            <ul className="mt-1 space-y-0.5">
+                              {items.map((preset) => {
+                                const RIcon = preset.icon;
+                                return (
+                                  <li key={preset.reactionKey} role="option">
+                                    <button
+                                      type="button"
+                                      className="hover:bg-white/8 flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-white/95"
+                                      aria-label={`Send reaction: ${preset.label}`}
+                                      onClick={() => void sendReactionPreset(preset)}
+                                    >
+                                      <RIcon
+                                        className={`h-4 w-4 shrink-0 ${preset.iconClassName}`}
+                                        aria-hidden
+                                      />
+                                      <span className="min-w-0">{preset.label}</span>
+                                    </button>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={input}
+                  onChange={onInputChange}
+                  onClick={syncCursor}
+                  onKeyUp={syncCursor}
+                  onSelect={syncCursor}
+                  onKeyDown={onInputKeyDown}
+                  placeholder={participantId ? 'Say hi… (use @ to mention)' : 'Join to message'}
+                  disabled={!participantId}
+                  className="min-w-0 flex-1 bg-transparent px-3 py-2 text-sm text-white placeholder:text-white/50 focus:outline-none disabled:opacity-50"
+                  aria-label="Message"
+                  aria-autocomplete="list"
+                  aria-controls={mentionOpen ? 'trainer-live-mention-listbox' : undefined}
+                  aria-expanded={mentionOpen}
+                />
               </div>
             </div>
             <button

@@ -102,13 +102,9 @@ const TrainerLibraryWorkoutCard: React.FC<TrainerLibraryWorkoutCardProps> = ({
                     type="button"
                     disabled={featuredUpdatePending}
                     className="block w-full px-3 py-2 text-left text-xs text-white/90 transition-colors hover:bg-white/10 disabled:opacity-40"
-                    onClick={() =>
-                      onFeaturedToggle('trainer_live_amrap', !isFeaturedAmrap)
-                    }
+                    onClick={() => onFeaturedToggle('trainer_live_amrap', !isFeaturedAmrap)}
                   >
-                    {isFeaturedAmrap
-                      ? 'Remove from AMRAP Live featured'
-                      : 'Feature in AMRAP Live'}
+                    {isFeaturedAmrap ? 'Remove from AMRAP Live featured' : 'Feature in AMRAP Live'}
                   </button>
                 ) : null}
                 {canFeatureTabata ? (
@@ -116,9 +112,7 @@ const TrainerLibraryWorkoutCard: React.FC<TrainerLibraryWorkoutCardProps> = ({
                     type="button"
                     disabled={featuredUpdatePending}
                     className="block w-full px-3 py-2 text-left text-xs text-white/90 transition-colors hover:bg-white/10 disabled:opacity-40"
-                    onClick={() =>
-                      onFeaturedToggle('trainer_live_tabata', !isFeaturedTabata)
-                    }
+                    onClick={() => onFeaturedToggle('trainer_live_tabata', !isFeaturedTabata)}
                   >
                     {isFeaturedTabata
                       ? 'Remove from Tabata Live featured'
@@ -140,7 +134,7 @@ const TrainerLibraryWorkoutCard: React.FC<TrainerLibraryWorkoutCardProps> = ({
       </div>
       <div className="mb-4 flex flex-wrap gap-2">
         {factoryModeLabel(w.factoryMetabolicMode) ? (
-          <span className="rounded-md bg-orange-light/15 px-2 py-0.5 text-xs font-medium uppercase tracking-wide text-orange-light/95">
+          <span className="bg-orange-light/15 text-orange-light/95 rounded-md px-2 py-0.5 text-xs font-medium uppercase tracking-wide">
             {factoryModeLabel(w.factoryMetabolicMode)}
           </span>
         ) : null}

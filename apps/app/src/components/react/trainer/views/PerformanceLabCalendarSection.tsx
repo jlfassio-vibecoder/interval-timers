@@ -469,15 +469,9 @@ const PerformanceLabCalendarSection: React.FC<PerformanceLabCalendarSectionProps
       const prev = events.find(
         (x) => x.kind === 'coach_instance' && x.instanceId === instanceId
       ) as TrainerCalendarApiEvent | undefined;
-      const prevAt =
-        prev && prev.kind === 'coach_instance' ? prev.scheduledAt : null;
+      const prevAt = prev && prev.kind === 'coach_instance' ? prev.scheduledAt : null;
       const scheduledAt = prevAt
-        ? reschedulePreservingViewerLocalTime(
-            prevAt,
-            targetDate,
-            viewerTimezone,
-            scheduleTime
-          )
+        ? reschedulePreservingViewerLocalTime(prevAt, targetDate, viewerTimezone, scheduleTime)
         : localDateTimeToUtcIso(targetDate, scheduleTime, viewerTimezone);
       setBusyPatch(true);
       try {
@@ -614,9 +608,7 @@ const PerformanceLabCalendarSection: React.FC<PerformanceLabCalendarSectionProps
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() =>
-              setWeekStart((w) => addCalendarDaysInZone(w, -7, viewerTimezone))
-            }
+            onClick={() => setWeekStart((w) => addCalendarDaysInZone(w, -7, viewerTimezone))}
             className="rounded-lg border border-white/15 p-2 text-white/80 hover:bg-white/10"
             aria-label="Previous week"
           >
@@ -627,9 +619,7 @@ const PerformanceLabCalendarSection: React.FC<PerformanceLabCalendarSectionProps
           </span>
           <button
             type="button"
-            onClick={() =>
-              setWeekStart((w) => addCalendarDaysInZone(w, 7, viewerTimezone))
-            }
+            onClick={() => setWeekStart((w) => addCalendarDaysInZone(w, 7, viewerTimezone))}
             className="rounded-lg border border-white/15 p-2 text-white/80 hover:bg-white/10"
             aria-label="Next week"
           >
@@ -649,9 +639,10 @@ const PerformanceLabCalendarSection: React.FC<PerformanceLabCalendarSectionProps
 
       <p className="text-sm text-white/55">
         Program workouts are read-only. Emerald pills are Week-board activities (same titles as the
-        Week tab). Orange coach items use your local time; the green badge is the client&apos;s local
-        time. Use the grip to drag to another day (same local time), or the pencil to edit date,
-        time, or assignment—or remove the instance. Pick a default time below, then add to a day.
+        Week tab). Orange coach items use your local time; the green badge is the client&apos;s
+        local time. Use the grip to drag to another day (same local time), or the pencil to edit
+        date, time, or assignment—or remove the instance. Pick a default time below, then add to a
+        day.
       </p>
 
       <DndContext sensors={sensors} onDragEnd={(e) => void onDragEnd(e)}>
@@ -785,7 +776,7 @@ const PerformanceLabCalendarSection: React.FC<PerformanceLabCalendarSectionProps
                 type="button"
                 disabled={busyEditModal}
                 onClick={() => void saveEditCoach()}
-                className="rounded-lg bg-orange-light/25 px-4 py-2 text-sm font-medium text-orange-light hover:bg-orange-light/35 disabled:opacity-40"
+                className="bg-orange-light/25 hover:bg-orange-light/35 rounded-lg px-4 py-2 text-sm font-medium text-orange-light disabled:opacity-40"
               >
                 Save
               </button>
@@ -839,9 +830,10 @@ const PerformanceLabCalendarSection: React.FC<PerformanceLabCalendarSectionProps
                   key={c.sourceId}
                   className="rounded border border-white/10 bg-black/30 px-2 py-2"
                 >
-                  <div className="font-medium text-orange-100/95">{c.summary}</div>
+                  <div className="text-orange-100/95 font-medium">{c.summary}</div>
                   <div className="mt-1 text-white/55">
-                    {formatTimeInZone(c.startAt, viewerLabel)}–{formatTimeInZone(c.endAt, viewerLabel)}{' '}
+                    {formatTimeInZone(c.startAt, viewerLabel)}–
+                    {formatTimeInZone(c.endAt, viewerLabel)}{' '}
                     <span className="text-white/40">({viewerLabel})</span>
                   </div>
                   {c.source === 'coach_instance' ? (

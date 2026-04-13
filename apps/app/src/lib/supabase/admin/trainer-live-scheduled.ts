@@ -78,7 +78,7 @@ function recurrenceSummaryFromSeries(
 ): string | null {
   if (!row || row.frequency !== 'weekly') return null;
   const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const wd = typeof row.weekday === 'number' ? days[row.weekday] ?? '' : '';
+  const wd = typeof row.weekday === 'number' ? (days[row.weekday] ?? '') : '';
   const iv = row.interval_weeks && row.interval_weeks > 1 ? ` every ${row.interval_weeks} wks` : '';
   return wd ? `Weekly · ${wd}${iv}` : 'Weekly';
 }
@@ -155,9 +155,7 @@ export async function fetchScheduledLiveOccurrencesForTrainer(
       .from('profiles')
       .select('id, full_name, username, email')
       .in('id', inviteeIds);
-    labelById = new Map(
-      (profs ?? []).map((p) => [p.id as string, profileLabel(p as never)])
-    );
+    labelById = new Map((profs ?? []).map((p) => [p.id as string, profileLabel(p as never)]));
   }
 
   const rosterIds = [
@@ -190,9 +188,7 @@ export async function fetchScheduledLiveOccurrencesForTrainer(
   for (const o of list) {
     const oid = o.id as string;
     const serObj =
-      o.series &&
-      typeof o.series === 'object' &&
-      !Array.isArray(o.series)
+      o.series && typeof o.series === 'object' && !Array.isArray(o.series)
         ? (o.series as Record<string, unknown>)
         : Array.isArray(o.series) && (o.series as unknown[])[0]
           ? ((o.series as unknown[])[0] as Record<string, unknown>)
@@ -300,7 +296,9 @@ export async function createLiveScheduleOccurrence(
     return { ok: false, error: 'scheduledEndAt must be after scheduledStartAt' };
   }
 
-  const rawIds = [...new Set(input.inviteeUserIds.filter((x) => typeof x === 'string' && x.trim()))];
+  const rawIds = [
+    ...new Set(input.inviteeUserIds.filter((x) => typeof x === 'string' && x.trim())),
+  ];
   const prospectEmails = [
     ...new Set(
       (input.prospectEmails ?? [])
@@ -397,7 +395,8 @@ export async function createLiveScheduleOccurrence(
       .insert([...userInviteRows, ...prospectRows]);
 
     if (invErr) {
-      if (import.meta.env.DEV) console.warn('[createLiveScheduleOccurrence] insert invites', invErr);
+      if (import.meta.env.DEV)
+        console.warn('[createLiveScheduleOccurrence] insert invites', invErr);
       await supabase.from('trainer_live_session_occurrences').delete().eq('id', occurrenceId);
       await deleteRosterInvitationsByIds(createdRosterIds);
       return { ok: false, error: invErr.message ?? 'Failed to create invites' };
@@ -443,7 +442,9 @@ export async function createLiveScheduleSeries(
     allowOverlap?: boolean;
   }
 ): Promise<
-  { ok: true; seriesId: string; occurrenceIds: string[] } | { ok: false; error: string } | LiveScheduleConflictFailure
+  | { ok: true; seriesId: string; occurrenceIds: string[] }
+  | { ok: false; error: string }
+  | LiveScheduleConflictFailure
 > {
   const start = input.scheduledStartAt?.trim();
   const end = input.scheduledEndAt?.trim();
@@ -462,7 +463,9 @@ export async function createLiveScheduleSeries(
     return { ok: false, error: 'Invalid schedule window' };
   }
 
-  const rawIds = [...new Set(input.inviteeUserIds.filter((x) => typeof x === 'string' && x.trim()))];
+  const rawIds = [
+    ...new Set(input.inviteeUserIds.filter((x) => typeof x === 'string' && x.trim())),
+  ];
   const prospectEmails = [
     ...new Set(
       (input.prospectEmails ?? [])
@@ -499,9 +502,13 @@ export async function createLiveScheduleSeries(
 
   if (!input.allowOverlap) {
     for (const slot of slots) {
-      const conflicts = await findCoachScheduleConflictsForTrainer(viewerId, slot.scheduledStartAt, {
-        proposedEndAtIso: slot.scheduledEndAt,
-      });
+      const conflicts = await findCoachScheduleConflictsForTrainer(
+        viewerId,
+        slot.scheduledStartAt,
+        {
+          proposedEndAtIso: slot.scheduledEndAt,
+        }
+      );
       if (conflicts.length > 0) {
         return { ok: false, error: 'Scheduling conflict', conflicts };
       }
@@ -595,7 +602,9 @@ export async function createLiveScheduleSeries(
     }
 
     if (allInvites.length > 0) {
-      const { error: invErr } = await supabase.from('trainer_live_session_invites').insert(allInvites);
+      const { error: invErr } = await supabase
+        .from('trainer_live_session_invites')
+        .insert(allInvites);
       if (invErr) {
         await supabase.from('trainer_live_session_occurrences').delete().in('id', occurrenceIds);
         await supabase.from('trainer_live_session_series').delete().eq('id', seriesId);
