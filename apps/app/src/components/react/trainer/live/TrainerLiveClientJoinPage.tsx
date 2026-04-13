@@ -358,11 +358,17 @@ export default function TrainerLiveClientJoinPage() {
     return (
       <div className="relative flex min-h-screen flex-col items-center justify-center bg-black p-6 text-white">
         <FluidBackground />
-        <div className="relative z-10 text-center">
+        <div className="relative z-10 flex w-full max-w-md flex-col items-center text-center">
           <h1 className="mb-2 font-heading text-xl font-bold uppercase text-orange-light">
             Session unavailable
           </h1>
-          <p className="text-white/60">This live session has ended or does not exist.</p>
+          <p className="mb-6 text-white/60">This live session has ended or does not exist.</p>
+          <a
+            href="/account"
+            className="inline-flex w-full max-w-xs items-center justify-center rounded-xl border-2 border-white/20 px-4 py-3 text-sm font-semibold text-white/90 transition-colors hover:border-white/35 hover:bg-white/5"
+          >
+            Back to Account
+          </a>
         </div>
       </div>
     );
@@ -436,6 +442,12 @@ export default function TrainerLiveClientJoinPage() {
         >
           {busy ? 'Joining…' : 'Join video'}
         </button>
+        <a
+          href="/account"
+          className="mt-4 inline-flex w-full items-center justify-center rounded-xl border-2 border-white/20 py-3 text-sm font-semibold text-white/90 transition-colors hover:border-white/35 hover:bg-white/5"
+        >
+          Back to Account
+        </a>
       </div>
     </div>
   );

@@ -1,6 +1,8 @@
 -- Hub list: add paths the UI already uses elsewhere but the hub RPC skipped:
 -- 1) Unified calendar scheduled live: occurrence.live_session_id + session_invites.invitee_user_id
 -- 2) Open (non–1:1-reserved) active rooms for any client with a non-revoked coach assignment to that trainer
+--
+-- Copilot suggestion ignored: Iterative CREATE OR REPLACE across 521/522/523 keeps linear migration history; squashing would remove or rewrite earlier files and break any database that already applied those versions.
 
 CREATE OR REPLACE FUNCTION public.trainer_live_client_hub_sessions()
 RETURNS TABLE (

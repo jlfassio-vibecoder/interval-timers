@@ -467,6 +467,24 @@ export interface Database {
         };
         Relationships: [];
       };
+      trainer_live_room_invites: {
+        Row: {
+          id: string;
+          trainer_live_session_id: string;
+          invitee_user_id: string;
+          invited_at: string;
+        };
+        Insert: {
+          id?: string;
+          trainer_live_session_id: string;
+          invitee_user_id: string;
+          invited_at?: string;
+        };
+        Update: {
+          invited_at?: string;
+        };
+        Relationships: [];
+      };
       trainer_live_session_occurrences: {
         Row: {
           id: string;
@@ -631,6 +649,17 @@ export interface Database {
       get_live_session_summary: {
         Args: { p_session_id: string };
         Returns: Record<string, unknown>;
+      };
+      trainer_live_invite_clients_to_session: {
+        Args: { p_session_id: string; p_client_user_ids: string[] };
+        Returns: Record<string, unknown>;
+      };
+      trainer_live_client_pending_invites: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          session_id: string;
+          trainer_display_name: string;
+        }[];
       };
     };
   };

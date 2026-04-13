@@ -27,6 +27,8 @@ import TrainerLiveTabataWorkoutPickerModal from './TrainerLiveTabataWorkoutPicke
 import TrainerLiveSessionRoom from './TrainerLiveSessionRoom';
 import { TrainerLiveAmrapHostNavProvider } from '@/contexts/TrainerLiveAmrapHostNavContext';
 import TrainerLiveHostNavHeaderBar from './TrainerLiveHostNavHeaderBar';
+import TrainerLiveHostShareMenu from './TrainerLiveHostShareMenu';
+import TrainerLiveInviteClientsModal from './TrainerLiveInviteClientsModal';
 
 export default function TrainerLiveHostView() {
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -49,6 +51,9 @@ export default function TrainerLiveHostView() {
   const [amrapPickerKey, setAmrapPickerKey] = useState(0);
   const [tabataPickerOpen, setTabataPickerOpen] = useState(false);
   const [tabataPickerKey, setTabataPickerKey] = useState(0);
+  const [inviteClientsOpen, setInviteClientsOpen] = useState(false);
+  /** Reserved 1:1 session (`invited_client_user_id` set) — roster invites not allowed. */
+  const [reservedForSingleClient, setReservedForSingleClient] = useState(false);
 
   const [participantId, setParticipantId] = useState<string | null>(() =>
     readTrainerLiveParticipantIdFromStorage(sessionId)
@@ -107,11 +112,13 @@ export default function TrainerLiveHostView() {
       if (!hintsErr && hintsData && typeof hintsData === 'object') {
         const row = hintsData as Record<string, unknown>;
         if (row.active === false) {
+          setReservedForSingleClient(false);
           setShell('video_only');
           setIntervalWrapperKind('none');
           setIntervalWrapperConfig(null);
           return;
         }
+        setReservedForSingleClient(Boolean(row.requires_invited_account));
         setShell(parseTrainerLiveShell(typeof row.shell === 'string' ? row.shell : null));
         setIntervalWrapperKind(
           parseIntervalWrapperKind(
@@ -130,11 +137,13 @@ export default function TrainerLiveHostView() {
         .maybeSingle();
       if (cancelled) return;
       if (slim.error || !slim.data) {
+        setReservedForSingleClient(false);
         setShell('video_only');
         setIntervalWrapperKind('none');
         setIntervalWrapperConfig(null);
         return;
       }
+      setReservedForSingleClient(false);
       setShell(parseTrainerLiveShell(slim.data.shell as string | null));
       setIntervalWrapperKind('none');
       setIntervalWrapperConfig(null);
@@ -419,20 +428,15 @@ export default function TrainerLiveHostView() {
           {shell === 'countdown_timer' && intervalWrapperKind === 'tabata' ? (
             <span className="text-xs text-white/50 md:text-sm">Tabata active</span>
           ) : null}
-          <button
-            type="button"
-            onClick={() => void copyLink()}
-            className="rounded-lg border border-white/20 px-3 py-1.5 text-xs hover:bg-white/10 md:text-sm"
-          >
-            {copyLinkOk ? 'Copied' : 'Copy join link'}
-          </button>
-          <button
-            type="button"
-            onClick={() => void copyJoinSessionId()}
-            className="rounded-lg border border-white/20 px-3 py-1.5 text-xs hover:bg-white/10 md:text-sm"
-          >
-            {copySessionIdOk ? 'Copied' : 'Copy join session ID'}
-          </button>
+          <TrainerLiveHostShareMenu
+            copyLink={() => void copyLink()}
+            copyJoinSessionId={() => void copyJoinSessionId()}
+            copyLinkOk={copyLinkOk}
+            copySessionIdOk={copySessionIdOk}
+            onOpenInvite={() => setInviteClientsOpen(true)}
+            inviteDisabled={reservedForSingleClient}
+            inviteDisabledReason="This session is reserved for one client. In-app roster invites are not available."
+          />
           <button
             type="button"
             disabled={endBusy}
@@ -510,6 +514,13 @@ export default function TrainerLiveHostView() {
           disabled={attachBusy}
           onWorkoutChosen={(workoutList, roundCount) => attachTabata(workoutList, roundCount)}
         />
+        {sessionId ? (
+          <TrainerLiveInviteClientsModal
+            open={inviteClientsOpen}
+            onOpenChange={setInviteClientsOpen}
+            sessionId={sessionId}
+          />
+        ) : null}
       </div>
     </TrainerLiveAmrapHostNavProvider>
   );
