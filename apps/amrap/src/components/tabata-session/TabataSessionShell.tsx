@@ -358,7 +358,9 @@ export default function TabataSessionShell({
       displayValue={displayValue}
       showStartButton={showStart}
       onStart={onStart}
-      stackStartWithClockAside={overlayEmbed ? showStart : embed && showStart}
+      stackStartWithClockAside={
+        (overlayEmbed ? showStart : embed && showStart) && useEmbedSplitSquareLayout
+      }
       titleBarAccessoryBeforeSub={embed ? embedTitleBarAccessoryBeforeSub : undefined}
       containerClassName={overlayEmbed || clientLiveLayout ? 'bg-transparent' : undefined}
       embedHostAndTimerInLeftColumn={useEmbedSplitSquareLayout}
