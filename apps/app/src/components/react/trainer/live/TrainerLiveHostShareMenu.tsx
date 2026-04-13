@@ -58,14 +58,9 @@ export default function TrainerLiveHostShareMenu({
           <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-80" aria-hidden />
         </span>
       </summary>
-      <div
-        className="border-white/15 absolute right-0 mt-1 min-w-[12.5rem] rounded-lg border bg-black/95 py-1 shadow-lg backdrop-blur-sm"
-        role="menu"
-        aria-orientation="vertical"
-      >
+      <div className="border-white/15 absolute right-0 mt-1 min-w-[12.5rem] rounded-lg border bg-black/95 py-1 shadow-lg backdrop-blur-sm">
         <button
           type="button"
-          role="menuitem"
           className="hover:bg-white/10 block w-full px-3 py-2 text-left text-xs text-white md:text-sm"
           onClick={() => {
             void copyLink();
@@ -76,7 +71,6 @@ export default function TrainerLiveHostShareMenu({
         </button>
         <button
           type="button"
-          role="menuitem"
           className="hover:bg-white/10 block w-full px-3 py-2 text-left text-xs text-white md:text-sm"
           onClick={() => {
             void copyJoinSessionId();
@@ -85,10 +79,9 @@ export default function TrainerLiveHostShareMenu({
         >
           {copySessionIdOk ? 'Copied session ID' : 'Copy join session ID'}
         </button>
-        <div className="border-white/10 my-1 border-t" role="presentation" />
+        <div className="border-white/10 my-1 border-t" />
         <button
           type="button"
-          role="menuitem"
           disabled={inviteDisabled}
           title={inviteDisabled ? inviteDisabledReason : undefined}
           className="hover:bg-white/10 block w-full px-3 py-2 text-left text-xs text-orange-light disabled:cursor-not-allowed disabled:opacity-40 md:text-sm"

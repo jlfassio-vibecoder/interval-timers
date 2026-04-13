@@ -1,5 +1,7 @@
 -- Hub /trainer/live/join: list active sessions this client may join (invited 1:1 or HUD calendar link)
 -- with trainer display name. SECURITY DEFINER — not readable via raw session RLS before join.
+--
+-- Copilot suggestion ignored: Same RPC is replaced in 522/523; keep sequential migrations for environments that already applied earlier versions.
 
 CREATE OR REPLACE FUNCTION public.trainer_live_client_hub_sessions()
 RETURNS TABLE (

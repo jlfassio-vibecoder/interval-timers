@@ -70,7 +70,29 @@ export default function TrainerLiveInviteClientsModal({
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onOpenChange(false);
+      if (e.key === 'Escape') {
+        onOpenChange(false);
+        return;
+      }
+      if (e.key !== 'Tab') return;
+      const root = panelRef.current;
+      if (!root) return;
+      const list = getFocusableElements(root);
+      if (list.length === 0) return;
+      if (!root.contains(document.activeElement)) {
+        e.preventDefault();
+        list[0]?.focus();
+        return;
+      }
+      const first = list[0];
+      const last = list[list.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);

@@ -1,5 +1,7 @@
 -- Hub list: include active sessions the signed-in user has joined as a client (open link / rejoin),
 -- not only invited-client or calendar-linked rows.
+--
+-- Copilot suggestion ignored: Same RPC is extended again in 523; do not merge migrations post hoc.
 
 CREATE OR REPLACE FUNCTION public.trainer_live_client_hub_sessions()
 RETURNS TABLE (
