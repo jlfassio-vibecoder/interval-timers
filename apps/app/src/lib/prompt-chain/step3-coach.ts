@@ -33,7 +33,9 @@ export function buildCoachPrompt(
   patterns: PatternSkeleton,
   availableEquipment: string[],
   _hiitMode?: boolean,
-  previousPhaseWorkouts?: ProgramSchedule[]
+  previousPhaseWorkouts?: ProgramSchedule[],
+  biomechanicalConstraints?: string[],
+  equipmentZoneLabel?: string
 ): string {
   const daysDescription = patterns.days
     .map((day) => {
@@ -53,12 +55,21 @@ Consider progressing to harder variations or adding volume where appropriate.
 `
       : '';
 
+  const constraintLines = (biomechanicalConstraints ?? []).map((c) => c.trim()).filter(Boolean);
+  const constraintsSection =
+    constraintLines.length > 0
+      ? `
+=== BIOMECHANICAL / ZONE CONSTRAINTS ===
+${equipmentZoneLabel ? `Equipment zone: ${equipmentZoneLabel}\n` : ''}${constraintLines.map((c) => `- ${c}`).join('\n')}
+`
+      : '';
+
   return `Role: You are the Equipment Coach.
 Task: Fill each movement pattern with a SPECIFIC exercise based on available equipment.
 
 === AVAILABLE EQUIPMENT ===
 ${availableEquipment.length > 0 ? availableEquipment.join(', ') : 'Bodyweight only (no equipment)'}
-${previousPhaseSection}
+${constraintsSection}${previousPhaseSection}
 === PATTERN SKELETON FROM BIOMECHANIST ===
 ${daysDescription}
 

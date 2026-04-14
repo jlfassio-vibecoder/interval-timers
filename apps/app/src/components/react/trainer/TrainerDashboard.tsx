@@ -48,6 +48,13 @@ const TrainerDashboard: React.FC<TrainerDashboardProps> = ({ profile: profilePro
             </button>
             <button
               type="button"
+              onClick={() => navigate('/workouts/warmups')}
+              className="rounded-lg bg-white/10 px-4 py-2 text-sm font-bold uppercase text-orange-light transition-colors hover:bg-orange-light hover:text-black"
+            >
+              Warmups
+            </button>
+            <button
+              type="button"
               onClick={() => navigate('/workouts/factory')}
               className="rounded-lg bg-white/10 px-4 py-2 text-sm font-bold uppercase text-orange-light transition-colors hover:bg-orange-light hover:text-black"
             >

@@ -319,6 +319,7 @@ const TrainerClientWorkoutsView: React.FC = () => {
               <option value="amrap_density">Density AMRAP</option>
               <option value="tabata_balanced">Balanced Tabata</option>
               <option value="hiit">HIIT</option>
+              <option value="emom_factory">EMOM</option>
               <option value="unlabeled">Unlabeled / other</option>
             </select>
           </div>

@@ -32,6 +32,7 @@ export type TrainerLibraryWorkoutCardProps = {
 function factoryModeLabel(m: FactoryMetabolicMode | null | undefined): string {
   if (m === 'amrap_density') return 'Density AMRAP';
   if (m === 'tabata_balanced') return 'Balanced Tabata';
+  if (m === 'emom_factory') return 'EMOM';
   if (m === 'hiit') return 'HIIT';
   return '';
 }

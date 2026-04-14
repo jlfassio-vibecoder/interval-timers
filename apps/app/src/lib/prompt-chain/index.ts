@@ -23,6 +23,7 @@ export {
 export {
   buildWorkoutMathematicianPrompt,
   validateWorkoutMathematicianOutput,
+  type TrainerBriefForMathematician,
 } from './step4-workout-mathematician';
 
 // Re-exports for WODs

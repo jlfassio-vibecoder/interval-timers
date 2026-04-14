@@ -12,6 +12,8 @@ import type {
   AmrapDensityOptions,
   TabataBalancedOptions,
   TabataBalancedPairingPattern,
+  EmomFactoryOptions,
+  EmomFactoryStructure,
 } from '@/types/ai-workout';
 import {
   getZoneByIdServer,
@@ -24,6 +26,23 @@ import {
   tabataBalancedExerciseCount,
   tabataBalancedSessionMinutes,
 } from '@/lib/tabata-balanced-duration';
+import {
+  EMOM_MAX_MOVEMENTS_PER_MINUTE,
+  EMOM_MAX_STATIONS_PER_CYCLE,
+  EMOM_MAX_TOTAL_ROUNDS,
+  EMOM_MIN_MOVEMENTS_PER_MINUTE,
+  EMOM_MIN_STATIONS_PER_CYCLE,
+  EMOM_MIN_TOTAL_ROUNDS,
+  emomSessionMinutes,
+  snapEmomTotalRoundsToCycle,
+} from '@/lib/emom-factory-duration';
+import {
+  parseCommaSeparatedEquipmentLabels,
+  mergeEquipmentDedupe,
+  isBodyweightOnlyEquipment,
+} from '@/lib/workout-chain/merge-equipment-lists';
+
+const TRAINER_SELECTED_EQUIPMENT_ZONE_LABEL = 'Trainer-selected equipment';
 
 export interface WorkoutChainZoneContext {
   zoneName: string;
@@ -40,6 +59,9 @@ export interface PreparedWorkoutChainRequest {
   amrapDensityOptions: AmrapDensityOptions | undefined;
   /** Normalized balanced Tabata options when tabataBalancedMode is true. */
   tabataBalancedOptions: TabataBalancedOptions | undefined;
+  emomMode: boolean;
+  /** Normalized EMOM factory options when emomMode is true. */
+  emomOptions: EmomFactoryOptions | undefined;
   zoneContext: WorkoutChainZoneContext | undefined;
   /** Equipment list used in Step 3 (Coach); mirrors generate-workout-chain. */
   availableEquipment: string[];
@@ -145,15 +167,20 @@ export async function prepareWorkoutChainRequest(
   const amrapDensityModeRaw = !!persona.amrapDensityMode;
   const hiitModeRaw = !!persona.hiitMode;
   const tabataBalancedModeRaw = !!persona.tabataBalancedMode;
+  const emomModeRaw = !!persona.emomMode;
 
   const metabolicModeCount =
-    (amrapDensityModeRaw ? 1 : 0) + (hiitModeRaw ? 1 : 0) + (tabataBalancedModeRaw ? 1 : 0);
+    (amrapDensityModeRaw ? 1 : 0) +
+    (hiitModeRaw ? 1 : 0) +
+    (tabataBalancedModeRaw ? 1 : 0) +
+    (emomModeRaw ? 1 : 0);
   if (metabolicModeCount > 1) {
     return {
       ok: false,
       response: new Response(
         JSON.stringify({
-          error: 'At most one of hiitMode, amrapDensityMode, and tabataBalancedMode can be enabled',
+          error:
+            'At most one of hiitMode, amrapDensityMode, tabataBalancedMode, and emomMode can be enabled',
         }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       ),
@@ -162,7 +189,8 @@ export async function prepareWorkoutChainRequest(
 
   const amrapDensityMode = amrapDensityModeRaw;
   const tabataBalancedMode = tabataBalancedModeRaw;
-  const hiitMode = !amrapDensityMode && !tabataBalancedMode && hiitModeRaw;
+  const emomMode = emomModeRaw;
+  const hiitMode = !amrapDensityMode && !tabataBalancedMode && !emomMode && hiitModeRaw;
 
   const defaultHiitCircuitStructure: HiitCircuitStructure = {
     includeWarmup: true,
@@ -302,6 +330,110 @@ export async function prepareWorkoutChainRequest(
     tabataBalancedOptions = { pairingPattern: pattern, roundCount: rc };
   }
 
+  let emomOptions: EmomFactoryOptions | undefined;
+  if (emomMode) {
+    const rawEmom = persona.emomOptions;
+    if (!rawEmom || typeof rawEmom !== 'object') {
+      return {
+        ok: false,
+        response: new Response(JSON.stringify({ error: 'emomOptions is required when emomMode is true' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      };
+    }
+    const validStructures: EmomFactoryStructure[] = ['single_movement', 'alternating', 'complex'];
+    const structure = rawEmom.structure;
+    if (!validStructures.includes(structure)) {
+      return {
+        ok: false,
+        response: new Response(
+          JSON.stringify({ error: 'emomOptions.structure must be single_movement, alternating, or complex' }),
+          { status: 400, headers: { 'Content-Type': 'application/json' } }
+        ),
+      };
+    }
+    const tr = rawEmom.totalRounds;
+    if (
+      typeof tr !== 'number' ||
+      tr !== Math.floor(tr) ||
+      tr < EMOM_MIN_TOTAL_ROUNDS ||
+      tr > EMOM_MAX_TOTAL_ROUNDS
+    ) {
+      return {
+        ok: false,
+        response: new Response(
+          JSON.stringify({
+            error: `emomOptions.totalRounds must be an integer between ${EMOM_MIN_TOTAL_ROUNDS} and ${EMOM_MAX_TOTAL_ROUNDS}`,
+          }),
+          { status: 400, headers: { 'Content-Type': 'application/json' } }
+        ),
+      };
+    }
+    if (structure === 'alternating') {
+      const spc =
+        typeof rawEmom.stationsPerCycle === 'number' && rawEmom.stationsPerCycle === Math.floor(rawEmom.stationsPerCycle)
+          ? rawEmom.stationsPerCycle
+          : EMOM_MIN_STATIONS_PER_CYCLE;
+      if (spc < EMOM_MIN_STATIONS_PER_CYCLE || spc > EMOM_MAX_STATIONS_PER_CYCLE) {
+        return {
+          ok: false,
+          response: new Response(
+            JSON.stringify({
+              error: `emomOptions.stationsPerCycle must be between ${EMOM_MIN_STATIONS_PER_CYCLE} and ${EMOM_MAX_STATIONS_PER_CYCLE} for alternating EMOM`,
+            }),
+            { status: 400, headers: { 'Content-Type': 'application/json' } }
+          ),
+        };
+      }
+      const snapped = snapEmomTotalRoundsToCycle(tr, spc);
+      if (snapped !== tr) {
+        return {
+          ok: false,
+          response: new Response(
+            JSON.stringify({
+              error: `emomOptions.totalRounds (${tr}) must be a multiple of stationsPerCycle (${spc}) for alternating EMOM, or use ${snapped}`,
+            }),
+            { status: 400, headers: { 'Content-Type': 'application/json' } }
+          ),
+        };
+      }
+      emomOptions = {
+        structure,
+        totalRounds: tr,
+        stationsPerCycle: spc,
+        includeRestStation: !!rawEmom.includeRestStation,
+      };
+    } else if (structure === 'complex') {
+      const mpm =
+        typeof rawEmom.movementsPerMinute === 'number' &&
+        rawEmom.movementsPerMinute === Math.floor(rawEmom.movementsPerMinute)
+          ? rawEmom.movementsPerMinute
+          : EMOM_MIN_MOVEMENTS_PER_MINUTE;
+      if (mpm < EMOM_MIN_MOVEMENTS_PER_MINUTE || mpm > EMOM_MAX_MOVEMENTS_PER_MINUTE) {
+        return {
+          ok: false,
+          response: new Response(
+            JSON.stringify({
+              error: `emomOptions.movementsPerMinute must be between ${EMOM_MIN_MOVEMENTS_PER_MINUTE} and ${EMOM_MAX_MOVEMENTS_PER_MINUTE} for complex EMOM`,
+            }),
+            { status: 400, headers: { 'Content-Type': 'application/json' } }
+          ),
+        };
+      }
+      emomOptions = {
+        structure,
+        totalRounds: tr,
+        movementsPerMinute: mpm,
+      };
+    } else {
+      emomOptions = {
+        structure: 'single_movement',
+        totalRounds: tr,
+      };
+    }
+  }
+
   if (typeof persona.sessionDurationMinutes !== 'number') {
     return {
       ok: false,
@@ -338,6 +470,19 @@ export async function prepareWorkoutChainRequest(
         ),
       };
     }
+  } else if (emomMode && emomOptions) {
+    const expectedMin = emomSessionMinutes(emomOptions);
+    if (persona.sessionDurationMinutes !== expectedMin) {
+      return {
+        ok: false,
+        response: new Response(
+          JSON.stringify({
+            error: `sessionDurationMinutes must be ${expectedMin} for EMOM mode (equals total EMOM rounds)`,
+          }),
+          { status: 400, headers: { 'Content-Type': 'application/json' } }
+        ),
+      };
+    }
   } else if (hiitMode) {
     if (persona.sessionDurationMinutes < 4 || persona.sessionDurationMinutes > 30) {
       return {
@@ -369,21 +514,29 @@ export async function prepareWorkoutChainRequest(
 
   let zoneContext: WorkoutChainZoneContext | undefined;
   let availableEquipment: string[] = ['Bodyweight'];
+  const additionalEquipmentParsed = parseCommaSeparatedEquipmentLabels(persona.additionalEquipmentLabels);
+
+  const loadEquipmentIdToName = async (): Promise<Map<string, string>> => {
+    const equipmentItems = await getAllEquipmentItemsServer();
+    return new Map(equipmentItems.map((item) => [item.id, item.name]));
+  };
+
   if (persona.zoneId) {
     try {
       const zone = await getZoneByIdServer(persona.zoneId);
       if (zone) {
-        const equipmentItems = await getAllEquipmentItemsServer();
-        const equipmentMap = new Map(equipmentItems.map((item) => [item.id, item.name]));
+        const equipmentMap = await loadEquipmentIdToName();
         const equipmentIdsToUse = persona.selectedEquipmentIds?.length
           ? persona.selectedEquipmentIds
           : zone.equipmentIds;
-        availableEquipment = equipmentIdsToUse
+        let names = equipmentIdsToUse
           .map((id) => equipmentMap.get(id))
           .filter((name): name is string => name !== undefined);
-        if (availableEquipment.length === 0) {
-          availableEquipment = ['Bodyweight'];
+        names = mergeEquipmentDedupe(names, additionalEquipmentParsed);
+        if (names.length === 0) {
+          names = ['Bodyweight'];
         }
+        availableEquipment = names;
         zoneContext = {
           zoneName: zone.name,
           availableEquipment,
@@ -392,6 +545,33 @@ export async function prepareWorkoutChainRequest(
       }
     } catch (err) {
       if (shouldLog) console.error('[prepare-workout-chain-request] Zone fetch error:', err);
+    }
+  }
+
+  const needsManualEquipmentResolution =
+    !zoneContext &&
+    ((persona.selectedEquipmentIds?.length ?? 0) > 0 || additionalEquipmentParsed.length > 0);
+
+  if (needsManualEquipmentResolution) {
+    try {
+      const equipmentMap = await loadEquipmentIdToName();
+      const fromIds = (persona.selectedEquipmentIds ?? [])
+        .map((id) => equipmentMap.get(id))
+        .filter((name): name is string => name !== undefined);
+      let names = mergeEquipmentDedupe(fromIds, additionalEquipmentParsed);
+      if (names.length === 0) {
+        names = ['Bodyweight'];
+      }
+      availableEquipment = names;
+      if (!isBodyweightOnlyEquipment(names)) {
+        zoneContext = {
+          zoneName: TRAINER_SELECTED_EQUIPMENT_ZONE_LABEL,
+          availableEquipment: names,
+          biomechanicalConstraints: [],
+        };
+      }
+    } catch (err) {
+      if (shouldLog) console.error('[prepare-workout-chain-request] Equipment catalog fetch error:', err);
     }
   }
 
@@ -408,6 +588,8 @@ export async function prepareWorkoutChainRequest(
     amrapDensityOptions: amrapDensityMode ? amrapDensityOptions : undefined,
     tabataBalancedMode,
     tabataBalancedOptions: tabataBalancedMode ? tabataBalancedOptions : undefined,
+    emomMode,
+    emomOptions: emomMode ? emomOptions : undefined,
   };
 
   return {
@@ -419,6 +601,8 @@ export async function prepareWorkoutChainRequest(
       hiitMode,
       amrapDensityOptions,
       tabataBalancedOptions,
+      emomMode,
+      emomOptions,
       zoneContext,
       availableEquipment,
       providedArchitect,

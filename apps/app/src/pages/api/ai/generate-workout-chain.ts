@@ -73,6 +73,8 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       hiitOptions,
       amrapDensityOptions,
       tabataBalancedOptions,
+      emomMode: emomFactoryMode,
+      emomOptions: emomFactoryOptions,
       zoneContext,
       availableEquipment,
       providedArchitect,
@@ -96,7 +98,9 @@ export const POST: APIRoute = async ({ request, cookies }) => {
         hiitMode,
         amrapDensityMode,
         tabataBalancedMode,
-        tabataBalancedOptions
+        tabataBalancedOptions,
+        emomFactoryMode,
+        emomFactoryOptions
       );
       if (!validation.valid) {
         return new Response(
@@ -129,7 +133,9 @@ export const POST: APIRoute = async ({ request, cookies }) => {
         hiitMode,
         amrapDensityMode,
         tabataBalancedMode,
-        tabataBalancedOptions
+        tabataBalancedOptions,
+        emomFactoryMode,
+        emomFactoryOptions
       );
       if (!step1Validation.valid) {
         return new Response(
@@ -193,7 +199,16 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     // STEP 3: COACH
     // ========================================================================
     if (shouldLog) console.warn('[generate-workout-chain] Step 3: Coach...');
-    const step3Prompt = buildCoachPrompt(patterns, availableEquipment, hiitMode);
+    const biomechanicalForCoach =
+      zoneContext?.biomechanicalConstraints?.map((c) => String(c).trim()).filter(Boolean) ?? [];
+    const step3Prompt = buildCoachPrompt(
+      patterns,
+      availableEquipment,
+      hiitMode,
+      undefined,
+      biomechanicalForCoach.length > 0 ? biomechanicalForCoach : undefined,
+      biomechanicalForCoach.length > 0 ? zoneContext?.zoneName : undefined
+    );
     const step3Response = await callVertexAI({
       systemPrompt:
         'You are the Equipment Coach. Select specific exercises based on available equipment. Output ONLY valid JSON.',
@@ -226,6 +241,23 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     // STEP 4: WORKOUT MATHEMATICIAN
     // ========================================================================
     if (shouldLog) console.warn('[generate-workout-chain] Step 4: Workout Mathematician...');
+    const mergedMedicalForBrief =
+      persona.medicalNotes?.trim() ||
+      [persona.medical.injuries?.trim(), persona.medical.conditions?.trim()].filter(Boolean).join(
+        '; '
+      ) ||
+      '';
+    const hasTrainerBrief =
+      Boolean(persona.title?.trim()) ||
+      Boolean(persona.description?.trim()) ||
+      Boolean(mergedMedicalForBrief);
+    const trainerBrief = hasTrainerBrief
+      ? {
+          title: persona.title?.trim() ?? '',
+          description: persona.description?.trim() ?? '',
+          ...(mergedMedicalForBrief ? { medicalNotes: mergedMedicalForBrief } : {}),
+        }
+      : undefined;
     const step4Prompt = buildWorkoutMathematicianPrompt(
       workoutArchitect,
       exercises,
@@ -235,14 +267,19 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       amrapDensityMode,
       amrapDensityOptions,
       tabataBalancedMode,
-      tabataBalancedOptions
+      tabataBalancedOptions,
+      emomFactoryMode,
+      emomFactoryOptions,
+      trainerBrief
     );
     const step4Response = await callVertexAI({
       systemPrompt: amrapDensityMode
         ? 'You are the Workout Mathematician. For Density-Based AMRAP: output ONLY one main circuit in exerciseBlocks using fixed repetition counts per station (sets/reps schema). FORBID workSeconds and timed-station prescriptions. restSeconds must be 0 between movements (continuous lap). Primary metric: Total Laps Completed. Do not include warmupBlocks, finisherBlocks, or cooldownBlocks (use empty arrays). Output ONLY valid JSON.'
         : tabataBalancedMode
           ? 'You are the Workout Mathematician. For Balanced Tabata: output exactly ONE block in exerciseBlocks. Each exercise MUST use workSeconds 20, restSeconds 10, and rounds as specified in the user prompt. FORBID sets and reps in the main block. Do not include warmupBlocks, finisherBlocks, or cooldownBlocks (use empty arrays). Output ONLY valid JSON.'
-          : hiitMode
+          : emomFactoryMode
+            ? 'You are the Workout Mathematician. For EMOM factory mode: output exactly ONE block in exerciseBlocks using TIMER SCHEMA only (workSeconds, restSeconds, rounds) per the user prompt. FORBID sets and reps in the main block. Do not include warmupBlocks, finisherBlocks, or cooldownBlocks (use empty arrays). Output ONLY valid JSON.'
+            : hiitMode
             ? hiitOptions?.protocolFormat === 'amrap'
               ? 'You are the Workout Mathematician. For AMRAP: output ONLY the main interval circuit in exerciseBlocks (timer fields: workSeconds, restSeconds, rounds=1 per exercise). Do not include warmupBlocks, finisherBlocks, or cooldownBlocks (use empty arrays). Warm-up and cool-down are not part of this output. Output ONLY valid JSON.'
               : 'You are the Workout Mathematician. Generate one set of HIIT workouts with workSeconds, restSeconds, rounds per exercise. Output ONLY valid JSON.'
@@ -266,7 +303,9 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       hiitOptions,
       amrapDensityMode,
       tabataBalancedMode,
-      tabataBalancedOptions
+      tabataBalancedOptions,
+      emomFactoryMode,
+      emomFactoryOptions
     );
     if (!step4Validation.valid) {
       return new Response(
