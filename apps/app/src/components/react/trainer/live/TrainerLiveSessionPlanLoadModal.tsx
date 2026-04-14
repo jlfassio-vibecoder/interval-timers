@@ -195,7 +195,9 @@ export default function TrainerLiveSessionPlanLoadModal({
         ...(targetBlockId ? { blockId: targetBlockId } : {}),
       };
       const next = applyImportedBlockToPlan(plan, block, target);
-      onImported(next, block.id);
+      const appliedBlockId =
+        chosenMode === 'replace_block' && targetBlockId ? targetBlockId : block.id;
+      onImported(next, appliedBlockId);
       handleClose();
     },
     [chosenMode, handleClose, onImported, plan, targetBlockId, targetKind]
