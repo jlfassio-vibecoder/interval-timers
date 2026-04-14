@@ -22,7 +22,9 @@ export function computeEmomLogicalElapsedMs(
 ): number | null {
   if (!startedAtIso) return null;
   const startMs = new Date(startedAtIso).getTime();
+  if (!Number.isFinite(startMs)) return null;
   const anchorMs = pausedAtIso ? new Date(pausedAtIso).getTime() : nowMs;
+  if (!Number.isFinite(anchorMs)) return null;
   return Math.max(0, anchorMs - startMs - pauseAccumMs);
 }
 
@@ -70,16 +72,6 @@ export function computeEmomServerClock(
   }
 
   const elapsedSec = Math.floor(logicalMs / 1000);
-
-  if (elapsedSec < 0) {
-    return {
-      phase: 'setup',
-      countdownRemaining: SETUP_DURATION_SECONDS,
-      secondsInMinute: 0,
-      roundIndex: 1,
-      totalRounds: roundCount,
-    };
-  }
 
   if (elapsedSec < SETUP_DURATION_SECONDS) {
     return {

@@ -527,7 +527,7 @@ const AccountLanding: React.FC = () => {
             </a>
           </div>
           {user && !isTrainer ? (
-            <div className="mt-6 rounded-xl border border-dashed border-white/10 border-white/15 bg-black/25 p-4">
+            <div className="mt-6 rounded-xl border border-dashed border-white/15 bg-black/25 p-4">
               <div className="mb-2 flex flex-wrap items-center gap-2">
                 <h4 className="font-heading text-base font-bold text-white">Live invitations</h4>
                 {liveInvites.length > 0 ? (

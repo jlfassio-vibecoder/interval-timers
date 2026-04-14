@@ -3,6 +3,7 @@
 
 ALTER TABLE public.emom_sessions
   ALTER COLUMN started_at DROP NOT NULL,
+  ALTER COLUMN started_at DROP DEFAULT,
   ADD COLUMN IF NOT EXISTS paused_at timestamptz NULL,
   ADD COLUMN IF NOT EXISTS pause_accum_ms bigint NOT NULL DEFAULT 0 CHECK (pause_accum_ms >= 0);
 
@@ -202,6 +203,10 @@ BEGIN
   INNER JOIN public.trainer_live_sessions s ON s.id = es.trainer_live_session_id
   WHERE es.id = p_emom_session_id;
 
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'EMOM session not found';
+  END IF;
+
   IF v_tl IS DISTINCT FROM v_uid THEN
     RAISE EXCEPTION 'Not authorized';
   END IF;
@@ -240,6 +245,10 @@ BEGIN
   FROM public.emom_sessions es
   INNER JOIN public.trainer_live_sessions s ON s.id = es.trainer_live_session_id
   WHERE es.id = p_emom_session_id;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'EMOM session not found';
+  END IF;
 
   IF v_tl IS DISTINCT FROM v_uid THEN
     RAISE EXCEPTION 'Not authorized';
@@ -281,6 +290,10 @@ BEGIN
   INNER JOIN public.trainer_live_sessions s ON s.id = es.trainer_live_session_id
   WHERE es.id = p_emom_session_id;
 
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'EMOM session not found';
+  END IF;
+
   IF v_tl IS DISTINCT FROM v_uid THEN
     RAISE EXCEPTION 'Not authorized';
   END IF;
@@ -319,6 +332,10 @@ BEGIN
   FROM public.emom_sessions es
   INNER JOIN public.trainer_live_sessions s ON s.id = es.trainer_live_session_id
   WHERE es.id = p_emom_session_id;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'EMOM session not found';
+  END IF;
 
   IF v_tl IS DISTINCT FROM v_uid THEN
     RAISE EXCEPTION 'Not authorized';

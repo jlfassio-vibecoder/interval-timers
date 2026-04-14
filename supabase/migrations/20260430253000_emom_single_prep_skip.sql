@@ -1,4 +1,5 @@
 -- Trainer Live EMOM: one prep countdown (warmup only). Remove extra 10s "setup" slice from skip_prep alignment.
+-- Copilot suggestion ignored: Not squashed with 531 so migration history stays linear for environments that already applied 530; 531 replaces skip_prep for setup-only alignment.
 
 CREATE OR REPLACE FUNCTION public.trainer_live_emom_skip_prep(p_emom_session_id uuid)
 RETURNS jsonb
