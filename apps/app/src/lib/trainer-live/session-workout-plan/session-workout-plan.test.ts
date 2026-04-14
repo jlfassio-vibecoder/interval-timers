@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { savedWorkoutRowToSessionPlan } from './importSavedWorkout';
-import { getFirstAmrapBlock, getFirstEmomBlock, getFirstTabataBlock } from './prefill';
+import { getFirstAmrapBlock, getFirstEmomBlock, getFirstTabataBlock, getPreferredOrFirstBlock } from './prefill';
 import { parseTrainerLiveSessionWorkoutPlan } from './parse';
 import { nonEmptyTrimmedExerciseLines } from './exerciseLines';
 import { segmentLabelFromPlanExercises } from './warmupCooldownLabel';
+import { applyImportedBlockToPlan } from './sessionPlanImport';
 
 describe('parseTrainerLiveSessionWorkoutPlan', () => {
   it('parses valid blocks', () => {
@@ -95,5 +96,39 @@ describe('savedWorkoutRowToSessionPlan', () => {
       expect(p.blocks[0].durationMinutes).toBe(20);
       expect(p.blocks[0].exercises.length).toBeGreaterThan(0);
     }
+  });
+});
+
+describe('sessionPlanImport', () => {
+  it('replaces target block in-place', () => {
+    const plan = parseTrainerLiveSessionWorkoutPlan({
+      blocks: [
+        { id: 'a', kind: 'warmup', exercises: ['one'] },
+        { id: 'b', kind: 'amrap', durationMinutes: 10, exercises: ['old'] },
+      ],
+    });
+    const next = applyImportedBlockToPlan(
+      plan,
+      { id: 'new', kind: 'amrap', durationMinutes: 20, exercises: ['new'], label: 'Loaded' },
+      { kind: 'amrap', mode: 'replace_block', blockId: 'b' }
+    );
+    expect(next.blocks).toHaveLength(2);
+    expect(next.blocks[1]?.id).toBe('b');
+    if (next.blocks[1]?.kind === 'amrap') {
+      expect(next.blocks[1].durationMinutes).toBe(20);
+    }
+  });
+});
+
+describe('getPreferredOrFirstBlock', () => {
+  it('uses preferred id when present and valid', () => {
+    const plan = parseTrainerLiveSessionWorkoutPlan({
+      blocks: [
+        { id: 'a', kind: 'amrap', durationMinutes: 10, exercises: ['a'] },
+        { id: 'b', kind: 'amrap', durationMinutes: 20, exercises: ['b'] },
+      ],
+    });
+    const selected = getPreferredOrFirstBlock(plan, 'amrap', 'b');
+    expect(selected?.id).toBe('b');
   });
 });

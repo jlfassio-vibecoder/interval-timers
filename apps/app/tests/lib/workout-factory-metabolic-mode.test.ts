@@ -17,6 +17,7 @@ describe('parseFactoryMetabolicModeFromApi', () => {
     expect(parseFactoryMetabolicModeFromApi('amrap_density')).toBe('amrap_density');
     expect(parseFactoryMetabolicModeFromApi('tabata_balanced')).toBe('tabata_balanced');
     expect(parseFactoryMetabolicModeFromApi('hiit')).toBe('hiit');
+    expect(parseFactoryMetabolicModeFromApi('emom_factory')).toBe('emom_factory');
   });
 });
 
@@ -62,6 +63,14 @@ describe('getFactoryMetabolicModeFromAiChainMetadata', () => {
         workoutConfig: { hiitMode: true },
       })
     ).toBe('hiit');
+  });
+
+  it('returns emom_factory when emomMode is true', () => {
+    expect(
+      getFactoryMetabolicModeFromAiChainMetadata({
+        workoutConfig: { emomMode: true },
+      })
+    ).toBe('emom_factory');
   });
 
   it('returns null when no metabolic flags are set', () => {

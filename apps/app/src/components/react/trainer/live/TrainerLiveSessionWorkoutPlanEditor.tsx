@@ -1,13 +1,13 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { missionControlApiAuthHeaders } from '@/lib/mission-control-api-auth';
-import { savedWorkoutRowToSessionPlan } from '@/lib/trainer-live/session-workout-plan/importSavedWorkout';
+import type { SessionPlanImportMode } from '@/lib/trainer-live/session-workout-plan/sessionPlanImport';
 import type {
   SessionWorkoutPlanBlock,
   SessionWorkoutPlanBlockKind,
   TrainerLiveSessionWorkoutPlan,
 } from '@/lib/trainer-live/session-workout-plan/types';
 import { createSessionWorkoutPlanBlockId } from '@/lib/trainer-live/session-workout-plan/types';
+import TrainerLiveSessionPlanLoadModal from './TrainerLiveSessionPlanLoadModal';
 
 const BLOCK_KINDS: { kind: SessionWorkoutPlanBlockKind; label: string }[] = [
   { kind: 'warmup', label: 'Warm-up' },
@@ -52,19 +52,25 @@ function linesFromExerciseText(text: string): string[] {
 export default function TrainerLiveSessionWorkoutPlanEditor({
   plan,
   onChange,
+  onImportedBlock,
   disabled = false,
   showImportSaved = true,
   compact = false,
 }: {
   plan: TrainerLiveSessionWorkoutPlan;
   onChange: (next: TrainerLiveSessionWorkoutPlan) => void;
+  onImportedBlock?: (kind: SessionWorkoutPlanBlockKind, blockId: string) => void;
   disabled?: boolean;
   showImportSaved?: boolean;
   /** When timer is running, use tighter spacing */
   compact?: boolean;
 }) {
   const [addKind, setAddKind] = useState<SessionWorkoutPlanBlockKind>('warmup');
-  const [importBusy, setImportBusy] = useState(false);
+  const [loadOpen, setLoadOpen] = useState(false);
+  const [loadKind, setLoadKind] = useState<SessionWorkoutPlanBlockKind>('warmup');
+  const [loadBlockId, setLoadBlockId] = useState<string | undefined>(undefined);
+  const [loadDefaultMode, setLoadDefaultMode] = useState<SessionPlanImportMode>('append_block');
+  const [sessionComplete, setSessionComplete] = useState(false);
 
   const updateBlock = useCallback(
     (id: string, fn: (b: SessionWorkoutPlanBlock) => SessionWorkoutPlanBlock) => {
@@ -97,54 +103,31 @@ export default function TrainerLiveSessionWorkoutPlanEditor({
 
   const addBlock = useCallback(() => {
     onChange({ blocks: [...plan.blocks, createEmptyBlock(addKind)] });
+    setSessionComplete(false);
   }, [addKind, onChange, plan.blocks]);
 
   const clearPlan = useCallback(() => {
     onChange({ blocks: [] });
+    setSessionComplete(false);
   }, [onChange]);
 
-  const importSaved = useCallback(async () => {
-    setImportBusy(true);
-    try {
-      const auth = await missionControlApiAuthHeaders();
-      const r = await fetch('/api/trainer/workouts', {
-        credentials: 'include',
-        headers: { ...auth },
-      });
-      const raw: unknown = await r.json().catch(() => null);
-      if (!r.ok) {
-        const body = raw && typeof raw === 'object' ? (raw as { error?: string }) : {};
-        const msg =
-          typeof body.error === 'string' && body.error.trim()
-            ? body.error.trim()
-            : 'Could not load saved workouts';
-        toast.error(msg);
-        return;
-      }
-      const arr = Array.isArray(raw) ? raw : [];
-      if (arr.length === 0) {
-        toast.message('No saved workouts in your library.');
-        return;
-      }
-      const first = arr[0] as {
-        id?: string;
-        title?: string;
-        blocks?: unknown;
-        durationMinutes?: number | null;
-      };
-      const imported = savedWorkoutRowToSessionPlan(first);
-      if (imported.blocks.length === 0) {
-        toast.error('That workout has no exercises to import.');
-        return;
-      }
-      onChange(imported);
-      toast.success('Loaded exercises into plan (AMRAP block). Edit or add blocks as needed.');
-    } catch {
-      toast.error('Could not import workout.');
-    } finally {
-      setImportBusy(false);
-    }
-  }, [onChange]);
+  const openGlobalLoad = useCallback(() => {
+    setLoadKind(addKind);
+    setLoadBlockId(undefined);
+    setLoadDefaultMode(plan.blocks.length === 0 ? 'replace_plan' : 'append_block');
+    setLoadOpen(true);
+  }, [addKind, plan.blocks.length]);
+
+  const openBlockLoad = useCallback((block: SessionWorkoutPlanBlock) => {
+    setLoadKind(block.kind);
+    setLoadBlockId(block.id);
+    setLoadDefaultMode('replace_block');
+    setLoadOpen(true);
+  }, []);
+
+  useEffect(() => {
+    if (plan.blocks.length === 0) setSessionComplete(false);
+  }, [plan.blocks.length]);
 
   return (
     <div
@@ -165,11 +148,11 @@ export default function TrainerLiveSessionWorkoutPlanEditor({
           {showImportSaved ? (
             <button
               type="button"
-              disabled={disabled || importBusy}
-              onClick={() => void importSaved()}
+              disabled={disabled}
+              onClick={openGlobalLoad}
               className="rounded border border-white/15 px-2 py-0.5 text-[10px] text-white/80 hover:bg-white/10 disabled:opacity-40"
             >
-              {importBusy ? 'Loading…' : 'Load saved'}
+              Load saved
             </button>
           ) : null}
           <button
@@ -214,6 +197,14 @@ export default function TrainerLiveSessionWorkoutPlanEditor({
                   aria-label="Move down"
                 >
                   Down
+                </button>
+                <button
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => openBlockLoad(b)}
+                  className="rounded border border-white/15 px-1.5 py-0.5 text-[10px] text-white/70 hover:bg-white/10 disabled:opacity-40"
+                >
+                  Load
                 </button>
                 <button
                   type="button"
@@ -298,32 +289,85 @@ export default function TrainerLiveSessionWorkoutPlanEditor({
         </ul>
       )}
 
-      <div className="flex flex-wrap items-end gap-2">
-        <label className="text-[10px] text-white/45">
-          Add block
-          <select
-            value={addKind}
+      {sessionComplete ? (
+        <div className="mt-3 rounded-lg border border-emerald-300/35 bg-emerald-300/10 p-3">
+          <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-200">
+            Session plan ready
+          </div>
+          <p className="text-[10px] text-emerald-100/90">
+            Blocks are saved to this session. You can start the timer when ready.
+          </p>
+          <button
+            type="button"
             disabled={disabled}
-            onChange={(e) => setAddKind(e.target.value as SessionWorkoutPlanBlockKind)}
-            className="ml-1 mt-0.5 rounded border border-white/15 bg-black/40 px-2 py-1 text-xs text-white"
+            onClick={() => setSessionComplete(false)}
+            className="mt-2 rounded border border-emerald-200/35 px-2 py-1 text-[10px] text-emerald-100 hover:bg-emerald-200/10 disabled:opacity-40"
           >
-            {BLOCK_KINDS.map(({ kind, label }) => (
-              <option key={kind} value={kind}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button
-          type="button"
-          disabled={disabled}
-          onClick={addBlock}
-          data-testid="trainer-live-plan-add-block"
-          className="border-orange-light/35 bg-orange-light/10 hover:bg-orange-light/15 rounded-lg border px-2 py-1 text-xs text-orange-light disabled:opacity-40"
-        >
-          Add
-        </button>
-      </div>
+            Edit blocks
+          </button>
+        </div>
+      ) : (
+        <div className="mt-3 rounded-lg border border-orange-light/35 bg-orange-light/5 p-3">
+          <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-orange-light/90">
+            Add block to plan
+          </div>
+          <p className="mb-2 text-[10px] text-white/60">
+            This creates a new block at the end of the plan. It does not edit existing blocks above.
+          </p>
+          <div className="flex flex-wrap items-end gap-2">
+            <label className="text-[10px] text-white/60">
+              Block type to add
+              <select
+                value={addKind}
+                disabled={disabled}
+                onChange={(e) => setAddKind(e.target.value as SessionWorkoutPlanBlockKind)}
+                className="ml-1 mt-0.5 rounded border border-white/15 bg-black/40 px-2 py-1 text-xs text-white"
+              >
+                {BLOCK_KINDS.map(({ kind, label }) => (
+                  <option key={kind} value={kind}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={addBlock}
+              data-testid="trainer-live-plan-add-block"
+              className="border-orange-light/45 bg-orange-light/15 hover:bg-orange-light/20 rounded-lg border px-2 py-1 text-xs font-semibold text-orange-light disabled:opacity-40"
+            >
+              + Add block
+            </button>
+            <span className="text-[10px] text-white/45">
+              Will add: {BLOCK_KINDS.find((k) => k.kind === addKind)?.label}
+            </span>
+          </div>
+          <button
+            type="button"
+            disabled={disabled || plan.blocks.length === 0}
+            onClick={() => setSessionComplete(true)}
+            className="mt-2 rounded border border-emerald-300/35 bg-emerald-300/10 px-2 py-1 text-xs font-semibold text-emerald-200 hover:bg-emerald-300/15 disabled:opacity-40"
+          >
+            Session complete
+          </button>
+        </div>
+      )}
+
+      <TrainerLiveSessionPlanLoadModal
+        open={loadOpen}
+        onOpenChange={setLoadOpen}
+        disabled={disabled}
+        plan={plan}
+        targetKind={loadKind}
+        targetBlockId={loadBlockId}
+        defaultMode={loadDefaultMode}
+        onImported={(next, importedBlockId) => {
+          onChange(next);
+          if (importedBlockId) onImportedBlock?.(loadKind, importedBlockId);
+          toast.success(`Loaded ${loadKind} into session plan.`);
+        }}
+      />
     </div>
   );
 }

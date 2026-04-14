@@ -13,6 +13,7 @@ import type {
   HiitOptions,
   AmrapDensityOptions,
   TabataBalancedOptions,
+  EmomFactoryOptions,
 } from '@/types/ai-workout';
 import {
   TABATA_BALANCED_REST_SECONDS,
@@ -20,6 +21,14 @@ import {
   tabataBalancedExerciseCount,
   tabataBalancedRoundsPerExercise,
 } from '@/lib/tabata-balanced-duration';
+import {
+  EMOM_MAX_MOVEMENTS_PER_MINUTE,
+  EMOM_MAX_STATIONS_PER_CYCLE,
+  EMOM_MIN_MOVEMENTS_PER_MINUTE,
+  EMOM_MIN_STATIONS_PER_CYCLE,
+  emomAlternatingRoundsPerStation,
+  emomSessionMinutes,
+} from '@/lib/emom-factory-duration';
 import type { ExerciseSelection, ProgressionProtocol } from '@/types/ai-program';
 import type { WorkoutInSet } from '@/types/ai-workout';
 
@@ -27,12 +36,24 @@ function isAmrapProtocol(hiitOptions?: HiitOptions): boolean {
   return hiitOptions?.protocolFormat === 'amrap';
 }
 
+/** EMOM factory: work window inside each clock minute; rest fills to 60s per round. */
+const EMOM_FACTORY_MIN_WORK_SECONDS = 35;
+const EMOM_FACTORY_MAX_WORK_SECONDS = 50;
+const EMOM_FACTORY_MINUTE_SECONDS = 60;
+
 const defaultBlockOptions: BlockOptions = {
   includeWarmup: true,
   mainBlockCount: 1,
   includeFinisher: false,
   includeCooldown: false,
 };
+
+/** Session-level copy alignment for Step 4 (title, description, medical). */
+export interface TrainerBriefForMathematician {
+  title: string;
+  description: string;
+  medicalNotes?: string;
+}
 
 /**
  * Build the prompt for Step 4: Workout Mathematician
@@ -47,7 +68,10 @@ export function buildWorkoutMathematicianPrompt(
   amrapDensityMode?: boolean,
   amrapDensityOptions?: AmrapDensityOptions,
   tabataBalancedMode?: boolean,
-  tabataBalancedOptions?: TabataBalancedOptions
+  tabataBalancedOptions?: TabataBalancedOptions,
+  emomMode?: boolean,
+  emomOptions?: EmomFactoryOptions,
+  trainerBrief?: TrainerBriefForMathematician
 ): string {
   const exercisesDescription = exercises
     .map((day) => {
@@ -61,7 +85,7 @@ export function buildWorkoutMathematicianPrompt(
   const sessionCount = architect.sessions.length;
 
   const effectiveBlockOptions: BlockOptions =
-    amrapDensityMode || tabataBalancedMode
+    amrapDensityMode || tabataBalancedMode || emomMode
       ? {
           includeWarmup: false,
           mainBlockCount: 1,
@@ -107,11 +131,42 @@ export function buildWorkoutMathematicianPrompt(
         )
       : 0;
 
+  const emomAlternatingStations =
+    emomMode && emomOptions?.structure === 'alternating'
+      ? Math.min(
+          EMOM_MAX_STATIONS_PER_CYCLE,
+          Math.max(
+            EMOM_MIN_STATIONS_PER_CYCLE,
+            Math.round(emomOptions.stationsPerCycle ?? EMOM_MIN_STATIONS_PER_CYCLE)
+          )
+        )
+      : 0;
+  const emomRoundsPerStationAlternating =
+    emomMode && emomOptions?.structure === 'alternating'
+      ? emomAlternatingRoundsPerStation(emomOptions.totalRounds, emomAlternatingStations)
+      : 0;
+  const emomMovementsPerMinute =
+    emomMode && emomOptions?.structure === 'complex'
+      ? Math.min(
+          EMOM_MAX_MOVEMENTS_PER_MINUTE,
+          Math.max(
+            EMOM_MIN_MOVEMENTS_PER_MINUTE,
+            Math.round(emomOptions.movementsPerMinute ?? EMOM_MIN_MOVEMENTS_PER_MINUTE)
+          )
+        )
+      : 0;
+
   const mainTask = amrapDensityMode
     ? `4. exerciseBlocks: exactly 1 block (Density-Based AMRAP circuit). Each exercise: order, exerciseName, exerciseQuery, sets (always 1 per station per lap), reps (fixed count, e.g. "10"), restSeconds (0 — continuous transition to next station), rpe (optional), coachNotes. FORBID workSeconds and any timed-station prescription. FORBID non-zero restSeconds between stations. The athlete repeats the full exercise list for the session clock, completing as many laps as possible. Primary tracking metric: Total Laps Completed.`
     : tabataBalancedMode && tabataBalancedOptions
       ? `4. exerciseBlocks: exactly 1 block (Balanced Tabata). Each exercise: order, exerciseName, exerciseQuery, workSeconds (${TABATA_BALANCED_WORK_SECONDS} only), restSeconds (${TABATA_BALANCED_REST_SECONDS} only), rounds (each exercise: exactly ${tabataRoundsPerEx} — equal share of ${tabataBalancedOptions.roundCount} total work intervals), coachNotes. TIMER SCHEMA only. FORBID sets/reps. The athlete performs ${tabataBalancedOptions.roundCount} work intervals of ${TABATA_BALANCED_WORK_SECONDS}s; pairing pattern ${tabataBalancedOptions.pairingPattern} determines how many distinct exercises rotate.`
-      : hiitMode && hiitOptions && isAmrapProtocol(hiitOptions)
+      : emomMode && emomOptions
+        ? emomOptions.structure === 'single_movement'
+          ? `4. exerciseBlocks: exactly 1 block (EMOM — single movement). Exactly 1 exercise. TIMER SCHEMA only: workSeconds between ${EMOM_FACTORY_MIN_WORK_SECONDS} and ${EMOM_FACTORY_MAX_WORK_SECONDS}, restSeconds so workSeconds + restSeconds === ${EMOM_FACTORY_MINUTE_SECONDS} (one clock minute per round). rounds must equal ${emomOptions.totalRounds} (one EMOM minute per round; same work each minute). FORBID sets/reps.`
+          : emomOptions.structure === 'alternating'
+            ? `4. exerciseBlocks: exactly 1 block (EMOM — alternating). Exactly ${emomAlternatingStations} exercises in rotation order (one exercise owns each minute of the cycle; the pattern repeats every ${emomAlternatingStations} minutes). Each exercise: TIMER SCHEMA only — workSeconds ${EMOM_FACTORY_MIN_WORK_SECONDS}-${EMOM_FACTORY_MAX_WORK_SECONDS}, restSeconds so workSeconds + restSeconds === ${EMOM_FACTORY_MINUTE_SECONDS}. Each exercise's rounds must equal ${emomRoundsPerStationAlternating} (total session ${emomOptions.totalRounds} min ÷ ${emomAlternatingStations} stations). FORBID sets/reps.${emomOptions.includeRestStation ? ' One station may be active recovery / easy flow for its minute.' : ''}`
+            : `4. exerciseBlocks: exactly 1 block (EMOM — complex). Exactly ${emomMovementsPerMinute} exercises in cluster order for every clock minute. TIMER SCHEMA only (FORBID sets/reps). Each exercise rounds must equal ${emomOptions.totalRounds}. Split the 60s minute across rows: workSeconds ≥ 10 per row, sum(workSeconds) between ${EMOM_FACTORY_MIN_WORK_SECONDS} and ${EMOM_FACTORY_MAX_WORK_SECONDS}, and sum across all ${emomMovementsPerMinute} rows of (workSeconds + restSeconds) must equal ${EMOM_FACTORY_MINUTE_SECONDS} (one combined minute template repeated each EMOM minute).`
+        : hiitMode && hiitOptions && isAmrapProtocol(hiitOptions)
         ? `4. exerciseBlocks: exactly 1 block (the AMRAP circuit). Each exercise: order, exerciseName, exerciseQuery, workSeconds, restSeconds, rounds, coachNotes. TIMER SCHEMA only — set rounds to 1 for every exercise (one work interval at that station per lap). The athlete repeats the full circuit for the session duration, completing as many laps as possible — do not prescribe fixed multi-round work at a single station (e.g. never use rounds > 1 to mean "three times through this exercise before moving on").`
         : hiitMode
           ? `4. exerciseBlocks: exactly ${mainBlockCount} block(s); each block has order, name, and exercises with order, exerciseName, exerciseQuery, workSeconds, restSeconds, rounds, coachNotes (TIMER SCHEMA — no sets/reps; use work/rest time and rounds)`
@@ -181,6 +236,72 @@ export function buildWorkoutMathematicianPrompt(
               "restSeconds": 10,
               "rounds": ${tabataRoundsPerEx},
               "coachNotes": "Match pairing pattern from Architect (${tabataBalancedOptions.pairingPattern})"
+            }
+          ]
+        }`
+      : emomMode && emomOptions
+        ? emomOptions.structure === 'single_movement'
+          ? `        {
+          "order": 1,
+          "name": "EMOM",
+          "exercises": [
+            {
+              "order": 1,
+              "exerciseName": "Front Squat",
+              "exerciseQuery": "front squat",
+              "workSeconds": 40,
+              "restSeconds": 20,
+              "rounds": ${emomOptions.totalRounds},
+              "coachNotes": "Same work at the top of every minute for the full session clock"
+            }
+          ]
+        }`
+          : emomOptions.structure === 'alternating'
+            ? `        {
+          "order": 1,
+          "name": "EMOM Alternating",
+          "exercises": [
+            {
+              "order": 1,
+              "exerciseName": "Push Press",
+              "exerciseQuery": "push press",
+              "workSeconds": 40,
+              "restSeconds": 20,
+              "rounds": ${emomRoundsPerStationAlternating},
+              "coachNotes": "Minute 1 of each cycle — rotate in list order"
+            },
+            {
+              "order": 2,
+              "exerciseName": "Kettlebell Row",
+              "exerciseQuery": "kettlebell row",
+              "workSeconds": 40,
+              "restSeconds": 20,
+              "rounds": ${emomRoundsPerStationAlternating},
+              "coachNotes": "Minute 2 of each cycle"
+            }
+          ]
+        }`
+            : `        {
+          "order": 1,
+          "name": "EMOM Complex",
+          "exercises": [
+            {
+              "order": 1,
+              "exerciseName": "Romanian Deadlift",
+              "exerciseQuery": "romanian deadlift",
+              "workSeconds": 24,
+              "restSeconds": 0,
+              "rounds": ${emomOptions.totalRounds},
+              "coachNotes": "First segment inside the minute"
+            },
+            {
+              "order": 2,
+              "exerciseName": "Push-up",
+              "exerciseQuery": "push-up",
+              "workSeconds": 24,
+              "restSeconds": 12,
+              "rounds": ${emomOptions.totalRounds},
+              "coachNotes": "Second segment; trailing rest completes the 60s template"
             }
           ]
         }`
@@ -294,6 +415,16 @@ Total work intervals: ${tabataBalancedOptions.roundCount}. Pairing: ${tabataBala
 `
       : '';
 
+  const emomSection =
+    emomMode && emomOptions
+      ? `
+=== EMOM FACTORY (${emomOptions.structure}) ===
+Session clock: ${emomSessionMinutes(emomOptions)} minutes (= ${emomOptions.totalRounds} EMOM rounds).
+- Output exactly ONE block in exerciseBlocks. TIMER SCHEMA only for main work (workSeconds, restSeconds, rounds). FORBID sets/reps.
+- Omit warmupBlocks, finisherBlocks, and cooldownBlocks (use [] for each).
+`
+      : '';
+
   const hiitSection =
     hiitMode && hiitOptions
       ? isAmrapProtocol(hiitOptions)
@@ -316,22 +447,42 @@ Prescribe each main-block exercise with workSeconds, restSeconds, and rounds. Do
     ? `Use the Coach's exercise list in order as one repeating Density-Based AMRAP circuit. For each exercise use sets: 1, fixed reps, restSeconds: 0. State Total Laps Completed as the primary metric in workout description. FORBID workSeconds.`
     : tabataBalancedMode && tabataBalancedOptions
       ? `Use the Coach's exercise list. Build exactly one Tabata block with ${tabataBalancedExerciseCount(tabataBalancedOptions.pairingPattern)} exercises, each with workSeconds ${TABATA_BALANCED_WORK_SECONDS}, restSeconds ${TABATA_BALANCED_REST_SECONDS}, rounds ${tabataRoundsPerEx}. Describe rotation in workout description. FORBID sets/reps in main block.`
-      : hiitMode && hiitOptions && isAmrapProtocol(hiitOptions)
+      : emomMode && emomOptions
+        ? emomOptions.structure === 'single_movement'
+          ? `Use the Coach's exercise list: pick exactly 1 primary exercise for the EMOM. TIMER fields per rules above; rounds = ${emomOptions.totalRounds}.`
+          : emomOptions.structure === 'alternating'
+            ? `Use the Coach's exercise list: pick exactly ${emomAlternatingStations} exercises in cycle order. Each exercise rounds = ${emomRoundsPerStationAlternating}.`
+            : `Use the Coach's exercise list: pick exactly ${emomMovementsPerMinute} exercises that form one repeatable in-minute cluster; each exercise rounds = ${emomOptions.totalRounds}; minute template sums to 60s as specified.`
+        : hiitMode && hiitOptions && isAmrapProtocol(hiitOptions)
         ? `Use the Coach's exercise list in order as one repeating AMRAP circuit. Prescribe workSeconds, restSeconds, and rounds=1 for each exercise.`
         : hiitMode
           ? `Use the Coach's exercise list. Prescribe workSeconds, restSeconds, and rounds per exercise to fit the session duration and protocol. Distribute exercises across exactly ${mainBlockCount} circuit block(s).`
           : `Use the Coach's exercise list for that session. Prescribe sets, reps, RPE, and rest appropriate to the progression protocol and session duration. Distribute exercises across exactly ${mainBlockCount} main block(s).`;
 
+  const briefTitle = trainerBrief?.title?.trim() ?? '';
+  const briefDescription = trainerBrief?.description?.trim() ?? '';
+  const briefMedical = trainerBrief?.medicalNotes?.trim() ?? '';
+  const hasTrainerBrief = Boolean(briefTitle || briefDescription || briefMedical);
+  const trainerBriefSection = hasTrainerBrief
+    ? `
+=== TRAINER BRIEF ===
+Title: ${briefTitle || '(none)'}
+Description: ${briefDescription || '(none)'}
+${briefMedical ? `Medical notes: ${briefMedical}\n` : ''}
+Align each workout's title and description with this brief where it stays consistent with the architect sessions and coach exercise selections below.
+
+`
+    : '';
+
   return `Role: You are the Workout Mathematician.
 Task: Generate ONE set of ${sessionCount} workouts (no weeks). Each workout is a complete session. Include blocks as specified below.
-
-=== PROGRESSION PROTOCOL: ${architect.progression_protocol.toUpperCase()} ===
+${trainerBriefSection}=== PROGRESSION PROTOCOL: ${architect.progression_protocol.toUpperCase()} ===
 ${protocolInstructions}
 
 Architect's Rules:
 - Accumulation: ${architect.progression_rules.weeks_1_3}
 - Intensification: ${architect.progression_rules.weeks_4_6}
-${densitySection}${tabataBalancedSection}${hiitSection}
+${densitySection}${tabataBalancedSection}${emomSection}${hiitSection}
 
 === SESSIONS FROM ARCHITECT ===
 ${architect.sessions.map((s) => `Session ${s.session_number}: ${s.session_name} — ${s.focus} (${s.duration_minutes} min)`).join('\n')}
@@ -423,9 +574,10 @@ function getEffectiveBlockOptionsForValidation(
   amrapDensityMode?: boolean,
   hiitMode?: boolean,
   hiitOptions?: HiitOptions,
-  tabataBalancedMode?: boolean
+  tabataBalancedMode?: boolean,
+  emomMode?: boolean
 ): BlockOptions {
-  if (amrapDensityMode || tabataBalancedMode) {
+  if (amrapDensityMode || tabataBalancedMode || emomMode) {
     return {
       includeWarmup: false,
       mainBlockCount: 1,
@@ -469,7 +621,9 @@ export function validateWorkoutMathematicianOutput(
   hiitOptions?: HiitOptions,
   amrapDensityMode?: boolean,
   tabataBalancedMode?: boolean,
-  tabataBalancedOptions?: TabataBalancedOptions
+  tabataBalancedOptions?: TabataBalancedOptions,
+  emomMode?: boolean,
+  emomOptions?: EmomFactoryOptions
 ): { valid: true; data: WorkoutInSet[] } | { valid: false; error: string } {
   if (typeof data !== 'object' || data === null) {
     return { valid: false, error: 'Workout mathematician output must be an object' };
@@ -481,7 +635,8 @@ export function validateWorkoutMathematicianOutput(
     amrapDensityMode,
     hiitMode,
     hiitOptions,
-    tabataBalancedMode
+    tabataBalancedMode,
+    emomMode
   );
   const { includeWarmup, mainBlockCount, includeFinisher, includeCooldown } = effectiveOptions;
 
@@ -514,13 +669,16 @@ export function validateWorkoutMathematicianOutput(
     if (
       amrapDensityMode ||
       tabataBalancedMode ||
+      emomMode ||
       (hiitMode && hiitOptions && isAmrapProtocol(hiitOptions))
     ) {
       const metabolicNoAuxLabel = tabataBalancedMode
         ? 'Balanced Tabata'
         : amrapDensityMode
           ? 'Density AMRAP'
-          : 'HIIT AMRAP';
+          : emomMode
+            ? 'EMOM factory mode'
+            : 'HIIT AMRAP';
       const wb = workout.warmupBlocks;
       if (Array.isArray(wb) && wb.length > 0) {
         return {
@@ -645,6 +803,75 @@ export function validateWorkoutMathematicianOutput(
                 error: `Workout ${j + 1}, Block ${k + 1}, Exercise ${e + 1}: sets/reps must not be used for Balanced Tabata (timer schema only)`,
               };
             }
+          } else if (emomMode && emomOptions) {
+            if (ex.sets != null || ex.reps != null) {
+              return {
+                valid: false,
+                error: `Workout ${j + 1}, Block ${k + 1}, Exercise ${e + 1}: sets/reps must not be used for EMOM factory mode`,
+              };
+            }
+            const ws = ex.workSeconds;
+            const rs = ex.restSeconds;
+            const rnd = ex.rounds;
+            if (typeof ws !== 'number' || typeof rs !== 'number' || typeof rnd !== 'number') {
+              return {
+                valid: false,
+                error: `Workout ${j + 1}, Block ${k + 1}, Exercise ${e + 1}: workSeconds, restSeconds, and rounds are required for EMOM factory mode`,
+              };
+            }
+            if (rs < 0 || rnd < 1 || rnd !== Math.floor(rnd)) {
+              return {
+                valid: false,
+                error: `Workout ${j + 1}, Block ${k + 1}, Exercise ${e + 1}: invalid restSeconds or rounds for EMOM factory mode`,
+              };
+            }
+            if (emomOptions.structure === 'complex') {
+              if (ws < 10) {
+                return {
+                  valid: false,
+                  error: `Workout ${j + 1}, Block ${k + 1}, Exercise ${e + 1}: workSeconds must be at least 10 for complex EMOM`,
+                };
+              }
+              if (rnd !== emomOptions.totalRounds) {
+                return {
+                  valid: false,
+                  error: `Workout ${j + 1}, Block ${k + 1}, Exercise ${e + 1}: rounds must be ${emomOptions.totalRounds} for complex EMOM`,
+                };
+              }
+            } else {
+              if (ws < EMOM_FACTORY_MIN_WORK_SECONDS || ws > EMOM_FACTORY_MAX_WORK_SECONDS) {
+                return {
+                  valid: false,
+                  error: `Workout ${j + 1}, Block ${k + 1}, Exercise ${e + 1}: workSeconds must be ${EMOM_FACTORY_MIN_WORK_SECONDS}-${EMOM_FACTORY_MAX_WORK_SECONDS} for EMOM (single/alternating)`,
+                };
+              }
+              if (ws + rs !== EMOM_FACTORY_MINUTE_SECONDS) {
+                return {
+                  valid: false,
+                  error: `Workout ${j + 1}, Block ${k + 1}, Exercise ${e + 1}: workSeconds + restSeconds must equal ${EMOM_FACTORY_MINUTE_SECONDS} for EMOM (single/alternating)`,
+                };
+              }
+              if (emomOptions.structure === 'single_movement') {
+                if (rnd !== emomOptions.totalRounds) {
+                  return {
+                    valid: false,
+                    error: `Workout ${j + 1}, Block ${k + 1}, Exercise ${e + 1}: rounds must be ${emomOptions.totalRounds} for single-movement EMOM`,
+                  };
+                }
+              } else {
+                const spc = emomOptions.stationsPerCycle ?? EMOM_MIN_STATIONS_PER_CYCLE;
+                const expectedR = emomAlternatingRoundsPerStation(
+                  emomOptions.totalRounds,
+                  spc
+                );
+                if (rnd !== expectedR) {
+                  return {
+                    valid: false,
+                    error: `Workout ${j + 1}, Block ${k + 1}, Exercise ${e + 1}: rounds must be ${expectedR} for alternating EMOM`,
+                  };
+                }
+              }
+            }
           } else if (hiitMode) {
             if (typeof ex.workSeconds !== 'number' || ex.workSeconds < 1) {
               return {
@@ -693,6 +920,66 @@ export function validateWorkoutMathematicianOutput(
               valid: false,
               error: `Workout ${j + 1}, Block ${k + 1}: Balanced Tabata requires exactly ${expectedN} exercise(s) for pairing ${tabataBalancedOptions.pairingPattern}`,
             };
+          }
+        }
+        if (emomMode && emomOptions) {
+          const blockExercises = exerciseBlocks[k]?.exercises;
+          if (!Array.isArray(blockExercises)) {
+            return {
+              valid: false,
+              error: `Workout ${j + 1}, Block ${k + 1}: exercises required for EMOM factory mode`,
+            };
+          }
+          const n = blockExercises.length;
+          if (emomOptions.structure === 'single_movement') {
+            if (n !== 1) {
+              return {
+                valid: false,
+                error: `Workout ${j + 1}, Block ${k + 1}: single-movement EMOM requires exactly 1 exercise`,
+              };
+            }
+          } else if (emomOptions.structure === 'alternating') {
+            const spc = emomOptions.stationsPerCycle ?? EMOM_MIN_STATIONS_PER_CYCLE;
+            if (n !== spc) {
+              return {
+                valid: false,
+                error: `Workout ${j + 1}, Block ${k + 1}: alternating EMOM requires exactly ${spc} exercise(s)`,
+              };
+            }
+          } else {
+            const mpm = emomOptions.movementsPerMinute ?? EMOM_MIN_MOVEMENTS_PER_MINUTE;
+            if (n !== mpm) {
+              return {
+                valid: false,
+                error: `Workout ${j + 1}, Block ${k + 1}: complex EMOM requires exactly ${mpm} exercise(s)`,
+              };
+            }
+            let sumSegments = 0;
+            let sumWork = 0;
+            for (let e = 0; e < blockExercises.length; e++) {
+              const row = blockExercises[e] as Record<string, unknown>;
+              const ws = row.workSeconds as number;
+              const rs = row.restSeconds as number;
+              if (typeof ws === 'number' && typeof rs === 'number') {
+                sumSegments += ws + rs;
+                sumWork += ws;
+              }
+            }
+            if (sumSegments !== EMOM_FACTORY_MINUTE_SECONDS) {
+              return {
+                valid: false,
+                error: `Workout ${j + 1}, Block ${k + 1}: complex EMOM rows must sum (workSeconds + restSeconds) to ${EMOM_FACTORY_MINUTE_SECONDS}`,
+              };
+            }
+            if (
+              sumWork < EMOM_FACTORY_MIN_WORK_SECONDS ||
+              sumWork > EMOM_FACTORY_MAX_WORK_SECONDS
+            ) {
+              return {
+                valid: false,
+                error: `Workout ${j + 1}, Block ${k + 1}: complex EMOM total workSeconds per minute must be ${EMOM_FACTORY_MIN_WORK_SECONDS}-${EMOM_FACTORY_MAX_WORK_SECONDS}`,
+              };
+            }
           }
         }
       }
@@ -766,6 +1053,11 @@ export function validateWorkoutMathematicianOutput(
               error: `Workout ${j + 1}, Block ${k + 1}: rounds must be ${expectedRounds} for Balanced Tabata`,
             };
           }
+        } else if (emomMode && emomOptions) {
+          return {
+            valid: false,
+            error: `Workout ${j + 1}: EMOM factory mode requires exerciseBlocks with nested exercises (not legacy blocks layout)`,
+          };
         } else if (hiitMode) {
           if (typeof block.workSeconds !== 'number' || (block.workSeconds as number) < 1) {
             return {

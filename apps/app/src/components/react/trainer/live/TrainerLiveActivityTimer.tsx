@@ -7,15 +7,14 @@ import type { TrainerLiveShell } from '@/lib/trainer-live/shells';
 import type { TrainerLiveActivitySegmentRow } from '@/lib/trainer-live/activity-types';
 import { isValidTabataAttachInput } from '@/lib/trainer-live/tabata-workout-list-adapter';
 import {
-  getFirstAmrapBlock,
-  getFirstCooldownBlock,
-  getFirstEmomBlock,
-  getFirstTabataBlock,
-  getFirstWarmupBlock,
+  getPreferredOrFirstBlock,
+  type PreferredBlockIdsByKind,
   sessionPlanHasAnyBlocks,
 } from '@/lib/trainer-live/session-workout-plan/prefill';
 import {
+  loadPreferredPlanBlocksFromSessionStorage,
   loadSessionWorkoutPlanFromSessionStorage,
+  savePreferredPlanBlocksToSessionStorage,
   saveSessionWorkoutPlanToSessionStorage,
 } from '@/lib/trainer-live/session-workout-plan/storage';
 import type { TrainerLiveSessionWorkoutPlan } from '@/lib/trainer-live/session-workout-plan/types';
@@ -80,10 +79,12 @@ export default function TrainerLiveActivityTimer({
   const [tabataPickerKey, setTabataPickerKey] = useState(0);
   const [emomPickerOpen, setEmomPickerOpen] = useState(false);
   const [emomPickerKey, setEmomPickerKey] = useState(0);
+  const [warmupTextSizeStep, setWarmupTextSizeStep] = useState(1);
 
   const [sessionWorkoutPlan, setSessionWorkoutPlan] = useState<TrainerLiveSessionWorkoutPlan>({
     blocks: [],
   });
+  const [preferredBlockIds, setPreferredBlockIds] = useState<PreferredBlockIdsByKind>({});
 
   const canIntervalSegments = shell === 'countdown_timer';
   const isTrainer = role === 'trainer';
@@ -91,8 +92,10 @@ export default function TrainerLiveActivityTimer({
   useEffect(() => {
     if (role !== 'trainer') return;
     const loaded = loadSessionWorkoutPlanFromSessionStorage(sessionId);
+    const preferredLoaded = loadPreferredPlanBlocksFromSessionStorage(sessionId);
     if (loaded) setSessionWorkoutPlan(loaded);
     else setSessionWorkoutPlan({ blocks: [] });
+    setPreferredBlockIds(preferredLoaded);
   }, [sessionId, role]);
 
   useEffect(() => {
@@ -100,26 +103,58 @@ export default function TrainerLiveActivityTimer({
     saveSessionWorkoutPlanToSessionStorage(sessionId, sessionWorkoutPlan);
   }, [sessionId, sessionWorkoutPlan, role]);
 
+  useEffect(() => {
+    if (role !== 'trainer') return;
+    savePreferredPlanBlocksToSessionStorage(sessionId, preferredBlockIds);
+  }, [preferredBlockIds, role, sessionId]);
+
   const amrapPrefill = useMemo(() => {
-    const b = getFirstAmrapBlock(sessionWorkoutPlan);
+    const b = getPreferredOrFirstBlock(sessionWorkoutPlan, 'amrap', preferredBlockIds.amrap);
     const list = b ? nonEmptyTrimmedExerciseLines(b.exercises) : [];
-    if (!b || !isValidAttachWorkoutInput(b.durationMinutes, list)) return null;
+    if (!b || b.kind !== 'amrap' || !isValidAttachWorkoutInput(b.durationMinutes, list)) return null;
     return { durationMinutes: b.durationMinutes, workoutList: list };
-  }, [sessionWorkoutPlan]);
+  }, [sessionWorkoutPlan, preferredBlockIds.amrap]);
 
   const tabataPrefill = useMemo(() => {
-    const b = getFirstTabataBlock(sessionWorkoutPlan);
+    const b = getPreferredOrFirstBlock(sessionWorkoutPlan, 'tabata', preferredBlockIds.tabata);
     const list = b ? nonEmptyTrimmedExerciseLines(b.exercises) : [];
-    if (!b || !isValidTabataAttachInput(b.roundCount, list)) return null;
+    if (!b || b.kind !== 'tabata' || !isValidTabataAttachInput(b.roundCount, list)) return null;
     return { roundCount: b.roundCount, workoutList: list };
-  }, [sessionWorkoutPlan]);
+  }, [sessionWorkoutPlan, preferredBlockIds.tabata]);
 
   const emomPrefill = useMemo(() => {
-    const b = getFirstEmomBlock(sessionWorkoutPlan);
-    if (!b) return null;
+    const b = getPreferredOrFirstBlock(sessionWorkoutPlan, 'emom', preferredBlockIds.emom);
+    if (!b || b.kind !== 'emom') return null;
     if (b.roundCount < 1 || b.roundCount > 120) return null;
     return { roundCount: b.roundCount, workoutList: nonEmptyTrimmedExerciseLines(b.exercises) };
-  }, [sessionWorkoutPlan]);
+  }, [sessionWorkoutPlan, preferredBlockIds.emom]);
+
+  const currentOpenSegment = useMemo(() => {
+    const segments = state.segments;
+    if (!segments?.length) return null;
+    const open = segments.filter((x) => !x.ended_at).sort((a, b) => a.ordinal - b.ordinal);
+    return open.length ? open[open.length - 1] ?? null : null;
+  }, [state.segments]);
+
+  const currentWarmupExercises = useMemo(() => {
+    if (currentOpenSegment?.segment_type !== 'warmup') return [];
+    const warmupBlock = getPreferredOrFirstBlock(
+      sessionWorkoutPlan,
+      'warmup',
+      preferredBlockIds.warmup
+    );
+    if (!warmupBlock || warmupBlock.kind !== 'warmup') return [];
+    return nonEmptyTrimmedExerciseLines(warmupBlock.exercises);
+  }, [currentOpenSegment?.segment_type, sessionWorkoutPlan, preferredBlockIds.warmup]);
+
+  const warmupTextClass =
+    warmupTextSizeStep <= 0
+      ? 'text-xs'
+      : warmupTextSizeStep === 1
+        ? 'text-sm'
+        : warmupTextSizeStep === 2
+          ? 'text-base'
+          : 'text-lg';
 
   const showSessionPlanEditor = isTrainer && canIntervalSegments;
 
@@ -155,6 +190,9 @@ export default function TrainerLiveActivityTimer({
           <TrainerLiveSessionWorkoutPlanEditor
             plan={sessionWorkoutPlan}
             onChange={setSessionWorkoutPlan}
+            onImportedBlock={(kind, blockId) =>
+              setPreferredBlockIds((prev) => ({ ...prev, [kind]: blockId }))
+            }
             disabled={!!busy}
             compact={compact}
           />
@@ -169,6 +207,9 @@ export default function TrainerLiveActivityTimer({
             <TrainerLiveSessionWorkoutPlanEditor
               plan={sessionWorkoutPlan}
               onChange={setSessionWorkoutPlan}
+              onImportedBlock={(kind, blockId) =>
+                setPreferredBlockIds((prev) => ({ ...prev, [kind]: blockId }))
+              }
               disabled={!!busy}
               compact
             />
@@ -267,9 +308,13 @@ export default function TrainerLiveActivityTimer({
                   type="button"
                   disabled={!!busy}
                   onClick={() => {
-                    const w = getFirstWarmupBlock(sessionWorkoutPlan);
+                    const w = getPreferredOrFirstBlock(
+                      sessionWorkoutPlan,
+                      'warmup',
+                      preferredBlockIds.warmup
+                    );
                     const label =
-                      w && w.exercises.length > 0
+                      w && w.kind === 'warmup' && w.exercises.length > 0
                         ? segmentLabelFromPlanExercises(w.label, w.exercises, 'Warm-up')
                         : 'Warm-up';
                     void run('warmup', async () =>
@@ -339,9 +384,13 @@ export default function TrainerLiveActivityTimer({
                   type="button"
                   disabled={!!busy}
                   onClick={() => {
-                    const c = getFirstCooldownBlock(sessionWorkoutPlan);
+                    const c = getPreferredOrFirstBlock(
+                      sessionWorkoutPlan,
+                      'cooldown',
+                      preferredBlockIds.cooldown
+                    );
                     const label =
-                      c && c.exercises.length > 0
+                      c && c.kind === 'cooldown' && c.exercises.length > 0
                         ? segmentLabelFromPlanExercises(c.label, c.exercises, 'Cooldown')
                         : 'Cooldown';
                     void run('cooldown', () =>
@@ -376,6 +425,61 @@ export default function TrainerLiveActivityTimer({
           </div>
         ) : null}
       </div>
+      {currentOpenSegment?.segment_type === 'warmup' && currentWarmupExercises.length > 0 ? (
+        <div
+          className={`mt-2 rounded-xl border border-white/10 bg-black/40 ${compact ? 'px-3 py-2' : 'px-4 py-3'}`}
+          data-region="trainer-live-warmup-exercises-panel"
+          data-testid="trainer-live-warmup-exercises-panel"
+        >
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-white/45">
+              Warm-up exercises
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setWarmupTextSizeStep((prev) => Math.max(0, prev - 1))}
+                className="rounded border border-white/15 px-1.5 py-0.5 text-[10px] text-white/80 hover:bg-white/10"
+                aria-label="Decrease warm-up text size"
+              >
+                A-
+              </button>
+              <button
+                type="button"
+                onClick={() => setWarmupTextSizeStep((prev) => Math.min(3, prev + 1))}
+                className="rounded border border-white/15 px-1.5 py-0.5 text-[10px] text-white/80 hover:bg-white/10"
+                aria-label="Increase warm-up text size"
+              >
+                A+
+              </button>
+            </div>
+          </div>
+          <ul className="space-y-1">
+            {currentWarmupExercises.map((exercise, idx) => (
+              <li key={`${exercise}-${idx}`} className={`${warmupTextClass} break-words text-white/80`}>
+                {idx + 1}. {exercise}
+              </li>
+            ))}
+          </ul>
+          {isTrainer && state.status !== 'finalized' ? (
+            <button
+              type="button"
+              disabled={!!busy}
+              onClick={() =>
+                void run('log_warmup', () =>
+                  supabase.rpc('trainer_live_activity_log_warmup', {
+                    p_trainer_live_session_id: sessionId,
+                    p_exercises: currentWarmupExercises,
+                  })
+                )
+              }
+              className="mt-3 rounded-lg border border-emerald-500/40 bg-emerald-600/15 px-2 py-1 text-xs font-semibold text-emerald-200 hover:bg-emerald-600/25 disabled:opacity-40"
+            >
+              {busy === 'log_warmup' ? 'Logging…' : 'Log warmup'}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
       <TrainerLiveAmrapWorkoutPickerModal
         open={amrapPickerOpen}
         pickerKey={amrapPickerKey}

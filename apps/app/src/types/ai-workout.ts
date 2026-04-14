@@ -89,6 +89,27 @@ export interface TabataBalancedOptions {
   roundCount: number;
 }
 
+/** Workout Factory EMOM mode — mutually exclusive with HIIT / Density AMRAP / Balanced Tabata. */
+export type EmomFactoryStructure =
+  /** Same work every minute (one exercise). */
+  | 'single_movement'
+  /** Rotate exercises each minute; cycle length = stationsPerCycle minutes before repeat. */
+  | 'alternating'
+  /** Multiple movements completed inside the same minute before rest. */
+  | 'complex';
+
+export interface EmomFactoryOptions {
+  structure: EmomFactoryStructure;
+  /** Total EMOM minutes (one round = one minute on the clock). */
+  totalRounds: number;
+  /** Alternating only: minutes in one full rotation (2–8). totalRounds must be divisible by this. */
+  stationsPerCycle?: number;
+  /** Alternating: one station in the cycle is active rest / easy recovery. */
+  includeRestStation?: boolean;
+  /** Complex only: how many distinct movements in the same minute (2–4). */
+  movementsPerMinute?: number;
+}
+
 export interface HiitOptions {
   protocolFormat: HiitProtocolFormat;
   workRestRatio?: HiitWorkRestRatio;
@@ -131,6 +152,10 @@ export interface WorkoutPersona {
   twoADay: boolean;
   /** Optional focus for single-session (e.g. "upper push only") */
   preferredFocus?: string;
+  /** Freeform injury / medical context from the trainer (Step 1 + Step 4 brief). */
+  medicalNotes?: string;
+  /** Comma-separated extra equipment names merged after ID resolution (no zone required). */
+  additionalEquipmentLabels?: string;
   /** When true, use density-based (time/ratios) logic and Timer Schema in chain */
   hiitMode?: boolean;
   /** Required when hiitMode is true; protocol, ratio, circuit structure, session tier, primary goal */
@@ -149,6 +174,13 @@ export interface WorkoutPersona {
   tabataBalancedMode?: boolean;
   /** Required when tabataBalancedMode is true */
   tabataBalancedOptions?: TabataBalancedOptions;
+  /**
+   * When true, use structured EMOM factory (single / alternating / complex).
+   * Mutually exclusive with hiitMode, amrapDensityMode, and tabataBalancedMode in API/UI.
+   */
+  emomMode?: boolean;
+  /** Required when emomMode is true */
+  emomOptions?: EmomFactoryOptions;
 }
 
 /**
@@ -174,9 +206,13 @@ export interface WorkoutConfig {
     includeConditions: boolean;
     conditions?: string;
   };
+  /** Single textarea; preferred over toggled medicalContext when set. */
+  medicalNotes?: string;
   goals: Goals;
   zoneId?: string;
   selectedEquipmentIds?: string[];
+  /** Comma-separated equipment names merged with catalog selections in prepare. */
+  additionalEquipmentLabels?: string;
   preferredFocus?: string;
   blockOptions?: BlockOptions;
   hiitMode?: boolean;
@@ -185,6 +221,8 @@ export interface WorkoutConfig {
   amrapDensityOptions?: AmrapDensityOptions;
   tabataBalancedMode?: boolean;
   tabataBalancedOptions?: TabataBalancedOptions;
+  emomMode?: boolean;
+  emomOptions?: EmomFactoryOptions;
 }
 
 /**

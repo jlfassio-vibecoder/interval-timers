@@ -13,9 +13,32 @@ import type {
   HiitOptions,
   AmrapDensityOptions,
   TabataBalancedOptions,
+  EmomFactoryOptions,
 } from '@/types/ai-workout';
 import { tabataBalancedSessionMinutes } from '@/lib/tabata-balanced-duration';
+import { emomSessionMinutes } from '@/lib/emom-factory-duration';
 import type { ProgressionProtocol } from '@/types/ai-program';
+
+function buildEmomArchitectSection(sessionDurationMinutes: number, opts: EmomFactoryOptions): string {
+  const structureNote =
+    opts.structure === 'single_movement'
+      ? 'Single movement: the athlete repeats the same prescription at the start of every minute until the clock ends.'
+      : opts.structure === 'alternating'
+        ? `Alternating: rotate through ${opts.stationsPerCycle ?? 2} stations each minute (one station per minute); the full pattern repeats every ${opts.stationsPerCycle ?? 2} minutes for ${opts.totalRounds} total minutes.${opts.includeRestStation ? ' One station in the cycle may be active recovery or light movement.' : ''}`
+        : `Complex: each minute contains ${opts.movementsPerMinute ?? 2} distinct movements to complete before the next minute; total work inside the minute should target roughly 40-50 seconds so the athlete earns meaningful rest.`;
+
+  return `
+=== EMOM (EVERY MINUTE ON THE MINUTE) FACTORY MODE ===
+Session clock: ${sessionDurationMinutes} minutes (= ${opts.totalRounds} EMOM rounds; one round per minute).
+Structure: ${opts.structure}. ${structureNote}
+
+Prescribe structure only for the main EMOM block (details in a later chain step). Do not use warmup, finisher, or cooldown vocabulary in this blueprint for the main work; trainers deliver those outside generated programming when needed.
+
+You MUST set progression_protocol to "density_leverage" (e.g. more reps per minute, more quality work in the same minute window, or harder variation over about six weeks). In progression_rules, contrast weeks 1-3 vs 4-6 using work completed per minute or per cycle.
+
+volume_landmarks: non-empty; derive weekly load from minutes times movement demand (MEV/MRV set-equivalents per week) for muscle groups involved.
+`;
+}
 
 interface ZoneContext {
   zoneName: string;
@@ -88,6 +111,7 @@ export function buildWorkoutArchitectPrompt(
     lifestyle,
     twoADay,
     preferredFocus,
+    medicalNotes,
   } = persona;
 
   const circuitInstruction = !hiitOptions
@@ -100,6 +124,7 @@ export function buildWorkoutArchitectPrompt(
     hiitOptions &&
     !persona.amrapDensityMode &&
     !persona.tabataBalancedMode &&
+    !persona.emomMode &&
     `
 === METABOLIC CONDITIONING (HIIT) MODE ===
 Design interval-based sessions using density and time, not sets/reps.
@@ -125,6 +150,12 @@ Output sessions with duration_minutes in the HIIT range (4–30). progression_pr
       ? buildTabataBalancedArchitectSection(persona.sessionDurationMinutes, tabataOpts)
       : '';
 
+  const emomOpts = persona.emomOptions;
+  const emomSection =
+    persona.emomMode && emomOpts
+      ? buildEmomArchitectSection(persona.sessionDurationMinutes, emomOpts)
+      : '';
+
   const equipmentSection = zoneContext
     ? `
 Equipment Zone: ${zoneContext.zoneName}
@@ -132,12 +163,20 @@ Available Equipment: ${zoneContext.availableEquipment.join(', ')}
 Biomechanical Constraints: ${zoneContext.biomechanicalConstraints.join(', ')}`
     : '';
 
-  const medicalSection =
+  const legacyMedical =
     medical.injuries || medical.conditions
-      ? `
-Medical Context:
+      ? `Medical Context:
 ${medical.injuries ? `- Injuries: ${medical.injuries}` : ''}
 ${medical.conditions ? `- Conditions: ${medical.conditions}` : ''}`
+      : '';
+  const trainerMedicalNotes = medicalNotes?.trim()
+    ? `Trainer injury / medical notes:
+${medicalNotes.trim()}`
+    : '';
+  const medicalSection =
+    legacyMedical || trainerMedicalNotes
+      ? `
+${legacyMedical ? `${legacyMedical}\n` : ''}${trainerMedicalNotes ? `${trainerMedicalNotes}\n` : ''}`
       : '';
 
   const focusSection = preferredFocus
@@ -174,13 +213,14 @@ ${equipmentSection}
 ${hiitSection ?? ''}
 ${amrapDensitySection}
 ${tabataBalancedSection}
+${emomSection}
 
 === YOUR TASK ===
 1. Decide how many distinct sessions to create (1 to ${sessionsPerWeek}). For splits, e.g. 2 (Upper/Lower), 3 (PPL), 4 (Upper/Lower x2). For single session, output 1.
 2. For each session: session_number, session_name, focus, duration_minutes. Optionally volume_targets (e.g. "MEV for chest").
-3. Choose progression_protocol: linear_load, double_progression, or density_leverage (same definitions as program architect).${persona.amrapDensityMode ? ' For Density-Based AMRAP you MUST use density_leverage (progress total laps / density over ~6 weeks).' : ''}${persona.tabataBalancedMode ? ' For Balanced Tabata you MUST use double_progression.' : ''}
+3. Choose progression_protocol: linear_load, double_progression, or density_leverage (same definitions as program architect).${persona.amrapDensityMode ? ' For Density-Based AMRAP you MUST use density_leverage (progress total laps / density over ~6 weeks).' : ''}${persona.tabataBalancedMode ? ' For Balanced Tabata you MUST use double_progression.' : ''}${persona.emomMode ? ' For EMOM Factory mode you MUST use density_leverage.' : ''}
 4. Output split object: type (string), days_per_week (number of sessions), session_duration_minutes.
-5. Output volume_landmarks for muscle groups (MEV/MRV sets per week) so the Biomechanist can balance patterns.${persona.amrapDensityMode ? ' For 15 or 20 minute density windows, estimate plausible laps per session from movement complexity, then derive weekly set-equivalent volume from (estimated laps × reps × stations × sessions per week).' : ''}${persona.tabataBalancedMode ? ' For Tabata, anchor volume to the work intervals and pairing (push/pull vs single-limb, etc.).' : ''}
+5. Output volume_landmarks for muscle groups (MEV/MRV sets per week) so the Biomechanist can balance patterns.${persona.amrapDensityMode ? ' For 15 or 20 minute density windows, estimate plausible laps per session from movement complexity, then derive weekly set-equivalent volume from (estimated laps × reps × stations × sessions per week).' : ''}${persona.tabataBalancedMode ? ' For Tabata, anchor volume to the work intervals and pairing (push/pull vs single-limb, etc.).' : ''}${persona.emomMode ? ' For EMOM, anchor volume to total minutes on the clock and the movement structure (single vs alternating vs complex).' : ''}
 
 === OUTPUT FORMAT ===
 Return ONLY valid JSON. No markdown, no explanations. Start with { and end with }.
@@ -217,13 +257,16 @@ Generate exactly the number of sessions that fit the user's sessionsPerWeek and 
  * @param hiitMode - When true, allow session duration_minutes >= 4 (HIIT caps)
  * @param amrapDensityMode - Density-Based AMRAP: enforce density_leverage, tier minutes, volume_landmarks
  * @param tabataBalancedMode - Balanced Tabata: enforce double_progression, fixed session minutes from rounds
+ * @param emomMode - EMOM factory: enforce density_leverage, fixed session minutes from totalRounds
  */
 export function validateWorkoutArchitectOutput(
   data: unknown,
   hiitMode?: boolean,
   amrapDensityMode?: boolean,
   tabataBalancedMode?: boolean,
-  tabataBalancedOptions?: TabataBalancedOptions
+  tabataBalancedOptions?: TabataBalancedOptions,
+  emomMode?: boolean,
+  emomOptions?: EmomFactoryOptions
 ): { valid: true; data: WorkoutArchitectBlueprint } | { valid: false; error: string } {
   if (typeof data !== 'object' || data === null) {
     return { valid: false, error: 'Workout architect output must be an object' };
@@ -274,6 +317,16 @@ export function validateWorkoutArchitectOutput(
         };
       }
       firstDurations.push(dm);
+    } else if (emomMode && emomOptions) {
+      const expected = emomSessionMinutes(emomOptions);
+      const dm = s.duration_minutes;
+      if (typeof dm !== 'number' || dm !== expected) {
+        return {
+          valid: false,
+          error: `sessions[${i}].duration_minutes must be ${expected} for EMOM factory mode (total rounds)`,
+        };
+      }
+      firstDurations.push(dm);
     } else {
       const minDuration = hiitMode ? 4 : 10;
       if (typeof s.duration_minutes !== 'number' || s.duration_minutes < minDuration) {
@@ -285,12 +338,12 @@ export function validateWorkoutArchitectOutput(
     }
   }
 
-  if ((amrapDensityMode || tabataBalancedMode) && firstDurations.length > 0) {
+  if ((amrapDensityMode || tabataBalancedMode || emomMode) && firstDurations.length > 0) {
     const first = firstDurations[0];
     if (!firstDurations.every((d) => d === first)) {
       return {
         valid: false,
-        error: `All sessions must use the same duration_minutes for ${amrapDensityMode ? 'Density-Based AMRAP' : 'Balanced Tabata'}`,
+        error: `All sessions must use the same duration_minutes for ${amrapDensityMode ? 'Density-Based AMRAP' : tabataBalancedMode ? 'Balanced Tabata' : 'EMOM factory mode'}`,
       };
     }
   }
@@ -310,7 +363,7 @@ export function validateWorkoutArchitectOutput(
   ) {
     return { valid: false, error: 'split.days_per_week must be between 1 and 7' };
   }
-  const minSplitDuration = hiitMode || amrapDensityMode || tabataBalancedMode ? 4 : 10;
+  const minSplitDuration = hiitMode || amrapDensityMode || tabataBalancedMode || emomMode ? 4 : 10;
   if (
     typeof split.session_duration_minutes !== 'number' ||
     split.session_duration_minutes < minSplitDuration
@@ -342,6 +395,17 @@ export function validateWorkoutArchitectOutput(
     }
   }
 
+  if (emomMode && emomOptions) {
+    const expected = emomSessionMinutes(emomOptions);
+    const sd = split.session_duration_minutes;
+    if (typeof sd !== 'number' || sd !== expected) {
+      return {
+        valid: false,
+        error: `split.session_duration_minutes must be ${expected} for EMOM factory mode`,
+      };
+    }
+  }
+
   if (amrapDensityMode && obj.progression_protocol !== 'density_leverage') {
     return {
       valid: false,
@@ -353,6 +417,13 @@ export function validateWorkoutArchitectOutput(
     return {
       valid: false,
       error: 'progression_protocol must be double_progression for Balanced Tabata',
+    };
+  }
+
+  if (emomMode && obj.progression_protocol !== 'density_leverage') {
+    return {
+      valid: false,
+      error: 'progression_protocol must be density_leverage for EMOM factory mode',
     };
   }
 
@@ -398,6 +469,13 @@ export function validateWorkoutArchitectOutput(
     return {
       valid: false,
       error: 'volume_landmarks must be non-empty for Balanced Tabata',
+    };
+  }
+
+  if (emomMode && obj.volume_landmarks.length === 0) {
+    return {
+      valid: false,
+      error: 'volume_landmarks must be non-empty for EMOM factory mode',
     };
   }
 

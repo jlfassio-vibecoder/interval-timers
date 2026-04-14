@@ -1,9 +1,11 @@
 import type {
   SessionWorkoutPlanBlockAmrap,
+  SessionWorkoutPlanBlockKind,
   SessionWorkoutPlanBlockEmom,
   SessionWorkoutPlanBlockTabata,
   SessionWorkoutPlanBlockWarmup,
   SessionWorkoutPlanBlockCooldown,
+  SessionWorkoutPlanBlock,
   TrainerLiveSessionWorkoutPlan,
 } from './types';
 
@@ -58,4 +60,21 @@ export function getFirstCooldownBlock(
 
 export function sessionPlanHasAnyBlocks(plan: TrainerLiveSessionWorkoutPlan): boolean {
   return plan.blocks.length > 0;
+}
+
+export type PreferredBlockIdsByKind = Partial<Record<SessionWorkoutPlanBlockKind, string>>;
+
+export function getPreferredOrFirstBlock(
+  plan: TrainerLiveSessionWorkoutPlan,
+  kind: SessionWorkoutPlanBlockKind,
+  preferredId?: string
+): SessionWorkoutPlanBlock | null {
+  if (preferredId) {
+    const preferred = plan.blocks.find((b) => b.id === preferredId && b.kind === kind);
+    if (preferred) return preferred;
+  }
+  for (const b of plan.blocks) {
+    if (b.kind === kind) return b;
+  }
+  return null;
 }

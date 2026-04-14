@@ -24,6 +24,8 @@ import type {
   HiitPrimaryGoal,
   AmrapDensityOptions,
   TabataBalancedOptions,
+  EmomFactoryOptions,
+  EmomFactoryStructure,
 } from '@/types/ai-workout';
 import AmrapDensityArchitecture from '@/components/react/admin/amrap-density/AmrapDensityArchitecture';
 import TabataBalancedArchitecture from '@/components/react/admin/tabata-balanced/TabataBalancedArchitecture';
@@ -33,6 +35,17 @@ import {
   tabataBalancedSessionMinutes,
   snapTabataRoundCountToPattern,
 } from '@/lib/tabata-balanced-duration';
+import {
+  EMOM_MAX_MOVEMENTS_PER_MINUTE,
+  EMOM_MAX_STATIONS_PER_CYCLE,
+  EMOM_MAX_TOTAL_ROUNDS,
+  EMOM_MIN_MOVEMENTS_PER_MINUTE,
+  EMOM_MIN_STATIONS_PER_CYCLE,
+  EMOM_MIN_TOTAL_ROUNDS,
+  clampEmomTotalRounds,
+  emomSessionMinutes,
+  snapEmomTotalRoundsToCycle,
+} from '@/lib/emom-factory-duration';
 import {
   getAllZones,
   getZoneById,
@@ -101,6 +114,8 @@ const defaultConfig: WorkoutConfig = {
     weeklyTimeMinutes: 180,
   },
   medicalContext: { includeInjuries: false, includeConditions: false },
+  medicalNotes: '',
+  additionalEquipmentLabels: '',
   goals: { primary: 'Muscle Gain', secondary: 'Strength' },
   blockOptions: {
     includeWarmup: true,
@@ -108,8 +123,10 @@ const defaultConfig: WorkoutConfig = {
     includeFinisher: false,
     includeCooldown: false,
   },
+  hiitMode: false,
   amrapDensityMode: false,
   tabataBalancedMode: false,
+  emomMode: false,
 };
 
 const defaultAmrapDensityOptions: AmrapDensityOptions = {
@@ -122,6 +139,48 @@ const defaultTabataBalancedOptions: TabataBalancedOptions = {
   pairingPattern: 'antagonist_pair',
   roundCount: TABATA_BALANCED_DEFAULT_ROUNDS,
 };
+
+const defaultEmomOptions: EmomFactoryOptions = {
+  structure: 'single_movement',
+  totalRounds: 12,
+};
+
+function normalizeEmomOptions(opts: EmomFactoryOptions): EmomFactoryOptions {
+  if (opts.structure === 'alternating') {
+    const spc = Math.min(
+      EMOM_MAX_STATIONS_PER_CYCLE,
+      Math.max(
+        EMOM_MIN_STATIONS_PER_CYCLE,
+        Math.round(opts.stationsPerCycle ?? EMOM_MIN_STATIONS_PER_CYCLE)
+      )
+    );
+    const tr = snapEmomTotalRoundsToCycle(clampEmomTotalRounds(opts.totalRounds), spc);
+    return {
+      structure: 'alternating',
+      totalRounds: tr,
+      stationsPerCycle: spc,
+      includeRestStation: !!opts.includeRestStation,
+    };
+  }
+  if (opts.structure === 'complex') {
+    const mpm = Math.min(
+      EMOM_MAX_MOVEMENTS_PER_MINUTE,
+      Math.max(
+        EMOM_MIN_MOVEMENTS_PER_MINUTE,
+        Math.round(opts.movementsPerMinute ?? EMOM_MIN_MOVEMENTS_PER_MINUTE)
+      )
+    );
+    return {
+      structure: 'complex',
+      totalRounds: clampEmomTotalRounds(opts.totalRounds),
+      movementsPerMinute: mpm,
+    };
+  }
+  return {
+    structure: 'single_movement',
+    totalRounds: clampEmomTotalRounds(opts.totalRounds),
+  };
+}
 
 const defaultBlockOptions: BlockOptions = {
   includeWarmup: true,
@@ -226,6 +285,7 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
   const [selectedZone, setSelectedZone] = useState<Zone | null>(null);
   const [equipmentItems, setEquipmentItems] = useState<Array<{ id: string; name: string }>>([]);
   const [selectedEquipmentIds, setSelectedEquipmentIds] = useState<string[]>([]);
+  const [equipmentPickSearch, setEquipmentPickSearch] = useState('');
   const [workoutSetType, setWorkoutSetType] = useState<WorkoutSetType>('split');
   const [showPreviewOverlay, setShowPreviewOverlay] = useState(false);
 
@@ -314,26 +374,46 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
     };
   }, [isOpen, saveTarget, savedTrainerWorkoutIds]);
 
+  const toggleManualEquipmentId = useCallback((id: string) => {
+    setWorkoutConfig((prev) => {
+      const base = prev.selectedEquipmentIds?.filter(Boolean) ?? [];
+      const next = base.includes(id) ? base.filter((x) => x !== id) : [...base, id];
+      return { ...prev, selectedEquipmentIds: next.length ? next : undefined };
+    });
+  }, []);
+
   const buildPersona = useCallback((): WorkoutPersona => {
-    const tabataOn = !!workoutConfig.tabataBalancedMode;
-    const amrapOn = !!workoutConfig.amrapDensityMode && !tabataOn;
-    const hiitOn = !!workoutConfig.hiitMode && !amrapOn && !tabataOn;
+    const emomOn = !!workoutConfig.emomMode;
+    const tabataOn = !!workoutConfig.tabataBalancedMode && !emomOn;
+    const amrapOn = !!workoutConfig.amrapDensityMode && !tabataOn && !emomOn;
+    const hiitOn = !!workoutConfig.hiitMode && !amrapOn && !tabataOn && !emomOn;
+    const medicalNotesTrimmed = workoutConfig.medicalNotes?.trim() ?? '';
+    const zoneIdEffective = selectedZone?.id ?? workoutConfig.zoneId;
+    const equipmentIdsForPersona = zoneIdEffective
+      ? selectedEquipmentIds.length > 0
+        ? selectedEquipmentIds
+        : (workoutConfig.selectedEquipmentIds?.filter(Boolean) ?? [])
+      : (workoutConfig.selectedEquipmentIds?.filter(Boolean) ?? []);
     return {
       title: workoutConfig.workoutInfo.title.trim(),
       description: workoutConfig.workoutInfo.description.trim(),
       demographics: workoutConfig.targetAudience,
-      medical: {
-        injuries: workoutConfig.medicalContext?.includeInjuries
-          ? workoutConfig.medicalContext.injuries || ''
-          : '',
-        conditions: workoutConfig.medicalContext?.includeConditions
-          ? workoutConfig.medicalContext.conditions || ''
-          : '',
-      },
+      medical: medicalNotesTrimmed
+        ? { injuries: '', conditions: '' }
+        : {
+            injuries: workoutConfig.medicalContext?.includeInjuries
+              ? workoutConfig.medicalContext.injuries || ''
+              : '',
+            conditions: workoutConfig.medicalContext?.includeConditions
+              ? workoutConfig.medicalContext.conditions || ''
+              : '',
+          },
+      medicalNotes: medicalNotesTrimmed || undefined,
       goals: workoutConfig.goals,
-      zoneId: selectedZone?.id ?? workoutConfig.zoneId,
+      zoneId: zoneIdEffective,
       selectedEquipmentIds:
-        selectedEquipmentIds.length > 0 ? selectedEquipmentIds : workoutConfig.selectedEquipmentIds,
+        equipmentIdsForPersona.length > 0 ? equipmentIdsForPersona : undefined,
+      additionalEquipmentLabels: workoutConfig.additionalEquipmentLabels?.trim() || undefined,
       weeklyTimeMinutes: workoutConfig.requirements.weeklyTimeMinutes,
       sessionsPerWeek: workoutSetType === 'single' ? 1 : workoutConfig.requirements.sessionsPerWeek,
       sessionDurationMinutes: workoutConfig.requirements.sessionDurationMinutes,
@@ -351,31 +431,47 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
       tabataBalancedOptions: tabataOn
         ? (workoutConfig.tabataBalancedOptions ?? defaultTabataBalancedOptions)
         : undefined,
+      emomMode: emomOn,
+      emomOptions: emomOn
+        ? normalizeEmomOptions(workoutConfig.emomOptions ?? defaultEmomOptions)
+        : undefined,
     };
   }, [workoutConfig, selectedZone?.id, selectedEquipmentIds, workoutSetType]);
 
   const buildRequestBody = useCallback(() => {
+    const emomOn = !!workoutConfig.emomMode;
     const useMetabolicBlocks =
-      workoutConfig.hiitMode || workoutConfig.amrapDensityMode || workoutConfig.tabataBalancedMode;
-    const tabataOn = !!workoutConfig.tabataBalancedMode;
+      workoutConfig.hiitMode ||
+      workoutConfig.amrapDensityMode ||
+      workoutConfig.tabataBalancedMode ||
+      emomOn;
+    const tabataOn = !!workoutConfig.tabataBalancedMode && !emomOn;
     return {
       ...buildPersona(),
       blockOptions: useMetabolicBlocks
         ? undefined
         : (workoutConfig.blockOptions ?? defaultBlockOptions),
-      hiitMode: !!workoutConfig.hiitMode && !workoutConfig.amrapDensityMode && !tabataOn,
+      hiitMode:
+        !!workoutConfig.hiitMode &&
+        !workoutConfig.amrapDensityMode &&
+        !tabataOn &&
+        !emomOn,
       hiitOptions:
-        workoutConfig.hiitMode && !workoutConfig.amrapDensityMode && !tabataOn
+        workoutConfig.hiitMode && !workoutConfig.amrapDensityMode && !tabataOn && !emomOn
           ? (workoutConfig.hiitOptions ?? defaultHiitOptions)
           : undefined,
-      amrapDensityMode: !!workoutConfig.amrapDensityMode && !tabataOn,
+      amrapDensityMode: !!workoutConfig.amrapDensityMode && !tabataOn && !emomOn,
       amrapDensityOptions:
-        workoutConfig.amrapDensityMode && !tabataOn
+        workoutConfig.amrapDensityMode && !tabataOn && !emomOn
           ? (workoutConfig.amrapDensityOptions ?? defaultAmrapDensityOptions)
           : undefined,
       tabataBalancedMode: tabataOn,
       tabataBalancedOptions: tabataOn
         ? (workoutConfig.tabataBalancedOptions ?? defaultTabataBalancedOptions)
+        : undefined,
+      emomMode: emomOn,
+      emomOptions: emomOn
+        ? normalizeEmomOptions(workoutConfig.emomOptions ?? defaultEmomOptions)
         : undefined,
     };
   }, [
@@ -383,10 +479,12 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
     workoutConfig.hiitMode,
     workoutConfig.amrapDensityMode,
     workoutConfig.tabataBalancedMode,
+    workoutConfig.emomMode,
     workoutConfig.blockOptions,
     workoutConfig.hiitOptions,
     workoutConfig.amrapDensityOptions,
     workoutConfig.tabataBalancedOptions,
+    workoutConfig.emomOptions,
   ]);
 
   const {
@@ -928,6 +1026,7 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
                               hiitMode: checked,
                               amrapDensityMode: checked ? false : prev.amrapDensityMode,
                               tabataBalancedMode: checked ? false : prev.tabataBalancedMode,
+                              emomMode: checked ? false : prev.emomMode,
                               hiitOptions:
                                 checked && !prev.hiitOptions
                                   ? defaultHiitOptions
@@ -964,6 +1063,7 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
                               amrapDensityMode: checked,
                               hiitMode: checked ? false : prev.hiitMode,
                               tabataBalancedMode: checked ? false : prev.tabataBalancedMode,
+                              emomMode: checked ? false : prev.emomMode,
                               amrapDensityOptions: checked
                                 ? (prev.amrapDensityOptions ?? defaultAmrapDensityOptions)
                                 : prev.amrapDensityOptions,
@@ -1000,6 +1100,7 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
                               tabataBalancedMode: checked,
                               hiitMode: checked ? false : prev.hiitMode,
                               amrapDensityMode: checked ? false : prev.amrapDensityMode,
+                              emomMode: checked ? false : prev.emomMode,
                               tabataBalancedOptions: checked
                                 ? { ...opts, roundCount: snapped }
                                 : prev.tabataBalancedOptions,
@@ -1016,6 +1117,39 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
                       />
                       <span className="text-sm font-medium text-white/80">
                         Enable Balanced Strength &amp; Cardio Tabata Mode
+                      </span>
+                    </label>
+                    <label className="flex cursor-pointer items-center gap-3">
+                      <input
+                        type="checkbox"
+                        checked={!!workoutConfig.emomMode}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setWorkoutConfig((prev) => {
+                            const base = normalizeEmomOptions(
+                              prev.emomOptions ?? defaultEmomOptions
+                            );
+                            const minutes = emomSessionMinutes(base);
+                            return {
+                              ...prev,
+                              emomMode: checked,
+                              hiitMode: checked ? false : prev.hiitMode,
+                              amrapDensityMode: checked ? false : prev.amrapDensityMode,
+                              tabataBalancedMode: checked ? false : prev.tabataBalancedMode,
+                              emomOptions: checked ? base : prev.emomOptions,
+                              requirements: {
+                                ...prev.requirements,
+                                sessionDurationMinutes: checked
+                                  ? minutes
+                                  : prev.requirements.sessionDurationMinutes,
+                              },
+                            };
+                          });
+                        }}
+                        className="focus:ring-orange-light/50 h-4 w-4 rounded border-white/20 bg-black/20 text-orange-light focus:ring-2"
+                      />
+                      <span className="text-sm font-medium text-white/80">
+                        Enable Every Minute On The Minute (EMOM) Mode
                       </span>
                     </label>
                   </div>
@@ -1069,7 +1203,8 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
 
                   {!workoutConfig.hiitMode &&
                     !workoutConfig.amrapDensityMode &&
-                    !workoutConfig.tabataBalancedMode && (
+                    !workoutConfig.tabataBalancedMode &&
+                    !workoutConfig.emomMode && (
                       <div className="space-y-4">
                         <h3 className="font-heading text-lg font-bold text-white">
                           Block selectors
@@ -1249,9 +1384,202 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
                     />
                   )}
 
+                  {workoutConfig.emomMode && (
+                    <div className="space-y-4 rounded-lg border border-white/10 bg-black/20 p-4">
+                      <h3 className="font-heading text-lg font-bold text-white">EMOM structure</h3>
+                      <p className="text-sm text-white/70">
+                        Single: repeat the same work every minute. Alternating: rotate stations each
+                        minute (total minutes must be a multiple of cycle length). Complex: several
+                        movements inside the same minute before the next minute starts — target
+                        roughly 40–50s of work per minute.
+                      </p>
+                      <div>
+                        <label className="mb-2 block text-sm font-medium text-white/80">
+                          Structure
+                        </label>
+                        <select
+                          value={
+                            (workoutConfig.emomOptions ?? defaultEmomOptions).structure
+                          }
+                          onChange={(e) => {
+                            const structure = e.target.value as EmomFactoryStructure;
+                            setWorkoutConfig((prev) => {
+                              const raw: EmomFactoryOptions = {
+                                ...(prev.emomOptions ?? defaultEmomOptions),
+                                structure,
+                              };
+                              if (structure === 'alternating') {
+                                raw.stationsPerCycle =
+                                  raw.stationsPerCycle ?? EMOM_MIN_STATIONS_PER_CYCLE;
+                              }
+                              if (structure === 'complex') {
+                                raw.movementsPerMinute =
+                                  raw.movementsPerMinute ?? EMOM_MIN_MOVEMENTS_PER_MINUTE;
+                              }
+                              const nextOpts = normalizeEmomOptions(raw);
+                              return {
+                                ...prev,
+                                emomOptions: nextOpts,
+                                requirements: {
+                                  ...prev.requirements,
+                                  sessionDurationMinutes: emomSessionMinutes(nextOpts),
+                                },
+                              };
+                            });
+                          }}
+                          className="focus:border-orange-light/50 focus:ring-orange-light/20 w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-white focus:outline-none focus:ring-2"
+                        >
+                          <option value="single_movement">Single movement</option>
+                          <option value="alternating">Alternating (E2MOM, etc.)</option>
+                          <option value="complex">Complex (cluster inside 60s)</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="mb-2 block text-sm font-medium text-white/80">
+                          Total EMOM rounds (minutes){' '}
+                          <span className="text-white/50">
+                            ({EMOM_MIN_TOTAL_ROUNDS}–{EMOM_MAX_TOTAL_ROUNDS})
+                          </span>
+                        </label>
+                        <input
+                          type="number"
+                          min={EMOM_MIN_TOTAL_ROUNDS}
+                          max={EMOM_MAX_TOTAL_ROUNDS}
+                          value={(workoutConfig.emomOptions ?? defaultEmomOptions).totalRounds}
+                          onChange={(e) => {
+                            const n = parseInt(e.target.value, 10);
+                            setWorkoutConfig((prev) => {
+                              const base = { ...(prev.emomOptions ?? defaultEmomOptions) };
+                              base.totalRounds = Number.isFinite(n) ? n : base.totalRounds;
+                              const nextOpts = normalizeEmomOptions(base);
+                              return {
+                                ...prev,
+                                emomOptions: nextOpts,
+                                requirements: {
+                                  ...prev.requirements,
+                                  sessionDurationMinutes: emomSessionMinutes(nextOpts),
+                                },
+                              };
+                            });
+                          }}
+                          className="focus:border-orange-light/50 focus:ring-orange-light/20 w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-white focus:outline-none focus:ring-2"
+                        />
+                      </div>
+                      {(workoutConfig.emomOptions ?? defaultEmomOptions).structure ===
+                        'alternating' && (
+                        <>
+                          <div>
+                            <label className="mb-2 block text-sm font-medium text-white/80">
+                              Stations per cycle ({EMOM_MIN_STATIONS_PER_CYCLE}–
+                              {EMOM_MAX_STATIONS_PER_CYCLE})
+                            </label>
+                            <input
+                              type="number"
+                              min={EMOM_MIN_STATIONS_PER_CYCLE}
+                              max={EMOM_MAX_STATIONS_PER_CYCLE}
+                              value={
+                                (workoutConfig.emomOptions ?? defaultEmomOptions)
+                                  .stationsPerCycle ?? EMOM_MIN_STATIONS_PER_CYCLE
+                              }
+                              onChange={(e) => {
+                                const n = parseInt(e.target.value, 10);
+                                setWorkoutConfig((prev) => {
+                                  const base = { ...(prev.emomOptions ?? defaultEmomOptions) };
+                                  base.structure = 'alternating';
+                                  base.stationsPerCycle = Number.isFinite(n)
+                                    ? n
+                                    : (base.stationsPerCycle ?? EMOM_MIN_STATIONS_PER_CYCLE);
+                                  const nextOpts = normalizeEmomOptions(base);
+                                  return {
+                                    ...prev,
+                                    emomOptions: nextOpts,
+                                    requirements: {
+                                      ...prev.requirements,
+                                      sessionDurationMinutes: emomSessionMinutes(nextOpts),
+                                    },
+                                  };
+                                });
+                              }}
+                              className="focus:border-orange-light/50 focus:ring-orange-light/20 w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-white focus:outline-none focus:ring-2"
+                            />
+                          </div>
+                          <label className="flex cursor-pointer items-center gap-3">
+                            <input
+                              type="checkbox"
+                              checked={
+                                !!(workoutConfig.emomOptions ?? defaultEmomOptions)
+                                  .includeRestStation
+                              }
+                              onChange={(e) => {
+                                const on = e.target.checked;
+                                setWorkoutConfig((prev) => {
+                                  const base = { ...(prev.emomOptions ?? defaultEmomOptions) };
+                                  base.structure = 'alternating';
+                                  base.includeRestStation = on;
+                                  const nextOpts = normalizeEmomOptions(base);
+                                  return {
+                                    ...prev,
+                                    emomOptions: nextOpts,
+                                    requirements: {
+                                      ...prev.requirements,
+                                      sessionDurationMinutes: emomSessionMinutes(nextOpts),
+                                    },
+                                  };
+                                });
+                              }}
+                              className="focus:ring-orange-light/50 h-4 w-4 rounded border-white/20 bg-black/20 text-orange-light focus:ring-2"
+                            />
+                            <span className="text-sm font-medium text-white/80">
+                              Include a rest / easy-recovery station in the cycle
+                            </span>
+                          </label>
+                        </>
+                      )}
+                      {(workoutConfig.emomOptions ?? defaultEmomOptions).structure ===
+                        'complex' && (
+                        <div>
+                          <label className="mb-2 block text-sm font-medium text-white/80">
+                            Movements per minute ({EMOM_MIN_MOVEMENTS_PER_MINUTE}–
+                            {EMOM_MAX_MOVEMENTS_PER_MINUTE})
+                          </label>
+                          <input
+                            type="number"
+                            min={EMOM_MIN_MOVEMENTS_PER_MINUTE}
+                            max={EMOM_MAX_MOVEMENTS_PER_MINUTE}
+                            value={
+                              (workoutConfig.emomOptions ?? defaultEmomOptions)
+                                .movementsPerMinute ?? EMOM_MIN_MOVEMENTS_PER_MINUTE
+                            }
+                            onChange={(e) => {
+                              const n = parseInt(e.target.value, 10);
+                              setWorkoutConfig((prev) => {
+                                const base = { ...(prev.emomOptions ?? defaultEmomOptions) };
+                                base.structure = 'complex';
+                                base.movementsPerMinute = Number.isFinite(n)
+                                  ? n
+                                  : (base.movementsPerMinute ?? EMOM_MIN_MOVEMENTS_PER_MINUTE);
+                                const nextOpts = normalizeEmomOptions(base);
+                                return {
+                                  ...prev,
+                                  emomOptions: nextOpts,
+                                  requirements: {
+                                    ...prev.requirements,
+                                    sessionDurationMinutes: emomSessionMinutes(nextOpts),
+                                  },
+                                };
+                              });
+                            }}
+                            className="focus:border-orange-light/50 focus:ring-orange-light/20 w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-white focus:outline-none focus:ring-2"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {workoutConfig.hiitMode &&
                     !workoutConfig.amrapDensityMode &&
-                    !workoutConfig.tabataBalancedMode && (
+                    !workoutConfig.tabataBalancedMode &&
+                    !workoutConfig.emomMode && (
                       <div className="space-y-4">
                         <h3 className="font-heading text-lg font-bold text-white">
                           Metabolic Architecture
@@ -1454,7 +1782,8 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
                         </label>
                         {workoutConfig.hiitMode &&
                         !workoutConfig.amrapDensityMode &&
-                        !workoutConfig.tabataBalancedMode ? (
+                        !workoutConfig.tabataBalancedMode &&
+                        !workoutConfig.emomMode ? (
                           <select
                             value={
                               (workoutConfig.hiitOptions ?? defaultHiitOptions).sessionDurationTier
@@ -1498,6 +1827,15 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
                             </span>{' '}
                             — from Tabata rounds × 30s (20s work + 10s rest per interval); adjust in
                             Tabata architecture above.
+                          </p>
+                        ) : workoutConfig.emomMode ? (
+                          <p className="text-sm text-white/75">
+                            Session clock:{' '}
+                            <span className="font-medium text-white">
+                              {workoutConfig.requirements.sessionDurationMinutes} min
+                            </span>{' '}
+                            — equals total EMOM rounds (one minute per round); adjust in EMOM
+                            settings above.
                           </p>
                         ) : (
                           <input
@@ -1705,6 +2043,26 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
                         </select>
                       </div>
                     </div>
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-white/80">
+                        Injury & medical (optional)
+                      </label>
+                      <textarea
+                        rows={3}
+                        value={workoutConfig.medicalNotes ?? ''}
+                        onChange={(e) =>
+                          setWorkoutConfig((prev) => ({
+                            ...prev,
+                            medicalNotes: e.target.value,
+                          }))
+                        }
+                        placeholder="Limitations, clearance notes, movements to avoid..."
+                        className="focus:border-orange-light/50 focus:ring-orange-light/20 w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-white placeholder:text-white/40 focus:outline-none focus:ring-2"
+                      />
+                      <p className="mt-1 text-xs text-white/50">
+                        When filled, this replaces toggled injury/condition lines for AI prompts.
+                      </p>
+                    </div>
                   </div>
 
                   <div className="space-y-4">
@@ -1718,14 +2076,16 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
                           value={
                             workoutConfig.hiitMode &&
                             !workoutConfig.amrapDensityMode &&
-                            !workoutConfig.tabataBalancedMode
+                            !workoutConfig.tabataBalancedMode &&
+                            !workoutConfig.emomMode
                               ? (workoutConfig.hiitOptions ?? defaultHiitOptions).primaryGoal
                               : workoutConfig.goals.primary
                           }
                           onChange={(e) =>
                             workoutConfig.hiitMode &&
                             !workoutConfig.amrapDensityMode &&
-                            !workoutConfig.tabataBalancedMode
+                            !workoutConfig.tabataBalancedMode &&
+                            !workoutConfig.emomMode
                               ? setWorkoutConfig((prev) => ({
                                   ...prev,
                                   hiitOptions: {
@@ -1742,7 +2102,8 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
                         >
                           {workoutConfig.hiitMode &&
                           !workoutConfig.amrapDensityMode &&
-                          !workoutConfig.tabataBalancedMode
+                          !workoutConfig.tabataBalancedMode &&
+                          !workoutConfig.emomMode
                             ? HIIT_PRIMARY_GOAL_OPTIONS.map((o) => (
                                 <option key={o.value} value={o.value}>
                                   {o.label}
@@ -1805,6 +2166,7 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
                         } else {
                           setSelectedZone(null);
                           setSelectedEquipmentIds([]);
+                          setEquipmentPickSearch('');
                           setWorkoutConfig((prev) => ({
                             ...prev,
                             zoneId: undefined,
@@ -1821,6 +2183,64 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
                         </option>
                       ))}
                     </select>
+                    {!selectedZone && (
+                      <div className="space-y-3">
+                        <p className="text-xs text-white/60">
+                          No gym zone: pick catalog equipment so the AI knows what kit is available.
+                          Selections apply to generation even without a named zone.
+                        </p>
+                        <input
+                          type="search"
+                          value={equipmentPickSearch}
+                          onChange={(e) => setEquipmentPickSearch(e.target.value)}
+                          placeholder="Filter equipment..."
+                          className="focus:border-orange-light/50 focus:ring-orange-light/20 w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2"
+                        />
+                        <div className="max-h-48 space-y-2 overflow-y-auto rounded-lg border border-white/10 bg-black/20 p-3">
+                          {equipmentItems
+                            .filter((e) =>
+                              e.name
+                                .toLowerCase()
+                                .includes(equipmentPickSearch.trim().toLowerCase())
+                            )
+                            .map((e) => {
+                              const manualIds = workoutConfig.selectedEquipmentIds ?? [];
+                              const checked = manualIds.includes(e.id);
+                              return (
+                                <label
+                                  key={e.id}
+                                  className="flex cursor-pointer items-center gap-2 text-sm text-white/90"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    className="rounded border-white/20"
+                                    checked={checked}
+                                    onChange={() => toggleManualEquipmentId(e.id)}
+                                  />
+                                  {e.name}
+                                </label>
+                              );
+                            })}
+                        </div>
+                        <div>
+                          <label className="mb-2 block text-sm font-medium text-white/80">
+                            Additional equipment (comma-separated, optional)
+                          </label>
+                          <input
+                            type="text"
+                            value={workoutConfig.additionalEquipmentLabels ?? ''}
+                            onChange={(e) =>
+                              setWorkoutConfig((prev) => ({
+                                ...prev,
+                                additionalEquipmentLabels: e.target.value,
+                              }))
+                            }
+                            placeholder="e.g. SkiErg, Assault bike"
+                            className="focus:border-orange-light/50 focus:ring-orange-light/20 w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-white placeholder:text-white/40 focus:outline-none focus:ring-2"
+                          />
+                        </div>
+                      </div>
+                    )}
                     {selectedZone && (
                       <div className="rounded-lg border border-white/10 bg-black/20 p-3">
                         <p className="text-sm text-white/80">
@@ -1835,7 +2255,8 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
                     )}
                     {workoutConfig.hiitMode &&
                       !workoutConfig.amrapDensityMode &&
-                      !workoutConfig.tabataBalancedMode && (
+                      !workoutConfig.tabataBalancedMode &&
+                      !workoutConfig.emomMode && (
                         <p className="text-xs text-white/50">
                           For HIIT, the AI deprioritizes heavy barbell setups and favors Dumbbells,
                           Kettlebells, and Bodyweight for safety under fatigue.
@@ -1851,6 +2272,12 @@ const WorkoutGeneratorModal: React.FC<WorkoutGeneratorModalProps> = ({
                       <p className="text-xs text-white/50">
                         For Balanced Tabata, the AI favors fast-setup movements (dumbbells,
                         kettlebells, bodyweight) that fit 20s work blocks and clear pairing logic.
+                      </p>
+                    )}
+                    {workoutConfig.emomMode && (
+                      <p className="text-xs text-white/50">
+                        For EMOM, the AI favors movements that reset quickly each minute (dumbbells,
+                        kettlebells, bodyweight) and clear minute boundaries.
                       </p>
                     )}
                   </div>

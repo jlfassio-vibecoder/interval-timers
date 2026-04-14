@@ -21,6 +21,7 @@ import {
   UserCircle,
   Video,
   Sparkles,
+  Flame,
   ChevronDown,
   Calendar,
 } from 'lucide-react';
@@ -45,6 +46,7 @@ import TrainerLiveLobbyView from './live/TrainerLiveLobbyView';
 import TrainerLiveHostView from './live/TrainerLiveHostView';
 import LiveSessionSummaryView from './live/LiveSessionSummaryView';
 import TrainerWorkoutFactoryView from './views/TrainerWorkoutFactoryView';
+import TrainerWarmupsView from './views/TrainerWarmupsView';
 import TrainerClientWorkoutsView from './views/TrainerClientWorkoutsView';
 import TrainerWorkoutSeriesView from './views/TrainerWorkoutSeriesView';
 import TrainerLibraryWorkoutEditView from './views/TrainerLibraryWorkoutEditView';
@@ -69,8 +71,12 @@ function isTrainerNavActive(path: string, pathname: string): boolean {
   if (path === '/workouts') {
     if (pathname === '/workouts' || pathname === '/workouts/') return true;
     if (pathname.startsWith('/workouts/factory')) return false;
+    if (pathname.startsWith('/workouts/warmups')) return false;
     if (pathname.startsWith('/workouts/')) return true;
     return false;
+  }
+  if (path === '/workouts/warmups') {
+    return pathname === '/workouts/warmups' || pathname.startsWith('/workouts/warmups/');
   }
   if (path === '/workouts/factory') {
     return pathname === '/workouts/factory' || pathname.startsWith('/workouts/factory/');
@@ -95,6 +101,7 @@ function isTrainerNavActive(path: string, pathname: string): boolean {
 
 const WORKOUT_FACTORY_SUBLINKS = [
   { path: '/workouts', label: 'Workouts', icon: LayoutList },
+  { path: '/workouts/warmups', label: 'Warmups', icon: Flame },
   { path: '/workouts/factory', label: 'Generate', icon: Sparkles },
 ] as const;
 
@@ -204,7 +211,7 @@ const TrainerLayout: React.FC = () => {
                         <NavLink
                           key={sub.path}
                           to={sub.path}
-                          end={sub.path === '/workouts'}
+                          end={sub.path === '/workouts' || sub.path === '/workouts/warmups'}
                           className={() => navLinkClass(subActive)}
                         >
                           <SubIcon className="h-5 w-5 shrink-0" />
@@ -460,6 +467,11 @@ function TrainerWorkoutFactoryRoute() {
   return isTrainer ? <TrainerWorkoutFactoryView /> : <Navigate to="/" replace />;
 }
 
+function TrainerWarmupsRoute() {
+  const { isTrainer } = useAppContext();
+  return isTrainer ? <TrainerWarmupsView /> : <Navigate to="/" replace />;
+}
+
 function TrainerClientWorkoutsRoute() {
   const { isTrainer } = useAppContext();
   return isTrainer ? <TrainerClientWorkoutsView /> : <Navigate to="/" replace />;
@@ -486,6 +498,7 @@ const TrainerBrowser: React.FC = () => {
           <Route path="/" element={<TrainerLayout />}>
             <Route index element={<TrainerDashboard />} />
             <Route path="workouts/factory" element={<TrainerWorkoutFactoryRoute />} />
+            <Route path="workouts/warmups" element={<TrainerWarmupsRoute />} />
             <Route path="workouts/series/:seriesId" element={<TrainerWorkoutSeriesRoute />} />
             <Route path="workouts/:workoutId/edit" element={<TrainerLibraryWorkoutEditRoute />} />
             <Route path="workouts" element={<TrainerClientWorkoutsRoute />} />
