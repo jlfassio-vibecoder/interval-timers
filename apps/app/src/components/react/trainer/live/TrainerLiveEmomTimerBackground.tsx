@@ -5,21 +5,23 @@ import { useTrainerLiveTimerBackground } from '@/contexts/TrainerLiveTimerBackgr
 import { supabase } from '@/lib/supabase/supabase-instance';
 
 /**
- * 16:9 Agora video behind the Tabata embed. Trainer: local camera or any client (spotlight);
- * client: trainer feed.
+ * 16:9 Agora video for EMOM: same source rules as Tabata (Me / spotlight client; client sees trainer).
+ * Host + clock: {@link videoTopLeftOverlay}; rounds / task complete: {@link videoTopRightOverlay}; rail: weight + spotlight.
  */
-export default function TrainerLiveTabataTimerBackground({
+export default function TrainerLiveEmomTimerBackground({
   trainerLiveSessionId,
   participantId,
   role,
   videoTileExcludeUid,
-  videoBottomOverlay,
+  videoTopLeftOverlay,
+  videoTopRightOverlay,
 }: {
   trainerLiveSessionId: string;
   participantId: string;
   role: 'trainer' | 'client';
   videoTileExcludeUid?: string | null;
-  videoBottomOverlay?: ReactNode;
+  videoTopLeftOverlay?: ReactNode;
+  videoTopRightOverlay?: ReactNode;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const { localVideoTrack, remoteUsers } = useTrainerLiveAgora();
@@ -78,24 +80,27 @@ export default function TrainerLiveTabataTimerBackground({
   }, [activeTrack, videoTileExcludeUid]);
 
   return (
-    <>
+    <div
+      className="relative aspect-video w-full shrink-0 overflow-hidden rounded-b-2xl"
+      data-region="trainer-live-emom-timer-video"
+    >
       <div
-        className="pointer-events-none absolute inset-x-0 top-0 z-0 aspect-video w-full overflow-hidden rounded-b-2xl"
-        data-region="trainer-live-tabata-timer-video"
-      >
-        <div
-          ref={containerRef}
-          className="h-full w-full [&>video]:h-full [&>video]:w-full [&>video]:object-cover"
-        />
-        <div className="absolute inset-0 bg-black/50" aria-hidden />
-        {videoBottomOverlay != null ? (
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 top-auto z-[2] flex max-h-[min(55%,15rem)] min-h-0 flex-col justify-end sm:max-h-[58%]">
-            <div className="pointer-events-auto max-h-full min-h-0 overflow-y-auto overflow-x-hidden rounded-b-2xl bg-gradient-to-t from-black/90 via-black/50 to-transparent px-2 pb-2 pt-8 sm:px-3 sm:pb-3 sm:pt-10">
-              {videoBottomOverlay}
-            </div>
+        ref={containerRef}
+        className="h-full w-full [&>video]:h-full [&>video]:w-full [&>video]:object-cover"
+      />
+      <div className="pointer-events-none absolute inset-0 bg-black/50" aria-hidden />
+      {videoTopLeftOverlay != null ? (
+        <div className="pointer-events-none absolute left-0 top-0 z-[3] flex max-w-[min(92%,18rem)] p-2 sm:p-3">
+          <div className="pointer-events-auto w-full min-w-0">{videoTopLeftOverlay}</div>
+        </div>
+      ) : null}
+      {videoTopRightOverlay != null ? (
+        <div className="pointer-events-none absolute right-0 top-0 z-[3] flex max-w-[min(92%,18rem)] justify-end p-2 sm:p-3">
+          <div className="pointer-events-auto w-full min-w-0 max-w-[13rem]">
+            {videoTopRightOverlay}
           </div>
-        ) : null}
-      </div>
-    </>
+        </div>
+      ) : null}
+    </div>
   );
 }

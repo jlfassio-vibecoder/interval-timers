@@ -55,26 +55,29 @@ const AccountLanding: React.FC = () => {
     return () => clearTimeout(t);
   }, [loading]);
 
-  const applyLiveInvitesRpcResult = useCallback((data: unknown, error: { message: string } | null) => {
-    if (error) {
-      setLiveInvites([]);
-      setLiveInvitesErr(error.message);
-      return;
-    }
-    setLiveInvitesErr(null);
-    const rows = Array.isArray(data) ? data : [];
-    setLiveInvites(
-      rows
-        .map((r: unknown) => {
-          const o = r as Record<string, unknown>;
-          const sid = typeof o.session_id === 'string' ? o.session_id : '';
-          const name =
-            typeof o.trainer_display_name === 'string' ? o.trainer_display_name : 'Trainer';
-          return sid ? { session_id: sid, trainer_display_name: name } : null;
-        })
-        .filter((x): x is LiveInviteRow => x != null)
-    );
-  }, []);
+  const applyLiveInvitesRpcResult = useCallback(
+    (data: unknown, error: { message: string } | null) => {
+      if (error) {
+        setLiveInvites([]);
+        setLiveInvitesErr(error.message);
+        return;
+      }
+      setLiveInvitesErr(null);
+      const rows = Array.isArray(data) ? data : [];
+      setLiveInvites(
+        rows
+          .map((r: unknown) => {
+            const o = r as Record<string, unknown>;
+            const sid = typeof o.session_id === 'string' ? o.session_id : '';
+            const name =
+              typeof o.trainer_display_name === 'string' ? o.trainer_display_name : 'Trainer';
+            return sid ? { session_id: sid, trainer_display_name: name } : null;
+          })
+          .filter((x): x is LiveInviteRow => x != null)
+      );
+    },
+    []
+  );
 
   const fetchLiveInvites = useCallback(
     async (opts?: { silent?: boolean; isCurrent?: () => boolean }) => {
@@ -524,7 +527,7 @@ const AccountLanding: React.FC = () => {
             </a>
           </div>
           {user && !isTrainer ? (
-            <div className="border-white/10 mt-6 rounded-xl border border-dashed border-white/15 bg-black/25 p-4">
+            <div className="mt-6 rounded-xl border border-dashed border-white/10 border-white/15 bg-black/25 p-4">
               <div className="mb-2 flex flex-wrap items-center gap-2">
                 <h4 className="font-heading text-base font-bold text-white">Live invitations</h4>
                 {liveInvites.length > 0 ? (
@@ -541,7 +544,10 @@ const AccountLanding: React.FC = () => {
               ) : liveInvitesErr ? (
                 <p className="text-sm text-amber-200/90">{liveInvitesErr}</p>
               ) : liveInvites.length === 0 ? (
-                <p className="text-sm text-white/55">No pending invites. When your trainer invites you to a live session, it will show here.</p>
+                <p className="text-sm text-white/55">
+                  No pending invites. When your trainer invites you to a live session, it will show
+                  here.
+                </p>
               ) : (
                 <ul className="space-y-2">
                   {liveInvites.map((inv) => (

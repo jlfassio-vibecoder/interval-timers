@@ -22,3 +22,14 @@ export function parseTabataSessionIdFromWrapperConfig(config: unknown): string |
   const trimmed = raw.trim();
   return UUID_RE.test(trimmed) ? trimmed : null;
 }
+
+/**
+ * Validates `interval_wrapper_config` for the EMOM wrapper (expects `{ emom_session_id }`).
+ */
+export function parseEmomSessionIdFromWrapperConfig(config: unknown): string | null {
+  if (config == null || typeof config !== 'object') return null;
+  const raw = (config as { emom_session_id?: unknown }).emom_session_id;
+  if (typeof raw !== 'string') return null;
+  const trimmed = raw.trim();
+  return UUID_RE.test(trimmed) ? trimmed : null;
+}

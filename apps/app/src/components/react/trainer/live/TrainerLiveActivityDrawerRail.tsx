@@ -1,8 +1,10 @@
 import type { ReactNode } from 'react';
+import { useEffect, useRef } from 'react';
 import {
   useTrainerLiveDrawerOpen,
   trainerLiveDrawerStorageKey,
 } from '@/hooks/useTrainerLiveDrawerOpen';
+import type { TrainerLiveIntervalWrapperKind } from '@/lib/trainer-live/wrappers/types';
 
 /**
  * Left-edge collapsible rail for session activity timer + block controls.
@@ -13,17 +15,40 @@ export default function TrainerLiveActivityDrawerRail({
   children,
   sessionId,
   defaultOpen = true,
+  intervalWrapperKind,
 }: {
   children: ReactNode;
   sessionId?: string;
   defaultOpen?: boolean;
+  /**
+   * When this changes from any interval wrapper (`amrap`, `tabata`, `emom`, etc.) to `none`,
+   * the rail opens so AMRAP / Tabata / EMOM options are visible again (matches header "Back to video").
+   */
+  intervalWrapperKind: TrainerLiveIntervalWrapperKind;
 }) {
   const storageKey = sessionId ? trainerLiveDrawerStorageKey(sessionId, 'activity') : undefined;
   const [open, setOpen] = useTrainerLiveDrawerOpen(storageKey, defaultOpen);
 
+  const prevWrapperKindRef = useRef<TrainerLiveIntervalWrapperKind | undefined>(undefined);
+  useEffect(() => {
+    const prev = prevWrapperKindRef.current;
+    prevWrapperKindRef.current = intervalWrapperKind;
+    const returnedToMainSession = intervalWrapperKind === 'none' && prev != null && prev !== 'none';
+    if (!returnedToMainSession) return;
+    setOpen(true);
+    if (storageKey) {
+      try {
+        sessionStorage.setItem(storageKey, '1');
+      } catch {
+        /* quota / private mode */
+      }
+    }
+  }, [intervalWrapperKind, setOpen, storageKey]);
+
   return (
     <div
       className="flex h-full min-h-0 shrink-0 self-stretch border-r border-white/10 bg-zinc-950/95 backdrop-blur-sm"
+      data-region="trainer-live-session-activity-rail"
       data-testid="trainer-live-activity-drawer-rail"
     >
       <div

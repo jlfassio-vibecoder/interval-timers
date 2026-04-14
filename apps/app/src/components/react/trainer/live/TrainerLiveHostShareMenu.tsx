@@ -50,7 +50,7 @@ export default function TrainerLiveHostShareMenu({
   return (
     <details ref={detailsRef} className="relative z-[120]">
       <summary
-        className="border-white/20 hover:bg-white/10 list-none cursor-pointer rounded-lg border px-3 py-1.5 text-xs text-white md:text-sm [&::-webkit-details-marker]:hidden"
+        className="cursor-pointer list-none rounded-lg border border-white/20 px-3 py-1.5 text-xs text-white hover:bg-white/10 md:text-sm [&::-webkit-details-marker]:hidden"
         aria-label="Share and invite"
       >
         <span className="inline-flex items-center gap-1">
@@ -58,10 +58,10 @@ export default function TrainerLiveHostShareMenu({
           <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-80" aria-hidden />
         </span>
       </summary>
-      <div className="border-white/15 absolute right-0 mt-1 min-w-[12.5rem] rounded-lg border bg-black/95 py-1 shadow-lg backdrop-blur-sm">
+      <div className="absolute right-0 mt-1 min-w-[12.5rem] rounded-lg border border-white/15 bg-black/95 py-1 shadow-lg backdrop-blur-sm">
         <button
           type="button"
-          className="hover:bg-white/10 block w-full px-3 py-2 text-left text-xs text-white md:text-sm"
+          className="block w-full px-3 py-2 text-left text-xs text-white hover:bg-white/10 md:text-sm"
           onClick={() => {
             void copyLink();
             closeMenu();
@@ -71,7 +71,7 @@ export default function TrainerLiveHostShareMenu({
         </button>
         <button
           type="button"
-          className="hover:bg-white/10 block w-full px-3 py-2 text-left text-xs text-white md:text-sm"
+          className="block w-full px-3 py-2 text-left text-xs text-white hover:bg-white/10 md:text-sm"
           onClick={() => {
             void copyJoinSessionId();
             closeMenu();
@@ -79,12 +79,12 @@ export default function TrainerLiveHostShareMenu({
         >
           {copySessionIdOk ? 'Copied session ID' : 'Copy join session ID'}
         </button>
-        <div className="border-white/10 my-1 border-t" />
+        <div className="my-1 border-t border-white/10" />
         <button
           type="button"
           disabled={inviteDisabled}
           title={inviteDisabled ? inviteDisabledReason : undefined}
-          className="hover:bg-white/10 block w-full px-3 py-2 text-left text-xs text-orange-light disabled:cursor-not-allowed disabled:opacity-40 md:text-sm"
+          className="block w-full px-3 py-2 text-left text-xs text-orange-light hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40 md:text-sm"
           onClick={() => {
             if (inviteDisabled) return;
             closeMenu();

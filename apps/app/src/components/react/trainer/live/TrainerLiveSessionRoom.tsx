@@ -58,7 +58,9 @@ export default function TrainerLiveSessionRoom({
     if (
       role !== 'client' ||
       shell !== 'countdown_timer' ||
-      (intervalWrapperKind !== 'amrap' && intervalWrapperKind !== 'tabata') ||
+      (intervalWrapperKind !== 'amrap' &&
+        intervalWrapperKind !== 'tabata' &&
+        intervalWrapperKind !== 'emom') ||
       !hasTimerBackground
     ) {
       setClientTrainerParticipantId(null);
@@ -91,14 +93,19 @@ export default function TrainerLiveSessionRoom({
           ? role === 'trainer'
             ? (timerBg.timerBackgroundSpotlightParticipantId ?? participantId)
             : clientTrainerParticipantId
-          : null
+          : intervalWrapperKind === 'emom' && timerBg
+            ? role === 'trainer'
+              ? (timerBg.timerBackgroundSpotlightParticipantId ?? participantId)
+              : clientTrainerParticipantId
+            : null
       : null;
 
-  /** AMRAP / Tabata: keep video + room controls in the VIDEO drawer only; timer panel fills the center column. */
+  /** AMRAP / Tabata / EMOM: keep video + room controls in the VIDEO drawer only; timer panel fills the center column. */
   const sessionColumnVideoPortal =
     shell === 'countdown_timer' &&
     intervalWrapperKind !== 'amrap' &&
-    intervalWrapperKind !== 'tabata';
+    intervalWrapperKind !== 'tabata' &&
+    intervalWrapperKind !== 'emom';
   const trainerMainPortalRootId =
     sessionColumnVideoPortal && role === 'trainer' ? TRAINER_LIVE_TRAINER_MAIN_SLOT_ID : undefined;
   const clientMainPortalRootId =
@@ -120,7 +127,11 @@ export default function TrainerLiveSessionRoom({
 
   const activityRail =
     activityTimer != null ? (
-      <TrainerLiveActivityDrawerRail sessionId={sessionId} defaultOpen>
+      <TrainerLiveActivityDrawerRail
+        sessionId={sessionId}
+        defaultOpen
+        intervalWrapperKind={intervalWrapperKind}
+      >
         {activityTimer}
       </TrainerLiveActivityDrawerRail>
     ) : null;
@@ -135,6 +146,7 @@ export default function TrainerLiveSessionRoom({
       ariaLabelCollapse="Collapse room chat"
       ariaLabelExpand="Expand room chat"
       defaultOpen={false}
+      data-region="trainer-live-chat-rail"
       data-testid="trainer-live-chat-rail"
     >
       {showChatDrawerLeaderboard ? (
@@ -150,6 +162,7 @@ export default function TrainerLiveSessionRoom({
             </div>
             <div
               className="min-h-0 overflow-y-auto overflow-x-hidden"
+              data-region="trainer-live-chat-drawer-leaderboard"
               data-testid="trainer-live-chat-drawer-leaderboard"
             >
               {chatDrawerLeaderboard}
@@ -183,12 +196,13 @@ export default function TrainerLiveSessionRoom({
         return (
           <div
             className="rounded-xl border border-white/10 bg-black/40 px-4 py-6 text-center text-sm text-white/70"
+            data-region="trainer-live-interval-empty"
             data-testid="trainer-live-interval-none"
           >
             {role === 'trainer' ? (
               <p>
-                Choose an interval tool above (e.g. Start AMRAP) or continue with video only in the
-                main panel.
+                Open the Session Activity rail on the left to start the timer and launch an AMRAP,
+                Tabata, or EMOM interval.
               </p>
             ) : (
               <p>Waiting for your trainer to start an interval or timer.</p>
@@ -199,7 +213,11 @@ export default function TrainerLiveSessionRoom({
       if (intervalWrapperKind === 'simple_countdown') {
         return <TrainerLiveCountdownPanel variant={role === 'trainer' ? 'trainer' : 'client'} />;
       }
-      if (intervalWrapperKind === 'amrap' || intervalWrapperKind === 'tabata') {
+      if (
+        intervalWrapperKind === 'amrap' ||
+        intervalWrapperKind === 'tabata' ||
+        intervalWrapperKind === 'emom'
+      ) {
         const Cmp = getTrainerLiveIntervalWrapper(intervalWrapperKind);
         if (!Cmp) return null;
         return <Cmp {...wrapperProps} />;
@@ -208,30 +226,47 @@ export default function TrainerLiveSessionRoom({
     })();
 
     return (
-      <div className={`flex min-h-0 w-full flex-1 flex-row items-stretch ${className ?? ''}`}>
+      <div
+        className={`flex min-h-0 w-full flex-1 flex-row items-stretch ${className ?? ''}`}
+        data-region="trainer-live-session-room"
+      >
         {activityRail}
-        <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-y-auto">
+        <div
+          className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-y-auto"
+          data-region="trainer-live-center-column"
+        >
           {sessionColumnVideoPortal ? (
             role === 'trainer' ? (
               <div
                 id={TRAINER_LIVE_TRAINER_MAIN_SLOT_ID}
                 className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col px-2 pt-2 md:px-4"
+                data-region="trainer-live-session-main-video-slot"
                 data-testid="trainer-live-trainer-main-slot"
               />
             ) : (
               <div
                 id={TRAINER_LIVE_CLIENT_MAIN_SLOT_ID}
                 className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col px-2 pt-2 md:px-4"
+                data-region="trainer-live-session-main-video-slot"
                 data-testid="trainer-live-client-main-slot"
               />
             )
           ) : null}
           {/* shrink-0: interval height is content-driven; SESSION slot above fills remaining column height. */}
-          <div className="shrink-0 px-2 pb-1 pt-2 md:px-4 md:pb-2">{intervalSidebar}</div>
+          <div
+            className="shrink-0 px-2 pb-1 pt-2 md:px-4 md:pb-2"
+            data-region="trainer-live-interval-sidebar"
+          >
+            {intervalSidebar}
+          </div>
         </div>
         <TrainerLiveVideoFeedDrawer
           sessionId={sessionId}
-          defaultOpen={intervalWrapperKind !== 'amrap' && intervalWrapperKind !== 'tabata'}
+          defaultOpen={
+            intervalWrapperKind !== 'amrap' &&
+            intervalWrapperKind !== 'tabata' &&
+            intervalWrapperKind !== 'emom'
+          }
         >
           {video}
         </TrainerLiveVideoFeedDrawer>
@@ -241,9 +276,17 @@ export default function TrainerLiveSessionRoom({
   }
 
   return (
-    <div className={`flex min-h-0 w-full flex-1 flex-row items-stretch ${className ?? ''}`}>
+    <div
+      className={`flex min-h-0 w-full flex-1 flex-row items-stretch ${className ?? ''}`}
+      data-region="trainer-live-session-room"
+    >
       {activityRail}
-      <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">{video}</div>
+      <div
+        className="min-h-0 min-w-0 flex-1 overflow-y-auto"
+        data-region="trainer-live-center-column"
+      >
+        {video}
+      </div>
       {chatRail}
     </div>
   );

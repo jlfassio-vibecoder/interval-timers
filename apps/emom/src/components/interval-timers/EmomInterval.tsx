@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import EmomTimerPanel from './EmomTimerPanel';
 import { buildAccountRedirectUrl } from '@interval-timers/handoff';
 import { IntervalTimerLanding } from '@interval-timers/timer-ui';
 import type { IntervalTimerPage } from '@interval-timers/timer-core';
@@ -408,8 +409,6 @@ const EmomInterval: React.FC<EmomIntervalProps> = ({ onNavigate, onNavigateToLan
     return () => clearInterval(interval);
   }, [isTimerOpen, isPaused, timerState, cycleCount, totalCycles]);
 
-  const formatTime = (seconds: number) => (seconds < 10 ? `0${seconds}` : `${seconds}`);
-
   const getTimerStyles = () => {
     switch (timerState) {
       case 'warmup':
@@ -741,99 +740,49 @@ const EmomInterval: React.FC<EmomIntervalProps> = ({ onNavigate, onNavigateToLan
         )}
 
       {/* CUSTOM EMOM TIMER MODAL */}
-      {isTimerOpen && (
-        <div className="animate-zoom-in fixed inset-0 z-[200] flex h-full w-full flex-col bg-[#0d0500] duration-200">
-          <div
-            className={`flex shrink-0 items-center justify-between border-b border-white/10 p-4 text-white transition-colors duration-200 md:p-6 ${timerStyle.bg}`}
-          >
-            <div>
-              <div className="mb-1 text-[10px] font-bold uppercase tracking-widest opacity-80 md:text-xs">
-                {timerState === 'warmup' || timerState === 'setup'
-                  ? 'Preparation'
-                  : timerState === 'finished'
-                    ? 'Complete'
-                    : `Round ${cycleCount} of ${totalCycles}`}
-              </div>
-              <h3 className="font-display text-xl font-bold leading-tight md:text-3xl">
-                {timerStyle.text}
-              </h3>
-              <p className="mt-1 text-xs opacity-90 md:text-sm">{timerStyle.sub}</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setIsTimerOpen(false)}
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-black/20 font-bold text-white hover:bg-black/40"
-            >
-              &times;
-            </button>
-          </div>
-
-          <div className="relative flex flex-1 flex-col items-center justify-center overflow-hidden p-4">
-            <div className="relative z-10 mb-6 text-center">
-              <div
-                className={`font-mono text-8xl font-bold tabular-nums leading-none tracking-tighter drop-shadow-2xl md:text-[180px] ${timerState === 'working' ? 'text-teal-400' : 'text-white/40'}`}
-              >
-                00:{formatTime(timerState === 'warmup' || timerState === 'setup' ? timeLeft : secondsInMinute)}
-              </div>
-
-              {timerState === 'working' && (
-                <div className="mt-8">
-                  <button
-                    type="button"
-                    onClick={handleTaskComplete}
-                    className="animate-pulse rounded-2xl bg-teal-500 px-12 py-6 text-xl font-bold text-black shadow-[0_0_40px_rgba(45,212,191,0.4)] hover:bg-teal-400"
-                  >
-                    TASK COMPLETE
-                  </button>
-                </div>
-              )}
-
-              {timerState === 'resting' && taskFinishedAt !== null && (
-                <div className="animate-fade-in mt-8 text-center">
-                  <div className="mb-2 text-sm uppercase tracking-widest text-white/60">
-                    Rest Earned
-                  </div>
-                  <div className="text-4xl font-bold text-teal-400">{60 - taskFinishedAt}s</div>
-                  <div className="mt-2 text-xs text-white/40">Wait for next minute</div>
-                </div>
-              )}
-            </div>
-
-            <div className="pointer-events-none absolute inset-0 opacity-20">
-              <svg className="h-full w-full" viewBox="0 0 100 100">
-                <circle cx="50" cy="50" r="40" fill="none" stroke="#1e293b" strokeWidth="2" />
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="40"
-                  fill="none"
-                  stroke={timerState === 'working' ? '#2dd4bf' : '#475569'}
-                  strokeWidth="2"
-                  strokeDasharray={`${(timerState === 'setup' ? (SETUP_DURATION_SECONDS - timeLeft) / SETUP_DURATION_SECONDS : secondsInMinute / 60) * 251.2} 251.2`}
-                  transform="rotate(-90 50 50)"
-                />
-              </svg>
-            </div>
-          </div>
-
-          <div className="relative z-20 flex shrink-0 items-center justify-between gap-3 border-t border-white/10 bg-black p-4 md:p-8">
-            <button
-              type="button"
-              onClick={() => setIsPaused(!isPaused)}
-              className="w-1/3 rounded-xl border border-white/20 bg-white/10 px-4 py-3 font-bold text-white hover:bg-white/20 md:px-8 md:py-4"
-            >
-              {isPaused ? 'RESUME' : 'PAUSE'}
-            </button>
-            <button
-              type="button"
-              onClick={skipToNextPhase}
-              className="w-1/3 rounded-xl px-4 py-3 font-bold text-white/60 hover:text-white md:px-8 md:py-4"
-            >
-              {timerState === 'warmup' ? 'Skip Warm-up' : timerState === 'setup' ? 'Skip setup' : 'SKIP'}
-            </button>
-          </div>
-        </div>
-      )}
+      {isTimerOpen ? (
+        <EmomTimerPanel
+          phase={
+            timerState === 'finished'
+              ? 'finished'
+              : timerState === 'idle'
+                ? 'warmup'
+                : timerState
+          }
+          mainClockSeconds={
+            timerState === 'warmup' || timerState === 'setup'
+              ? timeLeft
+              : timerState === 'finished'
+                ? 0
+                : secondsInMinute
+          }
+          headerBgClass={timerStyle.bg}
+          headerEyebrow={
+            timerState === 'warmup' || timerState === 'setup'
+              ? 'Preparation'
+              : timerState === 'finished'
+                ? 'Complete'
+                : `Round ${cycleCount} of ${totalCycles}`
+          }
+          title={timerStyle.text}
+          subtitle={timerStyle.sub}
+          setupDurationSeconds={SETUP_DURATION_SECONDS}
+          secondsInMinute={secondsInMinute}
+          countdownRemaining={timeLeft}
+          taskFinishedAt={taskFinishedAt}
+          onTaskComplete={handleTaskComplete}
+          isPaused={isPaused}
+          onPauseToggle={() => setIsPaused(!isPaused)}
+          onSkip={skipToNextPhase}
+          skipButtonLabel={
+            timerState === 'warmup' ? 'Skip Warm-up' : timerState === 'setup' ? 'Skip setup' : 'SKIP'
+          }
+          showCloseButton
+          onClose={() => setIsTimerOpen(false)}
+          embed={false}
+          showFooterControls
+        />
+      ) : null}
 
       {/* POST-SESSION CARD */}
       {showPostSession &&

@@ -1,8 +1,5 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { setStoredHostToken, setStoredParticipantId } from 'amrap/embed';
-import { isValidAttachWorkoutInput } from '@interval-timers/amrap-workout-picker';
-import { isValidTabataAttachInput } from '@/lib/trainer-live/tabata-workout-list-adapter';
 import { useAppContext } from '@/contexts/AppContext';
 import { supabase } from '@/lib/supabase/supabase-instance';
 import {
@@ -22,8 +19,6 @@ import {
 import { TrainerLiveAmrapChatDrawerProvider } from '@/contexts/TrainerLiveAmrapChatDrawerContext';
 import { TrainerLiveTimerBackgroundProvider } from '@/contexts/TrainerLiveTimerBackgroundContext';
 import TrainerLiveActivityTimer from './TrainerLiveActivityTimer';
-import TrainerLiveAmrapWorkoutPickerModal from './TrainerLiveAmrapWorkoutPickerModal';
-import TrainerLiveTabataWorkoutPickerModal from './TrainerLiveTabataWorkoutPickerModal';
 import TrainerLiveSessionRoom from './TrainerLiveSessionRoom';
 import { TrainerLiveAmrapHostNavProvider } from '@/contexts/TrainerLiveAmrapHostNavContext';
 import TrainerLiveHostNavHeaderBar from './TrainerLiveHostNavHeaderBar';
@@ -42,15 +37,9 @@ export default function TrainerLiveHostView() {
   const [intervalWrapperKind, setIntervalWrapperKind] =
     useState<TrainerLiveIntervalWrapperKind>('none');
   const [intervalWrapperConfig, setIntervalWrapperConfig] = useState<unknown>(null);
-  const [attachBusy, setAttachBusy] = useState(false);
-  const [attachErr, setAttachErr] = useState<string | null>(null);
   const [backBusy, setBackBusy] = useState(false);
   const [backErr, setBackErr] = useState<string | null>(null);
   const [wrapperErr, setWrapperErr] = useState<string | null>(null);
-  const [amrapPickerOpen, setAmrapPickerOpen] = useState(false);
-  const [amrapPickerKey, setAmrapPickerKey] = useState(0);
-  const [tabataPickerOpen, setTabataPickerOpen] = useState(false);
-  const [tabataPickerKey, setTabataPickerKey] = useState(0);
   const [inviteClientsOpen, setInviteClientsOpen] = useState(false);
   /** Reserved 1:1 session (`invited_client_user_id` set) — roster invites not allowed. */
   const [reservedForSingleClient, setReservedForSingleClient] = useState(false);
@@ -278,89 +267,15 @@ export default function TrainerLiveHostView() {
     }
   };
 
-  const attachTabata = async (workoutList: string[], roundCount: number) => {
-    if (!sessionId) return;
-    if (!isValidTabataAttachInput(roundCount, workoutList)) {
-      setAttachErr('Choose 1–32 Tabata rounds and at least one exercise.');
-      return;
-    }
-    setAttachErr(null);
-    setAttachBusy(true);
-    try {
-      const { data, error } = await supabase.rpc('trainer_live_attach_tabata_session', {
-        p_trainer_live_session_id: sessionId,
-        p_round_count: roundCount,
-        p_workout_list: workoutList,
-      });
-      if (error) {
-        setAttachErr(error.message);
-        return;
-      }
-      const row = data as { tabata_session_id?: string } | null;
-      const tid = row?.tabata_session_id;
-      if (tid) {
-        setIntervalWrapperKind('tabata');
-        setIntervalWrapperConfig({ tabata_session_id: tid });
-        setTabataPickerOpen(false);
-      } else {
-        // RPC succeeded but payload missing id (should not happen); avoid silent failure with picker stuck open
-        setAttachErr('Unable to attach Tabata session. Please try again.');
-      }
-    } finally {
-      setAttachBusy(false);
-    }
-  };
-
-  const attachAmrap = async (workoutList: string[], durationMinutes: number) => {
-    if (!sessionId) return;
-    if (!isValidAttachWorkoutInput(durationMinutes, workoutList)) {
-      setAttachErr('Choose a duration between 1 and 180 minutes and at least one exercise.');
-      return;
-    }
-    setAttachErr(null);
-    setAttachBusy(true);
-    try {
-      const { data, error } = await supabase.rpc('trainer_live_attach_amrap_session', {
-        p_trainer_live_session_id: sessionId,
-        p_duration_minutes: durationMinutes,
-        p_workout_list: workoutList,
-      });
-      if (error) {
-        setAttachErr(error.message);
-        return;
-      }
-      const row = data as {
-        amrap_session_id?: string;
-        host_token?: string | null;
-        amrap_participant_id?: string;
-      } | null;
-      const aid = row?.amrap_session_id;
-      const ht = row?.host_token;
-      const apid = row?.amrap_participant_id;
-      if (aid && ht) {
-        setStoredHostToken(aid, ht);
-      }
-      if (aid && apid) {
-        setStoredParticipantId(aid, apid);
-      }
-      if (aid) {
-        setIntervalWrapperKind('amrap');
-        setIntervalWrapperConfig({ amrap_session_id: aid });
-        setAmrapPickerOpen(false);
-      } else {
-        setAttachErr('Unable to attach AMRAP session. Please try again.');
-      }
-    } finally {
-      setAttachBusy(false);
-    }
-  };
-
   const localLabel = user?.displayName || user?.email?.split('@')[0] || 'You (trainer)';
   const authUserId = user?.uid ?? null;
 
   return (
     <TrainerLiveAmrapHostNavProvider>
-      <div className="fixed inset-0 z-[100] flex flex-col bg-black text-white">
+      <div
+        className="fixed inset-0 z-[100] flex flex-col bg-black text-white"
+        data-region="trainer-live-session-root"
+      >
         <TrainerLiveHostNavHeaderBar>
           {wrapperErr ? (
             <p className="max-w-xs text-xs text-amber-200 md:max-w-md" role="status">
@@ -372,18 +287,15 @@ export default function TrainerLiveHostView() {
               {endErr}
             </p>
           ) : null}
-          {attachErr ? (
-            <p className="max-w-xs text-xs text-red-300 md:max-w-md" role="alert">
-              {attachErr}
-            </p>
-          ) : null}
           {backErr ? (
             <p className="max-w-xs text-xs text-red-300 md:max-w-md" role="alert">
               {backErr}
             </p>
           ) : null}
           {shell === 'countdown_timer' &&
-          (intervalWrapperKind === 'amrap' || intervalWrapperKind === 'tabata') ? (
+          (intervalWrapperKind === 'amrap' ||
+            intervalWrapperKind === 'tabata' ||
+            intervalWrapperKind === 'emom') ? (
             <button
               type="button"
               data-testid="trainer-live-back-to-video"
@@ -394,39 +306,14 @@ export default function TrainerLiveHostView() {
               {backBusy ? 'Returning…' : 'Back to video'}
             </button>
           ) : null}
-          {shell === 'countdown_timer' && intervalWrapperKind === 'none' ? (
-            <>
-              <button
-                type="button"
-                data-testid="trainer-live-start-amrap"
-                disabled={attachBusy}
-                onClick={() => {
-                  setAmrapPickerKey((k) => k + 1);
-                  setAmrapPickerOpen(true);
-                }}
-                className="border-orange-light/50 bg-orange-light/15 hover:bg-orange-light/25 rounded-lg border px-3 py-1.5 text-xs text-orange-light md:text-sm"
-              >
-                {attachBusy ? 'Starting…' : 'Start AMRAP'}
-              </button>
-              <button
-                type="button"
-                data-testid="trainer-live-start-tabata"
-                disabled={attachBusy}
-                onClick={() => {
-                  setTabataPickerKey((k) => k + 1);
-                  setTabataPickerOpen(true);
-                }}
-                className="border-orange-light/50 bg-orange-light/15 hover:bg-orange-light/25 rounded-lg border px-3 py-1.5 text-xs text-orange-light md:text-sm"
-              >
-                {attachBusy ? 'Starting…' : 'Start Tabata'}
-              </button>
-            </>
-          ) : null}
           {shell === 'countdown_timer' && intervalWrapperKind === 'amrap' ? (
             <span className="text-xs text-white/50 md:text-sm">AMRAP active</span>
           ) : null}
           {shell === 'countdown_timer' && intervalWrapperKind === 'tabata' ? (
             <span className="text-xs text-white/50 md:text-sm">Tabata active</span>
+          ) : null}
+          {shell === 'countdown_timer' && intervalWrapperKind === 'emom' ? (
+            <span className="text-xs text-white/50 md:text-sm">EMOM active</span>
           ) : null}
           <TrainerLiveHostShareMenu
             copyLink={() => void copyLink()}
@@ -446,7 +333,10 @@ export default function TrainerLiveHostView() {
             {endBusy ? 'Ending…' : 'End for everyone'}
           </button>
         </TrainerLiveHostNavHeaderBar>
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-4 pb-0 pt-3 md:px-6 md:pb-0 md:pt-4">
+        <div
+          className="flex min-h-0 flex-1 flex-col overflow-hidden px-4 pb-0 pt-3 md:px-6 md:pb-0 md:pt-4"
+          data-region="trainer-live-main-workspace"
+        >
           {shell === null ? (
             <div className="flex h-48 items-center justify-center text-white/60">
               <div className="h-8 w-8 animate-spin rounded-full border-4 border-orange-light border-t-transparent" />
@@ -498,22 +388,6 @@ export default function TrainerLiveHostView() {
             </div>
           )}
         </div>
-        <TrainerLiveAmrapWorkoutPickerModal
-          open={amrapPickerOpen}
-          pickerKey={amrapPickerKey}
-          onOpenChange={setAmrapPickerOpen}
-          disabled={attachBusy}
-          onWorkoutChosen={(workoutList, durationMinutes) =>
-            attachAmrap(workoutList, durationMinutes)
-          }
-        />
-        <TrainerLiveTabataWorkoutPickerModal
-          open={tabataPickerOpen}
-          pickerKey={tabataPickerKey}
-          onOpenChange={setTabataPickerOpen}
-          disabled={attachBusy}
-          onWorkoutChosen={(workoutList, roundCount) => attachTabata(workoutList, roundCount)}
-        />
         {sessionId ? (
           <TrainerLiveInviteClientsModal
             open={inviteClientsOpen}

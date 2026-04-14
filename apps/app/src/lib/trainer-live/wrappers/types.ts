@@ -1,4 +1,9 @@
-export type TrainerLiveIntervalWrapperKind = 'none' | 'simple_countdown' | 'amrap' | 'tabata';
+export type TrainerLiveIntervalWrapperKind =
+  | 'none'
+  | 'simple_countdown'
+  | 'amrap'
+  | 'tabata'
+  | 'emom';
 
 export interface TrainerLiveWrapperBaseProps {
   trainerLiveSessionId: string;

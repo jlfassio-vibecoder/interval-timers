@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import {
   AmrapWorkoutPicker,
+  BuildWorkoutFlow,
+  isValidAttachWorkoutInput,
   type AmrapSavedWorkoutItem,
 } from '@interval-timers/amrap-workout-picker';
 import { missionControlApiAuthHeaders } from '@/lib/mission-control-api-auth';
@@ -27,6 +29,11 @@ export interface TrainerLiveAmrapWorkoutPickerModalProps {
   disabled?: boolean;
   /** Called when user completes preset or General AMRAP; parent runs attach */
   onWorkoutChosen: (workoutList: string[], durationMinutes: number) => void | Promise<void>;
+  /**
+   * When set with valid exercises + duration, opens the General AMRAP builder first (session plan).
+   * Trainer can switch to the full protocol / library via Back or the secondary control.
+   */
+  initialAmrapPrefill?: { durationMinutes: number; workoutList: string[] } | null;
 }
 
 export default function TrainerLiveAmrapWorkoutPickerModal({
@@ -35,11 +42,14 @@ export default function TrainerLiveAmrapWorkoutPickerModal({
   pickerKey,
   disabled = false,
   onWorkoutChosen,
+  initialAmrapPrefill = null,
 }: TrainerLiveAmrapWorkoutPickerModalProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const savedFocusRef = useRef<HTMLElement | null>(null);
   const [savedLibrary, setSavedLibrary] = useState<AmrapSavedWorkoutItem[] | undefined>(undefined);
   const [savedLibraryLoading, setSavedLibraryLoading] = useState(false);
+  /** Skip session-plan pre-fill and show the full AmrapWorkoutPicker (levels / saved library). */
+  const [fullProtocolPicker, setFullProtocolPicker] = useState(false);
 
   const featuredQuery = useFeaturedWorkoutsQuery('trainer_live_amrap', { enabled: open });
   const featuredPickerItems = useMemo(
@@ -50,6 +60,11 @@ export default function TrainerLiveAmrapWorkoutPickerModal({
   const handleClose = useCallback(() => {
     onOpenChange(false);
   }, [onOpenChange]);
+
+  useEffect(() => {
+    if (!open) return;
+    setFullProtocolPicker(false);
+  }, [open, pickerKey]);
 
   useEffect(() => {
     if (!open) return;
@@ -184,6 +199,11 @@ export default function TrainerLiveAmrapWorkoutPickerModal({
 
   if (!open) return null;
 
+  const showSessionPlanBuilder =
+    !fullProtocolPicker &&
+    initialAmrapPrefill != null &&
+    isValidAttachWorkoutInput(initialAmrapPrefill.durationMinutes, initialAmrapPrefill.workoutList);
+
   return (
     <div
       className="fixed inset-0 z-[200] flex items-center justify-center p-4"
@@ -202,34 +222,71 @@ export default function TrainerLiveAmrapWorkoutPickerModal({
           id="trainer-live-amrap-picker-title"
           className="mb-4 font-heading text-lg font-bold text-white"
         >
-          Choose AMRAP workout
+          {showSessionPlanBuilder ? 'AMRAP from session plan' : 'Choose AMRAP workout'}
         </h2>
-        <p className="mb-4 text-xs text-white/55">
-          Only workouts generated in Workout Factory as{' '}
-          <span className="text-white/80">Density AMRAP</span> appear here.
-        </p>
-        <AmrapWorkoutPicker
-          key={pickerKey}
-          disabled={disabled}
-          onCancel={() => handleClose()}
-          onSelect={(workoutList, durationMinutes) => {
-            void onWorkoutChosen(workoutList, durationMinutes);
-          }}
-          featuredSavedWorkouts={featuredPickerItems}
-          featuredSavedWorkoutsLoading={open && featuredQuery.loading}
-          savedWorkouts={savedLibraryLoading ? undefined : savedLibrary}
-          onConfirmSavedWorkout={(item, durationMinutes) => {
-            try {
-              const p = workoutRowToAmrapAttachParams({
-                blocks: item.blocks,
-                durationMinutes,
-              });
-              void onWorkoutChosen(p.workoutList, p.durationMinutes);
-            } catch (e) {
-              toast.error(e instanceof Error ? e.message : 'Could not use this workout');
-            }
-          }}
-        />
+        {showSessionPlanBuilder ? (
+          <>
+            <p className="mb-4 text-xs text-white/55">
+              Edit duration and exercises, or switch to levels and your saved library.
+            </p>
+            <BuildWorkoutFlow
+              key={pickerKey}
+              planKey={pickerKey}
+              initialPlan={initialAmrapPrefill}
+              backFromBuilderTargetsProtocol
+              onComplete={(durationMinutes, workoutList) => {
+                void onWorkoutChosen(workoutList, durationMinutes);
+              }}
+              onBack={() => setFullProtocolPicker(true)}
+              disabled={disabled}
+            />
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={() => setFullProtocolPicker(true)}
+              className="border-orange-light/35 bg-orange-light/10 hover:bg-orange-light/15 mt-4 w-full rounded-lg border py-2 text-sm text-orange-light disabled:opacity-40"
+            >
+              Browse levels &amp; saved workouts
+            </button>
+            <button
+              type="button"
+              onClick={handleClose}
+              disabled={disabled}
+              className="mt-3 w-full text-sm font-medium text-white/60 hover:text-white disabled:opacity-50"
+            >
+              Cancel
+            </button>
+          </>
+        ) : (
+          <>
+            <p className="mb-4 text-xs text-white/55">
+              Only workouts generated in Workout Factory as{' '}
+              <span className="text-white/80">Density AMRAP</span> appear here.
+            </p>
+            <AmrapWorkoutPicker
+              key={pickerKey}
+              disabled={disabled}
+              onCancel={() => handleClose()}
+              onSelect={(workoutList, durationMinutes) => {
+                void onWorkoutChosen(workoutList, durationMinutes);
+              }}
+              featuredSavedWorkouts={featuredPickerItems}
+              featuredSavedWorkoutsLoading={open && featuredQuery.loading}
+              savedWorkouts={savedLibraryLoading ? undefined : savedLibrary}
+              onConfirmSavedWorkout={(item, durationMinutes) => {
+                try {
+                  const p = workoutRowToAmrapAttachParams({
+                    blocks: item.blocks,
+                    durationMinutes,
+                  });
+                  void onWorkoutChosen(p.workoutList, p.durationMinutes);
+                } catch (e) {
+                  toast.error(e instanceof Error ? e.message : 'Could not use this workout');
+                }
+              }}
+            />
+          </>
+        )}
       </div>
     </div>
   );
