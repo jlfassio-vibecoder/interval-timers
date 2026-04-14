@@ -4,7 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "exports": {
-    "./embed": "./src/embed/index.ts"
+    "./embed": "./src/embed/index.ts",
+    "./timer-display": "./src/components/amrap-session/AmrapTimerDisplay.tsx"
   },
   "engines": {
     "node": "20.x"

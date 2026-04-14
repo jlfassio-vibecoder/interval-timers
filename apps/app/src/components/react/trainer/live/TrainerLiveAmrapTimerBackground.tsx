@@ -141,7 +141,10 @@ export default function TrainerLiveAmrapTimerBackground({
 
   return (
     <>
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-0 aspect-video w-full overflow-hidden rounded-b-2xl">
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 z-0 aspect-video w-full overflow-hidden rounded-b-2xl"
+        data-region="trainer-live-amrap-timer-video"
+      >
         <div
           ref={containerRef}
           className="h-full w-full [&>video]:h-full [&>video]:w-full [&>video]:object-cover"

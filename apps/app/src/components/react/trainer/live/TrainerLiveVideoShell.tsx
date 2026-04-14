@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTrainerLiveAgora } from '@/contexts/TrainerLiveAgoraContext';
 import { supabase } from '@/lib/supabase/supabase-instance';
@@ -91,6 +91,8 @@ export default function TrainerLiveVideoShell({
 
   const [videoMuted, setVideoMuted] = useState(false);
   const [audioMuted, setAudioMuted] = useState(false);
+  const [trainerPortalMountEl, setTrainerPortalMountEl] = useState<HTMLElement | null>(null);
+  const [clientPortalMountEl, setClientPortalMountEl] = useState<HTMLElement | null>(null);
 
   const handleLeave = useCallback(async () => {
     await leave();
@@ -158,15 +160,25 @@ export default function TrainerLiveVideoShell({
     typeof clientMainPortalRootId === 'string' &&
     clientMainPortalRootId.length > 0;
 
-  const portalMount =
-    typeof document !== 'undefined' && shouldSplitTrainerMain
-      ? document.getElementById(trainerMainPortalRootId)
-      : null;
+  /**
+   * Resolve portal targets after layout. During render, `getElementById` can run before the
+   * SESSION column mount exists (e.g. EMOM → main slot), leaving video stuck in the drawer until refresh.
+   */
+  useLayoutEffect(() => {
+    if (!shouldSplitTrainerMain) {
+      setTrainerPortalMountEl(null);
+      return;
+    }
+    setTrainerPortalMountEl(document.getElementById(trainerMainPortalRootId!));
+  }, [shouldSplitTrainerMain, trainerMainPortalRootId]);
 
-  const clientPortalMount =
-    typeof document !== 'undefined' && shouldSplitClientMain
-      ? document.getElementById(clientMainPortalRootId)
-      : null;
+  useLayoutEffect(() => {
+    if (!shouldSplitClientMain) {
+      setClientPortalMountEl(null);
+      return;
+    }
+    setClientPortalMountEl(document.getElementById(clientMainPortalRootId!));
+  }, [shouldSplitClientMain, clientMainPortalRootId]);
 
   const controlBar = (
     <div className={`flex flex-wrap items-center ${compact ? 'gap-2 pt-2' : 'gap-3 pt-4'}`}>
@@ -342,10 +354,10 @@ export default function TrainerLiveVideoShell({
     </div>
   );
 
-  if (role === 'trainer' && shouldSplitTrainerMain && portalMount) {
+  if (role === 'trainer' && shouldSplitTrainerMain && trainerPortalMountEl) {
     return (
       <>
-        {createPortal(trainerPortalColumn, portalMount)}
+        {createPortal(trainerPortalColumn, trainerPortalMountEl)}
         <div className={root}>
           {remoteUsers.length === 0 ? (
             <p className="py-4 text-center text-xs text-white/45">No participants yet</p>
@@ -357,10 +369,10 @@ export default function TrainerLiveVideoShell({
     );
   }
 
-  if (role === 'client' && shouldSplitClientMain && clientPortalMount) {
+  if (role === 'client' && shouldSplitClientMain && clientPortalMountEl) {
     return (
       <>
-        {createPortal(clientPortalColumn, clientPortalMount)}
+        {createPortal(clientPortalColumn, clientPortalMountEl)}
         <div className={root}>{clientPeersDrawerGrid}</div>
       </>
     );

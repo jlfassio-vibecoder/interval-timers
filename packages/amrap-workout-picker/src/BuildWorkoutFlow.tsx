@@ -2,7 +2,7 @@
  * Self-contained Build Your Workout flow: duration selection + exercise builder.
  * Used by WorkoutPicker (With Friends) and can be reused elsewhere.
  */
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   getRecentCustomWorkouts,
   saveRecentCustomWorkout,
@@ -19,17 +19,55 @@ export interface BuildWorkoutFlowProps {
   onComplete: (durationMinutes: number, workoutList: string[]) => void;
   onBack?: () => void;
   disabled?: boolean;
+  /**
+   * When set, opens the builder directly with duration + exercises (e.g. Trainer Live session plan).
+   * Resets when this object is cleared or `planKey` changes (parent should bump `planKey`).
+   */
+  initialPlan?: { durationMinutes: number; workoutList: string[] } | null;
+  /** Bumped with `initialPlan` so the builder remounts when opening a fresh pre-fill. */
+  planKey?: number;
+  /**
+   * When true (e.g. session plan pre-fill), "Back" from the exercise builder calls `onBack`
+   * instead of returning to the duration step — parent can switch to the full protocol UI.
+   */
+  backFromBuilderTargetsProtocol?: boolean;
 }
 
 export function BuildWorkoutFlow({
   onComplete,
   onBack,
   disabled = false,
+  initialPlan = null,
+  planKey = 0,
+  backFromBuilderTargetsProtocol = false,
 }: BuildWorkoutFlowProps) {
   const [buildStep, setBuildStep] = useState<'duration' | 'builder'>('duration');
   const [selectedDuration, setSelectedDuration] = useState<number | null>(null);
   const [customExercises, setCustomExercises] = useState<CustomExercise[]>([]);
   const qtyInputRef = useRef<HTMLInputElement | null>(null);
+
+  const initialPlanSig = initialPlan
+    ? `${planKey}|${initialPlan.durationMinutes}|${initialPlan.workoutList.join('\u0001')}`
+    : `${planKey}|`;
+
+  useEffect(() => {
+    if (
+      initialPlan &&
+      initialPlan.workoutList.length > 0 &&
+      Number.isFinite(initialPlan.durationMinutes) &&
+      initialPlan.durationMinutes >= 1 &&
+      initialPlan.durationMinutes <= 180
+    ) {
+      setSelectedDuration(Math.round(initialPlan.durationMinutes));
+      setCustomExercises(initialPlan.workoutList.map(parseToCustomExercise));
+      setBuildStep('builder');
+    } else {
+      setBuildStep('duration');
+      setSelectedDuration(null);
+      setCustomExercises([]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- apply when pre-fill identity or picker key changes
+  }, [initialPlanSig]);
 
   const handleSelectDuration = useCallback((minutes: number) => {
     setSelectedDuration(minutes);
@@ -69,8 +107,12 @@ export function BuildWorkoutFlow({
   }, [selectedDuration, customExercises, onComplete]);
 
   const handleBackToDuration = useCallback(() => {
+    if (backFromBuilderTargetsProtocol && onBack) {
+      onBack();
+      return;
+    }
     setBuildStep('duration');
-  }, []);
+  }, [backFromBuilderTargetsProtocol, onBack]);
 
   const handleLoadTemplate = useCallback(
     (template: AmrapBuildTemplate, options?: { adjustDuration?: number }) => {

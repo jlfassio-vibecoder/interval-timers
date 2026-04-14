@@ -9,7 +9,10 @@ export default function TrainerLiveHostNavHeaderBar({ children }: { children: Re
   const { hostNavActions } = useTrainerLiveAmrapHostNav();
 
   return (
-    <div className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3 md:px-6">
+    <div
+      className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3 md:px-6"
+      data-region="trainer-live-host-chrome"
+    >
       <div className="flex min-w-0 max-w-full flex-[1_1_auto] flex-wrap items-center gap-x-3 gap-y-2 sm:max-w-[min(100%,42rem)] md:max-w-none">
         <TrainerLiveSessionBrandingBar />
         {hostNavActions ? (

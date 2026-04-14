@@ -92,6 +92,7 @@ function AmrapEmbedBody({
   return (
     <div
       className="trainer-live-amrap-embed relative w-full min-w-0 text-white [&_.min-h-screen]:min-h-0"
+      data-region="trainer-live-amrap-interval"
       data-testid="trainer-live-amrap-shell"
     >
       {viewResultsPortal}

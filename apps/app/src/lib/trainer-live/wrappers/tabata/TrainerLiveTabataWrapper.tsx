@@ -44,6 +44,7 @@ function TabataEmbedBody({
   return (
     <div
       className="trainer-live-tabata-embed relative w-full min-w-0 text-white [&_.min-h-screen]:min-h-0"
+      data-region="trainer-live-tabata-interval"
       data-testid="trainer-live-tabata-shell"
     >
       <TrainerLiveTabataTimerBackground

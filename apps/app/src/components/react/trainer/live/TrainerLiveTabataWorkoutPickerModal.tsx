@@ -23,6 +23,8 @@ export interface TrainerLiveTabataWorkoutPickerModalProps {
   pickerKey: number;
   disabled?: boolean;
   onWorkoutChosen: (workoutList: string[], roundCount: number) => void | Promise<void>;
+  /** Pre-fill rounds + exercises from the session plan (trainer can still edit before confirm). */
+  initialTabataPrefill?: { roundCount: number; workoutList: string[] } | null;
 }
 
 export default function TrainerLiveTabataWorkoutPickerModal({
@@ -31,6 +33,7 @@ export default function TrainerLiveTabataWorkoutPickerModal({
   pickerKey,
   disabled = false,
   onWorkoutChosen,
+  initialTabataPrefill = null,
 }: TrainerLiveTabataWorkoutPickerModalProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const savedFocusRef = useRef<HTMLElement | null>(null);
@@ -39,6 +42,9 @@ export default function TrainerLiveTabataWorkoutPickerModal({
   const [phase, setPhase] = useState<'list' | 'confirm'>('list');
   const [selected, setSelected] = useState<AmrapSavedWorkoutItem | null>(null);
   const [roundInput, setRoundInput] = useState('8');
+  const [planExerciseText, setPlanExerciseText] = useState('');
+  /** Skip session plan screen and show library list */
+  const [fullLibraryPicker, setFullLibraryPicker] = useState(false);
 
   const featuredQuery = useFeaturedWorkoutsQuery('trainer_live_tabata', { enabled: open });
   const featuredPickerItems = useMemo(
@@ -64,10 +70,21 @@ export default function TrainerLiveTabataWorkoutPickerModal({
 
   useEffect(() => {
     if (!open) return;
+    setFullLibraryPicker(false);
     setPhase('list');
     setSelected(null);
     setRoundInput('8');
+    setPlanExerciseText('');
   }, [open, pickerKey]);
+
+  useEffect(() => {
+    if (!open || !initialTabataPrefill) return;
+    const { roundCount, workoutList } = initialTabataPrefill;
+    if (isValidTabataAttachInput(roundCount, workoutList)) {
+      setRoundInput(String(roundCount));
+      setPlanExerciseText(workoutList.join('\n'));
+    }
+  }, [open, pickerKey, initialTabataPrefill]);
 
   useEffect(() => {
     if (!open) return;
@@ -206,6 +223,25 @@ export default function TrainerLiveTabataWorkoutPickerModal({
     }
   }, [onWorkoutChosen, roundInput, selected]);
 
+  const confirmPlanAttach = useCallback(() => {
+    const parsed = parseInt(roundInput, 10);
+    const workoutList = planExerciseText
+      .split('\n')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (!isValidTabataAttachInput(parsed, workoutList)) {
+      toast.error('Choose 1–32 rounds and at least one exercise.');
+      return;
+    }
+    void onWorkoutChosen(workoutList, parsed);
+  }, [onWorkoutChosen, planExerciseText, roundInput]);
+
+  const showSessionPlanTabata =
+    open &&
+    !fullLibraryPicker &&
+    initialTabataPrefill != null &&
+    isValidTabataAttachInput(initialTabataPrefill.roundCount, initialTabataPrefill.workoutList);
+
   if (!open) return null;
 
   return (
@@ -226,10 +262,77 @@ export default function TrainerLiveTabataWorkoutPickerModal({
           id="trainer-live-tabata-picker-title"
           className="mb-4 font-heading text-lg font-bold text-white"
         >
-          Choose Tabata workout
+          {showSessionPlanTabata ? 'Tabata from session plan' : 'Choose Tabata workout'}
         </h2>
 
-        {phase === 'list' ? (
+        {showSessionPlanTabata ? (
+          <div className="space-y-4">
+            <p className="text-sm text-white/70">
+              Edit rounds and exercises, or open your saved Tabata library.
+            </p>
+            <div>
+              <label
+                htmlFor="trainer-live-tabata-plan-rounds"
+                className="mb-1 block text-xs text-white/60"
+              >
+                Rounds (1–32)
+              </label>
+              <input
+                id="trainer-live-tabata-plan-rounds"
+                type="number"
+                min={1}
+                max={32}
+                value={roundInput}
+                onChange={(e) => setRoundInput(e.target.value)}
+                disabled={disabled}
+                className="w-full rounded-lg border border-white/20 bg-black/40 px-3 py-2 text-white"
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="trainer-live-tabata-plan-exercises"
+                className="mb-1 block text-xs text-white/60"
+              >
+                Exercises (one per line)
+              </label>
+              <textarea
+                id="trainer-live-tabata-plan-exercises"
+                value={planExerciseText}
+                onChange={(e) => setPlanExerciseText(e.target.value)}
+                disabled={disabled}
+                rows={6}
+                className="w-full resize-y rounded-lg border border-white/20 bg-black/40 px-3 py-2 font-mono text-sm text-white"
+              />
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                disabled={disabled}
+                data-testid="trainer-live-tabata-picker-confirm"
+                onClick={() => void confirmPlanAttach()}
+                className="border-orange-light/50 bg-orange-light/15 hover:bg-orange-light/25 rounded-lg border px-3 py-1.5 text-sm text-orange-light"
+              >
+                Use for Tabata
+              </button>
+              <button
+                type="button"
+                disabled={disabled}
+                onClick={() => setFullLibraryPicker(true)}
+                className="rounded-lg border border-white/20 px-3 py-1.5 text-sm text-white/90 hover:bg-white/10"
+              >
+                Browse saved workouts
+              </button>
+              <button
+                type="button"
+                disabled={disabled}
+                onClick={handleClose}
+                className="rounded-lg border border-white/15 px-3 py-1.5 text-sm text-white/70 hover:bg-white/10"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : phase === 'list' ? (
           <div className="space-y-3">
             <p className="text-sm text-white/70">
               Only workouts generated in Workout Factory as{' '}

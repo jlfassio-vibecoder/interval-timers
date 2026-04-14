@@ -10,6 +10,8 @@ export interface TrainerLiveActivitySegmentRow {
   amrap_session_id: string | null;
   /** Present on every segment row from activity get_state RPC (null when not a Tabata segment). */
   tabata_session_id: string | null;
+  /** Present on every segment row from activity get_state RPC (null when not an EMOM segment). */
+  emom_session_id: string | null;
 }
 
 export interface TrainerLiveActivityState {
@@ -56,9 +58,11 @@ export function parseTrainerLiveActivityState(data: unknown): TrainerLiveActivit
     ? (o.segments as Record<string, unknown>[]).map((seg) => {
         const base = seg as Record<string, unknown>;
         const tid = base.tabata_session_id;
+        const eid = base.emom_session_id;
         return {
           ...(seg as unknown as TrainerLiveActivitySegmentRow),
           tabata_session_id: tid == null ? null : typeof tid === 'string' ? tid : null,
+          emom_session_id: eid == null ? null : typeof eid === 'string' ? eid : null,
         };
       })
     : [];

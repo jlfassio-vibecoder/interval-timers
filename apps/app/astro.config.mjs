@@ -207,6 +207,7 @@ export default defineConfig({
         'es-module-lexer',
         'devalue',
         'amrap',
+        'emom',
         '@interval-timers/amrap-workout-picker'
       ],
       // Dev only: keep React external so Node requires it at runtime (avoids "module is not defined" when CJS is inlined)

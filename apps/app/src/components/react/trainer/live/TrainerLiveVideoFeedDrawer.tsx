@@ -23,7 +23,10 @@ export default function TrainerLiveVideoFeedDrawer({
   const [open, setOpen] = useTrainerLiveDrawerOpen(storageKey, defaultOpen);
 
   return (
-    <div className="flex h-full min-h-0 shrink-0 self-stretch border-l border-white/10 bg-zinc-950/95 backdrop-blur-sm">
+    <div
+      className="flex h-full min-h-0 shrink-0 self-stretch border-l border-white/10 bg-zinc-950/95 backdrop-blur-sm"
+      data-region="trainer-live-video-feed-drawer"
+    >
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}

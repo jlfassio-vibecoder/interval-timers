@@ -52,7 +52,10 @@ export default function TrainerLiveCountdownPanel({ variant }: { variant: 'train
 
   if (variant === 'client') {
     return (
-      <div className="rounded-2xl border border-white/15 bg-white/5 p-4 text-white md:p-6">
+      <div
+        className="rounded-2xl border border-white/15 bg-white/5 p-4 text-white md:p-6"
+        data-region="trainer-live-simple-countdown-interval"
+      >
         <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-orange-light">
           Countdown
         </p>
@@ -66,7 +69,10 @@ export default function TrainerLiveCountdownPanel({ variant }: { variant: 'train
   }
 
   return (
-    <div className="rounded-2xl border border-white/15 bg-white/5 p-4 text-white md:p-6">
+    <div
+      className="rounded-2xl border border-white/15 bg-white/5 p-4 text-white md:p-6"
+      data-region="trainer-live-simple-countdown-interval"
+    >
       <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-orange-light">
         Countdown
       </p>

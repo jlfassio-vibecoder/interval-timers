@@ -17,6 +17,7 @@ export default function TrainerLiveCollapsibleSideRail({
   ariaLabelCollapse,
   ariaLabelExpand,
   'data-testid': dataTestId,
+  'data-region': dataRegion,
 }: {
   children: ReactNode;
   /** When set, persist rail open state per Trainer Live session. */
@@ -26,6 +27,8 @@ export default function TrainerLiveCollapsibleSideRail({
   ariaLabelCollapse: string;
   ariaLabelExpand: string;
   'data-testid'?: string;
+  /** Stable layout id for automation / docs (e.g. `trainer-live-chat-rail`). */
+  'data-region'?: string;
 }) {
   const storageKey = sessionId ? trainerLiveDrawerStorageKey(sessionId, 'chat') : undefined;
   const [open, setOpen] = useTrainerLiveDrawerOpen(storageKey, defaultOpen);
@@ -33,6 +36,7 @@ export default function TrainerLiveCollapsibleSideRail({
   return (
     <div
       className="flex h-full min-h-0 shrink-0 self-stretch border-l border-white/10 bg-zinc-950/95 backdrop-blur-sm"
+      data-region={dataRegion}
       data-testid={dataTestId}
     >
       <button
