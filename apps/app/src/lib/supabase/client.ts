@@ -1,13 +1,5 @@
-import { createClient } from '@supabase/supabase-js';
-
-// Require env explicitly so we never silently point at the wrong project (fail fast).
-const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY;
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error(
-    'PUBLIC_SUPABASE_URL and PUBLIC_SUPABASE_ANON_KEY are required. Copy .env.example to .env and set them (same project as programs for shared admin).'
-  );
-}
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+/**
+ * Browser Supabase client for admin/client modules.
+ * Uses the shared instance so PUBLIC_* and VITE_* env names both work (see astro.config.mjs).
+ */
+export { supabase } from './supabase-instance';

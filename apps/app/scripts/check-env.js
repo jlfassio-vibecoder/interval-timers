@@ -27,9 +27,14 @@ function loadEnvFile(filePath) {
 }
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const root = join(__dirname, '..');
-loadEnvFile(join(root, '.env'));
-loadEnvFile(join(root, '.env.local'));
+const appRoot = join(__dirname, '..');
+const monorepoRoot = join(appRoot, '../..');
+
+// Match astro.config.mjs / vitest.config.ts: monorepo root first, then app-level overrides.
+loadEnvFile(join(monorepoRoot, '.env'));
+loadEnvFile(join(monorepoRoot, '.env.local'));
+loadEnvFile(join(appRoot, '.env'));
+loadEnvFile(join(appRoot, '.env.local'));
 
 // Programs auth uses HIIT Workout Timer Supabase (same as AMRAP). Accept any conventional name.
 const REQUIRED_ENV_VARS = [

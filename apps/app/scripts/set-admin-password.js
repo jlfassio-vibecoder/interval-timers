@@ -39,9 +39,12 @@ function question(rl, prompt) {
 }
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const root = join(__dirname, '..');
-loadEnvFile(join(root, '.env'));
-loadEnvFile(join(root, '.env.local'));
+const appRoot = join(__dirname, '..');
+const monorepoRoot = join(appRoot, '../..');
+loadEnvFile(join(monorepoRoot, '.env'));
+loadEnvFile(join(monorepoRoot, '.env.local'));
+loadEnvFile(join(appRoot, '.env'));
+loadEnvFile(join(appRoot, '.env.local'));
 
 const identifier = process.argv[2];
 const newPassword = process.argv[3];

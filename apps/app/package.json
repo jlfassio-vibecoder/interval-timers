@@ -86,7 +86,7 @@
     "ua-parser-js": "^1.0.41"
   },
   "optionalDependencies": {
-    "@rollup/rollup-linux-x64-gnu": "^4.60.1"
+    "@rollup/rollup-linux-x64-gnu": "^4.62.5"
   },
   "overrides": {
     "fast-xml-parser": ">=5.3.4",
