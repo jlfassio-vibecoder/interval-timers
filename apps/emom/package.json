@@ -7,7 +7,7 @@
     "./EmomTimerPanel": "./src/components/interval-timers/EmomTimerPanel.tsx"
   },
   "engines": {
-    "node": "20.x"
+    "node": "26.x"
   },
   "scripts": {
     "dev": "vite",
